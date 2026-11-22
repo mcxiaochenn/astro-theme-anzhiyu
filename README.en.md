@@ -77,7 +77,7 @@ Working assumptions, not settled decisions:
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| Phase 0 | Repository skeleton, README, license | In progress |
+| Phase 0 | Repository skeleton, README, license | Done |
 | Phase 1 | Base layout, post page, list pages | Not started |
 | Phase 2 | Interactive features (lazy loading, dark mode, context menu, …) | Not started |
 | Phase 3 | Integrations and PWA | Not started |
@@ -85,7 +85,7 @@ Working assumptions, not settled decisions:
 
 ## About upstream
 
-- Upstream repository: [anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu), actively maintained, latest release 1.7.1
+- Upstream repository: [anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu), actively maintained (as of 2026-11, latest release is 1.7.1)
 - Upstream docs: [docs.anheyu.com](https://docs.anheyu.com/)
 - Upstream preview: [hexo.anheyu.com](https://hexo.anheyu.com/)
 

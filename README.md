@@ -77,7 +77,7 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| Phase 0 | 仓库骨架、README、许可证 | 进行中 |
+| Phase 0 | 仓库骨架、README、许可证 | 已完成 |
 | Phase 1 | 基础布局、文章页、列表页 | 未开始 |
 | Phase 2 | 交互特性（懒加载、暗色模式、右键菜单等） | 未开始 |
 | Phase 3 | 第三方集成与 PWA | 未开始 |
@@ -85,7 +85,7 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 ## 关于上游
 
-- 上游仓库：[anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)，仍在维护，最新版本 1.7.1
+- 上游仓库：[anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)，仍在维护（截至 2026-11，最新 release 为 1.7.1）
 - 上游文档：[docs.anheyu.com](https://docs.anheyu.com/)
 - 上游预览：[hexo.anheyu.com](https://hexo.anheyu.com/)
 
