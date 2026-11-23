@@ -89,7 +89,7 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | Phase 0 | 仓库骨架、调研与计划 | 已完成 |
-| Phase 1 | 构建管线与配置层（Stylus 兼容插件、配置 schema） | 未开始 |
+| Phase 1 | 构建管线与配置层（Stylus 兼容插件、配置 schema） | 进行中 |
 | Phase 2 | 布局与核心页面（首页、文章、归档、404） | 未开始 |
 | Phase 3 | widget 与 12 个页面模板 | 未开始 |
 | Phase 4 | 交互层（ClientRouter、暗色模式、右键菜单、音乐） | 未开始 |
@@ -98,6 +98,8 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 | Phase 7 | PWA、性能、迁移指南 | 未开始 |
 
 每个阶段的验收标准写在 [迁移计划](docs/03-migration-plan.md) 里，靠 HTML diff、截图对比和特性清单验收，不靠自我评价。
+
+Phase 1 进展：Stylus 管线的两个未知项已实测通过——glob `@import` 可用，`hexo-config()` 通过 [`vite-plugin-stylus-hexo-config`](packages/vite-plugin-stylus-hexo-config/) 静态处理。上游真实的 `var.styl`（63 处 `hexo-config`）配上游 `_config.yml` 已能在 Astro 里编译出正确 CSS，验证站见 [examples/blog](examples/blog)。配置 schema 与主题包尚未开始。
 
 ## 关于上游
 

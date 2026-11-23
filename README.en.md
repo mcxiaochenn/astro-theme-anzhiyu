@@ -89,7 +89,7 @@ Full rationale and trade-offs: [Technical mapping](docs/02-astro-mapping.md).
 | Phase | Scope | Status |
 | --- | --- | --- |
 | Phase 0 | Repository skeleton, research and plan | Done |
-| Phase 1 | Build pipeline and config layer (Stylus compat plugin, config schema) | Not started |
+| Phase 1 | Build pipeline and config layer (Stylus compat plugin, config schema) | In progress |
 | Phase 2 | Layout and core pages (home, post, archive, 404) | Not started |
 | Phase 3 | Widgets and 12 page templates | Not started |
 | Phase 4 | Interactivity (ClientRouter, dark mode, context menu, music) | Not started |
@@ -98,6 +98,8 @@ Full rationale and trade-offs: [Technical mapping](docs/02-astro-mapping.md).
 | Phase 7 | PWA, performance, migration guide | Not started |
 
 Acceptance criteria for each phase live in the [migration plan](docs/03-migration-plan.md), verified by HTML diff, screenshot comparison and a feature checklist — not self-assessment.
+
+Phase 1 progress: both Stylus unknowns are settled — glob `@import` works, and `hexo-config()` is handled statically by [`vite-plugin-stylus-hexo-config`](packages/vite-plugin-stylus-hexo-config/). Upstream's real `var.styl` (63 `hexo-config` calls) compiles against upstream's `_config.yml` inside Astro; see [examples/blog](examples/blog). Config schema and the theme package are not started.
 
 ## About upstream
 

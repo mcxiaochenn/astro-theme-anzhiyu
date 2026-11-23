@@ -1,0 +1,36 @@
+// 消费上游 var.styl 的变量，验证 63 处 hexo-config() 都能正确求值
+@import 'var'
+
+:root
+  --anzhiyu-main: $theme-color
+  --anzhiyu-dark: $theme-dark-color
+  --global-font-size: $font-size
+
+.hero
+  min-height: $index_top_img_height
+  color: $font-color
+  background: $card-bg
+  border-color: $theme-hr-color
+  font-family: $font-family
+  font-size: $font-size
+
+.code-block
+  font-family: $code-font-family
+  font-size: $code-font-size
+  color: $code-foreground
+  background: $code-background
+
+// 布尔配置驱动的条件分支
+if $beautifyEnable
+  .beautify-on
+    display: block
+else
+  .beautify-off
+    display: block
+
+if $hrEnable
+  .hr-on
+    display: block
+else
+  .hr-off
+    display: block

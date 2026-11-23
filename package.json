@@ -1,0 +1,14 @@
+{
+  "name": "astro-theme-anzhiyu-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter blog dev",
+    "build": "pnpm --filter blog build",
+    "preview": "pnpm --filter blog preview"
+  }
+}

@@ -225,18 +225,107 @@ Astro 的 content collections 用 zod 校验，缺字段会构建失败——这
 
 ## 5. 待验证清单
 
-这些是写代码前必须先用最小样例跑通的问题，任何一条失败都会改变方案：
+这些是写代码前必须先用最小样例跑通的问题。**1、2 已于 2026-11-23 验证通过**，结论见下节。
 
-| # | 待验证 | 失败时的退路 |
+| # | 待验证 | 状态 |
 | --- | --- | --- |
-| 1 | Vite 8 + Astro 7 下 Stylus 的 glob `@import '_global/*'` 是否工作 | 展开成显式 import 列表 |
-| 2 | `define()` 注入的 `hexo-config()` 能否在 `if` 条件和 `convert()` / `alpha()` 里正常求值 | 编译前用脚本预处理 styl，把 `hexo-config()` 静态替换成字面值 |
-| 3 | ClientRouter 整 body 替换后，`#web_bg` 等全局元素的样式是否保留 | 把全局背景挂到 `documentElement` 或独立持久层 |
-| 4 | ClientRouter 下 `script[data-pjax]` 重执行机制能否等价 | 改成基于 `astro:after-swap` 的统一初始化器 |
-| 5 | unified 处理器的 remark 插件能否输出带 class 的 HTML 并被现有 Stylus 命中 | 调整插件输出，对齐上游 tag 生成的 class 名 |
-| 6 | Astro 7 的 Rust 编译器对 pug 转出来的 HTML 是否报错（未闭合标签不再容忍） | 转 HTML 时统一补闭合标签 |
-| 7 | `@vite-pwa/astro` 能否表达 `sw-rules.js` 的 CDN 备用 URL 逻辑 | 手写 service worker |
-| 8 | 音乐播放器在 ClientRouter 整 body 替换下能否不中断 | 播放器独立成 `persist` 层 |
+| 1 | Vite 8 + Astro 7 下 Stylus 的 glob `@import '_global/*'` 是否工作 | ✅ 通过 |
+| 2 | `hexo-config()` 能否在 `if` 条件、`convert()`、`alpha()` 里正常求值 | ✅ 通过（方案已换） |
+| 3 | ClientRouter 整 body 替换后，`#web_bg` 等全局元素的样式是否保留 | 待验证 |
+| 4 | ClientRouter 下 `script[data-pjax]` 重执行机制能否等价 | 待验证 |
+| 5 | 生成的 HTML 能否命中现有 Stylus 的 class | 待验证 |
+| 6 | Astro 7 的 Rust 编译器对 pug 转出的 HTML 是否报错 | 待验证 |
+| 7 | `@vite-pwa/astro` 能否表达 `sw-rules.js` 的 CDN 备用 URL 逻辑 | 待验证 |
+| 8 | 音乐播放器在 ClientRouter 整 body 替换下能否不中断 | 待验证 |
+
+## 6. Phase 1 实测记录（2026-11-23）
+
+验证环境：astro 7.4.13 + vite 8.3.8 + stylus 0.64.0 + Node 24.22.0 + Windows 11。
+
+验证素材：上游 `main` 分支的 `_config.yml`（41845 B）与 `source/css/var.styl`（9472 B，63 处 `hexo-config`），不做任何改写。
+
+### 6.1 结论一：Stylus 的 glob import 可用
+
+`@import 'partials/*'` 在 Vite 8 的 Stylus 管线里按 Stylus 自己的语义工作，多个 partial 都被编译进产物。
+
+但有个前提：**被 `@import` 的文件不经过 Vite 的 transform 钩子**。Stylus 编译器直接读盘，Vite 根本看不到那些文件。这一点后面变成了关键约束。
+
+### 6.2 结论二：`define` 注入 JS 函数走不通
+
+原本计划写个 Vite 插件，用 `stylus.define('hexo-config', fn)` 注入函数。Vite 源码里确实有这条路径：
+
+```js
+const ref = stylus(content, { paths: ["node_modules"], ...options })
+if (options.define) for (const key in options.define) ref.define(key, options.define[key])
+```
+
+而且它有个 `shouldUseFake` 判断，理论上检测到函数就切到主线程执行。但实测两条路都失败：
+
+- `vite.css.preprocessorOptions.stylus.define` → 函数在到达编译器前丢失
+- 插件 `config` 钩子里注入同样的对象 → 插件内打印 `typeof` 是 `function`，但 Stylus 编译时函数不存在
+
+现象是编译报 `TypeError: expected string, ident or literal, but got call:hexo-config(...)`，说明 `hexo-config` 被当成未知的 CSS 函数，参数没被求值。函数里的 `console.log` 一次都没触发。
+
+结论：**Vite 8 的样式预处理在隔离环境里跑，函数跨不过去**。这条路放弃。
+
+### 6.3 结论三：纯文本替换会在三元运算符上翻车
+
+改走 transform 阶段的文本替换：把 `hexo-config('x')` 直接换成字面量。单文件测试全部通过，但换成上游真实 `var.styl` 后报：
+
+```
+$fireworks-zIndex = "100px" ? convert("100px") : 40px
+expected "indent", got "?"
+```
+
+原因：字符串字面量后面紧跟 `?`，Stylus 解析器不认。上游能工作是因为原形态是函数调用。
+
+### 6.4 结论四：`@import` 必须自己展开
+
+文本替换只对经过 transform 的入口文件生效。上游 `index.styl` 里只有 9 行 `@import`，真正的 63 处 `hexo-config` 全在 `var.styl` 等被导入文件里。
+
+所以插件必须自己实现 import 展开：读 `@import` 的目标，递归内联，`.css` 的 import 保持原样（交给 Stylus 输出成 CSS 的 `@import`）。glob 只支持 `dir/*` 与 `dir/**/*` 两种，够上游用。
+
+### 6.5 最终方案：变量注入 + 调用点替换
+
+把 `hexo-config('x.y')` 替换成 `($cfg_x_y)`，并在文件顶部生成 `$cfg_x_y = <值>`。
+
+三个细节都是踩出来的：
+
+1. **必须加括号**。上游有 `hexo-config('note.light_bg_offset') is a 'unit' ? ...` 这种行首表达式，替换成裸变量后 Stylus 把行首标识符当属性名，报 `expected "indent", got "is a"`。
+2. **变量形态能过三元**。`($cfg_x) ? ($cfg_x) : 40px` 与上游函数调用形态一致，解析正常。
+3. **字符串引号要按内容选**。Stylus 不支持字符串内的引号转义，`"a\"b"` 和 `'a\'b'` 都会解析乱。规则：含双引号用单引号包裹，含单引号用双引号包裹，都没有用双引号。
+
+### 6.6 验证结果
+
+上游 `var.styl` + `_config.yml` 在 Astro 里编译出的产物：
+
+```css
+:root{--anzhiyu-main:#425aef;--anzhiyu-dark:#f2b94b;--global-font-size:16px}
+.hero{color:#1f2d3d;background:#fff;border-color:#425aef;min-height:100vh;
+      font-family:-apple-system,BlinkMacSystemFont,Segoe UI,...,sans-serif;font-size:16px}
+.code-block{font-family:consolas,Menlo,PingFang SC,...,sans-serif;
+            font-size:var(--global-font-size);color:#f47466;background:#1b1f230d}
+.beautify-on,.hr-off{display:block}
+```
+
+逐项核对：
+
+| 检查点 | 结果 |
+| --- | --- |
+| 颜色值无引号 | ✅ `#425aef` |
+| `convert()` 生效 | ✅ `16px`、`100vh` |
+| `unquote()` 生效 | ✅ font-family 无引号 |
+| `alpha()` 生效 | ✅ `#1b1f230d` |
+| 布尔条件分支 | ✅ `beautify-on` / `hr-off` 按配置出现 |
+| 缺失键回退 | ✅ 5 个可选键警告后按 null 处理 |
+| glob import | ✅ 引用的两个文件都被展开 |
+
+有 5 个键在上游默认配置里不存在（`theme_color`、`hr_icon`、`theme_color.blockquote_padding_color`、`theme_color.blockquote_background_color`、`theme_color.button_hover`），它们是上游 `_config.yml` 里被注释掉的可选项。插件按 null 处理并告警，行为正确。
+
+### 6.7 顺带踩到的环境问题
+
+- **pnpm 默认 symlink 布局在 Windows 上会坏**。`pnpm add` 报 `ERR_PNPM_SYMLINK_FAILED Maximum call stack size exceeded` 之后，生成的 junction Node 解析不了（`fs.realpathSync` 不展开），stylus 内部 `require('glob')` 报 `MODULE_NOT_FOUND`。仓库根加了 `.npmrc` 设 `node-linker=hoisted` 解决。
+- 本机 pnpm 走 `registry.npmmirror.com`，装老包（`glob@7`、`path-is-absolute`）时出现过 `ECONNRESET` 导致依赖树损坏。切 `https://registry.npmjs.org` 正常。
 
 ## 6. 不做什么
 
