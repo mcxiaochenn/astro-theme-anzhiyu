@@ -18,8 +18,8 @@
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `1d560d7` test: Phase 1.5 垂直切片，五项 ClientRouter 假设全部实测通过 |
-| 提交数 | 14 |
+| 提交 | `996e21b` feat: 复刻 Hexo define 层使 CSS 收敛至 -228B；schema 顶层 strict；文档回填与勘误 |
+| 提交数 | 16 |
 | 工作区 | 干净，与 `origin/main` 同步 |
 | CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
 | 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
@@ -38,11 +38,13 @@
 | P1-10 CI | ◐ 流水线 + `verify-css.mjs` 已跑通本地行为矩阵；GitHub 首次运行暴露并修复了 lightningcss 构建错误 |
 | P1-8 配置加载层 | ✅ loader + 30/30 用例通过；错误信息含完整键路径；CSS 变量比对 69/69 命中 |
 | Phase 1.5 垂直切片 | ✅ 五项假设全过（详见 §Phase 1.5），Phase 4 原方案成立 |
-| 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，附带 28 项机械守卫脚本 |
+| 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
+| P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
+| P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
 
 ### 1.3 Phase 1 的真实边界
 
-**Phase 1 完成度：约 67%（5 / 7.5 人日）。** 剩余两项：P1-9 第三条验收的口径要改（见决策 D-P1-9）、P1-10 CI 还差把两个新校验脚本接进流水线。
+**Phase 1 完成度：约 87%（6.5 / 7.5 人日）。** 只剩 P1-9 的构建链路接线（loader 尚未被 `examples/blog` 的构建调用，属 Phase 2 的 P2-1 范围）与 P1-10 的 CI 绿灯确认。
 
 **Phase 1.5：5 / 5 假设通过，已退出。** 详见下方 Phase 1.5 小节。
 
@@ -69,7 +71,8 @@
 | D6 | 插件对 `@import` 做了全局去重 | Stylus 原生 include 语义是重复展开，去重后产物可能不同 | ✅ 已解决：改成按 Stylus 的 `@require`/`@import` 语义分别处理，产物与基准 +0.52% |
 | D7 | 上游自身有非法 CSS：`source/css/_mode/readmode.styl:120` 写成 `var(-highlight-bg)`（104 行是正确的 `--highlight-bg`） | 浏览器静默丢弃该声明；lightningcss 严格解析直接构建失败。修上游会改变视觉，不修则必须关压缩 | 已决策：不改上游，`examples/blog/astro.config.mjs` 关 `cssMinify`，Phase 7 处理压缩时再议 |
 | D8 | 量级纠正：上游 `_config.yml` 不是「约 200 键」，而是 **133 个顶层键 / 662 个递归 mapping key** | P1-7 的工作量估算需上调；schema 还有约 351 个嵌套键是 passthrough | 以 P1-7 报告实测为准，本文件相关表述已改 |
-| D9 | ~~未定位：prismjs 守卫导致 +3.5 KB~~ | **已定位并闭合**：上游用 Hexo filter 的 `.define()` 注入 4 个 Stylus 变量（`$highlight_enable` / `$highlight_line_number` / `$prismjs_enable` / `$prismjs_line_number`），我们的插件没复刻这一层；而 **Stylus 未定义变量在 `if` 里当「真」**（此前 P1-5 报告写成「假」，已勘误）。补 `$prismjs_enable=false` 后 CSS 从 686772 → 682990（−3782），与基线 683218 仅差 −228（U6 的 `@css{}` 换行排版差） | 已在 `docs/upstream-delta.md` 登记为 U3；复刻 define 层列为 P1-11，Phase 2 前完成 |
+| D9 | ~~未定位：prismjs 守卫导致 +3.5 KB~~ | **已定位并修复**：上游用 Hexo filter 的 `.define()` 注入 4 个 Stylus 变量，我们插件没复刻；且 **Stylus 未定义变量在 `if` 里当「真」**（P1-5 报告已勘误）。P1-11 复刻后 CSS 686772 → 682990，对基线仅 −228（U6） | ✅ 关闭 |
+| D10 | [02 §ADR-003](02-astro-mapping.md) 的风险段仍写「`#web_bg` 会被重建、音乐可能需要独立持久层」 | Phase 1.5 实测已推翻：同节点、音频不中断 | ADR 冻结不改，以 §6.8 实测记录为准 |
 
 ---
 
@@ -200,7 +203,7 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | 阶段 | 内容 | 状态 | 估时 | 已完成 |
 | --- | --- | --- | --- | --- |
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
-| Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 4.5 |
+| Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 6.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
 | Phase 2 | 布局与核心页面 | ⬜ | 9.5 | 0 |
 | Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
@@ -208,7 +211,7 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
 | Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 7.3 |
+| **合计** | | | **≈62** | 8.8 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -238,9 +241,9 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | P1-6 | 基准固化 + 内容 fixture | `docs/baseline.json`（CSS 683218 B / 48 页）、`fixtures/` 10 篇覆盖 42 tag | 上游 `hexo g` 跑通，4 次构建逐字节可复现 | 0.5 | ✅ |
 | P1-7 | 配置 schema | `packages/astro-theme-anzhiyu/src/config/schema.ts`（133 顶层，31 区块精确类型） | 上游 `_config.yml` 校验零错误、unknown key 0 | 1.5 | ◐ |
 | P1-8 | 配置加载层 | `loader.ts`：YAML → 深合并默认值 → 校验 → 类型导出 | ✅ 30/30 用例通过；类型错误报完整键路径（`highlight_copy（期望 boolean）`） | 1 | ✅ |
-| P1-11 | **复刻 Hexo define 层**（D9 修复） | 插件按上游 `scripts/events/stylus.js` 逻辑注入 4 个 Stylus 变量 | CSS 由 686772 → 682990，prismjs 规则消失；verify 仍 PASS | 0.5 | ⬜ |
-| P1-12 | schema 收紧与 strict 顶层 | 61 个 passthrough 区块按需展开；顶层键拼错必须报错 | 未知顶层键 → 报错并给出键名；上游配置仍零错误 | 1 | ⬜ |
-| P1-9 | Phase 1 验收 | 三条验收全绿（口径见决策 D-P1-9） | 见下 | 0.5 | ◐ |
+| P1-11 | **复刻 Hexo define 层**（D9 修复） | 插件按上游 `scripts/events/stylus.js` 逻辑注入 4 个 Stylus 变量 | ✅ CSS 686772 → 682990，prismjs 规则族清零；verify PASS +0.13% | 0.5 | ✅ |
+| P1-12 | schema 收紧与 strict 顶层 | 顶层 `.strict()`；17 区块 +143 键展开 | ✅ 未知顶层键报错并列出键名；42/42 自检通过 | 1 | ✅ |
+| P1-9 | Phase 1 验收 | 三条验收全绿（口径见决策 D-P1-9） | 前两条已过；第三条在 loader 层已满足，构建链路待 P2-1 接入 loader | 0.5 | ◐ |
 | P1-10 | CI 基础流水线 | `.github/workflows/ci.yml` + 4 个校验脚本 | PR 上 install + build + verify + 差异守卫 | 0.5 | ◐ |
 
 #### P1-5 ✅ 已完成（原「最高风险项」，现已关闭）
@@ -310,7 +313,7 @@ Phase 1 三条验收（来自 03），当前状态：
 | P1.5-3 | `script[data-pjax]` 重执行等价 | 验证 8 项 #4 | 导航后新页的 data-pjax 脚本执行，旧页的不重复执行 | 0.3 |
 | P1.5-4 | 音乐播放器持久化实验 | 验证 8 项 #8 | 播放中导航，音频不中断（`transition:persist` 或独立持久层） | 0.3 |
 | P1.5-5 | pug 风格 HTML 与样式命中 | 验证 8 项 #5、#6 | Astro 7 编译不报未闭合标签；生成的 class 能命中上游 Stylus | 0.3 |
-| P1.5-6 | 结论落盘 + 方案校准 | `docs/02-astro-mapping.md` 新增一节实测记录 | 4 项状态从「待验证」变「通过/改方案」 | 0.3 |
+| P1.5-6 | 结论落盘 + 方案校准 | `docs/02-astro-mapping.md` 新增 §6.8 实测记录 | 5 项状态从「待验证」变「通过」 | 0.3 | ✅ |
 
 **关键技术点**（提前定方向，减少试错）：
 
@@ -351,6 +354,7 @@ Phase 1 三条验收（来自 03），当前状态：
 | ID | 任务 | 产出 | 验收 | 估时 |
 | --- | --- | --- | --- | --- |
 | P2-1 | 内容集合与 frontmatter schema | `src/content.config.ts` + unified 处理器配置（ADR-001） | fixture 的 10 篇文章全部通过校验；脚注、GFM 正常渲染 | 0.5 |
+| P2-13 | HTML diff 工具 | `scripts/diff-html.mjs`：归一化后比对两棵 DOM | 同一份 HTML diff 为空；属性顺序/空白/哈希差异被忽略 | 0.5 |
 | P2-2 | `BaseLayout.astro` | 对应 `layout.pug` 91 行：`#web_bg`、`#body-wrap`、`#content-inner` 等全部 ID | 渲染出的 DOM 里 ID 与上游一致 | 1 |
 | P2-3 | Head 组件 | 对应 `head.pug` + OG + preconnect + site_verification | `view-source` 里 OG/canonical/favicon 齐全 | 0.5 |
 | P2-4 | Header / Footer | 对应 `header/index.pug`、`footer.pug` | 视觉 diff 通过 | 1 |
@@ -623,15 +627,19 @@ jobs:
 
 ---
 
-## 8. 下一步（按性价比排序）
+## 8. 下一步（Phase 2 开工）
 
-**第一步：P1-11 复刻 Hexo define 层**（0.5 人日）—— D9 已定位，补 4 个 Stylus 变量注入，CSS 从 686772 → 682990，prismjs 规则消失。这是目前唯一「已知根因、只差动手」的精度问题。
+Phase 1 收尾的四步（P1-8 / P1.5 / P1-11 / P1-12）已全部完成，剩余两项（P1-9 第三条、P1-10 绿灯）随 Phase 2 一并收口。
 
-**第二步：P1-12 schema 收紧**（1 人日）—— 顶层 `.strict()`，拼错的键必须报错；61 个 passthrough 区块按实际使用顺序展开（不用一次全展开）。
+**进入 Phase 2 的三条并行线**（写范围互不重叠）：
 
-**第三步：CI 接上两个新守卫 + 跑绿**（0.2 人日）—— `pnpm compare-vars`、`pnpm check:upstream-delta` 进流水线，确认 GitHub 上这次真绿。
+1. **P2-13 HTML diff 工具**（0.5 人日）——先把度量做出来。Phase 2 的第一个验收动作不是「写完组件」，而是「首页 HTML 与 baseline 的 diff 能跑」。没有它，页面写完也说不清对不对。
+2. **P2-1 内容集合**（0.5 人日）——`content.config.ts` + unified 处理器（ADR-001）+ 让 `fixtures/` 的 10 篇直接成为内容源（单一数据源，不复制）。
+3. **P2-6/P2-11 helper 与 i18n**（1.5 人日）——12 个 Hexo helper 的 TS 实现 + 4 个语言字典，放主题包内，与上面两路不冲突。
 
-三步之后进入 **Phase 2 骨架**。开工前先做 P2-1（内容集合 + unified 处理器，ADR-001）与 P2-2（BaseLayout），因为它们是后面所有页面的前提。Phase 2 的第一个验收动作不是「写完组件」，而是「首页 HTML 与 baseline 的 diff 跑起来」——没有 diff 工具，写完也说不清对不对。
+三条线完成后做 **P2-2 BaseLayout → P2-3 Head → P2-4 Header/Footer**，那时首页能出真实 HTML，diff 工具立刻能用上。
+
+**一个纪律**：Phase 2 起每个页面任务都必须附带「与 baseline 的 diff 结果」，没有 diff 结果的页面算未完成。
 
 ---
 
