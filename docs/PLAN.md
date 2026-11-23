@@ -18,9 +18,10 @@
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `996e21b` feat: 复刻 Hexo define 层使 CSS 收敛至 -228B；schema 顶层 strict；文档回填与勘误 |
-| 提交数 | 16 |
+| 提交 | `724d571` ci: 上游基线 HTML 归档进仓库并在 CI 自动跑结构 diff |
+| 提交数 | 23 |
 | 工作区 | 干净，与 `origin/main` 同步 |
+| CI | 12 步：install / build / CSS 基准 / CSS 变量 / 上游差异守卫 / 解压基线 / HTML 结构 diff（只出报告）/ artifact |
 | CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
 | 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
 
@@ -38,6 +39,12 @@
 | P1-10 CI | ◐ 流水线 + `verify-css.mjs` 已跑通本地行为矩阵；GitHub 首次运行暴露并修复了 lightningcss 构建错误 |
 | P1-8 配置加载层 | ✅ loader + 30/30 用例通过；错误信息含完整键路径；CSS 变量比对 69/69 命中 |
 | Phase 1.5 垂直切片 | ✅ 五项假设全过（详见 §Phase 1.5），Phase 4 原方案成立 |
+| P2-13 HTML diff 工具 | ✅ 14 条归一化规则、48 页可全量比对；当前基线 vs 产物：缺 857 / 多 60 节点 |
+| P2-1 内容集合 | ✅ 10 篇直接读 `fixtures/`（零复制）、frontmatter 19/19 字段覆盖、unified 处理器生效 |
+| P2-2/P2-3 骨架与 Head | ✅ BaseLayout 26 个挂载点 ID 全命中；Head 32 条 meta/link；首页由真实内容渲染 |
+| P2-6/P2-11 helper 与 i18n | ✅ 12 个 helper 以上游 JS 为 oracle 对拍 269 项全过；4 语言字典 83 项通过 |
+| P2-14 基线归档进 CI | ✅ 48 页基线 HTML 压到 477 KB 进仓库（manifest 逐文件校验），CI 自动解压 + 跑 diff 出报告 |
+| P2-15 Markdown/日期对齐 | ✅ smartypants 关闭（`-->` 不再被改写）；Hexo 语义日期格式化 59 条对拍全过 |
 | 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
 | P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
 | P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
@@ -135,12 +142,24 @@ GPL-3.0，与上游一致。这是衍生作品的必要条件。所有从上游�
 
 **第一层：HTML 结构 diff**
 
+基线 HTML 以归档形式进仓库（`tests/baseline-html/baseline-html.tar.gz`，477 KB，48 页，manifest 逐文件校验），所以 CI 与任何一台机器都能跑：
+
 ```bash
-# 归一化后比对：忽略属性顺序、空白、资源哈希、注释
-node scripts/diff-html.mjs <baseline>/<page>.html <dist>/<page>/index.html
+node scripts/extract-baseline-html.mjs          # 解压到 .baseline-html/，校验整包与逐文件 SHA256
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs <baselineHtml> <distHtml> [--json]
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all      # 48 页全量
 ```
 
-通过标准：差异只允许出现在资源路径哈希与注释。
+**归一化已覆盖**：属性顺序、空白折叠、注释、资源哈希段、自闭合写法、布尔属性、`data-astro-*`、HTML 实体、class 集合、站内 origin、Astro 机制元素、`<pre>` 首行换行、CRLF、大小写。
+
+**通过标准（三条，缺一条会误判）**：
+1. 单页 PASS = `diffCount === 0` **且** `truncated === false`
+2. 进度看 `missingNodes + unexpectedNodes` 单调下降，不能只看差异条数（骨架对上后差异会从「整块折叠」变成「逐容器报缺口」，条数反而可能上涨）
+3. Phase 2 期间允许 FAIL，但差异必须归类：目前登记两类豁免——**资源路径策略**（见 [resource-path-policy](resource-path-policy.md)）与 **Astro 机制元素**（已自动忽略并计数）。标签层级、id、class、文本、meta 全集是上游 CSS/JS 的硬契约，必须真修。
+
+**当前基线数据**（2026-11-23）：48 页 PASS 0 / FAIL 48，差异 150 条，缺口 缺 857 / 多 60 节点。剩余缺口归属：nav/footer 197+、home_top 91+、PostCard、sidebar/rightside 约 20、aside 3 卡、资源与脚本。
+
+**Phase 2 结束时要做的**：把 CI 里 diff 步骤的 `|| true` 去掉，变成硬门禁（步骤见 `docs/notes/P-baseline-html-ci.md` §7），并给 artifact upload 加 `if: always()`。
 
 **第二层：视觉回归**
 
@@ -205,13 +224,13 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
 | Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 6.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
-| Phase 2 | 布局与核心页面 | ⬜ | 9.5 | 0 |
+| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 3.5 |
 | Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
 | Phase 4 | 交互层与路由 | ⬜ | 13 | 0 |
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
 | Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 8.8 |
+| **合计** | | | **≈62** | 12.3 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -353,8 +372,10 @@ Phase 1 三条验收（来自 03），当前状态：
 
 | ID | 任务 | 产出 | 验收 | 估时 |
 | --- | --- | --- | --- | --- |
-| P2-1 | 内容集合与 frontmatter schema | `src/content.config.ts` + unified 处理器配置（ADR-001） | fixture 的 10 篇文章全部通过校验；脚注、GFM 正常渲染 | 0.5 |
-| P2-13 | HTML diff 工具 | `scripts/diff-html.mjs`：归一化后比对两棵 DOM | 同一份 HTML diff 为空；属性顺序/空白/哈希差异被忽略 | 0.5 |
+| P2-1 | 内容集合与 frontmatter schema | `src/content.config.ts` + unified 处理器配置（ADR-001） | fixture 的 10 篇文章全部通过校验；脚注、GFM 正常渲染 | 0.5 | ✅ |
+| P2-13 | HTML diff 工具 | `scripts/diff-html.mjs`：归一化后比对两棵 DOM | 同一份 HTML diff 为空；属性顺序/空白/哈希差异被忽略 | 0.5 | ✅ |
+| P2-14 | 基线归档 + CI 接线 | `tests/baseline-html/`（477 KB）+ `scripts/extract-baseline-html.mjs` | CI 自动解压并跑 diff；归档与 baseline.json 48 页 1:1 | 0.5 | ✅ |
+| P2-15 | Markdown/日期对齐 | `smartypants: false`；`src/utils/date.ts` | `-->` 原样保留；59 条日期对拍（含跨天）通过 | 1 | ✅ |
 | P2-2 | `BaseLayout.astro` | 对应 `layout.pug` 91 行：`#web_bg`、`#body-wrap`、`#content-inner` 等全部 ID | 渲染出的 DOM 里 ID 与上游一致 | 1 |
 | P2-3 | Head 组件 | 对应 `head.pug` + OG + preconnect + site_verification | `view-source` 里 OG/canonical/favicon 齐全 | 0.5 |
 | P2-4 | Header / Footer | 对应 `header/index.pug`、`footer.pug` | 视觉 diff 通过 | 1 |
@@ -374,6 +395,16 @@ Phase 1 三条验收（来自 03），当前状态：
 - [ ] `view-source` 的 head 完整
 
 **风险**：P2-8 文章页依赖的 `post-ui.pug` 体系较大，如果 diff 过不去，先按「区块逐个勾选」推进，不阻塞其他页面。
+
+#### Phase 2 已确认的三类渲染差异（marked → remark，会稳定出现在 diff 里）
+
+这三条不是噪音，是必须逐条决策的真实差异：
+
+| # | 差异 | 上游行为 | 我们当前行为 | 决策 |
+| --- | --- | --- | --- | --- |
+| M1 | 代码块 | `figure.highlight` + hljs 类名体系（302KB 样式里 `_highlight/*` 全部按它写） | Shiki 默认输出 `<pre class="astro-code">` | **必须对齐**：Phase 2 文章页任务里配置 Shiki 或后处理成上游 DOM；否则 42 个 tag 的 `_tags/*.styl` 与代码高亮样式全不命中 |
+| M2 | 脚注 | marked 7.0.1 不渲染，原样输出 `[^note1]` | remark-gfm 渲染出 `data-footnotes` 区块 | 保留我们的（附录 A #2 是特性），diff 白名单登记 |
+| M3 | 标题 id slug | `不能被「优化」的部分`（保留中文引号） | `不能被优化的部分`（github-slugger 去掉标点） | **必须对齐**：写一个 Hexo/marked 兼容的 slugger，否则 TOC 锚点与上游不一致 |
 
 ---
 
@@ -627,19 +658,17 @@ jobs:
 
 ---
 
-## 8. 下一步（Phase 2 开工）
+## 8. 下一步（Phase 2 页面骨架，三路并行）
 
-Phase 1 收尾的四步（P1-8 / P1.5 / P1-11 / P1-12）已全部完成，剩余两项（P1-9 第三条、P1-10 绿灯）随 Phase 2 一并收口。
+Phase 2 的地基已就位：组件骨架、内容集合、helper/i18n、diff 度量、日期与 Markdown 对齐全部完成。现在往已就位的容器里填内容。
 
-**进入 Phase 2 的三条并行线**（写范围互不重叠）：
+1. **P2-4/P2-5 布局组件**（2 人日）—— Header / Footer / Sidebar / Rightside / nav，对应上游 `header/index.pug`、`footer.pug`、`sidebar.pug`、`rightside.pug`。预计吃掉当前 857 节点缺口里约 500 的份额。
+2. **P2-7 首页与分页 + PostCard**（1.5 人日）—— `index.astro` 改造 + `[...page].astro` + PostCard 组件，同时把 M1（代码块）在卡片摘要里先处理。
+3. **P2-9/P2-10 归档·分类·标签 + 404**（1.5 人日）—— 三个路由 + 分页 + 404，目标是 48 个基线页面里能对上的页数从 0 涨到约 20。
 
-1. **P2-13 HTML diff 工具**（0.5 人日）——先把度量做出来。Phase 2 的第一个验收动作不是「写完组件」，而是「首页 HTML 与 baseline 的 diff 能跑」。没有它，页面写完也说不清对不对。
-2. **P2-1 内容集合**（0.5 人日）——`content.config.ts` + unified 处理器（ADR-001）+ 让 `fixtures/` 的 10 篇直接成为内容源（单一数据源，不复制）。
-3. **P2-6/P2-11 helper 与 i18n**（1.5 人日）——12 个 Hexo helper 的 TS 实现 + 4 个语言字典，放主题包内，与上面两路不冲突。
+三路完成后的验收动作：`pnpm baseline:extract && BASELINE_HTML_DIR=.baseline-html pnpm diff:html --all`，看 PASS 页数与缺口节点数两条曲线。
 
-三条线完成后做 **P2-2 BaseLayout → P2-3 Head → P2-4 Header/Footer**，那时首页能出真实 HTML，diff 工具立刻能用上。
-
-**一个纪律**：Phase 2 起每个页面任务都必须附带「与 baseline 的 diff 结果」，没有 diff 结果的页面算未完成。
+**下一批**：P2-8 文章页（最大单页）+ M3 slugger + i18n/date 接线 + 清理 P1.5 遗留（blog 里的旧 BaseLayout/page2/slice-harness）。
 
 ---
 
