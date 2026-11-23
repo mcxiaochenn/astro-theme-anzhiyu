@@ -1,0 +1,157 @@
+---
+/**
+ * SwiperGroup.astro — 上游 `layout/includes/top/top.pug:33-69` 的「swiper 开启」分支。
+ *
+ *   #swiper_container_blog
+ *     #swiper_container.blog-slider.swiper-container-fade.swiper-container-horizontal
+ *       .blog-slider__wrp.swiper-wrapper
+ *         .blog-slider__item.swiper-slide                     × sort_attr_post("swiper_list")
+ *           a.blog-slider__img > img
+ *           .blog-slider__content > span.blog-slider__code + a.blog-slider__title +
+ *                                     .blog-slider__text + a.blog-slider__button
+ *       .blog-slider__pagination.swiper-pagination-clickable.swiper-pagination-bullets
+ *     #topPostGroup
+ *       .top-group-list-item × 4（sort_attr_post("top_group_list").splice(0, 4)）
+ *       .top-group-list-none × 3
+ *
+ * 基准站 `home_top.swiper.enable: false`，本分支不触发；`initBlogSlider()` 脚本属于 P4。
+ * `span.blog-slider__code` 的日期口径：`timemode === 'updated'` 用 updated，否则 date。
+ * `.blog-slider__text` 的上游口径是 `description || strip_html(content).substring(0, length)`。
+ */
+import { getThemeConfig, readNumber, readString } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import { stripHtml } from '../../utils/helpers.ts'
+import { resolveImageLazyload, type PreparedPost } from '../post/post-list.ts'
+
+interface RawEntry {
+  id: string
+  data: Record<string, unknown>
+  rendered?: { html?: string } | null
+}
+
+interface Props {
+  /** `sort_attr_post("swiper_list")` 的结果（swiper 开启时 4 篇）。 */
+  swiperPosts: PreparedPost[]
+  /** `sort_attr_post("top_group_list").splice(0, 4)` 的结果。 */
+  topGroupPosts: PreparedPost[]
+  /** 原始集合条目：取 `description` / `rendered.html` 复刻上游的摘要分支。 */
+  entries: RawEntry[]
+}
+
+const { swiperPosts, topGroupPosts, entries } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+const lazyload = resolveImageLazyload()
+
+/** `timemode === 'updated'` 时轮播日期取 updated（top.pug:44-47）。 */
+const timemode = readString(theme.home_top, 'timemode', 'date')
+/** `theme.index_post_content.length`（默认 500）。 */
+const excerptLength = readNumber(theme.index_post_content, 'length', 500)
+
+const entryById = new Map(entries.map((entry) => [entry.id, entry]))
+
+/**
+ * 上游 `strip_html(item.content).substring(0, length)`，超长补 `' ...'`。
+ * `content` 是 hexo-renderer-marked 产物（标题后无换行），这里先去掉 remark 插入的换行，
+ * 与 post-list.ts `buildExcerpt()` 同口径。
+ */
+function expertOf(post: PreparedPost): string {
+  const entry = entryById.get(post.id)
+  const html = entry?.rendered?.html ?? ''
+  const content = stripHtml(html.replace(/(<\/h[1-6]>)\n/g, '$1'))
+  return content.length > excerptLength ? `${content.substring(0, excerptLength)} ...` : content.substring(0, excerptLength)
+}
+
+function descriptionOf(post: PreparedPost): string {
+  const value = entryById.get(post.id)?.data.description
+  return typeof value === 'string' ? value : ''
+}
+
+/** lazyload 分支的 img 属性（`scripts/filters/post_lazyload.js`）。 */
+function lazyAttrs(src: string) {
+  return lazyload.enabled
+    ? {
+        src: lazyload.placeholder,
+        onerror: `this.onerror=null,this.src="${lazyload.errorPostPage}"`,
+        'data-lazy-src': urlFor(src),
+      }
+    : {
+        src: urlFor(src),
+        onerror: `this.src=${lazyload.errorPostPage}; this.onerror = null;`,
+      }
+}
+---
+
+<div id="swiper_container_blog">
+  <div id="swiper_container" class="blog-slider swiper-container-fade swiper-container-horizontal">
+    <div class="blog-slider__wrp swiper-wrapper" style="transition-duration: 0ms;">
+      {
+        swiperPosts.map((post) => {
+          const date = timemode === 'updated' ? post.updated : post.date
+          const text = descriptionOf(post) || expertOf(post)
+          const imgAttrs = lazyAttrs(typeof post.cover === 'string' ? post.cover : '')
+          return (
+            <div
+              class="blog-slider__item swiper-slide"
+              style="width: 750px; opacity: 1; transform: translate3d(0px, 0px, 0px); transition-duration: 0ms;"
+            >
+              <a class="blog-slider__img" href={post.path} title={post.title}>
+                <img
+                  width="48"
+                  height="48"
+                  src={imgAttrs.src}
+                  alt="图片"
+                  onerror={imgAttrs.onerror}
+                  data-lazy-src={'data-lazy-src' in imgAttrs ? imgAttrs['data-lazy-src'] : undefined}
+                />
+              </a>
+              <div class="blog-slider__content">
+                <span class="blog-slider__code">{date.display}</span>
+                <a class="blog-slider__title" href={post.path} alt={post.title}>
+                  {post.title}
+                </a>
+                <div class="blog-slider__text">{text}</div>
+                <a class="blog-slider__button" href={post.path} alt={post.title}>
+                  详情
+                </a>
+              </div>
+            </div>
+          )
+        })
+      }
+    </div>
+    <div class="blog-slider__pagination swiper-pagination-clickable swiper-pagination-bullets" />
+  </div>
+
+  <div id="topPostGroup">
+    {
+      topGroupPosts.map((post) => {
+        const imgAttrs = lazyAttrs(typeof post.cover === 'string' ? post.cover : '')
+        return (
+          <div class="top-group-list-item">
+            <div class="post_cover left_radius">
+              <a href={post.path} title={post.title}>
+                <span class="top-group-text">荐</span>
+                <img
+                  class="post_bg"
+                  alt={post.title}
+                  src={imgAttrs.src}
+                  onerror={imgAttrs.onerror}
+                  data-lazy-src={'data-lazy-src' in imgAttrs ? imgAttrs['data-lazy-src'] : undefined}
+                />
+              </a>
+            </div>
+            <div class="top-group-info">
+              <a class="article-title" href={post.path} title={post.title}>
+                {post.title}
+              </a>
+            </div>
+          </div>
+        )
+      })
+    }
+    <div class="top-group-list-none" />
+    <div class="top-group-list-none" />
+    <div class="top-group-list-none" />
+  </div>
+</div>

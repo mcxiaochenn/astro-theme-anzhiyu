@@ -1,0 +1,82 @@
+---
+/**
+ * BannerGroup.astro — 上游 `layout/includes/top/top.pug:6-32` 的 `#bannerGroup`。
+ *
+ *   #bannerGroup
+ *     #random-banner
+ *       if theme.peoplecanvas.enable → canvas#peoplecanvas
+ *       else                         → .banners-title ×3 + tags-group-all
+ *       a#random-hover               → 随机文章入口
+ *     .categoryGroup                 → theme.home_top.category 逐项
+ *
+ * 分类图标三支（top.pug:26-32）：
+ *   - `fa*`      → `<i class="{icon}">`（只带图标类，不带 anzhiyufont）
+ *   - `icon*`    → `<svg class="icon"><use xlink:href="#{icon}"></use></svg>`
+ *   - `anzhiyu*` → `<i class="anzhiyufont {icon}">`
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import TagsGroupAll from './TagsGroupAll.astro'
+
+interface Props {
+  /** `theme.peoplecanvas.enable`。 */
+  peoplecanvasEnabled: boolean
+  /** 等价 `site.data.creativity`（tags-group-all.pug 的数据源）。 */
+  creativity?: unknown
+}
+
+const { peoplecanvasEnabled, creativity } = Astro.props
+const theme = getThemeConfig()
+const homeTop = theme.home_top
+const urlFor = createUrlFor('/')
+
+/** Hexo `url_for()` 会做 encodeURL，分类路径里的中文在基线里是 percent-encoded。 */
+const categoryHref = (path: string): string => encodeURI(urlFor(path))
+---
+
+<div id="bannerGroup">
+  <div id="random-banner">
+    {
+      peoplecanvasEnabled ? (
+        <canvas id="peoplecanvas" />
+      ) : (
+        <>
+          <div class="banners-title">
+            <div class="banners-title-big">{homeTop.title}</div>
+            <div class="banners-title-big">{homeTop.subTitle}</div>
+            <div class="banners-title-small">{homeTop.siteText}</div>
+          </div>
+          <TagsGroupAll creativity={creativity} />
+        </>
+      )
+    }
+
+    <a id="random-hover" href="javascript:toRandomPost()">
+      <i class="anzhiyufont anzhiyu-icon-paper-plane" />
+      <div class="bannerText">
+        随便逛逛<i class="anzhiyufont anzhiyu-icon-arrow-right" />
+      </div>
+    </a>
+  </div>
+
+  <div class="categoryGroup">
+    {
+      homeTop.category.map((item) => (
+        <div class="categoryItem" style={`box-shadow:${item.shadow}`}>
+          <a class:list={['categoryButton', item.class]} href={categoryHref(item.path)}>
+            <span class="categoryButtonText">{item.name}</span>
+            {item.icon.startsWith('fa') ? (
+              <i class={item.icon} />
+            ) : item.icon.startsWith('icon') ? (
+              <svg class="icon" aria-hidden="true">
+                <use xlink:href={`#${item.icon}`} />
+              </svg>
+            ) : item.icon.startsWith('anzhiyu') ? (
+              <i class:list={['anzhiyufont', item.icon]} />
+            ) : null}
+          </a>
+        </div>
+      ))
+    }
+  </div>
+</div>

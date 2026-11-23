@@ -1,0 +1,105 @@
+---
+/**
+ * TagsGroupAll.astro — 上游 `layout/includes/anzhiyu/tags-group-all.pug`。
+ *
+ * 只在 `theme.peoplecanvas.enable` 为 false 时由 `#random-banner` 引入
+ * （top.pug:10-15）。数据源是 Hexo 的 `site.data.creativity`：
+ *
+ *   site.data.creativity = [
+ *     { creativity_list: [{ name, icon, color }, ...] },
+ *   ]
+ *
+ * 模板行为（逐行对照 pug）：把每组列表按奇偶下标拆成 evenNum / oddNum，
+ * 再把同一段配对循环**原样输出两遍**（上游用两遍循环凑够滚动所需的宽度）。
+ */
+interface CreativityItem {
+  name: string
+  icon: string
+  color: string
+}
+
+interface CreativityGroup {
+  creativity_list: CreativityItem[]
+}
+
+interface Props {
+  /** 等价 `site.data.creativity`；缺省（无数据文件）时整块不输出。 */
+  creativity?: unknown
+}
+
+const { creativity } = Astro.props
+
+/** `if site.data.creativity`：数组且非空才渲染。 */
+const groups: CreativityGroup[] = Array.isArray(creativity)
+  ? creativity.filter((group): group is CreativityGroup => {
+      if (!group || typeof group !== 'object') return false
+      const list = (group as { creativity_list?: unknown }).creativity_list
+      return Array.isArray(list) && list.length > 0
+    })
+  : []
+---
+
+{
+  groups.length > 0 && (
+    <div id="skills-tags-group-all">
+      <div class="tags-group-wrapper">
+        {groups.map((group) => {
+          const list = group.creativity_list
+          const evenNum = list.filter((_item, index) => index % 2 === 0)
+          const oddNum = list.filter((_item, index) => index % 2 === 1)
+          // `index+1 <= evenNum.length && index+1 <= oddNum.length`
+          const pairCount = Math.min(evenNum.length, oddNum.length)
+          const pairIndexes = Array.from({ length: pairCount }, (_unused, index) => index)
+          return (
+            <>
+              {pairIndexes.map((index) => (
+                <div class="tags-group-icon-pair">
+                  <div class="tags-group-icon" style={`background: ${evenNum[index].color}`}>
+                    <img
+                      class="no-lightbox"
+                      title={evenNum[index].name}
+                      src={evenNum[index].icon}
+                      size="60px"
+                      alt={evenNum[index].name}
+                    />
+                  </div>
+                  <div class="tags-group-icon" style={`background: ${oddNum[index].color}`}>
+                    <img
+                      class="no-lightbox"
+                      title={oddNum[index].name}
+                      src={oddNum[index].icon}
+                      size="60px"
+                      alt={oddNum[index].name}
+                    />
+                  </div>
+                </div>
+              ))}
+              {pairIndexes.map((index) => (
+                <div class="tags-group-icon-pair">
+                  <div class="tags-group-icon" style={`background: ${evenNum[index].color}`}>
+                    <img
+                      class="no-lightbox"
+                      title={evenNum[index].name}
+                      src={evenNum[index].icon}
+                      size="60px"
+                      alt={evenNum[index].name}
+                    />
+                  </div>
+                  <div class="tags-group-icon" style={`background: ${oddNum[index].color}`}>
+                    <img
+                      class="no-lightbox"
+                      title={oddNum[index].name}
+                      src={oddNum[index].icon}
+                      size="60px"
+                      alt={oddNum[index].name}
+                    />
+                  </div>
+                </div>
+              ))}
+            </>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
