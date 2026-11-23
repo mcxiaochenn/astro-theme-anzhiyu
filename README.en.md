@@ -60,28 +60,44 @@ The list below is taken from the upstream README's feature section. **Every item
 
 ### Build and docs
 
-- [ ] PWA (swpp + aggressive caching upstream)
+- [ ] PWA (upstream relies on the external `hexo-swpp` plugin to generate a Service Worker; the theme itself only ships a manifest and icons)
 - [ ] User documentation
 
-## Technical direction
+## Technical choices
 
-Working assumptions, not settled decisions:
+Settled against measured upstream data (120 Pug files, 72 Stylus files, 42 custom tags, about 200 config keys):
 
-- **Templates**: Pug → Astro components (`.astro`)
-- **Styles**: upstream Stylus is large; decide during migration whether to keep Stylus or move to Tailwind CSS / plain CSS
-- **pjax**: Astro's ClientRouter covers most of it, but upstream controls partial refreshes more precisely — needs page-by-page verification
-- **Data**: posts via content collections; configuration keeps a structure similar to `_config.yml`
-- **Integrations** (comments, search, analytics, AI summaries): exposed as configurable components rather than scattered through templates
+- **Framework**: Astro 7.4 + Vite 8, pnpm workspace monorepo
+- **Templates**: Pug → `.astro` components, keeping upstream DOM structure and IDs intact
+- **Styles**: Stylus stays. Porting 302 KB of styles costs far more than adding a `hexo-config()` compatibility plugin
+- **Markdown**: opt back into the Unified processor (not Astro 7's default Sätteri) so remark plugins can handle the 42 Hexo tags
+- **Navigation**: ClientRouter plus a compatibility shim instead of pjax; front-end JS keeps the `anzhiyu` namespace rather than being rewritten
+- **Config**: YAML + zod validation, same key names as upstream so users can copy their old config directly
+
+Full rationale and trade-offs: [Technical mapping](docs/02-astro-mapping.md).
+
+## Documents
+
+| Document | Contents |
+| --- | --- |
+| [Upstream analysis](docs/01-upstream-analysis.md) | Upstream structure, six core mechanisms, coupling ranking |
+| [Technical mapping](docs/02-astro-mapping.md) | Mechanism-by-mechanism mapping, 6 architecture decisions, verification checklist |
+| [Migration plan](docs/03-migration-plan.md) | 7 phases, acceptance criteria, 34–45 day estimate, risk table |
 
 ## Roadmap
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| Phase 0 | Repository skeleton, README, license | Done |
-| Phase 1 | Base layout, post page, list pages | Not started |
-| Phase 2 | Interactive features (lazy loading, dark mode, context menu, …) | Not started |
-| Phase 3 | Integrations and PWA | Not started |
-| Phase 4 | Documentation site and config migration guide | Not started |
+| Phase 0 | Repository skeleton, research and plan | Done |
+| Phase 1 | Build pipeline and config layer (Stylus compat plugin, config schema) | Not started |
+| Phase 2 | Layout and core pages (home, post, archive, 404) | Not started |
+| Phase 3 | Widgets and 12 page templates | Not started |
+| Phase 4 | Interactivity (ClientRouter, dark mode, context menu, music) | Not started |
+| Phase 5 | Integrations (5 comment systems, 3 search backends, 5 analytics) | Not started |
+| Phase 6 | remark plugin for the 42 Hexo tags | Not started |
+| Phase 7 | PWA, performance, migration guide | Not started |
+
+Acceptance criteria for each phase live in the [migration plan](docs/03-migration-plan.md), verified by HTML diff, screenshot comparison and a feature checklist — not self-assessment.
 
 ## About upstream
 

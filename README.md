@@ -60,28 +60,44 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 ### 构建与文档
 
-- [ ] PWA（上游用 swpp + 高速缓存）
+- [ ] PWA（上游靠外部 `hexo-swpp` 插件生成 Service Worker，主题本身只提供 manifest 与图标）
 - [ ] 配套用户文档
 
-## 技术方向
+## 技术选型
 
-以下是初步判断，不是已定方案：
+已基于上游实测数据（120 个 Pug、72 个 Stylus、42 个自定义 tag、约 200 个配置键）确定：
 
-- **模板**：Pug → Astro 组件（.astro 文件）
-- **样式**：上游 Stylus 体量很大，迁移时决定是继续用 Stylus，还是转 Tailwind CSS / 原生 CSS
-- **pjax**：Astro 的 ClientRouter 能覆盖大部分场景，但上游对局部刷新的控制更细，需要逐页验证
-- **数据**：博客文章走 content collections，其余配置沿用类似 `_config.yml` 的结构
-- **第三方集成**（评论、搜索、统计、AI 摘要）：统一做成可配置的组件，而不是散落在模板各处
+- **框架**：Astro 7.4 + Vite 8，pnpm workspace monorepo
+- **模板**：Pug → `.astro` 组件，DOM 结构与 ID 保持上游原样
+- **样式**：继续用 Stylus。迁移 302 KB 样式的成本远高于补一层 `hexo-config()` 兼容插件
+- **Markdown**：显式切回 Unified 处理器（不是 Astro 7 默认的 Sätteri），以便用 remark 插件承接 42 个 Hexo tag
+- **交互**：ClientRouter + 兼容 shim 替代 pjax；前端 JS 保留 `anzhiyu` 命名空间，不重写
+- **配置**：沿用 YAML + zod 校验，键名与上游一致，便于用户直接拷贝旧配置
+
+完整依据与取舍见 [技术映射与架构决策](docs/02-astro-mapping.md)。
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [上游调研](docs/01-upstream-analysis.md) | 上游仓库的结构、六大核心机制、耦合强度排序 |
+| [技术映射](docs/02-astro-mapping.md) | 逐机制对应方案、6 个架构决策、待验证清单 |
+| [迁移计划](docs/03-migration-plan.md) | 7 个阶段、验收标准、34–45 天的量级估算、风险表 |
 
 ## 路线
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| Phase 0 | 仓库骨架、README、许可证 | 已完成 |
-| Phase 1 | 基础布局、文章页、列表页 | 未开始 |
-| Phase 2 | 交互特性（懒加载、暗色模式、右键菜单等） | 未开始 |
-| Phase 3 | 第三方集成与 PWA | 未开始 |
-| Phase 4 | 文档站与配置迁移指南 | 未开始 |
+| Phase 0 | 仓库骨架、调研与计划 | 已完成 |
+| Phase 1 | 构建管线与配置层（Stylus 兼容插件、配置 schema） | 未开始 |
+| Phase 2 | 布局与核心页面（首页、文章、归档、404） | 未开始 |
+| Phase 3 | widget 与 12 个页面模板 | 未开始 |
+| Phase 4 | 交互层（ClientRouter、暗色模式、右键菜单、音乐） | 未开始 |
+| Phase 5 | 第三方集成（评论 × 5、搜索 × 3、分析 × 5） | 未开始 |
+| Phase 6 | 42 个 Hexo tag 的 remark 插件 | 未开始 |
+| Phase 7 | PWA、性能、迁移指南 | 未开始 |
+
+每个阶段的验收标准写在 [迁移计划](docs/03-migration-plan.md) 里，靠 HTML diff、截图对比和特性清单验收，不靠自我评价。
 
 ## 关于上游
 
