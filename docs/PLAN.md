@@ -12,19 +12,18 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 20:30（收尾快照）**
+**快照时间：2026-11-23 22:20（Wave 1 收尾 / Phase 4 进行中）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `bfe5c80` wip: 首页分页与 PostCard 骨架（M1 highlight.js 对齐进行中） |
-| 提交数 | 27 |
-| 工作区 | `examples/blog/package.json` + `pnpm-lock.yaml` 未提交（agent-24 的 highlight.js 依赖） |
+| 提交 | `61a84fe` feat(P3-2): page.type 分发与 11 个页面模板（后续还有未提交的 Phase 4 工作） |
+| 提交数 | 35 |
+| 工作区 | Phase 4 运行时（Head/BaseLayout/public js）与 about 页面未提交 |
 | CI | 12 步流水线，主干全绿；diff 步骤只出报告不阻断 |
-| 产物规模 | **40 页**构建成功（基线 48 页），基线文件覆盖 3 → 40 |
-| CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
-| 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
+| 产物规模 | **62 页**构建成功（基线 48 页 + 9 文章 + about + 11 个 page.type fixture） |
+| 代码量 | 主题包约 8k 行 + remark-hexo-tag 42 tag + 验证站 62 页 |
 
 ### 1.2 已完成
 
@@ -52,6 +51,13 @@
 | 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
 | P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
 | P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
+| P2-7 首页收尾 | ✅ home_top 全子树（bannerGroup/topGroup/todayCard/分类条）；首页缺口 480 → 388 |
+| P2-8 文章页 | ✅ 9 篇文章路由与 post 组件；slugger 41 个标题 id 与基线一致（额外 footnote-label 属 M2） |
+| P3-1 aside widgets | ✅ 15 张卡片；首页/归档/文章页 aside 结构差异 0 |
+| P3-2 page.type 分发 | ✅ `[...path]` 独立页面路由 + 11 个模板；12 个 page.type fixture 全部命中根选择器 |
+| P6-1 tag 骨架 | ✅ `packages/remark-hexo-tag`（纯 ESM 零依赖）+ 24 个行内/块级 tag，38 条单测 |
+| P6-2 剩余 tag | ✅ 媒体/卡片 11 + 第三方 7，42 个 tag 全落地，59/59 单测；四篇 fixture `{%` 残留 0 |
+| P4 运行时（进行中） | ◐ GLOBAL_CONFIG / 资源解析 / 上游 JS 搬运 / ClientRouter / console 已落盘；首页缺口 388 → 11 |
 
 ### 1.3 Phase 1 的真实边界
 
@@ -228,13 +234,13 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
 | Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 6.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
-| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 6 |
-| Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
-| Phase 4 | 交互层与路由 | ⬜ | 13 | 0 |
+| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 8.5 |
+| Phase 3 | widget 与页面模板 | ◐ | 10.8 | 4.5 |
+| Phase 4 | 交互层与路由 | ◐ | 13 | 3 |
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
-| Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
+| Phase 6 | 42 个 Hexo tag | ◐ | 7.5 | 6 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 14.8 |
+| **合计** | | | **≈62** | 25.3 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -662,36 +668,30 @@ jobs:
 
 ---
 
-## 8. 当前进度与剩余清单（2026-11-23 收尾）
+## 8. 当前进度与剩余清单（2026-11-23 22:20）
 
 ### 8.1 已完成（可以随时接手）
 
-- **Phase 0 ✅ / Phase 1.5 ✅**，Phase 1 约 87%（P1-9 第三条随 P2-1 接 loader 收口）
-- **Phase 2 约 63%**：地基五件套（diff 度量、内容集合、helper/i18n、骨架+Head、日期/Markdown 对齐）+ 布局四组件 + 归档/分类/标签/404 + 首页 PostCard 骨架
-- CI 12 步全绿，含 HTML 结构 diff 报告；上游镜像 SHA 守卫 29 项
-- 关键度量：**构建 40 页**（基线 48），verify-css PASS（−0.03%），CSS 变量 69/69
+- **Phase 0 ✅ / Phase 1.5 ✅ / Phase 1 约 87%**（P1-9 第三条随构建链路收口）
+- **Phase 2 约 90%**：布局四组件、首页 + home_top、文章页、归档/分类/标签/404、helper/i18n/日期、diff 工具全部落地
+- **Phase 3 约 42%**：15 个 aside widget、page.type 分发 + 11 个模板；about 进行中
+- **Phase 4 约 23%**：GLOBAL_CONFIG / 资源解析 / 上游 JS / ClientRouter / console；首页缺口 388 → 11
+- **Phase 6 约 80%**：42 个 tag 全实现（P6-1/P6-2），P6-6/P6-7 输出对齐待收
+- 关键度量：**构建 62 页**；全量 diff 48 页 / PASS 0 / 缺口 338（其中 about 占位 239）
 
 ### 8.2 剩余未完成（按优先级）
 
-**Phase 2 收尾（近期）**
-
-| # | 任务 | 估时 | 状态 |
+| # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | P2-7 M1：highlight.js + rehype 把代码块渲染成上游 `figure.highlight` 结构（agent-24 进行中，依赖已批） | 0.5 | ◐ |
-| 2 | P2-7 收尾：home_top slot、分页与上游 per_page 对齐、diff 数字补录 | 0.5 | ◐ |
-| 3 | P2-8 文章页（最大单页）：PostInfo/版权/打赏/ptool + M3 slugger（标题 id 保留中文标点） | 1.5 | ⬜ |
-| 4 | helper/i18n/date 接线进组件（当前组件多数直接取 config，未走 t() 与 hexoDate） | 0.5 | ⬜ |
-| 5 | 删 P1.5 遗留：blog 内旧 BaseLayout/page2/slice-harness/vertical-slice 探针 | 0.3 | ⬜ |
-| 6 | diff 从 40 页里挑 5 个代表页收敛到可解释状态；48 页全 PASS 是 Phase 2 退出标准 | 1 | ⬜ |
-| 7 | Phase 2 退出动作：CI 里 diff 步骤去 `|| true` 变硬门禁 + artifact `if: always()` | 0.2 | ⬜ |
-
-**Phase 3–7（后续大块）**
-
-- **Phase 3**（10.8 人日）：15 个 widget 卡片、12 个 page.type 模板（about 23KB 最重）
-- **Phase 4**（13 人日）：GLOBAL_CONFIG 注入、main.js/utils.js 移植（115KB）、pjax shim 幂等化（Phase 1.5 已发现监听叠加问题）、暗色/右键/中控台/音乐/搜索
-- **Phase 5**（6.3 人日）：评论 ×5、搜索 ×3、分析 ×5、聊天/广告/隐私协议
-- **Phase 6**（7.5 人日）：42 个 Hexo tag 的 remark 插件 + 输出对齐
-- **Phase 7**（5.5 人日）：PWA、性能、迁移指南、发布
+| 1 | Phase 4 收尾：og:url/index.html、config-diff、console 图片、行为验收 | phase4-runtime | ◐ |
+| 2 | about 页面 500 行 pug 全量复刻 | about-page | ◐ |
+| 3 | footer/sidebar 外链 `target/rel`、孤儿结构差异收敛 | 待分配 | ⬜ |
+| 4 | Phase 2 退出：48 页 PASS / CI diff 去 `|| true` | Lead + 待分配 | ⬜ |
+| 5 | Phase 3 剩余：模板浏览器走查（11 个 page.type） | 待分配 | ⬜ |
+| 6 | Phase 4 行为：暗色/右键/中控台/音乐/搜索/主色调 | 待分配 | ⬜ |
+| 7 | Phase 5：评论 ×5、分析 ×5、聊天、广告、隐私、AI 摘要、数学 | 待分配 | ⬜ |
+| 8 | Phase 6 收尾：42 tag 视觉与 `_tags/*.styl` 命中 | 待分配 | ⬜ |
+| 9 | Phase 7：PWA、性能、迁移指南/脚本、真实站验收、上游同步 | 待分配 | ⬜ |
 
 ### 8.3 已知待决策项
 

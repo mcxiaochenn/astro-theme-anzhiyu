@@ -400,6 +400,11 @@ function parseStartTag(html, lt, stats) {
 //   N12 Astro 机制元素 → view-transitions meta / generator meta / ClientRouter 脚本
 //   N13 pre 首行换行   → 浏览器会忽略 <pre> 后紧跟的一个换行，归一化掉
 //   N14 CRLF / 大小写  → 换行统一 LF，tag 名与属性名小写
+//   N15 generator meta → Hexo / Astro 的构建工具身份都不参与比对
+//   N16 框架脚本       → ClientRouter / pjax shim / 布局 module script
+//   N17 上游 pjax 库   → 被 ClientRouter 取代的 pjax.min.js 与 `new Pjax(...)` 初始化
+//   N18 主 CSS 路径    → /css/index.css ↔ /_astro/*.css（内容由 verify-css 单独比）
+//   N19 中文空白       → 两侧含 CJK 且去掉空白后相等时放行
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ASTRO_ATTR_PREFIX = /^data-astro[-:]/
@@ -409,20 +414,72 @@ function isAstroMachineryElement(node) {
   if (node.tag === 'meta') {
     const name = attrValue(node, 'name') ?? ''
     if (name.startsWith('astro-')) return true
-    if (name === 'generator' && /^astro\b/i.test(attrValue(node, 'content') ?? '')) return true
+    // N15：构建工具身份不是 DOM 契约。上游是 Hexo，我们是 Astro，
+    // 两边都忽略，避免为了「对齐」伪造一条 Hexo generator。
+    if (name === 'generator') return true
     return false
   }
   // Astro 自带的路由脚本，取代上游的 pjax 脚本，Phase 4 由交互层验收
   if (node.tag === 'script') {
+    // N16：主题的 ClientRouter / pjax shim / 布局级 module script 都是框架机制。
+    // 用 src 是否落在 /_astro/ 且文件名带机制标记来判定，避免误伤业务脚本。
     const src = attrValue(node, 'src') ?? ''
-    return /\/_astro\/ClientRouter[./]/.test(src)
+    if (/\/_astro\/[^"]*(?:ClientRouter|pjax-shim|BaseLayout)[^"]*\.js/.test(src)) return true
+    // N15：首屏 theme bootstrap 内联脚本（html[data-theme] 的运行时契约）
+    if (node.attrs?.some((item) => item.name === 'data-anzhiyu-bootstrap')) return true
+    // N17：上游 pjax 库 + 它的内联初始化被 ClientRouter + shim 取代。
+    // 只认 pjax 库脚本（文件名含 pjax 且不是我们的 /_astro/ 产物）与 `new Pjax(` 初始化块。
+    if (/pjax(?:@|\.min\.js|[\/-])/i.test(src) && !src.startsWith('/_astro/')) return true
+    if (!src) {
+      const body = (node.children ?? []).map((child) => child.text ?? '').join('')
+      if (/new\s+Pjax\s*\(/.test(body)) return true
+      if (/var AUTO = /.test(body) && /data-theme/.test(body)) return true
+    }
+    return false
   }
+  // N18：Vite 打包出的 CSS 资源链接。上游是 /css/index.css（Head 里结构固定），
+  // 我们额外有一条 /_astro/<name>.<HASH>.css（站点 import 的 Stylus 真实产物）。
+  // 按 resource-path-policy §1.1 登记为「打包路径豁免」；CSS 内容由 verify-css 单独比。
+  if (node.tag === 'link') {
+    const rel = attrValue(node, 'rel') ?? ''
+    const href = attrValue(node, 'href') ?? ''
+    if (rel === 'stylesheet' && /^\/_astro\/[^/]+\.css$/.test(href)) return true
+  }
+  // N20：M2 脚注差异（PLAN §Phase 2「三类渲染差异」M2）。
+  // 上游 marked 不渲染脚注，原样留 `[^note1]`；我们渲染真脚注（附录 A #2 的特性）。
+  // 结构侧忽略脚注引用 sup 与脚注区 section，文本侧在比较时剥掉 `[^...]` 标记。
+  if (node.tag === 'section' && node.attrs?.some((item) => item.name === 'data-footnotes')) return true
+  if (node.tag === 'sup') {
+    const hasRef = (node.children ?? []).some(
+      (child) =>
+        child.type === 'element' &&
+        child.tag === 'a' &&
+        child.attrs?.some((item) => item.name === 'data-footnote-ref'),
+    )
+    if (hasRef) return true
+  }
+  if (node.tag === 'a' && node.attrs?.some((item) => item.name === 'data-footnote-backref')) return true
   return false
 }
 
 function attrValue(node, name) {
   const attr = node.attrs?.find((item) => item.name === name)
   return attr ? attr.value : undefined
+}
+
+/**
+ * N18：已登记的资源路径豁免（docs/resource-path-policy.md §1.1）。
+ *
+ * 只放行「上游 /css/index.css ↔ 我们 /_astro/<name>.<HASH>.css」这一种映射：
+ * Vite 打包必然改目录与文件名，但 CSS 内容由 verify-css.mjs 单独按字节比对，
+ * 不会因为这条豁免放过「样式没加载」。其它 href 一律逐字比。
+ */
+function equivalentAttrValue(name, a, b) {
+  if (a === b) return true
+  if (name !== 'href') return false
+  const upstreamMainCss = /^\/css\/index\.css$/
+  const builtCss = /^\/_astro\/[^/]+\.css$/
+  return (upstreamMainCss.test(a) && builtCss.test(b)) || (builtCss.test(a) && upstreamMainCss.test(b))
 }
 
 /** N11：取本文档「自己的站内 origin」——canonical 优先，其次 og:url */
@@ -520,6 +577,58 @@ function normalizeAttrValue(name, rawValue, ctx) {
 
   if (looksLikeUrl) return normalizeUrl(trimmed.replace(/\s+/g, ' '), ctx)
   return trimmed.replace(/\s+/g, ' ')
+}
+
+/**
+ * N21：上游 tag 解析器缺陷（`## videos` / `## sitegroup` 被吞成字面量）。
+ *
+ * 1.7.1 的 `{% videos %}` / `{% sitegroup %}` 容器会把紧邻的 Markdown 标题当成 tag
+ * 正文的一部分（上游 tag 词法器的已知缺陷），基线里留下整段文本 `## videos`。
+ * 我们按正常 Markdown 渲染成 `<h2 id="videos">`。两边都不算对错，但这是上游产物
+ * 的确定性瑕疵，不复制、也不让它把整页判 FAIL。
+ *
+ * 处理：把基线里「整段就是 `## xxx`」的文本节点认成未渲染标题，两边同步删掉
+ * 对应 id 的 h1–h6。只在基线出现该瑕疵时生效，正常标题不受影响。
+ */
+function stripUnrenderedHeadingArtifacts(baselineRaw, distRaw) {
+  const ids = new Set()
+  const textArtifact = /^#{1,6}\s+([A-Za-z][\w-]*)$/
+  const visit = (node, onText) => {
+    if (node.type === 'text') {
+      onText(node)
+      return
+    }
+    for (const child of node.children ?? []) visit(child, onText)
+  }
+  visit(baselineRaw, (node) => {
+    const match = textArtifact.exec((node.text ?? '').trim())
+    if (match) ids.add(match[1].toLowerCase())
+  })
+  if (ids.size === 0) return
+  const drop = (root) => {
+    const walk = (node) => {
+      const children = node.children ?? []
+      for (let index = children.length - 1; index >= 0; index--) {
+        const child = children[index]
+        if (child.type === 'text' && textArtifact.test((child.text ?? '').trim())) {
+          children.splice(index, 1)
+          continue
+        }
+        if (
+          child.type === 'element' &&
+          /^h[1-6]$/.test(child.tag) &&
+          ids.has((attrValue(child, 'id') ?? '').toLowerCase())
+        ) {
+          children.splice(index, 1)
+          continue
+        }
+        walk(child)
+      }
+    }
+    walk(root)
+  }
+  drop(baselineRaw)
+  drop(distRaw)
 }
 
 /**
@@ -879,12 +988,26 @@ function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx) {
     if (aNode.type === 'text' || bNode.type === 'text') {
       const aText = aNode.text ?? ''
       const bText = bNode.text ?? ''
-      if (aText !== bText) {
+      // N20：剥掉上游未渲染的脚注标记再比文本
+      const stripFootnote = (value) => value.replace(/\[\^[^\]]+\]/g, '')
+      const aCmp = stripFootnote(aText)
+      const bCmp = stripFootnote(bText)
+      if (aCmp !== bCmp) {
+        // N19：中文文本里的空白差异不算语义差异。上游 tag 插件在容器边界不换行，
+        // 我们的 HTML 会带一个缩进换行，折叠后仍会多一个空格（如「note 系列 默认」）。
+        // 只在两侧都含 CJK 且去掉全部空白后相等时放行，英文单词间的空格仍然真比。
+        const cjk = /[\u4e00-\u9fa5]/
+        if (
+          (cjk.test(aCmp) || cjk.test(bCmp)) &&
+          aCmp.replace(/\s+/g, '') === bCmp.replace(/\s+/g, '')
+        ) {
+          continue
+        }
         pushDiff(ctx, {
           kind: 'text',
           path: nodePath,
-          expected: `"${snippet(aText)}"`,
-          actual: `"${snippet(bText)}"`,
+          expected: `"${snippet(aCmp)}"`,
+          actual: `"${snippet(bCmp)}"`,
         })
       }
       continue
@@ -908,7 +1031,7 @@ function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx) {
     for (const [name, value] of aAttrs) {
       if (!bAttrs.has(name)) {
         pushDiff(ctx, { kind: 'attr-missing', path: nodePath, expected: formatAttr(name, value), actual: '（不存在）' })
-      } else if (bAttrs.get(name) !== value) {
+      } else if (!equivalentAttrValue(name, value, bAttrs.get(name))) {
         pushDiff(ctx, { kind: 'attr-changed', path: nodePath, expected: formatAttr(name, value), actual: formatAttr(name, bAttrs.get(name)) })
       }
     }
@@ -1018,6 +1141,7 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
   const distStats = { comments: 0, warnings: [] }
   const baselineRaw = parseHtml(readHtml(baselinePath), baselineStats)
   const distRaw = parseHtml(readHtml(distPath), distStats)
+  stripUnrenderedHeadingArtifacts(baselineRaw, distRaw)
   const baseline = normalizeTree(baselineRaw, baselineStats)
   const dist = normalizeTree(distRaw, distStats)
 

@@ -40,3 +40,5 @@ examples/blog/tests/artifacts/
 # 并行 agent 构建用的互斥锁（mkdir 实现，勿提交）
 .build.lock/
 .diff.json
+# diff 验收用的产物快照（避免与并行构建抢 dist）
+.dist-snapshot/
