@@ -1,0 +1,32 @@
+---
+/**
+ * AboutSelfInfo — 上游 `layout/includes/page/about.pug:128-141`。
+ *
+ * 三行「标签 + 值」，颜色写死（`:133/137/141`）；第一行的值带
+ * `#selfInfo-content-year`，`initAboutPage()` 用 CountUp 做数字动画（Phase 4）。
+ */
+import type { AboutSelfInfo } from './types.ts'
+
+interface Props {
+  selfInfo?: AboutSelfInfo
+}
+
+const { selfInfo } = Astro.props
+---
+
+<div class="author-content-item selfInfo single">
+  <div>
+    <span class="selfInfo-title">{selfInfo?.selfInfoTips1}</span>{' '}
+    <span class="selfInfo-content" id="selfInfo-content-year" style="color:#43a6c6">
+      {selfInfo?.selfInfoContentYear}
+    </span>
+  </div>
+  <div>
+    <span class="selfInfo-title">{selfInfo?.selfInfoTips2}</span>{' '}
+    <span class="selfInfo-content" style="color:#c69043">{selfInfo?.selfInfoContent2}</span>
+  </div>
+  <div>
+    <span class="selfInfo-title">{selfInfo?.selfInfoTips3}</span>{' '}
+    <span class="selfInfo-content" style="color:#b04fe6">{selfInfo?.selfInfoContent3}</span>
+  </div>
+</div>

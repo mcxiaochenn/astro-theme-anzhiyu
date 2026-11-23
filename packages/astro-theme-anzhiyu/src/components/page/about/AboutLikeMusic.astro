@@ -1,0 +1,50 @@
+---
+/**
+ * AboutLikeMusic — 上游 `layout/includes/page/about.pug:198-217`。
+ *
+ * 左「喜欢的东西」、右「歌单」两张背景图卡片；歌单卡片右下角的按钮用
+ * `onclick="pjax.loadUrl(…)"` 跳转（`:214`，行为留给 Phase 4）。
+ */
+import type { AboutLike, AboutMusic } from './types.ts'
+import { _p, pjaxLoad } from './shared.ts'
+
+interface Props {
+  like?: AboutLike
+  music?: AboutMusic
+  /** 上游 `aboutName`（`item.name || theme.author`）。 */
+  aboutName?: string
+}
+
+const { like, music, aboutName = '' } = Astro.props
+---
+
+<div
+  class="author-content-item like-technology"
+  style={`background: url(${like?.like_bg}) top / cover no-repeat;`}
+>
+  <div class="card-content">
+    <div class="author-content-item-tips">{like?.like_tips}</div>
+    <span class="author-content-item-title">{like?.like_title}</span>
+    <div class="content-bottom">
+      <div class="tips">{like?.like_bottom}</div>
+    </div>
+  </div>
+</div>
+<div
+  class="author-content-item like-music"
+  style={`background: url(${music?.music_bg}) top / cover no-repeat;`}
+>
+  <div class="card-content">
+    <div class="author-content-item-tips">{music?.music_tips}</div>
+    <span class="author-content-item-title">{music?.music_title}</span>
+    <div class="content-bottom">
+      <div class="tips">{_p('about.enjoy_music_with', aboutName)}</div>
+    </div>
+    <div class="banner-button-group">
+      <a class="banner-button" onclick={pjaxLoad(music?.music_link)}>
+        <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />{' '}
+        <span class="banner-button-text">{_p('about.more_recommend')}</span>
+      </a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,50 @@
+---
+/**
+ * AboutPersonality — 上游 `layout/includes/page/about.pug:143-155`。
+ *
+ * 两张卡：
+ *   - `.personalities`：性格类型 + `learn_more_at` 的富文本（含两条外链）；
+ *   - `.myphoto`：自拍图。
+ *
+ * `learn_more_at` 用 `!=` 输出 HTML（`:150-151`），这里用 `set:html` 还原。
+ */
+import type { AboutPersonalities } from './types.ts'
+import { _p, imageAttrs, urlFor } from './shared.ts'
+
+interface Props {
+  personalities?: AboutPersonalities
+}
+
+const { personalities } = Astro.props
+const authorName = personalities?.author_name ?? ''
+const nameUrl = personalities?.name_url ?? ''
+
+const learnMore = _p(
+  'about.learn_more_at',
+  '<a href="https://www.16personalities.com/" target="_blank" rel="noopener nofollow">16personalities</a>',
+  `<a target="_blank" rel="noopener external nofollow" href="${nameUrl}">${authorName}</a>`,
+)
+---
+
+<div class="author-content-item personalities">
+  <div class="author-content-item-tips">{_p('about.personality')}</div>
+  <span class="author-content-item-title">{authorName}</span>
+  <div class="title2" style={`color:${personalities?.personality_type_color ? personalities.personality_type_color : '#ac899c'}`}>
+    {personalities?.personality_type}
+  </div>
+  <div class="post-tips" set:html={learnMore} />
+  <div class="image">
+    <img
+      class="no-lightbox"
+      {...imageAttrs(urlFor(personalities?.personality_img ?? ''))}
+      alt={_p('about.personality_img_alt')}
+    />
+  </div>
+</div>
+<div class="author-content-item myphoto">
+  <img
+    class="author-content-img no-lightbox"
+    alt={_p('about.selfie_alt')}
+    {...imageAttrs(urlFor(personalities?.photo_url ?? ''))}
+  />
+</div>

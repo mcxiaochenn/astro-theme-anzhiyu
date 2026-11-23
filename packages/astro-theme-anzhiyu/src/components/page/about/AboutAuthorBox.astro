@@ -1,0 +1,42 @@
+---
+/**
+ * AboutAuthorBox — 上游 `layout/includes/page/about.pug:15-27`。
+ *
+ * 头像两侧的「漂浮标签」来自 `avatarSkills.left/right`；整个 `avatarSkills`
+ * 缺失时两侧标签都不输出（`:16` / `:22` 的 `if`）。
+ * 头像地址的回退链是 `item.avatarImg || theme.avatar.img`（`:5`）。
+ */
+import type { AboutItem } from './types.ts'
+import { _p, imageAttrs, urlFor } from './shared.ts'
+import { getThemeConfig, readString } from '../../../layouts/theme-context.ts'
+
+interface Props {
+  item: AboutItem
+}
+
+const { item } = Astro.props
+const avatarImg = item.avatarImg || readString(getThemeConfig().avatar, 'img', '')
+const avatarSkills = item.avatarSkills
+---
+
+<div class="author-box">
+  {avatarSkills && (
+    <div class="author-tag-left">
+      {(avatarSkills.left ?? []).map((tag) => (
+        <span class="author-tag">{tag}</span>
+      ))}
+    </div>
+  )}
+  <div class="author-img">
+    <img class="no-lightbox" {...imageAttrs(urlFor(avatarImg), true)} alt="avatar" />
+  </div>
+  {avatarSkills && (
+    <div class="author-tag-right">
+      {(avatarSkills.right ?? []).map((tag) => (
+        <span class="author-tag">{tag}</span>
+      ))}
+    </div>
+  )}
+</div>
+<p class="p center logo large">{_p('about.title')}</p>
+<p class="p center small">{item.subtitle}</p>

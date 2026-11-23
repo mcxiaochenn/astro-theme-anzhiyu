@@ -1,0 +1,43 @@
+---
+/**
+ * AboutCareers — 上游 `layout/includes/page/about.pug:77-90`。
+ *
+ * `careers.list` 存在时渲染时间线圆点（颜色缺省 `#357ef5`，`:85`），
+ * 否则输出 `.careers-none` 占位（`:88`）；`careers.img` 可选（`:89-90`）。
+ */
+import type { AboutCareers } from './types.ts'
+import { imageAttrs, urlFor } from './shared.ts'
+
+interface Props {
+  careers?: AboutCareers
+}
+
+const { careers } = Astro.props
+const list = careers?.list
+---
+
+<div class="author-content-item careers">
+  <div class="card-content">
+    <div class="author-content-item-tips">{careers?.tips}</div>
+    <span class="author-content-item-title">{careers?.title}</span>
+    <div class="careers-group">
+      {list ? (
+        list.map((career) => (
+          <div class="career-item">
+            <div class="circle" style={`background:${career.color ? career.color : '#357ef5'}`} />
+            <div class="name">{career.desc}</div>
+          </div>
+        ))
+      ) : (
+        <div class="careers-none" />
+      )}
+    </div>
+    {careers?.img && (
+      <img
+        class="author-content-img no-lightbox"
+        alt={careers.tips}
+        {...imageAttrs(urlFor(careers.img), true)}
+      />
+    )}
+  </div>
+</div>

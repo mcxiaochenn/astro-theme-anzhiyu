@@ -1,0 +1,54 @@
+---
+/**
+ * AboutStatistic — 上游 `layout/includes/page/about.pug:92-112`。
+ *
+ * 整块只在 `theme.LA.enable || theme.umami.enable` 时渲染（`:93`），所以基准站
+ * （两者都关）没有这张卡。`#statistic` 的内容由 `initAboutPage()` 拉取后填充
+ * （Phase 4），这里只留空容器。
+ */
+import type { AboutStatistic } from './types.ts'
+import { _p, pjaxLoad } from './shared.ts'
+import { getThemeConfig, readFlag, readString } from '../../../layouts/theme-context.ts'
+
+interface Props {
+  statistic?: AboutStatistic
+}
+
+const { statistic } = Astro.props
+const theme = getThemeConfig()
+const laEnabled = readFlag(theme.LA, 'enable')
+const umamiEnabled = readFlag(theme.umami, 'enable')
+const enabled = laEnabled || umamiEnabled
+
+const source = laEnabled ? '51la' : 'Umami'
+const link = laEnabled
+  ? 'https://invite.51.la/1NzKqTeb?target=V6'
+  : readString(theme.umami, 'apiHost', '#') || '#'
+---
+
+{
+  enabled && (
+    <div
+      class="about-statistic author-content-item"
+      style={`background: url(${statistic?.cover ?? ''}) top / cover no-repeat;`}
+    >
+      <div class="card-content">
+        <div class="author-content-item-tips">{_p('about.data')}</div>
+        <span class="author-content-item-title">{_p('about.visit_stats')}</span>
+        <div id="statistic" />
+        <div class="post-tips">
+          {_p('about.stats_from')}{' '}
+          <a href={link} target="_blank" rel="noopener nofollow">
+            {source}
+          </a>
+        </div>
+        <div class="banner-button-group">
+          <a class="banner-button" onclick={pjaxLoad(statistic?.link)}>
+            <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />{' '}
+            <span class="banner-button-text">{statistic?.text}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
