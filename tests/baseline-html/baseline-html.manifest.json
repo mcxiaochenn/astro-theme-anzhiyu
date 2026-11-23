@@ -1,0 +1,253 @@
+{
+  "convention": "只含 .html；归档内路径 = 相对 .baseline-work/public 的路径（POSIX /）；解扎根目录即 BASELINE_HTML_DIR",
+  "source": ".baseline-work/public",
+  "baselineCommit": "72439d93",
+  "baselineVersion": "1.7.1",
+  "fileCount": 48,
+  "htmlBytes": 2198761,
+  "archive": "baseline-html.tar.gz",
+  "archiveBytes": 488029,
+  "archiveSha256": "b17a4f23bc02bc2129352b1140db01c8d153a1d301f9862e1b5c3f02b2e979c0",
+  "files": [
+    {
+      "path": "2024/11/01/longform-hexo-astro/index.html",
+      "bytes": 62356,
+      "sha256": "8054e3af59122ee0cab23fc23812e9e3ddcc95da926e0757d8f8e3c80ce20017"
+    },
+    {
+      "path": "2024/12/15/short-note/index.html",
+      "bytes": 41854,
+      "sha256": "ddf79aa3d6652871649d64eee4d6019e31e720ba0d2bd64110c9b81075f93791"
+    },
+    {
+      "path": "2025/01/10/multi-taxonomy/index.html",
+      "bytes": 54058,
+      "sha256": "a0176e732ada3995392dd8bfc1e8328fa06d4fc2d3128d0441408ba38aad7b14"
+    },
+    {
+      "path": "2025/02/02/sticky-top/index.html",
+      "bytes": 50516,
+      "sha256": "3542461ca7fdfa24251ccfb8d51c6f34a8c95d6e666177826c7e93059c81fffa"
+    },
+    {
+      "path": "2025/02/20/cover-variants/index.html",
+      "bytes": 49899,
+      "sha256": "b1333b2d24960ec065fad2d0ba9941f4777567ecae4977dfaef6f18f000ce9d0"
+    },
+    {
+      "path": "2025/03/05/tags-inline/index.html",
+      "bytes": 51664,
+      "sha256": "a2f8f798c571642e616a700dbfaef3fb82fa63ba72f9f8e17a5b5a9dfe023a11"
+    },
+    {
+      "path": "2025/03/18/tags-block/index.html",
+      "bytes": 55923,
+      "sha256": "e2214611973beeee2118204996742d3ea9c2a996ccbc0f048e9a5e17b832316c"
+    },
+    {
+      "path": "2025/04/01/tags-media/index.html",
+      "bytes": 56595,
+      "sha256": "7752bb85c4bc23d47a8778d17c1fa1e15abdfaa1eaab4c64e3d5c3c48b1b22f7"
+    },
+    {
+      "path": "2025/04/20/tags-thirdparty/index.html",
+      "bytes": 61547,
+      "sha256": "2ba113afea9d1b67c381aef2d54117d83bd5537510408c20324bf7788f6d039c"
+    },
+    {
+      "path": "404.html",
+      "bytes": 36836,
+      "sha256": "a69e72cda925afccb79bd4a7afaa4706ee39312c4b8d98a4d58fb79e43069f2a"
+    },
+    {
+      "path": "about/index.html",
+      "bytes": 54645,
+      "sha256": "5bfd2e0e580d085846c6fb7f4cc40b07e382cd82c58025bdeb724bcffa3bc20c"
+    },
+    {
+      "path": "archives/2024/11/index.html",
+      "bytes": 40649,
+      "sha256": "8e2abff1ff7274650223833ed09d956b75d0a85afff08d8e89b0568ec57baa2d"
+    },
+    {
+      "path": "archives/2024/12/index.html",
+      "bytes": 39692,
+      "sha256": "7acf4222398457e6f3e077a3c4ed9ff99927d8e46744f1536633b746ffc111a4"
+    },
+    {
+      "path": "archives/2024/index.html",
+      "bytes": 41251,
+      "sha256": "dd3069021bb86a45120de2815257be0e0b9b8549e4698bd81505231431210183"
+    },
+    {
+      "path": "archives/2025/01/index.html",
+      "bytes": 40853,
+      "sha256": "b296237f08c9c9cbe9739bb21aab04dea8db5fdaa79900ec95781c696043205e"
+    },
+    {
+      "path": "archives/2025/02/index.html",
+      "bytes": 41086,
+      "sha256": "3aeb2b1dbedd1d0c000a7a8b071a9d206d6190aa52641609ad0498dcba60cbec"
+    },
+    {
+      "path": "archives/2025/03/index.html",
+      "bytes": 41473,
+      "sha256": "7236868051c891a11a8894f8e44ac1d4d3a19bfa795395194c440fe414407117"
+    },
+    {
+      "path": "archives/2025/04/index.html",
+      "bytes": 41172,
+      "sha256": "d39e724b634b067b95c2e33f9e350a5d924d17b4a9fad6ebdfe6b202c6207074"
+    },
+    {
+      "path": "archives/2025/index.html",
+      "bytes": 45987,
+      "sha256": "b8c73b94bde4a3b0d71147940948faebab6412be81f38b8154ac3a970168a66f"
+    },
+    {
+      "path": "archives/2025/page/2/index.html",
+      "bytes": 41070,
+      "sha256": "d38cfb32ec938f39279abc278fabfe63f0728afdeae34ca36610c216345a49df"
+    },
+    {
+      "path": "archives/index.html",
+      "bytes": 45987,
+      "sha256": "cedd070160b171b336c3ac43a97c09b7f1e7f2af9da4b1359efab2a0d84c2ef1"
+    },
+    {
+      "path": "archives/page/2/index.html",
+      "bytes": 43460,
+      "sha256": "e712132839afbf9fdf5dde69f3f800fdc1293e8e1d458e48d7c8d9dc78901eed"
+    },
+    {
+      "path": "categories/前端/Astro/index.html",
+      "bytes": 42485,
+      "sha256": "8847764494fb5af3833895d61066b78e63674f0554592320a27e439c1edfdf0e"
+    },
+    {
+      "path": "categories/前端/Hexo/index.html",
+      "bytes": 42249,
+      "sha256": "9a9c114443364d57b2561f615a12cb9488d975ef87da259f474f5ef612f517d2"
+    },
+    {
+      "path": "categories/前端/index.html",
+      "bytes": 45398,
+      "sha256": "76419a63875aab5a5e35e245e685f68343ed1f3f7657944fff3caf0cf56a7614"
+    },
+    {
+      "path": "categories/工程实践/index.html",
+      "bytes": 42551,
+      "sha256": "539a00662ffc6d2cf5aaddfb3f147bd0f00fa1dd91c4c8ba1ced0ff0cba623e7"
+    },
+    {
+      "path": "categories/标签测试/index.html",
+      "bytes": 45362,
+      "sha256": "8f13b79e32cb46d512531e21300efe280923e6af5258187ba5d22a61592c2ae3"
+    },
+    {
+      "path": "categories/生活/index.html",
+      "bytes": 41496,
+      "sha256": "10bc10c4c0b1f4dc45a597f6150af5a73ddc667d4cb517ee9e202a6e69029810"
+    },
+    {
+      "path": "categories/随笔/index.html",
+      "bytes": 41294,
+      "sha256": "51a7e055b3ffe42ae4939ef577e69f93a353e18e2e348e46303e1400e2915865"
+    },
+    {
+      "path": "index.html",
+      "bytes": 62256,
+      "sha256": "a194942bf7e9978a470291b0f5759518e870a19c43c44eb1fcdb2d965771c837"
+    },
+    {
+      "path": "page/2/index.html",
+      "bytes": 50358,
+      "sha256": "bbf0ad413261dba51dfa5c2d33605d98ea2f4d664d902d3d31e67374e7366e94"
+    },
+    {
+      "path": "tags/Astro/index.html",
+      "bytes": 45570,
+      "sha256": "ef2cfcf580c2a1bfda1f8eaab1ac2429009e8ff447734d123568570bc42a156a"
+    },
+    {
+      "path": "tags/Hexo/index.html",
+      "bytes": 44906,
+      "sha256": "2091214399bf236af392c18d0706a5cfff2b08cc72db6821574c05cf7a16fa42"
+    },
+    {
+      "path": "tags/TypeScript/index.html",
+      "bytes": 43907,
+      "sha256": "171b5bba22f9e66095b36acbe9c08a7fdfb4f51441ae64770c2cc3662fcb8236"
+    },
+    {
+      "path": "tags/tag插件/index.html",
+      "bytes": 46734,
+      "sha256": "6db73cab3caac0222f84099f3a51b06800fdcef6ac953037ff777a32c5f64e22"
+    },
+    {
+      "path": "tags/图片/index.html",
+      "bytes": 42916,
+      "sha256": "5bf911938d80586e8e5922de087a4baf46aa3a1c41e93084ef741943ad0373c3"
+    },
+    {
+      "path": "tags/媒体/index.html",
+      "bytes": 43298,
+      "sha256": "21baa7658adb0bb5c372357d729122107ac0fa06bd6e5c71ddf262d44d1e1c88"
+    },
+    {
+      "path": "tags/容器/index.html",
+      "bytes": 43289,
+      "sha256": "a70401f466b9da3ce543dbb8946e204714dbd35e8911defe6dd74bfd9eb98632"
+    },
+    {
+      "path": "tags/封面/index.html",
+      "bytes": 42916,
+      "sha256": "c23507f2274673315a98682b3a50f664b658bfd1ff064ef801808808b37b5852"
+    },
+    {
+      "path": "tags/工程化/index.html",
+      "bytes": 43935,
+      "sha256": "9e886fdfd5ee6506f55474c293a654bd621cd6337acf726f6c2d12340687ffbc"
+    },
+    {
+      "path": "tags/性能/index.html",
+      "bytes": 43899,
+      "sha256": "18d9e6f67f0d1d51d9610d2710995ddffe146c4c4b6b0beecd4801cfa0aa5d5e"
+    },
+    {
+      "path": "tags/测试/index.html",
+      "bytes": 43899,
+      "sha256": "9b4f623384f43f433bbec89946df2d30ee40f2c4dcc7f962af24c519664e4676"
+    },
+    {
+      "path": "tags/短讯/index.html",
+      "bytes": 42714,
+      "sha256": "0122b7a7b74ec91c6f0ddf3aafe884a0ca8a6e71226579d27de631b1c77e5159"
+    },
+    {
+      "path": "tags/第三方/index.html",
+      "bytes": 42983,
+      "sha256": "e4f991ff0c94ec4605ab72ca5a5c8742a279079145906edcbd3846a0e89a9b4f"
+    },
+    {
+      "path": "tags/置顶/index.html",
+      "bytes": 43243,
+      "sha256": "8448c1bd7d31238a8cc6f4d5ade9dbc1a7771ba3587a8ff203264d7d54da3984"
+    },
+    {
+      "path": "tags/行内/index.html",
+      "bytes": 43257,
+      "sha256": "efe1d49acc397e40ffa5d97bc32d348b066855c3e23ec51365e03e316050a450"
+    },
+    {
+      "path": "tags/迁移/index.html",
+      "bytes": 45602,
+      "sha256": "839b656b807cadbaea251802d7b8e486568a4725c26514a4bdb5cefe246905d3"
+    },
+    {
+      "path": "tags/长文/index.html",
+      "bytes": 43671,
+      "sha256": "f20e6bb4ed187dbce8f44be4b032479731d194816f0b9ff084bc77305b9f8adb"
+    }
+  ]
+}
