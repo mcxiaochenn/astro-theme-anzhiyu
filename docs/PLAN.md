@@ -18,8 +18,8 @@
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `ad20443` feat: P1-5 全量样式编译打通并归档报告；P1-7 配置默认值与 schema 首版 |
-| 提交数 | 12 |
+| 提交 | `1d560d7` test: Phase 1.5 垂直切片，五项 ClientRouter 假设全部实测通过 |
+| 提交数 | 14 |
 | 工作区 | 干净，与 `origin/main` 同步 |
 | CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
 | 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
@@ -36,10 +36,15 @@
 | P1-6 基准固化 | ✅ 上游 hexo g 实测 CSS 683218 B / gzip 79124；48 页 HTML 摘要；10 篇 fixture 覆盖 42 个 tag；4 次构建逐字节可复现 |
 | P1-7 配置层首版 | ◐ `defaults.ts`（133 顶层键，与上游 YAML 深比较一致）+ `schema.ts`（133 顶层，31 个区块精确类型 / 178 二级键） |
 | P1-10 CI | ◐ 流水线 + `verify-css.mjs` 已跑通本地行为矩阵；GitHub 首次运行暴露并修复了 lightningcss 构建错误 |
+| P1-8 配置加载层 | ✅ loader + 30/30 用例通过；错误信息含完整键路径；CSS 变量比对 69/69 命中 |
+| Phase 1.5 垂直切片 | ✅ 五项假设全过（详见 §Phase 1.5），Phase 4 原方案成立 |
+| 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，附带 28 项机械守卫脚本 |
 
 ### 1.3 Phase 1 的真实边界
 
-**Phase 1 完成度：按 03 原口径约 78%（4.5 / 5.5 人日），按本文件细拆口径 60%（4.5 / 7.5）。**
+**Phase 1 完成度：约 67%（5 / 7.5 人日）。** 剩余两项：P1-9 第三条验收的口径要改（见决策 D-P1-9）、P1-10 CI 还差把两个新校验脚本接进流水线。
+
+**Phase 1.5：5 / 5 假设通过，已退出。** 详见下方 Phase 1.5 小节。
 
 17:00 时这里记的是「只编译过 `var.styl` 一个文件、302 KB 主体从未编译」。**现在这个缺口已经补上了**，记录如下以便追溯：
 
@@ -64,7 +69,7 @@
 | D6 | 插件对 `@import` 做了全局去重 | Stylus 原生 include 语义是重复展开，去重后产物可能不同 | ✅ 已解决：改成按 Stylus 的 `@require`/`@import` 语义分别处理，产物与基准 +0.52% |
 | D7 | 上游自身有非法 CSS：`source/css/_mode/readmode.styl:120` 写成 `var(-highlight-bg)`（104 行是正确的 `--highlight-bg`） | 浏览器静默丢弃该声明；lightningcss 严格解析直接构建失败。修上游会改变视觉，不修则必须关压缩 | 已决策：不改上游，`examples/blog/astro.config.mjs` 关 `cssMinify`，Phase 7 处理压缩时再议 |
 | D8 | 量级纠正：上游 `_config.yml` 不是「约 200 键」，而是 **133 个顶层键 / 662 个递归 mapping key** | P1-7 的工作量估算需上调；schema 还有约 351 个嵌套键是 passthrough | 以 P1-7 报告实测为准，本文件相关表述已改 |
-| D9 | **未定位**：`_highlight/highlight.styl:29` 的 `if $prismjs_enable` 守卫在全部 72 个 styl 里从未赋值，本地实测 Stylus 未定义变量在 `if` 里当假，但产物多出 34 条 prismjs 规则（+3.5 KB） | +0.52% 差异的主要来源；若上游实际不输出这些规则，则我们多输出了约 3.5 KB | Phase 7 动压缩/基准前必须定位；不影响 P1-5 判定 |
+| D9 | ~~未定位：prismjs 守卫导致 +3.5 KB~~ | **已定位并闭合**：上游用 Hexo filter 的 `.define()` 注入 4 个 Stylus 变量（`$highlight_enable` / `$highlight_line_number` / `$prismjs_enable` / `$prismjs_line_number`），我们的插件没复刻这一层；而 **Stylus 未定义变量在 `if` 里当「真」**（此前 P1-5 报告写成「假」，已勘误）。补 `$prismjs_enable=false` 后 CSS 从 686772 → 682990（−3782），与基线 683218 仅差 −228（U6 的 `@css{}` 换行排版差） | 已在 `docs/upstream-delta.md` 登记为 U3；复刻 define 层列为 P1-11，Phase 2 前完成 |
 
 ---
 
@@ -174,6 +179,8 @@ pnpm --filter blog build           # 构建通过
 node scripts/verify-css.mjs        # 样式基准比对
 node scripts/diff-html.mjs         # HTML 结构 diff（Phase 2+）
 npx playwright test                # 视觉回归（Phase 2+）
+node scripts/compare-css-vars.mjs   # 69 个 CSS 变量逐值比对
+node scripts/check-upstream-delta.mjs  # 上游差异守卫（28 项）
 node scripts/check-features.mjs    # 特性清单自检（能自动化的部分）
 ```
 
@@ -194,14 +201,14 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | --- | --- | --- | --- | --- |
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
 | Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 4.5 |
-| Phase 1.5 | 垂直切片去风险 + 基准固化 | ⬜ | 1.8 | 0 |
+| Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
 | Phase 2 | 布局与核心页面 | ⬜ | 9.5 | 0 |
 | Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
 | Phase 4 | 交互层与路由 | ⬜ | 13 | 0 |
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
 | Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 5 |
+| **合计** | | | **≈62** | 7.3 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -230,9 +237,11 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | P1-5 | **上游完整样式全量编译** | 上游 `source/css/` 全量进 `examples/blog`，产物 686772 B | 见 docs/notes/P1-5-full-style-build.md | 1 | ✅ |
 | P1-6 | 基准固化 + 内容 fixture | `docs/baseline.json`（CSS 683218 B / 48 页）、`fixtures/` 10 篇覆盖 42 tag | 上游 `hexo g` 跑通，4 次构建逐字节可复现 | 0.5 | ✅ |
 | P1-7 | 配置 schema | `packages/astro-theme-anzhiyu/src/config/schema.ts`（133 顶层，31 区块精确类型） | 上游 `_config.yml` 校验零错误、unknown key 0 | 1.5 | ◐ |
-| P1-8 | 配置加载层 | `loader.ts`：YAML → 深合并默认值 → 校验 → 类型导出 | 少写必填键时失败并打印键路径 | 1 | ⬜ |
-| P1-9 | Phase 1 验收 | 三条验收全绿 | 见下 | 0.5 | ◐ |
-| P1-10 | CI 基础流水线 | `.github/workflows/ci.yml` + `scripts/verify-css.mjs` | PR 上自动 install + build + verify | 0.5 | ◐ |
+| P1-8 | 配置加载层 | `loader.ts`：YAML → 深合并默认值 → 校验 → 类型导出 | ✅ 30/30 用例通过；类型错误报完整键路径（`highlight_copy（期望 boolean）`） | 1 | ✅ |
+| P1-11 | **复刻 Hexo define 层**（D9 修复） | 插件按上游 `scripts/events/stylus.js` 逻辑注入 4 个 Stylus 变量 | CSS 由 686772 → 682990，prismjs 规则消失；verify 仍 PASS | 0.5 | ⬜ |
+| P1-12 | schema 收紧与 strict 顶层 | 61 个 passthrough 区块按需展开；顶层键拼错必须报错 | 未知顶层键 → 报错并给出键名；上游配置仍零错误 | 1 | ⬜ |
+| P1-9 | Phase 1 验收 | 三条验收全绿（口径见决策 D-P1-9） | 见下 | 0.5 | ◐ |
+| P1-10 | CI 基础流水线 | `.github/workflows/ci.yml` + 4 个校验脚本 | PR 上 install + build + verify + 差异守卫 | 0.5 | ◐ |
 
 #### P1-5 ✅ 已完成（原「最高风险项」，现已关闭）
 
@@ -271,16 +280,24 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 Phase 1 三条验收（来自 03），当前状态：
 
 - [x] 构建产出 CSS，与上游 `index.css` 差异 ≤5% —— 实测 +0.52%（686772 vs 683218），gzip −0.07%
-- [ ] `var(--anzhiyu-main)` 等 CSS 变量值与上游一致 —— 待逐值比对（baseline 已存 69 个 `--anzhiyu-*` 变量）
-- [ ] 配置缺必填键时构建失败，报出键路径 —— 待 P1-8 完成后验
+- [x] `var(--anzhiyu-main)` 等 CSS 变量值与上游一致 —— 69 个 `--anzhiyu-*` 逐值比对，取值集合 69/69 一致（1 个 `--anzhiyu-header-translateY` 因规则顺序导致「首值」口径不同，值集合相同）
+- [ ] 配置缺必填键时构建失败，报出键路径 —— **口径已调整**，见下
 
-CI 流水线见 §6.1。已实际运行一次并修复 lightningcss 构建错误。
+#### 决策 D-P1-9：第三条验收改成「类型错误 + 顶层键拼错必须失败」
+
+原验收「少写必填键就构建失败」与 ADR-005 冲突：ADR-005 要求用户能把魔改过的 `_config.anzhiyu.yml` 直接拷过来用，而 loader 会补全 133 个默认键。如果缺键就报错，等于强迫每个用户补写几百个键，这正是 ADR-005 要避免的摩擦。
+
+**所以验收改成两条更实际的：**
+1. **类型写错必须失败**，且报错含完整键路径 —— ✅ 已满足（`highlight_copy（期望 boolean）: expected boolean, received string`）
+2. **顶层键拼错必须失败** —— 当前 schema 尾部是 `.passthrough()`，拼错会被静默透传。**这是真缺陷**，由 P1-12 修成 `.strict()`。
+
+缺键回落默认值是**设计选择**，不是缺陷，写进 README 的用户须知。
 
 **退出标准**：三条验收全绿 + CI 在 PR 上跑通。
 
 ---
 
-### Phase 1.5 — 垂直切片去风险 ⬜
+### Phase 1.5 — 垂直切片去风险 ✅
 
 **为什么插这一阶段**：8 项技术验证里还剩 6 项，其中 5 项（ClientRouter 相关）决定 Phase 4 的实现方式，而它们是整个计划里唯一「可能推翻架构」的验证。Phase 2–4 有 33 人日的工作量压在这些假设上，验证成本却不到 2 天。横向铺完再验证是本末倒置。
 
@@ -302,6 +319,26 @@ CI 流水线见 §6.1。已实际运行一次并修复 lightningcss 构建错误
 - 若 P1.5-4 失败（音频仍中断），退路是音乐播放器独立成 Shadow DOM 持久层，不随 ClientRouter 走。这条退路影响 Phase 4 的 P4-7。
 
 **退出标准**：5 项技术验证（附录 C 的 #3 / #4 / #5 / #6 / #8）全有明确结论——通过或改方案，不允许「待验证」留到 Phase 4。Phase 4 的实现路径不再有未知的架构分叉。
+
+#### 实测结论（2026-11-23，5 / 5 通过）
+
+| # | 假设 | 结论 | 证据 |
+| --- | --- | --- | --- |
+| #3 | 整 body 替换后 `#web_bg` 样式与节点保留 | ✅ | 导航后同一 DOM 节点（expando 读回），12 项 computed style 逐项相等 |
+| #4 | `script[data-pjax]` 重执行等价 | ✅ 有前提 | 用 `data-astro-rerun`：执行次数 1→2→3→4，每次导航恰好 +1，旧页不重跑，console 零错误 |
+| #5 | HTML 命中上游 Stylus | ✅ | `.note` / `.note.blue` / `.recent-post-item` / `#web_bg` 的 computed style 全命中上游值 |
+| #6 | pug 风格 HTML 不被 Astro 7 拒绝 | ✅ | `<br><img><input><hr>` 不闭合原样进产物，DOM 解析正常 |
+| #8 | 音乐播放器跨页不中断 | ✅ | 容器 + audio 跨 4 次导航同一节点，`paused=false` 全程，`currentTime` 持续增长 |
+
+附加：导航 3 次 document 请求 = 0；`pjax.loadUrl → navigate()` shim 可用；`pjax:complete` 每次 page-load 补发一次。
+
+**三条必须带进 Phase 4 的前提**（本次额外发现）：
+
+1. **`html[data-theme]` 是上游 CSS 的运行时契约**——`--anzhiyu-*` 只定义在 `[data-theme=light/dark]` 下，不写则 `#web_bg` 背景是透明。Phase 4 必须做首屏前 theme bootstrap。
+2. **重执行会给 document 叠加监听**——4 次执行后 dispatch 一次会命中 4 次。shim 必须提供幂等初始化 / refreshFn 注册表。
+3. **上游「非 data-pjax 脚本 pjax 后不执行」的语义 Astro 不保证**——Astro 会执行首次见到的页面级脚本。Phase 4 需逐个审计：每次都要跑的用 `data-astro-rerun`，只整页跑的收敛进常驻模块。
+
+**环境限制（诚实记录）**：本机 Playwright 被 DSH Windows 沙箱阻断（`spawn EPERM` + Chromium mojo 通道 `拒绝访问 (0x5)`），真实浏览器验证改走 wincu 浏览器通道（真实 Edge）+ 页内 harness，54/54 断言通过。Playwright 脚本已按同套断言写好保留，**作为 CI 入口**——本机跑不了这件事写进 §7 风险 R12。
 
 ---
 
@@ -520,12 +557,18 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter blog build
-      - run: node scripts/verify-css.mjs
+      - run: pnpm verify
+      - run: pnpm compare-vars
+      - run: pnpm check:upstream-delta
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: examples/blog/dist
 ```
+
+实际落盘的 `.github/workflows/ci.yml` 比上面多两处修正：不写 `with.version`（否则与 `packageManager: pnpm@10.29.3` 冲突报 `Multiple versions of pnpm specified`）；加 `permissions: contents: read`、`timeout-minutes: 15`、`if-no-files-found: error`。
+
+**浏览器测试放 CI，不放本地**：本机 Playwright 被 DSH 沙箱阻断（见 R12），Phase 2 起在 Ubuntu runner 上加 Playwright 步骤；本地只做结构断言与 wincu 通道抽查。
 
 **为什么要这个 CI**：
 
@@ -565,28 +608,30 @@ jobs:
 | # | 风险 | 概率 | 影响 | 应对 | 归属 |
 | --- | --- | --- | --- | --- | --- |
 | R1 | 上游 302 KB 样式无法全量编译（`_extra/**/*.css`、未验证的 `hexo-config` 形态） | 中 | 高 | P1-5 提前验证；退路是编译前脚本预展开 glob | P1-5 |
-| R2 | pjax 行为无法等价，音乐播放 / 全局背景失效 | 高 | 高 | P1.5 用 `transition:persist` 先验；退路是独立持久层 | P1.5 / P4 |
-| R3 | ClientRouter 整 body 替换导致初始化重复、事件泄漏 | 中 | 高 | 行为基线回放；每次导航断言无重复监听 | P4-3 |
+| R2 | pjax 行为无法等价，音乐播放 / 全局背景失效 | ~~高~~ → **已排除** | 高 | ✅ Phase 1.5 实测：`#web_bg` 同节点、audio 跨页不中断、document 请求 0 | P1.5 |
+| R3 | ClientRouter 整 body 替换导致初始化重复、事件泄漏 | 中 | 高 | **实测已出现**：重执行会叠加 document 监听（第 2 条前提）。Phase 4 必须做幂等初始化/refreshFn 注册表 | P4-3 |
 | R4 | 42 个 tag 的 HTML 产物难以对齐 | 中 | 中 | 接受 DOM 归一化后 diff，不追求字节一致 | P6 |
-| R5 | Astro 7 Rust 编译器对 pug 风格的 HTML 报未闭合标签 | 中 | 中 | P1.5-5 先验；转换时统一补闭合 | P1.5 |
+| R5 | Astro 7 Rust 编译器对 pug 风格的 HTML 报未闭合标签 | ~~中~~ → **已排除** | 中 | ✅ P1.5 实测：`<br><img><input><hr>` 不闭合正常进产物 | P1.5 |
 | R6 | 上游持续更新，移植版落后 | 中 | 中 | 冻结基线 + 季度 diff | P7-5 |
 | R7 | 第三方库升级（Waline/Twikoo 等）导致集成失效 | 中 | 低 | 版本锁在 `plugins.yml` 对应版本，升级单独验 | P5 |
 | R8 | `about` 等巨型模板（23 KB）迁移遗漏 | 中 | 低 | 逐块截图勾选，不靠整页 diff | P3-6 |
 | R9 | Windows 与 Linux 的路径 / 大小写差异导致 CI 与本地结果不同 | 中 | 中 | CI 从 Phase 1 就有，跨平台问题早暴露 | P1-10 |
-| R10 | 插件 import 去重与 Stylus 语义差异导致产物偏差（D6） | 低 | 中 | P1-5 字节数对比时确认，超阈值改记账方式 | P1-5 |
+| R10 | 插件 import 去重与 Stylus 语义差异导致产物偏差（D6） | ~~低~~ → **已解决** | 中 | 按 `@require`/`@import` 分别处理，产物 +0.52% 且可完整归因 | P1-5 |
 | R11 | 配置 schema 200 键手抄出错 | 中 | 低 | defaults 从上游 YAML 脚本生成，不手抄 | P1-7 |
+| R12 | 本机 Playwright 被 DSH Windows 沙箱阻断（`spawn EPERM` + Chromium mojo `拒绝访问 0x5`），浏览器级回归本地跑不了 | 高 | 中 | 脚本按 CI 入口写好；Phase 2 起浏览器测试放 CI（Ubuntu 无此限制），本地用 wincu 通道抽查 | P2-12 |
+| R13 | schema 大量区块 passthrough，拼错的顶层键被静默透传 | 中 | 中 | P1-12 收成 `.strict()`，未知顶层键必须报错 | P1-12 |
 
 ---
 
 ## 8. 下一步（按性价比排序）
 
-**第一步：P1-8 配置加载层**（1 人日）—— schema 与 defaults 已落盘，补 loader + 三条验收。同时也是 Phase 1 唯一还没接上的环节。
+**第一步：P1-11 复刻 Hexo define 层**（0.5 人日）—— D9 已定位，补 4 个 Stylus 变量注入，CSS 从 686772 → 682990，prismjs 规则消失。这是目前唯一「已知根因、只差动手」的精度问题。
 
-**第二步：Phase 1.5 垂直切片**（1.8 人日）—— 样式管线已通，现在可以真实检验 ClientRouter 那 5 项架构假设。这是下一个真正的闸门。
+**第二步：P1-12 schema 收紧**（1 人日）—— 顶层 `.strict()`，拼错的键必须报错；61 个 passthrough 区块按实际使用顺序展开（不用一次全展开）。
 
-**第三步：配置变量逐值比对 + CI 绿灯确认**（0.3 人日）—— 补齐 P1-9 第二条验收，并把 CI 跑绿作为可回归的基线。
+**第三步：CI 接上两个新守卫 + 跑绿**（0.2 人日）—— `pnpm compare-vars`、`pnpm check:upstream-delta` 进流水线，确认 GitHub 上这次真绿。
 
-三步之后的顺序：Phase 2 骨架（P2-1 内容集合 → P2-2 BaseLayout → P2-3 Head）。
+三步之后进入 **Phase 2 骨架**。开工前先做 P2-1（内容集合 + unified 处理器，ADR-001）与 P2-2（BaseLayout），因为它们是后面所有页面的前提。Phase 2 的第一个验收动作不是「写完组件」，而是「首页 HTML 与 baseline 的 diff 跑起来」——没有 diff 工具，写完也说不清对不对。
 
 ---
 
@@ -668,19 +713,19 @@ jobs:
 | --- | --- | --- | --- |
 | 1 | Stylus glob `@import '_global/*'` 在 Vite 8 + Astro 7 下工作 | ✅ 通过（全量 72 styl + 47 css 实际编译验证） | P1-5 |
 | 2 | `hexo-config()` 在 `if` / `convert()` / `alpha()` 里求值 | ✅ 通过（179 处全命中，102 个唯一键） | P1-5 |
-| 3 | ClientRouter 整 body 替换后 `#web_bg` 样式是否保留 | ⏳ | P1.5-2 |
-| 4 | ClientRouter 下 `script[data-pjax]` 重执行能否等价 | ⏳ | P1.5-3 |
-| 5 | 生成的 HTML 能否命中现有 Stylus 的 class | ⏳ | P1.5-5 |
-| 6 | Astro 7 Rust 编译器对 pug 转出的 HTML 是否报错 | ⏳ | P1.5-5 |
+| 3 | ClientRouter 整 body 替换后 `#web_bg` 样式是否保留 | ✅ 通过（同节点 + 12 项 computed style 相等） | P1.5 |
+| 4 | ClientRouter 下 `script[data-pjax]` 重执行能否等价 | ✅ 通过（`data-astro-rerun`，每次导航 +1） | P1.5 |
+| 5 | 生成的 HTML 能否命中现有 Stylus 的 class | ✅ 通过（`.note`/`.recent-post-item`/`#web_bg` computed style 命中） | P1.5 |
+| 6 | Astro 7 Rust 编译器对 pug 转出的 HTML 是否报错 | ✅ 通过（不闭合标签正常） | P1.5 |
 | 7 | `@vite-pwa/astro` 能否表达 `sw-rules.js` 的 CDN 备用逻辑 | ⏳ | P7-1 |
-| 8 | 音乐播放器在整 body 替换下能否不中断 | ⏳ | P1.5-4 |
+| 8 | 音乐播放器在整 body 替换下能否不中断 | ✅ 通过（audio 跨 4 次导航同一节点，持续播放） | P1.5 |
 
 ## 附录 D：里程碑
 
 | 里程碑 | 内容 | 判据 |
 | --- | --- | --- |
 | M1 | 样式管线可信 | ✅ P1-5 已过：全量编译 + 与基准差 +0.52% |
-| M2 | 架构分叉消除 | Phase 1.5 五项有结论 |
+| M2 | 架构分叉消除 | ✅ Phase 1.5 五项全过，Phase 4 按原方案推进 |
 | M3 | 静态站可看 | Phase 2 视觉 diff ≤1% |
 | M4 | 全部页面可渲染 | Phase 3 退出 |
 | M5 | 站点可交互 | Phase 4 退出 |

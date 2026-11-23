@@ -42,6 +42,15 @@ jobs:
       - name: Verify CSS baseline
         run: pnpm verify
 
+      # 69 个 --anzhiyu-* 变量逐值比对（P1-9 第二条验收）
+      - name: Verify CSS variables
+        run: pnpm compare-vars
+
+      # 上游差异守卫：readmode 笔误不许被「顺手修好」、baseline 字节数不许漂、
+      # 上游关键文件 SHA 固定、prismjs 守卫前提仍在（D9 的结论基础）
+      - name: Guard upstream delta
+        run: pnpm check:upstream-delta
+
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
