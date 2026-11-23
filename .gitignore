@@ -23,3 +23,6 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 .idea/
+
+# P1-6 临时 Hexo 参考产物工程（产物数十 MB，不进仓库；可复现的摘要见 docs/baseline.json）
+.baseline-work/
