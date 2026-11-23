@@ -12,7 +12,7 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 22:56（Wave 2 收尾 / Phase 4 收尾中）**
+**快照时间：2026-11-23 23:25（用户指令收尾：Phase 4/5/7 半成品固化为 wip，全部 agent 已停止）**
 
 ### 1.1 仓库
 
@@ -20,7 +20,7 @@
 | --- | --- |
 | 提交 | `19c9b80` fix(diff): 忽略机制元素后合并相邻文本节点（后续还有未提交的 Phase 4 收尾 / 迁移脚本 / 上游 public 资源） |
 | 提交数 | 39 |
-| 工作区 | Head/Header/AsideContent/BaseLayout 的 Phase 4 改动、`head/**`、`console/**`、`config/assets.ts`、`public/{js,css,img,anzhiyu}/`、`scripts/migrate-hexo.mjs` 均未提交；三个 agent 在跑 |
+| 工作区 | 已按用户指令收尾：Phase 4 head 运行时（Head/Header/BaseLayout/Console/head\*\*）、P5 third-party 组件库 55 文件 + `check-third-party.mjs`、P7 lenient tag（index/parser/migrate 模板）、上游 `public/{js,css,img,anzhiyu}/` 均以 wip 提交固化，**均未验收**，可续接 |
 | CI | 12 步流水线，主干全绿；diff 步骤只出报告不阻断 |
 | 产物规模 | **62 页**构建成功（基线 48 页 + 9 文章 + about + 11 个 page.type fixture） |
 | 代码量 | 主题包约 8k 行 + remark-hexo-tag 42 tag + 验证站 62 页 |
@@ -692,9 +692,10 @@ jobs:
 
 | # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | Phase 4 收尾 7 类：config-diff 48 条（含 tags-thirdparty head 注入）、og:url 15 条、input#page-type 9 条、short-note 47 节点、console 二维码、about 2 脚本、postAI | p4-finish | ◐ |
-| 2 | Phase 5 组件库 + `check-third-party.mjs` + P5-1 报告落盘 | p5-integrations | ◐ |
-| 3 | Phase 7 文档：`docs/MIGRATION.md`（时区/CLI/只读/unsupported 21 项）、`docs/notes/P7-3-migration.md`、`.gitignore` 追加 `.migration-out/`、源站只读证明 | migration-tool-v2 | ◐ |
+| 1 | Phase 4 收尾 7 类：config-diff 48 条（含 tags-thirdparty head 注入）、og:url 15 条、input#page-type 9 条、short-note 47 节点、console 二维码、about 2 脚本、postAI；另需 BaseLayout→Head 透传 postUpdate/postAI/postMainColor | 待续（p4-finish 已停止，未落盘） | ⬜ |
+| 2 | Phase 5 收尾：组件库 55 文件 + 自检脚本已落盘，剩自检跑通、P5-1 报告、接线到 Head/BaseLayout | 待续（p5-integrations 已停止） | ◐ |
+| 3 | Phase 7 文档 ✅ `docs/MIGRATION.md`、`docs/notes/P7-3-migration.md`、`.gitignore`、源站只读 sha256 三次实证（44fc1a2 / 10828b4） | migration-tool-v2 | ✅ |
+| 4 | Phase 7 真实站完整构建：lenient 模式已实现但未验收（59/59 单测需复跑），真实内容 + 真实配置 build 未通过，禁止删文章/换配置换绿灯 | 待续（p7-real-build 已停止） | ◐ |
 | 4 | Phase 2 退出：48 页 PASS / `.github/workflows/ci.yml` diff 去 `\|\| true` 改硬门禁 / artifact 加 `if: always()` | Lead + 待分配 | ⬜ |
 | 5 | Phase 4 行为验收：暗色/右键/中控台/音乐/搜索/主色调/站内无整页刷新 | 待分配 | ⬜ |
 | 6 | Phase 3 剩余：11 个 page.type 模板浏览器走查 | 待分配 | ⬜ |
