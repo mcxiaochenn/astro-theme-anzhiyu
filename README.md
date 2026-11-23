@@ -85,6 +85,8 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 
 用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)。
 
+**线上演示**：<https://mcxiaochenn.github.io/blog/>（GitHub Pages 子路径部署，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送；上游 JS 的运行时路径类次要功能——音乐球、搜索——在子路径下降级，页面导航 / 样式 / 视觉不受影响）。
+
 ## 文档
 
 | 文档 | 内容 |

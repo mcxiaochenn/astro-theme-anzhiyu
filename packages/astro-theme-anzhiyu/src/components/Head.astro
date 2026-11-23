@@ -121,9 +121,22 @@ const themeColor = theme.display_mode === 'dark' ? themeColorDark : themeColorLi
 
 const origin = Astro.url.origin
 const siteOrigin = (site.url ? site.url.replace(/\/+$/, '') : origin.replace(/\/+$/, '')) || ''
+
+/**
+ * Astro `base`（demo 部署构建设置，如 /blog）会让 `Astro.url.pathname`
+ * 自带前缀；站内前缀由 site.root（urlFor）负责，这里先剥掉 base 前缀，
+ * 避免双重拼接。验收构建无 base（BASE_URL === '/'），行为不变。
+ * 注意 BASE_URL 不带尾斜杠（/blog），剥完要补回前导 /。
+ */
+const astroBasePath = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL
+const routePath = (pathname: string): string => {
+  if (!astroBasePath || !pathname.startsWith(astroBasePath)) return pathname
+  const rest = pathname.slice(astroBasePath.length)
+  return rest.startsWith('/') ? rest : `/${rest}`
+}
+
 const resolvedPageUrl =
-  pageUrl ??
-  `${siteOrigin}${urlFor(Astro.url.pathname === '/' ? '/' : Astro.url.pathname)}`
+  pageUrl ?? `${siteOrigin}${urlFor(routePath(Astro.url.pathname))}`
 
 /** 上游 `urlNoIndex()`：canonical 去掉结尾 `index.html`。 */
 const canonical = urlNoIndex(resolvedPageUrl)

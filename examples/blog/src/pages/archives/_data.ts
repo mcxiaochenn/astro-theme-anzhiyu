@@ -31,6 +31,7 @@ import {
 import { createSiteDateFormatter } from '../../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
 import { t } from '../../../../../packages/astro-theme-anzhiyu/src/i18n/index.ts'
 import type { ArticleSortPost } from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/types.ts'
+import { SITE_IDENTITY } from '../../data/site-identity.ts'
 
 /* ==================================================================== */
 /* 站点级配置（基准站 .baseline-work/_config.yml）                        */
@@ -77,16 +78,7 @@ export interface SiteMeta {
   root: string
 }
 
-export const BASELINE_SITE: SiteMeta = {
-  title: 'AnZhiYu Baseline',
-  subtitle: '上游 1.7.1 参考产物',
-  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
-  keywords: 'Hexo,AnZhiYu,baseline',
-  author: 'AnZhiYu Baseline',
-  language: SITE_LANGUAGE,
-  url: 'https://baseline.anzhiyu.test',
-  root: '/',
-}
+export const BASELINE_SITE: SiteMeta = SITE_IDENTITY
 
 /** 与 `src/i18n` 的 `t()` 绑定站点语言后的 `_p()`（上游 `this._p`）。 */
 const translate: Translate = (key, ...args) => t(key, SITE_LANGUAGE, ...args)

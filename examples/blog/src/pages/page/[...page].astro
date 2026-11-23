@@ -41,17 +41,10 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>
 
-/** 站点级元数据（基准站身份，对应上游 `config.*`）。 */
-const site = {
-  title: 'AnZhiYu Baseline',
-  subtitle: '上游 1.7.1 参考产物',
-  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
-  keywords: 'Hexo,AnZhiYu,baseline',
-  author: 'AnZhiYu Baseline',
-  language: 'zh-CN',
-  url: 'https://baseline.anzhiyu.test',
-  root: '/',
-}
+import { SITE_IDENTITY } from '../../data/site-identity.ts'
+
+/** 站点级元数据（基准站身份，对应上游 `config.*`）——集中定义见 src/data/site-identity.ts。 */
+const site = SITE_IDENTITY
 
 const { current } = Astro.props as Props
 const entries = await getCollection('posts')

@@ -286,6 +286,18 @@ const hexoMarkdownProcessor = {
 }
 
 export default defineConfig({
+  // GitHub Pages demo 构建的子路径（`DEPLOY_SITE_ROOT`，约定不带前导斜杠传值，
+  // 如 blog —— Git Bash 会把以 / 开头的 env 值做 MSYS 路径转换，这里统一归一化）。
+  // 验收构建不设该环境变量，这里保持无 base —— 产物与 48 页基线的路径
+  // 语义（/css/index.css、/archives/…）完全一致，diff 验收不受影响。
+  // 分工：`base` 管页面输出目录与 Vite 打包资源前缀；站内链接前缀由
+  // SITE_IDENTITY.root 管（见 src/data/site-identity.ts，同一个变量）。
+  ...(() => {
+    const raw = process.env.DEPLOY_SITE_ROOT
+    if (!raw) return {}
+    const base = raw.startsWith('/') ? raw : `/${raw}`
+    return { base }
+  })(),
   // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
   // 原因：Phase 6 的 42 个 Hexo tag 需要在 Markdown 解析阶段做语法替换，
   // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。
