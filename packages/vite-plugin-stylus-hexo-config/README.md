@@ -42,6 +42,24 @@ npm i -D stylus vite-plugin-stylus-hexo-config
 1. **展开 `.styl` 的 `@import`**。Stylus 的 import 由编译器直接读盘，被导入的文件不经过 Vite 的 transform 钩子，所以替换必须自己把 import 递归内联。`.css` 的 import 保持原样，交给 Stylus 输出成 CSS 的 `@import`。glob 支持 `dir/*` 和 `dir/**/*` 两种写法。
 2. **把 `hexo-config('x.y')` 换成变量**。文件顶部生成 `$cfg_x_y = <值>`，调用点替换成 `($cfg_x_y)`。
 3. **值类型按配置原始类型保留**：字符串、布尔、数字、null。字符串的包裹引号按内容选（含双引号用单引号，含单引号用双引号），因为 Stylus 不支持字符串内的引号转义。
+4. **复刻 Hexo 主题脚本的 define 层**（`stylus:renderer` filter）：在展开源码顶部注入 4 个语法高亮开关，与 `$cfg_*` 同级：
+
+   ```js
+   // 上游 scripts/events/stylus.js 的逻辑
+   const { syntax_highlighter, highlight, prismjs } = hexo.config
+   if (syntax_highlighter) {
+     highlightEnable = syntax_highlighter === 'highlight.js'
+     prismjsEnable = syntax_highlighter === 'prismjs'
+   }
+   style.define('$highlight_enable', highlightEnable)
+        .define('$highlight_line_number', highlightLineNumber)
+        .define('$prismjs_enable', prismjsEnable)
+        .define('$prismjs_line_number', prismjsLineNumber)
+   ```
+
+   生成 `$highlight_enable = true` / `$highlight_line_number = true` / `$prismjs_enable = false` / `$prismjs_line_number = true`（默认 Hexo 7.3.0 站点配置：`syntax_highlighter: highlight.js`）。**这层不能省**：Stylus 把 `if` 里的未定义变量当真，漏掉 `$prismjs_enable=false` 会让 `_highlight/highlight.styl` 的 prismjs 分支多输出 +3782 字节。
+
+   站点级键（`syntax_highlighter` / `highlight` / `prismjs`）从传入的配置对象里取；`configPath` 指向主题 `_config.yml` 时这些键不存在，插件按 Hexo 7.3.0 的 `default_config` 回落默认值（`highlight.js` + 两个 `line_number: true`）。站点配置层落地后把站点 YAML 的键传进来即可，推导逻辑不变。
 
 ## 为什么不注入 JS 函数
 
@@ -79,7 +97,7 @@ $rightside-bottom = ($cfg_rightside_bottom) ? convert(($cfg_rightside_bottom)) :
 
 ## 限制
 
-- 只处理 `hexo-config()`，不实现 Hexo 的其它模板函数。
+- 只处理 `hexo-config()` 与上游主题脚本 `scripts/events/stylus.js` 注入的 4 个高亮变量（`$highlight_enable` / `$highlight_line_number` / `$prismjs_enable` / `$prismjs_line_number`），不实现 Hexo 的其它模板函数 / 过滤器。
 - glob 只支持 `dir/*` 与 `dir/**/*`，不支持 `**/*.styl` 这种放在路径中间的写法。
 - 嵌套对象（如 `menu`）会被扁平化成点路径；数组会被序列化成字符串，在 CSS 里通常没有意义。
 - 配置文件变化时会按 mtime 重新读取，但已编译过的文件要等 Vite 重新触发 transform 才更新。

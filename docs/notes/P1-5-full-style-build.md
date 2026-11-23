@@ -21,6 +21,8 @@
 
 **一句话**：构建可重复、体积/gzip 双 PASS、无残留 `@import`、配置键数量自证闭环；SHA 不一致的原因是产物里多出 34 条上游没有的 prismjs 样式规则（约等于 +3554 字节），属格式/内容差异而非语义回归，P1-5 可判通过（判据见末节）。
 
+> **勘误提示（2026-11-23 追加）**：本报告 §6.4 的「Stylus 未定义变量在 `if` 里当假」结论已被实测推翻（实为**真**），§8.1 / §9 的「prismjs 来源未定位」判断也已定位；「+3554 B ≈ 34 条 prismjs 规则」的归因需精确拆分为 **prismjs +3782 B − `@css{}` 排版 228 B**。正文保留原件、过期句已加删除线，**以文末「## 勘误」为准**。
+
 ---
 
 ## 1. 构建复核
@@ -175,11 +177,13 @@ selectors with extra count in astro: 34   in upstream: 2
 **6.3 为什么 raw 变大而 gzip 反而变小**
 
 - 新增的 34 条 prismjs 规则高度同构（同一 `pre[class*='language-']` 前缀 + 少量颜色值），压缩率极高；同时两侧选择器换行/`:not( )` 空白等排版细节不同，这部分差异对 gzip 是中性或负贡献。两者叠加即「raw +3554 / gzip -53」。这正好说明差异**不属于语义级重写**：如果是内容替换，gzip 很难不涨。
-- 结论：**+3554 字节 = prismjs 高亮规则被纳入产物（约 3.5 KB）+ 少量声明/排版差**；不是 `@css{}` 字面量没展开、也不是尾部/换行硬差异（产物尾部为正常的 `}` + 换行，无 sourcemap 注释、无多余 `@charset`）。
+- 结论：**+3554 字节 = prismjs 高亮规则被纳入产物（约 3.5 KB）+ 少量声明/排版差**；不是 `@css{}` 字面量没展开、也不是尾部/换行硬差异（产物尾部为正常的 `}` + 换行，无 sourcemap 注释、无多余 `@charset`）。（勘误：−228 B 的残差确实来自 `@css{}` 字面量内的「逗号 + 换行」折叠，属空白/排版差而非语义差，见文末「勘误」勘误 2。）
 
 **6.4 待确认点（老实说）**
 
-`_highlight/highlight.styl:29-30` 是 `if $prismjs_enable` → `@require 'prismjs/index'`，而 `$prismjs_enable` 在全部 72 个 styl 里**没有任何赋值**（grep `$prismjs_enable =` 零命中）。本地实测 Stylus 对 `if $未定义变量` 的行为是当假、不报错（`stylus.render('if $foo_enable …')` 输出里没有该分支）。但产物里 prismjs 规则确实存在，说明当前 Vite-Stylus 管线让这个守卫变成了真——具体注入来源（插件注入 / stylus 版本差异 / 变量来自别处）**尚未定位**。这是 §6.2 差异的机制解释缺口，不影响「差 0.52%、verify PASS」的结论，但必须在 Phase 7 前查清（否则将来修 CSS 压缩时这 3.5 KB 会带着走）。
+`_highlight/highlight.styl:29-30` 是 `if $prismjs_enable` → `@require 'prismjs/index'`，而 `$prismjs_enable` 在全部 72 个 styl 里**没有任何赋值**（grep `$prismjs_enable =` 零命中）。~~本地实测 Stylus 对 `if $未定义变量` 的行为是当假、不报错（`stylus.render('if $foo_enable …')` 输出里没有该分支）。~~ 但产物里 prismjs 规则确实存在，说明当前 Vite-Stylus 管线让这个守卫变成了真——~~具体注入来源（插件注入 / stylus 版本差异 / 变量来自别处）尚未定位。~~
+
+**勘误（2026-11-23 追加）**：实测结论相反——**Stylus 未定义变量在 `if` 里当「真」**，所以 `if $prismjs_enable` 必然执行；根因是上游 Hexo 模板脚本 `scripts/events/stylus.js` 注册 `stylus:renderer` filter 后用 `.define()` 注入 4 个变量，我们的插件没复刻这一层（登记为 `docs/upstream-delta.md` U3 = PLAN §1.4 D9，修复任务 P1-11）。这是 §6.2 差异的机制解释缺口，不影响「差 0.52%、verify PASS」的结论，但必须在 Phase 7 前查清（否则将来修 CSS 压缩时这 3.5 KB 会带着走）→ 已定位，详见文末「勘误」。
 
 ## 7. 构建期告警逐条
 
@@ -206,7 +210,7 @@ vite WARN（1 条）：
 
 ## 8. 遗留问题
 
-1. **prismjs 3.5 KB 规则来源未定位**（§6.4）：`$prismjs_enable` 无赋值却进了产物，Phase 7 动压缩/基准前必须查清，否则任何后续 CSS 体积变化都会混进这个噪声。
+1. ~~**prismjs 3.5 KB 规则来源未定位**（§6.4）：`$prismjs_enable` 无赋值却进了产物，Phase 7 动压缩/基准前必须查清，否则任何后续 CSS 体积变化都会混进这个噪声。~~ **已定位（2026-11-23 勘误）**：上游 Hexo 用 `.define()` 注入 4 个变量、我们的插件没复刻 + 未定义变量在 `if` 里为真 → prismjs 分支被包含，`+3782 B`（`docs/upstream-delta.md` U3）；修复任务 P1-11。Phase 7 动压缩/基准前仍应先做 P1-11，否则 CSS 体积里会带这个噪声。详见文末「勘误」。
 2. **图片资源未 resolve**（§7 第 11 条）：`/img/comment_bg.png` 等绝对路径资源在 `examples/blog` 没有 `public/`，构建期不解析、运行时 404 风险。归资源/页面阶段（Phase 2 或对应 fixture 资源任务）处理，P1-5 不阻塞。
 3. **CSS 压缩延后 Phase 7**：`cssMinify:false` 是当前的有意状态（`astro.config.mjs:27`），Phase 7 落地时应让比对基准用未压缩产物、另立压缩后体积预算，而不是回头用压缩产物对 683218。
 4. **上游 bug 待记录到 upstream-delta**：`source/css/_mode/readmode.styl:120` 的 `var(-highlight-bg)` 应写进 upstream-delta 清单（不修，仅记录，含 104 行正确写法作对照），避免后续 phase 有人「顺手修好」导致视觉漂移。
@@ -220,9 +224,9 @@ vite WARN（1 条）：
 2. **体积与 gzip 在 ±5% 内**：`verify-css.mjs` 两项 PASS，+0.52% / -0.07% → 满足（§2）。
 3. **无残留运行时 `@import`**：产物 0 处 `@import`、0 处 `@css` 字面量残留 → 满足（§3）。
 4. **配置覆盖闭环**：上游 179 处 `hexo-config(` 全部有效（0 条在注释行）→ 102 个唯一键，与插件日志 102 键逐一吻合 → 满足（§5）。
-5. **差异可解释**：+3554 字节 ≈ 34 条上游没有的 prismjs 规则（≈3.5 KB）+ 少量声明/排版差，SHA 不一致是**预期内**且 verify 明确不判失败（verify-css.mjs:12 注释）→ 满足（§6）。
+5. **差异可解释**：+3554 字节 ≈ 34 条上游没有的 prismjs 规则（≈3.5 KB）+ 少量声明/排版差，SHA 不一致是**预期内**且 verify 明确不判失败（verify-css.mjs:12 注释）→ 满足（§6）。（勘误：精确口径为 prismjs **+3782 B** − `@css{}` 排版 **228 B**，见文末「勘误」；判据本身不变。）
 
-不构成通过阻碍的观察项：prismjs 注入机制未定位（§6.4/§8.1）、`/img/comment_bg.png` 构建期未 resolve（§7/§8.2）——两者都有明确归属和后续 phase 承接，不属于 P1-5 的验收面。若后续 Phase 7 引入 CSS 压缩，基准口径必须同步调整（§8.3），否则本条 PASS 会退化成假阴性。
+不构成通过阻碍的观察项：~~prismjs 注入机制未定位（§6.4/§8.1）~~（2026-11-23 勘误：已定位为上游 `.define()` 层未复刻，见文末「勘误」）、`/img/comment_bg.png` 构建期未 resolve（§7/§8.2）——两者都有明确归属和后续 phase 承接，不属于 P1-5 的验收面。若后续 Phase 7 引入 CSS 压缩，基准口径必须同步调整（§8.3），否则本条 PASS 会退化成假阴性。
 
 ## 10. 实现与提交证据（只读 git 查询，无写操作）
 
@@ -270,3 +274,44 @@ styl files=72 bytes=309549  css files=47 bytes=171566
 | 3 | `[lightningcss minify] Unexpected token Ident("-highlight-bg")`（上游 readmode.styl:120 笔误） | 关 CSS 压缩 | `astro.config.mjs:27` `cssMinify: false`（dcbd4a8） |
 
 复现性：在 HEAD 上重跑构建，产物文件名与 SHA-256 与组长实测逐字节一致（`index.DVFB5Y3m.css` / `1319c726…5b07`），说明该结论不依赖本地缓存。
+
+---
+
+## 勘误（2026-11-23 追加）
+
+本报告是 2026-11-23 归档的历史记录，正文保留原样；以下条目已被后续实测推翻或修正，过期句子在正文里用 ~~删除线~~ 标出并指向本节。**结论以本节为准**，完整证据见 `docs/upstream-delta.md` §3 与 `docs/notes/P-upstream-delta.md` §2。
+
+### 勘误 1：§6.4 的「Stylus 未定义变量在 `if` 里当假」——结论反了（这是 D9 的根因）
+
+- **原文（错误）**：§6.4 写「本地实测 Stylus 对 `if $未定义变量` 的行为是当假、不报错」。
+- **实测（正确）**：**Stylus 0.64.0 的未定义变量在 `if` 里为「真」、不报错**；只有在 `&&` 二元运算里才当假。最小复现原文：
+
+  ```text
+  if $foo_undefined …           → ".yes { color: #f00; }"         ← 未定义在 if 里为真
+  $bar = $foo && !$baz && true  → ".x { y: false; }"               ← 在 && 里为假
+  if $prismjs_enable（不赋值）   → ".prism-rule { … } .tail { … }"  ← 守卫被执行
+  if $prismjs_enable（= false）  → ".tail { … }"                    ← 赋值 false 才不进
+  ```
+
+- **影响**：这条错误正好掩盖了 D9 的根因。既然未定义在 `if` 里为真，`if $prismjs_enable` 分支就必然被包含——产物里多出 prismjs 规则既不需要「谁注入」，也不是「未定义却进了产物」的异常。
+- **根因（已定位）**：上游 Hexo 主题脚本 `scripts/events/stylus.js` 注册 `stylus:renderer` filter，用 `.define()` 注入 4 个变量（`$highlight_enable` / `$highlight_line_number` / `$prismjs_enable` / `$prismjs_line_number`；Hexo 7 下由 `syntax_highlighter` 决定取值）。我们的 Vite 插件只复刻了 `hexo-config()` 和 import 展开，**没有复刻 define 层** → 4 个变量在 72 个 styl 里零赋值 = 全部未定义 = 在 `if` 里全为真。基线站点是 `syntax_highlighter: highlight.js`（上游 `$prismjs_enable=false`），我们这边为真 → prismjs 分支被错误包含。
+- **登记与修正**：`docs/upstream-delta.md` U3（= PLAN §1.4 D9）；修复任务 **P1-11「复刻 Hexo define 层」**，按上游 filter 原始逻辑注入 4 个变量（默认 `highlight.js` → `$prismjs_enable=false`）。本阶段不修（会重算基准），关闭判据：CSS 686772 → 682990 B、prismjs 规则族消失。
+
+### 勘误 2：§6.1–§6.3 / §9 的 +3554 B 归因——精确拆分与字节闭环
+
+- **原文（不精确）**：结论速览「一句话」与 §6.3 把 +3554 B 主要归给「34 条 prismjs 规则 ≈ +3554 字节」；§6.4 说注入来源未定位。
+- **修正后的字节闭环**（用真实插件展开上游 `index.styl` 后 `stylus.render` 复现，与当日 dist 产物字节数 + SHA 逐字节一致）：
+
+  ```text
+  baseline (hexo g)                   683218
+  expanded 原样（= 当前管线）          686772   （+3554）
+  expanded + $prismjs_enable = false  682990   （−228）
+  ```
+
+  即 **+3554 B = prismjs 分支 +3782 B − `@css{}` 排版差 228 B**。其中 +3782 B 对应 32 个规则块（与 §6.1 的 `{` 计数 +32 完全对上）；§6.2 的「34 条」是选择器级 multiset 口径，两者不矛盾——**字节口径以 3782 / 228 为准**。
+- **−228 B 的机制**：`docs/upstream-delta.md` U6——插件把纯 CSS 包进 `@css{}` 字面量后，Stylus 词法器把「逗号 + 换行」折叠成 `,\r`，与 Hexo 的 literal import 路径无法逐字节对齐；视觉无影响，Phase 7 才处理。
+- **对验收的影响**：「构建可重复 / verify 双 PASS（+0.52% / −0.07%）/ P1-5 通过」的结论**不变**；受影响的是 SHA 不一致的归因与 Phase 2/7 的基准口径——不能再用「≈34 条规则」当解释。
+
+### 勘误 3：§8.1 与 §9 的「prismjs 来源未定位」——已关闭
+
+`$prismjs_enable` 的来源已定位（见勘误 1），后续动作从「查来源」变为「P1-11 复刻 define 层」；§9 的 P1-5 判定与 verify PASS 结论维持不变。

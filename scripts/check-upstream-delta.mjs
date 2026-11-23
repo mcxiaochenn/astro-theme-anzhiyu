@@ -17,15 +17,22 @@
  * 2. 基准摘要一致（docs ↔ docs/baseline.json）
  *    - docs/upstream-delta.md 里的机器可读锚点（baseline-index-css-bytes 等）
  *      与 docs/baseline.json 的 commit / 字节数 / gzip / SHA-256 必须一致；
- *    - P1-5 的产物字节 = 基准字节 + prismjs 多出字节 + 残余排版差，三个数
- *      必须自洽（683218 + 3782 + (-228) = 686772）。
+ *    - P1-11 的产物字节口径：上游样式子集 = 基准字节 + 残余排版差，即
+ *      683218 + (-228) = 682990（U6 的 @css{} 排版差是唯一剩余项）。
+ *      P1-5 的历史口径 686772 = 683218 + 3782 + (-228) 已随 D9 修复作废；
+ *      真实构建产物还会多出 ClientRouter 自带的 1097 B（见登记表 §3.3）。
  * 3. 上游关键文件 SHA-256
  *    - 登记表锚点里的 upstreamFiles 映射逐个校验，任何被格式化、换行归一化、
  *      替换或更新的文件都会被抓到。上游副本是"基线证据"，不是可编辑源码。
  * 4. 登记表的事实前提
  *    - 上游 styl 树里 `$prismjs_enable` / 其余 Hexo 注入变量必须仍然零赋值
  *      （D9 的根因：它们来自模板脚本 scripts/events/stylus.js 的 .define()，
- *      不在 styl 源码里；如果有人给上游副本补了赋值，D9 的结论就过期了）。
+ *      不在 styl 源码里）。
+ *    - 插件必须复刻这一层：动态 import 插件、展开上游 index.styl，断言展开
+ *      源码顶部注入了锚点 hexoInjectedStylusVarValues 里的 4 个变量与值
+ *      （即 $highlight_enable=true / $highlight_line_number=true /
+ *      $prismjs_enable=false / $prismjs_line_number=true）。这一条是 D9
+ *      不回归的开关：插件哪天把 define 层删了/算错了，这里直接红。
  *    - theme.config.yml 必须是 133 顶层键 / 662 递归 mapping key，且
  *      theme_color.button_hover / theme_color.blockquote_padding_color /
  *      theme_color.blockquote_background_color 三个键保持"被注释掉 = 不存在"，
@@ -44,7 +51,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'upstream-delta.md')
@@ -53,6 +60,13 @@ const BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'baseline.json')
 const UPSTREAM_STYLES = path.join(REPO_ROOT, 'examples', 'blog', 'src', 'styles', 'upstream')
 const THEME_CONFIG = path.join(REPO_ROOT, 'examples', 'blog', 'theme.config.yml')
 const BASELINE_WORK = path.join(REPO_ROOT, '.baseline-work')
+const PLUGIN_ENTRY = path.join(
+  REPO_ROOT,
+  'packages',
+  'vite-plugin-stylus-hexo-config',
+  'src',
+  'index.mjs',
+)
 
 // readmode.styl 两条关键声明的唯一允许形态（按 trim 后比较，行号写死）
 const READMODE_LINE_104 = 'background: var(--highlight-bg) !important'
@@ -115,11 +129,11 @@ const REQUIRED_ANCHOR_FIELDS = [
   'baselineIndexCssBytes',
   'baselineIndexCssGzipBytes',
   'baselineIndexCssSha256',
-  'p15CompiledIndexCssBytes',
-  'p15PrismjsDeltaBytes',
-  'p15ResidualFormatDeltaBytes',
+  'p111CompiledIndexCssBytes',
+  'residualFormatDeltaBytes',
   'hexoVersion',
   'hexoInjectedStylusVars',
+  'hexoInjectedStylusVarValues',
   'themeConfigTopLevelKeys',
   'themeConfigRecursiveMappingKeys',
   'commentedOutConfigKeys',
@@ -203,18 +217,21 @@ if (!existsSync(BASELINE_JSON)) {
 }
 
 // —— 2b. 登记表内部算术自洽 + notes 报告同数 ——
+//
+// P1-11（D9 修复）之后，上游样式子集只剩 U6 的 @css{} 排版差：
+// 基准 683218 + (-228) = 682990。P1-5 的 686772 = 683218 + 3782 + (-228)
+// 是修复前历史口径，不再参与闭环（3782 的 prismjs 增量已消失）。
 
-const arith =
-  anchor.baselineIndexCssBytes + anchor.p15PrismjsDeltaBytes + anchor.p15ResidualFormatDeltaBytes
-if (arith === anchor.p15CompiledIndexCssBytes) {
+const arith = anchor.baselineIndexCssBytes + anchor.residualFormatDeltaBytes
+if (arith === anchor.p111CompiledIndexCssBytes) {
   pass(
-    `P1-5 字节闭环：${anchor.baselineIndexCssBytes} + ${anchor.p15PrismjsDeltaBytes} + ` +
-      `(${anchor.p15ResidualFormatDeltaBytes}) = ${anchor.p15CompiledIndexCssBytes}`,
+    `P1-11 字节闭环：${anchor.baselineIndexCssBytes} + (${anchor.residualFormatDeltaBytes}) = ` +
+      `${anchor.p111CompiledIndexCssBytes}`,
   )
 } else {
   fail(
-    'P1-5 字节闭环：基准 + prismjs + 残余 = P1-5 产物',
-    `期望 ${anchor.p15CompiledIndexCssBytes}，按锚点算得 ${arith}`,
+    'P1-11 字节闭环：基准 + 残余排版差 = 上游样式子集',
+    `期望 ${anchor.p111CompiledIndexCssBytes}，按锚点算得 ${arith}`,
   )
 }
 
@@ -307,13 +324,14 @@ if (hexoInjectedVars.length === 0) {
   if (assigned.length === 0) {
     pass(
       `上游 ${stylFiles.length} 个 styl 里 ${hexoInjectedVars.join(' / ')} 仍然零赋值` +
-        '（它们由 Hexo 模板脚本的 .define() 注入，D9 的前提）',
+        '（它们由 Hexo 模板脚本的 .define() 注入，插件侧的复刻见 4c 守卫）',
     )
   } else {
     fail(
       'Hexo 注入变量在 styl 里保持零赋值',
-      `发现赋值：${assigned.join('；')}。D9 的结论（变量来自 scripts/events/stylus.js 的 .define()）` +
-        '已过期，必须重新定位并更新 docs/upstream-delta.md。',
+      `发现赋值：${assigned.join('；')}。上游副本被改了：这四个变量只应由 Hexo 的 ` +
+        '.define() / 插件的 define 层提供，styl 里出现赋值会让 D9 的现场失效，' +
+        '必须重新定位并更新 docs/upstream-delta.md。',
     )
   }
 
@@ -328,6 +346,78 @@ if (hexoInjectedVars.length === 0) {
   }
 } else {
   fail('上游 styl 树存在', `缺少 ${rel(UPSTREAM_STYLES)}`)
+}
+
+// —— 4c. 插件必须复刻 Hexo define 层（D9 不回归的开关）——
+//
+// 动态 import 插件（只读、不构建），用 theme.config.yml 展开上游 index.styl，
+// 断言展开源码顶部出现锚点 hexoInjectedStylusVarValues 的 4 行赋值。上游配置
+// 里没有站点级 syntax_highlighter/highlight/prismjs，插件必须回落 Hexo 7.3.0
+// 默认值才能得到基线的四个值。插件哪天删掉 define 层或算错，这里直接红。
+
+const UPSTREAM_ENTRY = path.join(UPSTREAM_STYLES, 'index.styl')
+const expectedDefineVars = anchor.hexoInjectedStylusVarValues
+const expectedDefineEntries =
+  expectedDefineVars && typeof expectedDefineVars === 'object' && !Array.isArray(expectedDefineVars)
+    ? Object.entries(expectedDefineVars)
+    : []
+
+if (!existsSync(PLUGIN_ENTRY)) {
+  fail('插件 define 层注入', `缺少插件入口 ${rel(PLUGIN_ENTRY)}`)
+} else if (expectedDefineEntries.length !== hexoInjectedVars.length) {
+  fail(
+    '插件 define 层注入',
+    `锚点 hexoInjectedStylusVarValues 必须覆盖 ${hexoInjectedVars.join(' / ')}（${hexoInjectedVars.length} 项），` +
+      `实际 ${expectedDefineEntries.length} 项`,
+  )
+} else if (!existsSync(UPSTREAM_ENTRY)) {
+  fail('插件 define 层注入', `缺少上游入口 ${rel(UPSTREAM_ENTRY)}`)
+} else {
+  let stylusHexoConfig = null
+  try {
+    ;({ stylusHexoConfig } = await import(pathToFileURL(PLUGIN_ENTRY).href))
+  } catch (error) {
+    skip('插件 define 层注入', `插件不可直接 import（${error.message.split('\n')[0]}）`)
+  }
+
+  if (stylusHexoConfig) {
+    let expanded = ''
+    let expandError = null
+    try {
+      const plugin = stylusHexoConfig({ configPath: THEME_CONFIG, warnOnMissing: false })
+      expanded = plugin.transform(readFileSync(UPSTREAM_ENTRY, 'utf8'), UPSTREAM_ENTRY)?.code ?? ''
+    } catch (error) {
+      expandError = error
+    }
+
+    if (expandError) {
+      fail(
+        '插件 define 层注入',
+        `用插件展开上游 index.styl 失败：${String(expandError.message).split('\n')[0]}`,
+      )
+    } else {
+      const missingDefines = []
+      for (const [name, value] of expectedDefineEntries) {
+        const literal = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value)
+        const re = new RegExp(`^${name.replace(/[$]/g, '\\$&')} = ${literal}$`, 'm')
+        if (!re.test(expanded)) missingDefines.push(`${name} = ${literal}`)
+      }
+      if (missingDefines.length === 0) {
+        pass(
+          `插件展开上游 index.styl 后注入了 ${expectedDefineEntries.length} 个 define 变量（` +
+            expectedDefineEntries.map(([name, value]) => `${name}=${value}`).join(' / ') +
+            '），D9 的 prismjs 分支已被关闭',
+        )
+      } else {
+        fail(
+          '插件 define 层注入',
+          `展开源码里缺少/值不符：${missingDefines.join('；')}。` +
+            '这会让未定义变量在 Stylus 的 if 里当「真」，prismjs 分支回归（+3782 B）。' +
+            '修法是 packages/vite-plugin-stylus-hexo-config 的 hexoDefineLines()。',
+        )
+      }
+    }
+  }
 }
 
 // —— 4b. theme.config.yml：键数 + 注释键缺失 + 对象键（需要 yaml，可降级 SKIP）——

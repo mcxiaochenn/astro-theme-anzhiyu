@@ -14,6 +14,18 @@ const IMPORT_RE = /@(import|require)[ \t]+(['"])([^'"]+)\2[ \t]*;?/g
 const USE_RE = /\buse\(\s*(['"])([^'"]+)\1\s*\)/g
 const MAGIC_RE = /[*?]/
 
+// Hexo 7.3.0 的站点级默认值（hexo/dist/hexo/default_config.js）。上游主题脚本
+// scripts/events/stylus.js 读的是 `hexo.config`，而 hexo.config 是站点 _config.yml
+// 深合并这份默认值之后的完整配置，所以「配置里没写」不等于「值不存在」：
+// 没写就用这里的默认值，与 Hexo load_config() 的语义一致。
+// 注意 Hexo 7 的默认配置里没有 highlight.enable / prismjs.enable（那是 Hexo 6
+// 及更早的开关），只有 Hexo > 7.0 的 syntax_highlighter 生效，enable 由它推导。
+const HEXO_SITE_DEFAULT = {
+  syntax_highlighter: 'highlight.js',
+  highlight: { line_number: true },
+  prismjs: { line_number: true },
+}
+
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_VENDOR_DIR = path.resolve(PLUGIN_DIR, '..', 'vendor')
 
@@ -31,6 +43,36 @@ const DEFAULT_VENDOR_DIR = path.resolve(PLUGIN_DIR, '..', 'vendor')
  *    `_extra` 下的递归 CSS glob 都走这条。
  * 3. `.define('hexo-config', key => getProperty(theme.config, key))`：返回 JS 值，
  *    缺失键返回 `''`，对象/数组返回对象/数组（Stylus 会 coerce 成表达式）。
+ * 4. 主题自己的脚本 `scripts/events/stylus.js` 还会注册一个 `stylus:renderer`
+ *    filter，用 `.define()` 注入 4 个语法高亮开关变量（下一节）。
+ *
+ * ## Hexo define 层（stylus:renderer filter）
+ *
+ * 上游主题脚本（不在 `hexo-renderer-stylus` 里，但真实站点一定会执行）：
+ *
+ * ```js
+ * const { syntax_highlighter, highlight, prismjs } = hexo.config
+ * let { enable: highlightEnable, line_number: highlightLineNumber } = highlight
+ * let { enable: prismjsEnable, line_number: prismjsLineNumber } = prismjs
+ * if (syntax_highlighter) {                       // Hexo > 7.0 的站点级开关
+ *   highlightEnable = syntax_highlighter === 'highlight.js'
+ *   prismjsEnable = syntax_highlighter === 'prismjs'
+ * }
+ * style.define('$highlight_enable', highlightEnable)
+ *      .define('$highlight_line_number', highlightLineNumber)
+ *      .define('$prismjs_enable', prismjsEnable)
+ *      .define('$prismjs_line_number', prismjsLineNumber)
+ * ```
+ *
+ * 这 4 个变量在 72 个上游 `.styl` 里**零赋值**，只被 `_highlight/highlight.styl`
+ * 的 `if` / `&&` 消费。漏掉这一层时它们未定义，而 Stylus 对 `if` 里的未定义变量
+ * 当**真**，于是 `if $prismjs_enable` 的 prismjs 分支被错误包含（+3782 字节）。
+ *
+ * 复刻方式：从同一份配置算出 4 个值，在展开源码顶部生成与 `.define()` 等价的
+ * 赋值行（`$name = true/false`）。Hexo 的 `.define()` 走 stylus/lib/utils.js 的
+ * `coerce`，boolean → `nodes.Boolean`，与源码里 `$name = true` 等价；配置缺失时
+ * 上游拿到 `nodes.null`（条件语境为假），这里写成 `false`（在 `if` / `&&` / `!`
+ * 里与 null 同真值，上游 styl 只在这三种语境里消费它们）。
  *
  * ## 为什么不用 define / preprocessorOptions 注入
  *
@@ -181,6 +223,102 @@ export function stylusHexoConfig(options = {}) {
       )
     }
     return 'true'
+  }
+
+  // ---- Hexo define 层：复刻上游主题脚本 scripts/events/stylus.js ----
+
+  /** 取点路径值；缺失返回 undefined（区别于 getProperty 的「缺失 → ''」语义） */
+  function lookupRaw(obj, dotted) {
+    let cur = obj
+    for (const key of dotted.split('.')) {
+      if (cur === null || typeof cur !== 'object' || !Object.prototype.hasOwnProperty.call(cur, key)) {
+        return undefined
+      }
+      cur = cur[key]
+    }
+    return cur
+  }
+
+  /** 站点配置区块：配置里是对象就与 Hexo 默认值浅合并，否则整块用默认值 */
+  function siteSection(config, key, defaults) {
+    const value = lookupRaw(config, key)
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return { ...defaults, ...value }
+    }
+    return { ...defaults }
+  }
+
+  /**
+   * `.define()` 值的文本等价物。
+   *
+   * 上游 `.define(name, value)` 会走 stylus/lib/utils.js 的 `coerce`：
+   * boolean → `nodes.Boolean`、number → `nodes.Unit`、string → `nodes.String`、
+   * null/undefined → `nodes.null`、object/array → 恒真表达式。与源码文本的对应：
+   * `true/false`、数字字面量、引号字符串、`false`（null 在条件语境为假）、`true`。
+   */
+  function defineLiteral(value) {
+    if (typeof value === 'boolean') return value ? 'true' : 'false'
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'string') {
+      return value.includes("'") ? `"${value.replace(/"/g, "'")}"` : `'${value}'`
+    }
+    if (value === null || value === undefined) return 'false'
+    return 'true'
+  }
+
+  /**
+   * 复刻上游主题脚本 `scripts/events/stylus.js` 的 `stylus:renderer` filter：
+   *
+   * ```js
+   * const { syntax_highlighter, highlight, prismjs } = hexo.config
+   * let { enable: highlightEnable, line_number: highlightLineNumber } = highlight
+   * let { enable: prismjsEnable, line_number: prismjsLineNumber } = prismjs
+   * if (syntax_highlighter) {                        // Hexo > 7.0
+   *   highlightEnable = syntax_highlighter === 'highlight.js'
+   *   prismjsEnable = syntax_highlighter === 'prismjs'
+   * }
+   * style.define('$highlight_enable', highlightEnable)
+   *      .define('$highlight_line_number', highlightLineNumber)
+   *      .define('$prismjs_enable', prismjsEnable)
+   *      .define('$prismjs_line_number', prismjsLineNumber)
+   * ```
+   *
+   * 这 4 个变量在 72 个上游 `.styl` 里零赋值，只被 `_highlight/highlight.styl`
+   * 与 `_highlight/theme.styl` 的 `if` / `&&` 消费；漏掉这一层时它们未定义，
+   * 而 Stylus 对 `if` 里的未定义变量当**真**，`if $prismjs_enable` 分支就会被
+   * 错误包含（+3782 字节，见 docs/upstream-delta.md 的 U3/D9）。
+   *
+   * 值的来源：hexo.config 是「站点 _config.yml 深合并 default_config」的结果。
+   * 本插件拿到的 YAML 可能是主题配置（`examples/blog/theme.config.yml`，里面
+   * 没有站点级键），所以缺省回落 Hexo 7.3.0 默认值：`syntax_highlighter`
+   * 默认 `highlight.js` → `$highlight_enable=true` / `$prismjs_enable=false`。
+   *
+   * @param {object} config
+   * @returns {string[]} 形如 ['$highlight_enable = true', ...]
+   */
+  function hexoDefineLines(config) {
+    const site = config && typeof config === 'object' && !Array.isArray(config) ? config : {}
+    const syntaxHighlighter =
+      lookupRaw(site, 'syntax_highlighter') ?? HEXO_SITE_DEFAULT.syntax_highlighter
+    const highlight = siteSection(site, 'highlight', HEXO_SITE_DEFAULT.highlight)
+    const prismjs = siteSection(site, 'prismjs', HEXO_SITE_DEFAULT.prismjs)
+
+    let highlightEnable = highlight.enable
+    let highlightLineNumber = highlight.line_number
+    let prismjsEnable = prismjs.enable
+    let prismjsLineNumber = prismjs.line_number
+
+    if (syntaxHighlighter) {
+      highlightEnable = syntaxHighlighter === 'highlight.js'
+      prismjsEnable = syntaxHighlighter === 'prismjs'
+    }
+
+    return [
+      `$highlight_enable = ${defineLiteral(highlightEnable)}`,
+      `$highlight_line_number = ${defineLiteral(highlightLineNumber)}`,
+      `$prismjs_enable = ${defineLiteral(prismjsEnable)}`,
+      `$prismjs_line_number = ${defineLiteral(prismjsLineNumber)}`,
+    ]
   }
 
   function varNameFor(key, registry) {
@@ -546,9 +684,10 @@ export function stylusHexoConfig(options = {}) {
       const id = rawId.split('?')[0]
       if (!STYL_RE.test(id)) return null
 
-      const hasConfig = code.includes('hexo-config(')
+      // 注意：不能像以前那样「没有 hexo-config()/import 就早退」——上游的
+      // stylus:renderer filter 对每次样式渲染都会注入 4 个 define 变量，
+      // 与源文件内容无关。
       const hasImport = expandImports && /@(import|require)\b/.test(code)
-      if (!hasConfig && !hasImport) return null
 
       let body = code
       let fileCount = 1
@@ -563,12 +702,22 @@ export function stylusHexoConfig(options = {}) {
         fileCount = state.files.size + 1
       }
 
+      // Hexo define 层（上游主题脚本 stylus:renderer filter）与 hexo-config 变量
+      // 同级：都放在展开源码顶部，先 define 再 $cfg_*（顺序不影响求值）。
+      const defineLines = hexoDefineLines(loadConfig())
       const { prelude, body: rewritten, count } = rewriteConfigCalls(body)
-      const out = prelude ? `${prelude}\n${rewritten}` : rewritten
+      const preludeParts = [defineLines.join('\n')]
+      if (prelude) preludeParts.push(prelude)
+      const out = `${preludeParts.join('\n')}\n${rewritten}`
 
       if (debug) {
         console.log(
           `[stylus-hexo-config] ${path.basename(id)}: ${count} 个配置键, 展开 ${fileCount} 个文件`,
+        )
+        console.log(
+          `[stylus-hexo-config] ${path.basename(id)}: Hexo define → ${defineLines
+            .map((line) => line.replace(/^\$/, '').replace(' = ', '='))
+            .join(' ')}`,
         )
       }
 

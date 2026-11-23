@@ -6,9 +6,14 @@
  *   a) 上游 `_config.yml` 全量加载 → 零错误，且抽查 5 个键与上游一致；
  *   b) 只写部分键 → 默认值补全，抽查 5 个键等于 defaults；
  *   c) 某键类型写错 → 抛错，错误信息含完整键路径与期望类型。
+ * P1-12 新增主用例：
+ *   d) 未知顶层键（`some_new_key: 1`）→ 抛错，错误信息含该键名（strict 顶层）。
  * 附加用例：
- *   d) 旧文件名 `_config.anzhiyu.yml` 兼容（打 deprecation）且新文件名优先；
- *   e) 深合并语义：数组整体替换、对象递归合并。
+ *   e) 旧文件名 `_config.anzhiyu.yml` 兼容（打 deprecation）且新文件名优先；
+ *   f) 深合并语义：数组整体替换、对象递归合并；
+ *   g) 未找到配置文件 → 返回完整默认配置；
+ *   h) 显式路径不存在 → 报错；
+ *   i) 返回值与 defaults 隔离。
  *
  * 用法（在 packages/astro-theme-anzhiyu 目录下）：
  *   node scripts/check-loader.mjs
@@ -30,6 +35,24 @@ const UPSTREAM_CONFIG = process.env.THEME_UPSTREAM_CONFIG
 
 const { loadThemeConfig } = await import('../src/config/loader.ts')
 const { defaults } = await import('../src/config/defaults.ts')
+
+/**
+ * 上游为 null 的 11 个顶层键（P1-12）：schema 保持 z.unknown()，不编造类型，
+ * 但必须继续被接受。full config 加载 + 深比较已经覆盖，这里再显式抽查。
+ */
+const NULL_TOP_LEVEL_KEYS = [
+  'menu',
+  'social',
+  'baidu_analytics',
+  'google_analytics',
+  'cnzz_analytics',
+  'cloudflare_analytics',
+  'microsoft_clarity',
+  'index_site_info_top',
+  'index_top_img_height',
+  'category_ui',
+  'tag_ui',
+]
 
 const log = (...args) => console.log('[check-loader]', ...args)
 let passed = 0
@@ -119,6 +142,13 @@ try {
     '合并结果与上游 YAML 完全一致',
   )
 
+  // P1-12：11 个上游 null 顶层键保持 z.unknown()，但必须继续被接受
+  check(
+    `11 个上游 null 顶层键仍被接受（${NULL_TOP_LEVEL_KEYS.length} 个）`,
+    NULL_TOP_LEVEL_KEYS.every((key) => fullConfig[key] === null),
+    NULL_TOP_LEVEL_KEYS.map((key) => `${key}=${show(fullConfig[key])}`).join(', '),
+  )
+
   /* ------------------------------------------------------------------ */
   /* 用例 b：只写部分键 → 默认值补全                                      */
   /* ------------------------------------------------------------------ */
@@ -168,10 +198,58 @@ try {
     check('错误信息含期望类型 string', /期望 string|expected string/i.test(nestedError))
   }
 
+  // P1-12 展开过的区块：更深一层的子键类型也要真的生效
+  const badExpandedPath = writeConfig(
+    'bad/expanded.yml',
+    ['post_meta:', '  page:', '    date_type: 123', ''].join('\n'),
+  )
+  const expandedError = captureError(() => loadThemeConfig({ configPath: badExpandedPath }))
+  check('P1-12 展开区块的深层子键类型生效 → 抛错', expandedError !== null)
+  if (expandedError) {
+    log('原始错误信息：')
+    console.log(expandedError)
+    check(
+      '错误信息含完整键路径 post_meta.page.date_type',
+      expandedError.includes('post_meta.page.date_type'),
+    )
+    check('错误信息含期望类型 string', /期望 string|expected string/i.test(expandedError))
+  }
+
   /* ------------------------------------------------------------------ */
-  /* 附加 d：旧文件名兼容 + 新文件名优先                                  */
+  /* 用例 d：未知顶层键 → 抛错且信息含键名（P1-12 strict 顶层）           */
   /* ------------------------------------------------------------------ */
-  log('=== 附加 d：旧文件名兼容与优先级 ===')
+  log('=== 用例 d：未知顶层键 → 抛错且信息含键名 ===')
+  const unknownKeyPath = writeConfig('unknown/anzhiyu.config.yml', 'some_new_key: 1\n')
+  const unknownKeyError = captureError(() => loadThemeConfig({ configPath: unknownKeyPath }))
+  check('未知顶层键 some_new_key → 抛错', unknownKeyError !== null)
+  if (unknownKeyError) {
+    log('原始错误信息：')
+    console.log(unknownKeyError)
+    check('错误信息含未知键名 some_new_key', unknownKeyError.includes('some_new_key'))
+    check('错误信息标记为「未知顶层键」', unknownKeyError.includes('未知顶层键'))
+    check('错误信息含 zod 错误码 unrecognized_keys', unknownKeyError.includes('unrecognized_keys'))
+    check('不再静默透传（错误信息不含「加载成功」）', !unknownKeyError.includes('加载成功'))
+  }
+
+  // 同时拼错多个键：必须全部列出，方便用户一次改完
+  const multiUnknownPath = writeConfig(
+    'unknown/multi.yml',
+    ['some_new_key: 1', 'another_typo_key: 2', 'highlight_copy: true', ''].join('\n'),
+  )
+  const multiUnknownError = captureError(() => loadThemeConfig({ configPath: multiUnknownPath }))
+  check('同时拼错多个顶层键 → 抛错', multiUnknownError !== null)
+  if (multiUnknownError) {
+    check(
+      '错误信息一次列出全部未知键',
+      multiUnknownError.includes('some_new_key') && multiUnknownError.includes('another_typo_key'),
+    )
+    check('已知键 highlight_copy 不背锅（不在错误行）', !/highlight_copy（期望/.test(multiUnknownError))
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 附加 e：旧文件名兼容 + 新文件名优先                                  */
+  /* ------------------------------------------------------------------ */
+  log('=== 附加 e：旧文件名兼容与优先级 ===')
   const legacyDir = path.join(tmpRoot, 'legacy')
   writeConfig('legacy/_config.anzhiyu.yml', 'highlight_copy: false\n')
   const warnings = []
@@ -205,9 +283,9 @@ try {
   check('走新文件名时不打 deprecation', priorityWarnings.length === 0, priorityWarnings.join(' | '))
 
   /* ------------------------------------------------------------------ */
-  /* 附加 e：深合并语义（数组整体替换、对象递归合并）                      */
+  /* 附加 f：深合并语义（数组整体替换、对象递归合并）                      */
   /* ------------------------------------------------------------------ */
-  log('=== 附加 e：深合并语义 ===')
+  log('=== 附加 f：深合并语义 ===')
   const mergePath = writeConfig(
     'merge/config.yml',
     [
@@ -240,26 +318,26 @@ try {
   )
 
   /* ------------------------------------------------------------------ */
-  /* 附加 f：未找到配置文件时返回完整默认配置                              */
+  /* 附加 g：未找到配置文件时返回完整默认配置                              */
   /* ------------------------------------------------------------------ */
-  log('=== 附加 f：无配置文件 → 默认配置 ===')
+  log('=== 附加 g：无配置文件 → 默认配置 ===')
   const emptyDir = path.join(tmpRoot, 'empty')
   const defaultConfig = loadThemeConfig({ cwd: emptyDir })
   check('无配置文件时返回 defaults', deepEqual(defaultConfig, defaults))
 
   /* ------------------------------------------------------------------ */
-  /* 附加 g：显式路径不存在 → 报错（不静默回退默认值）                     */
+  /* 附加 h：显式路径不存在 → 报错（不静默回退默认值）                     */
   /* ------------------------------------------------------------------ */
-  log('=== 附加 g：显式路径不存在 ===')
+  log('=== 附加 h：显式路径不存在 ===')
   const missingPath = path.join(tmpRoot, 'does-not-exist.yml')
   const missingError = captureError(() => loadThemeConfig({ configPath: missingPath }))
   check('显式 configPath 不存在 → 抛错', missingError !== null, missingError ?? '未抛错')
   if (missingError) check('错误信息含「配置文件不存在」', missingError.includes('配置文件不存在'))
 
   /* ------------------------------------------------------------------ */
-  /* 附加 h：返回值为深拷贝，改它不污染 defaults / 下一次加载             */
+  /* 附加 i：返回值为深拷贝，改它不污染 defaults / 下一次加载             */
   /* ------------------------------------------------------------------ */
-  log('=== 附加 h：返回值与 defaults 隔离 ===')
+  log('=== 附加 i：返回值与 defaults 隔离 ===')
   const firstLoad = loadThemeConfig({ cwd: emptyDir })
   firstLoad.theme_color.main = '#mutated'
   firstLoad.nav.menu.length = 0

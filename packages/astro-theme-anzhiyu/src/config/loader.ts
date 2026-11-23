@@ -3,9 +3,13 @@
  *
  * 职责：
  *   1. 找到并读取用户配置（YAML）；
- *   2. 与 `defaults` 深合并：对象递归合并、数组与标量整体替换；
+ *   2. 与 `defaults` 深合并：对象递归合并、数组与标量整体替换（缺键回落到默认值）；
  *   3. 用 `themeConfigSchema` 校验合并结果，失败时抛错并打印完整键路径；
  *   4. 返回类型化的 ThemeConfig。
+ *
+ * P1-12：schema 顶层是 `.strict()`，未知顶层键会让校验失败。zod 的
+ * `unrecognized_keys` issue 路径在根（`path: []`），键名只出现在 message 里；
+ * 这里把它展开成「一个键一行、键名当路径」，方便用户直接看到拼错的键。
  *
  * 文件名约定（按优先级）：
  *   - `anzhiyu.config.yml`      新名，推荐
@@ -95,16 +99,25 @@ function validateConfig(merged: unknown, source: string): ThemeConfig {
   const result = themeConfigSchema.safeParse(merged);
   if (result.success) return result.data;
 
-  const lines = result.error.issues.map((issue) => {
+  const lines = result.error.issues.flatMap((issue) => {
+    // 顶层 strict 命中的未知键：zod 只在 message 里列键名、path 为空，
+    // 这里拆成一个键一行，键名直接当路径输出（见 P1-12）。
+    if (issue.code === 'unrecognized_keys') {
+      const prefix = issue.path.length > 0 ? `${issue.path.join('.')}.` : '';
+      return issue.keys.map(
+        (key) =>
+          `  - ${prefix}${key}: 未知顶层键（schema 未声明，检查拼写或等主题支持）[unrecognized_keys]`,
+      );
+    }
     const keyPath = issue.path.length > 0 ? issue.path.join('.') : '<root>';
     const expected =
       'expected' in issue && typeof issue.expected === 'string'
         ? `（期望 ${issue.expected}）`
         : '';
-    return `  - ${keyPath}${expected}: ${issue.message} [${issue.code}]`;
+    return [`  - ${keyPath}${expected}: ${issue.message} [${issue.code}]`];
   });
   throw new Error(
-    `[theme-config] 配置校验失败（${source}），共 ${result.error.issues.length} 处：\n${lines.join('\n')}`,
+    `[theme-config] 配置校验失败（${source}），共 ${lines.length} 处：\n${lines.join('\n')}`,
   );
 }
 

@@ -225,18 +225,18 @@ Astro 的 content collections 用 zod 校验，缺字段会构建失败——这
 
 ## 5. 待验证清单
 
-这些是写代码前必须先用最小样例跑通的问题。**1、2 已于 2026-11-23 验证通过**，结论见下节。
+这些是写代码前必须先用最小样例跑通的问题。**1、2 已于 2026-11-23 由 Phase 1 验证通过**（结论见 §6.1–§6.7）；**3、4、5、6、8 已于 2026-11-23 由 Phase 1.5 在真实浏览器验证通过**（结论见 §6.8）。只剩 #7 待 Phase 7。
 
 | # | 待验证 | 状态 |
 | --- | --- | --- |
 | 1 | Vite 8 + Astro 7 下 Stylus 的 glob `@import '_global/*'` 是否工作 | ✅ 通过 |
 | 2 | `hexo-config()` 能否在 `if` 条件、`convert()`、`alpha()` 里正常求值 | ✅ 通过（方案已换） |
-| 3 | ClientRouter 整 body 替换后，`#web_bg` 等全局元素的样式是否保留 | 待验证 |
-| 4 | ClientRouter 下 `script[data-pjax]` 重执行机制能否等价 | 待验证 |
-| 5 | 生成的 HTML 能否命中现有 Stylus 的 class | 待验证 |
-| 6 | Astro 7 的 Rust 编译器对 pug 转出的 HTML 是否报错 | 待验证 |
-| 7 | `@vite-pwa/astro` 能否表达 `sw-rules.js` 的 CDN 备用 URL 逻辑 | 待验证 |
-| 8 | 音乐播放器在 ClientRouter 整 body 替换下能否不中断 | 待验证 |
+| 3 | ClientRouter 整 body 替换后，`#web_bg` 等全局元素的样式是否保留 | ✅ 通过：导航后仍是同一 DOM 节点，12 项 computed style 逐项相等（详见 §6.8） |
+| 4 | ClientRouter 下 `script[data-pjax]` 重执行机制能否等价 | ✅ 通过：`data-astro-rerun` 下每次导航恰好 +1（1→2→3→4），旧页脚本不重跑、console 零错误（详见 §6.8） |
+| 5 | 生成的 HTML 能否命中现有 Stylus 的 class | ✅ 通过：`.note` / `.recent-post-item` / `#web_bg` 的 computed style 命中上游值（详见 §6.8） |
+| 6 | Astro 7 的 Rust 编译器对 pug 转出的 HTML 是否报错 | ✅ 通过：`<br><img><input><hr>` 不闭合原样进产物，浏览器 DOM 正常解析（详见 §6.8） |
+| 7 | `@vite-pwa/astro` 能否表达 `sw-rules.js` 的 CDN 备用 URL 逻辑 | 待验证（Phase 7） |
+| 8 | 音乐播放器在 ClientRouter 整 body 替换下能否不中断 | ✅ 通过：`<audio>` 跨 4 次导航同一节点，`paused=false` 且 `currentTime` 持续增长（详见 §6.8） |
 
 ## 6. Phase 1 实测记录（2026-11-23）
 
@@ -327,7 +327,31 @@ expected "indent", got "?"
 - **pnpm 默认 symlink 布局在 Windows 上会坏**。`pnpm add` 报 `ERR_PNPM_SYMLINK_FAILED Maximum call stack size exceeded` 之后，生成的 junction Node 解析不了（`fs.realpathSync` 不展开），stylus 内部 `require('glob')` 报 `MODULE_NOT_FOUND`。仓库根加了 `.npmrc` 设 `node-linker=hoisted` 解决。
 - 本机 pnpm 走 `registry.npmmirror.com`，装老包（`glob@7`、`path-is-absolute`）时出现过 `ECONNRESET` 导致依赖树损坏。切 `https://registry.npmjs.org` 正常。
 
-## 6. 不做什么
+### 6.8 Phase 1.5 实测记录（2026-11-23）
+
+验证载体：`examples/blog` 最小双页站（`/` + `/page2/`）套上游全量 Stylus + `<ClientRouter />` + pjax shim；真实浏览器完成 4 个页面状态（首页 → 第二页 → 首页 → `pjax.loadUrl` 第二页），页内 harness **54/54 断言 PASS**。完整报告与原始证据见 [`docs/notes/P1.5-vertical-slice.md`](notes/P1.5-vertical-slice.md)，产物在 `examples/blog/tests/artifacts/`。
+
+| # | 假设 | 结论 | 实测关键证据 |
+| --- | --- | --- | --- |
+| 3 | ClientRouter 整 body 替换后 `#web_bg` 样式保留 | ✅ 通过 | 导航后 expando 仍在（同一 DOM 节点，不是"看起来一样"的新节点）；12 项 computed style 与导航前逐项相等，且值命中上游 `#web_bg` 规则 |
+| 4 | `script[data-pjax]` 重执行等价 | ✅ 通过（有前提） | `data-astro-rerun` 下执行次数 1→2→3→4、每次导航恰好 +1；旧页脚本不重复执行；console error / warning / pageerror 全 0 |
+| 5 | 生成的 HTML 命中上游 Stylus | ✅ 通过 | `.note` / `.note.blue` / `.note.red.simple` / `.recent-post-item` / `#web_bg` 的 computed style 全部命中上游规则值（DPR 1.5 下边框按设备像素吸附，属正常） |
+| 6 | Astro 7 Rust 编译器对 pug 风格 HTML | ✅ 通过 | 两页构建 exit 0；pug 的 `<br><img><input><hr>` 不闭合原样进产物，浏览器 DOM 正确解析（`input value="pug"` 生效、`img.naturalWidth=16`） |
+| 8 | 音乐播放器在整 body 替换下不中断 | ✅ 通过 | `#music-player` 与 `<audio>` 跨 4 次导航保持同一节点；`paused=false` 全程，`currentTime` 0.63→1.37→3.39→4.41 单调递增，无 MediaError |
+
+附加结论：站内导航 3 次，**document 请求 0 个**（全部是 `Sec-Fetch-Dest: empty` 的 fetch，只有初次加载 1 个 document 请求）；`window.pjax.loadUrl(url)` → `navigate()` 的 shim 路径实测可用；`astro:page-load` → 每次补发一次 `pjax:complete`（4 个页面状态共 4 次）。
+
+**必须带进 Phase 4 的三个前提**（缺一个就出问题）：
+
+1. **`html[data-theme]` 是上游 CSS 的运行时契约。** 上游把 `--anzhiyu-*` 变量只定义在 `[data-theme="light"]` / `[data-theme="dark"]` 下，缺该属性时 `#web_bg` 的 `background: var(--anzhiyu-background)` 整条失效（实测退化为 `rgba(0, 0, 0, 0)`）。首屏前必须有 theme bootstrap。
+2. **重执行会叠加 `document` 监听。** 浏览器不报错，但 4 次执行后一次 dispatch 命中 4 个监听（监听泄漏）。shim 必须提供幂等注册表，把 `pjax:complete` 逻辑收敛到唯一常驻模块。
+3. **Astro 会执行"首次见到的页面级脚本"，与上游"非 data-pjax 不执行"不同。** 上游每个 `script[data-pjax]` 都要显式加 `data-astro-rerun`（漏了 = 静默只跑一次）；"只在整页加载时跑"的脚本需另行处理（进产物时预置 `data-astro-exec`，或收敛进常驻模块由 `astro:page-load` 统一分发）。
+
+环境限制（决定证据口径）：本机 DSH 沙箱无法启动 Playwright 自带 Chromium（`spawn EPERM` + mojo 命名管道 `拒绝访问 (0x5)`，证据见 `tests/artifacts/sandbox-blocker.log`），所以本次真实浏览器验证走 **wincu 浏览器通道（真实 Edge 149.0.0.0，Chromium 内核，1258×809 / DPR 1.5）+ 页内 harness**，54/54 断言通过；Playwright 脚本（`tests/vertical-slice.mjs`）保留为 CI / 常规桌面的执行入口，**本机未跑成功，不计入已验证据**。
+
+**判定：Phase 4 按「ClientRouter + pjax shim」原方案推进**；音乐播放器不需要独立持久层（persist 已实测成立），但播放列表/进度等状态仍需放独立 store（整页刷新会丢）。
+
+## 7. 不做什么
 
 明确划出去，避免范围膨胀：
 
