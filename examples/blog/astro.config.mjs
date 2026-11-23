@@ -1,11 +1,19 @@
 import { defineConfig } from 'astro/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { unified } from '@astrojs/markdown-remark'
 import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
+  // 原因：Phase 6 的 42 个 Hexo tag 需要在 Markdown 解析阶段做语法替换，
+  // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。
+  // 代价是失去 Sätteri 的构建速度，对几百篇文章的站点在秒级，可接受（见 docs/02-astro-mapping.md §ADR-001）。
+  markdown: {
+    processor: unified(),
+  },
   vite: {
     build: {
       // 关闭 CSS 压缩，两个原因，缺一不可：
