@@ -1,0 +1,15 @@
+// nib 兼容层入口。
+//
+// Hexo 里 nib 是以 Stylus 插件方式加载的：
+//   hexo-renderer-stylus/lib/renderer.js -> applyPlugins(stylusConfig, ['nib'])
+//   -> nib/lib/nib.js 的 plugin()：style.include(nib/lib) + 无 node-canvas 时 define('has-canvas', false)
+//
+// 本仓库不跑 nib 的 JS 插件，所以：
+//   - include 路径由 vite-plugin-stylus-hexo-config 的 includePaths 提供（默认指向本 vendor 目录）
+//   - has-canvas 用 Stylus 变量等价替代。nib 只有 linear-gradient-image()/color-image()
+//     两个需要 canvas 的函数会读它，当前上游主题没有调用。
+//
+// 其余文件是 nib@1.2.0 的 lib/nib 目录原样拷贝（MIT，见 vendor/nib/LICENSE）。
+has-canvas = false
+
+@import 'lib/nib/index.styl'
