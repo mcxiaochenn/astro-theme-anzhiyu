@@ -648,8 +648,19 @@ function normalizeTree(rawRoot, stats) {
       const normalized = normalizeNode(child, insidePre)
       if (normalized) out.push(normalized)
     }
-    // N2：相邻文本节点合并后可能产生空节点，再清一遍
-    return out.filter((node) => !(node.type === 'text' && node.text === ''))
+    // N2：相邻文本节点合并后可能产生空节点，再清一遍。
+    // 忽略掉的机制元素（如脚注 ref 的 <sup>）也会把一段文本切成两半，
+    // 这里合并回去，避免「语义上同一段文本」被报成 node-missing + node-unexpected。
+    const merged = []
+    for (const node of out) {
+      const last = merged[merged.length - 1]
+      if (node.type === 'text' && last?.type === 'text') {
+        last.text += node.text
+        continue
+      }
+      merged.push(node)
+    }
+    return merged.filter((node) => !(node.type === 'text' && node.text === ''))
   }
 
   const normalizeNode = (node, insidePre) => {

@@ -1,15 +1,18 @@
 # P3-1 · aside 15 个 widget 卡片
 
-> 范围：`packages/astro-theme-anzhiyu/src/components/widget/**` 与 `src/data/**`。
-> 未改动 BaseLayout / HomeTop / post 组件 / `docs/PLAN.md`，未 commit / push。
+> 范围：`packages/astro-theme-anzhiyu/src/components/widget/**`、`src/data/**`，
+> 以及 BaseLayout 中**唯一一行** `<AsideContent … site={site} />` 参数透传。
+> 未改动 HomeTop / post 组件 / `docs/PLAN.md`，未 commit / push。
 
 ## 1. 结论
 
-- `pnpm --filter blog build` 成功（49 页）。
-- 首页 aside 结构缺口从 **166 节点**（作者卡 6 + 微信卡 5 + sticky_layout 155）降到 **1 个文本节点**；
-  首页全站 `missingNodes` 由任务开始时的 389（任务书基线 480）降到 **223**（≤ 300）。
-- 归档页 `/archives/` aside **结构/属性差异 0**，仅剩同一条作者描述文本差异。
-- 文章页 aside（TOC + 最近文章）同样只剩这一条文本差异，TOC 层级 / 编号 / 锚点逐节点一致。
+- `pnpm --filter blog build` 成功（62 页）。
+- 首页 aside 结构缺口从 **166 节点**（作者卡 6 + 微信卡 5 + sticky_layout 155）降到 **0**；
+  首页全站 `missingNodes` 由任务开始时的 389（任务书基线 480）降到 **4**。
+- 归档页 `/archives/`、文章页 aside 的结构/属性/文本差异均为 **0**。
+- 收尾：BaseLayout 把已解析的 `site` 透传给 AsideContent，`CardAuthor` 的
+  `theme.aside.card_author.description || config.description` 回退链恢复，
+  `author-info__description` 文本与基线逐字一致。
 
 ## 2. 改动清单
 
@@ -39,8 +42,9 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| `src/components/widget/AsideContent.astro` | 由占位空容器改为 `widget/index.pug` 的三分支组装 |
+| `src/components/widget/AsideContent.astro` | 由占位空容器改为 `widget/index.pug` 的三分支组装；新增可选 `site?: Partial<SiteConfig>` prop |
 | `src/components/widget/toc.ts` | 保留 `TocHeading` 契约，新增 `renderToc()`（逐行移植 hexo `plugins/helper/toc.js`） |
+| `src/layouts/BaseLayout.astro` | **仅一行**：`<AsideContent … site={site} />`，把已解析的站点元数据透传给作者卡（基线要求的 `config.description` 回退） |
 
 ## 3. 关键实现点
 
@@ -81,6 +85,20 @@ TOC 卡在 `showToc=false` 或标题为空时不进入 DOM（上游此时 `showT
   baseline 解析后生效的是它；`error_img.flink` 只在 lazyload 关闭时使用）；
 - 最近文章缩略图：同上（`post_page`）。
 
+### 3.5 作者描述的回退链（收尾修复）
+
+上游：`theme.aside.card_author.description || config.description`。
+`theme.aside.card_author.description` 在基准配置里是空，所以实际取站点描述。
+`config.*` 属于站点元数据，主题配置层拿不到；修法是让 BaseLayout 把**已经解析好的** `site`
+透传一行：
+
+```astro
+<AsideContent pageType={pageType} showToc={showToc} headings={headings} site={site} />
+```
+
+`AsideContent` 的 `site` 是可选 prop（`Partial<SiteConfig>`），`resolveSite(siteInput)` 后交给
+`CardAuthor`，`CardAuthor` 用 `site.description` 回退。BaseLayout 仅改这一行，其它不动。
+
 ## 4. 验收命令与真实输出
 
 构建（`.build.lock` 串行；Node 24）：
@@ -96,9 +114,9 @@ pnpm --filter blog build
 真实输出（末尾）：
 
 ```text
-21:22:19 [build] ✓ Completed in 7.49s.
-21:22:19 [build] 49 page(s) built in 55.79s
-21:22:19 [build] Complete!
+22:12:34 [build] ✓ Completed in 6.90s.
+22:12:34 [build] 62 page(s) built in 7.46s
+22:12:34 [build] Complete!
 ```
 
 首页：
@@ -109,8 +127,8 @@ BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
 ```
 
 ```text
-FAIL … 48 条差异（结构 35 / 属性 10 / 文本 3），缺口 缺 223 节点，多 5 节点
-aside 相关条目：1（文本节点）
+FAIL … 17 条差异（结构 5 / 属性 9 / 文本 2 / 脚本样式 1），缺口 缺 4 节点，多 2 节点
+aside 相关条目：0
 ```
 
 `missingNodes` 前后：
@@ -119,7 +137,8 @@ aside 相关条目：1（文本节点）
 | --- | --- | --- |
 | 任务书基线 | 480 | — |
 | 本任务开始时实测 | 389 | 3 条（作者卡 6 + 微信卡 5 + sticky_layout 155 = 166 节点） |
-| 本任务完成后 | **223** | **1 条文本**（作者描述） |
+| 卡片落地后 | 223 | 1 条文本（作者描述） |
+| 描述回退修复后 | **4** | **0** |
 
 归档页：
 
@@ -129,8 +148,8 @@ BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
 ```
 
 ```text
-FAIL … 44 条差异（结构 35 / 属性 9），缺口 缺 221 节点，多 5 节点
-aside 相关条目：1（文本节点）；aside 结构/属性差异 = 0
+FAIL … 14 条差异（结构 4 / 属性 9 / 脚本样式 1），缺口 缺 4 节点，多 2 节点
+aside 相关条目：0
 ```
 
 文章页（附带验证 TOC + 最近文章）：
@@ -142,34 +161,28 @@ BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
 ```
 
 ```text
-FAIL … 47 条差异（结构 37 / 属性 10），缺口 缺 225 节点，多 9 节点
-aside 相关条目：1（文本节点）；TOC 层级/编号/锚点、最近文章条目均无差异
+FAIL … 15 条差异（结构 4 / 属性 10 / 脚本样式 1），缺口 缺 4 节点，多 2 节点
+aside 相关条目：0；TOC 层级/编号/锚点、最近文章条目均无差异
 ```
 
 ## 5. 剩余差异归属
 
-首页 223 个缺失节点（另 5 个 unexpected）按路径归因：
+收尾修复后，三页 aside 的 diff 条目均为 **0**；首页剩余 4 个缺失节点全部在 aside 之外：
 
 | 归属 | 节点数 | 说明 |
 | --- | --- | --- |
-| console | 180 | `#console` 中控台整块，后续阶段接管 |
-| head | 17 | `css/index.css`、CDN 资源、`GLOBAL_CONFIG` / `config-diff` 等脚本（P4 资源层） |
-| body | 30 | 全局脚本 / 背景层 / footer 等非 aside 内容 |
-| aside | 1 | 作者卡 `author-info__description` 的**文本节点**（见下） |
+| head | 1 | `<meta name="generator" content="Hexo 7.3.0">`（构建器标识，不移植） |
+| body | 3 | pjax 初始化脚本（2 节点）+ accesskey 脚本（1 节点），属 P4 运行时/资源层 |
 
-**aside 唯一剩余差异**：`card_author.description` 为空时，上游回退 `config.description`（站点描述）。
-主题配置（`theme.*`）里没有站点级 `config.description`，而 BaseLayout 当前不向 AsideContent
-传递 `site`（P3-1 的写入范围不允许改布局），因此这里只能退化为空文本。
-属**站点配置层缺失**（Phase 7 迁移脚本落地后由 BaseLayout / 站点配置注入即可消除），
-不影响 aside 的结构、class、id、层级。
+另 2 个 unexpected 节点为 Astro 自己注入的样式/脚本，属资源层差异。
+`author-info__description` 已与基线逐字一致，aside 无剩余文本差异。
 
 ## 6. 已知限制
 
-1. 作者描述回退（上节），Phase 7 站点配置层接管。
-2. `card_top_self` / `card_bottom_self` 的数据源 `site.data.widget` 在 Astro 站还没有对应物，
+1. `card_top_self` / `card_bottom_self` 的数据源 `site.data.widget` 在 Astro 站还没有对应物，
    组件已按上游结构实现并接收 `items`，当前调用方传空数组。
-3. 加密文章（`page.encrypt`）的 TOC 分支不移植：当前数据模型没有加密内容。
-4. `totalcount(site)` 为近似实现（CJK 逐字 + 拉丁单词）；示例站与基准站 `wordcount.enable=false`，
+2. 加密文章（`page.encrypt`）的 TOC 分支不移植：当前数据模型没有加密内容。
+3. `totalcount(site)` 为近似实现（CJK 逐字 + 拉丁单词）；示例站与基准站 `wordcount.enable=false`，
    不会渲染该项。
-5. 分类卡的 `expand` / 层级逻辑已按 `asideCategories` 实现，但示例站 `card_categories.enable=false`，
+4. 分类卡的 `expand` / 层级逻辑已按 `asideCategories` 实现，但示例站 `card_categories.enable=false`，
    本次没有可对拍的 baseline 产物。
