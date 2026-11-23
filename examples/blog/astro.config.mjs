@@ -3,6 +3,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createMarkdownProcessor } from '@astrojs/markdown-remark'
 import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
+// Phase 6：Hexo `{% tag %}` 语法。P6-1 交付行内 12 + 块级 12（含 hideInline）。
+// 放在 packages/ 里按源码相对导入：插件是纯 ESM `.mjs`，没有构建步骤，
+// Astro 配置在 Node 侧直接 import 即可（见 docs/notes/P6-1-hexo-tags.md）。
+import remarkHexoTag from '../../packages/remark-hexo-tag/src/index.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -264,7 +268,11 @@ const hexoMarkdownProcessor = {
       // Phase 6 的 42 个 Hexo tag 语法插件挂在这里（remark 阶段，解析 `{% … %}`）；
       // 顶层 `markdown.remarkPlugins` 是 Astro 的 legacy 入口，对自定义处理器不生效
       // （Astro 只会打印一条警告并忽略，见 astro/dist/core/config/validate.js:79-83）。
-      remarkPlugins: [],
+      //
+      // P6-1：manifest 里行内 12 + 块级 12 个 tag 已实现；media/thirdparty 两组
+      // 仍原样透传（warning），等 P6-2 / P6-3 填 handler。
+      // `noteStyle` 对齐 theme.config.yml 的 `note.style`（当前为 flat）。
+      remarkPlugins: [[remarkHexoTag, { noteStyle: 'flat' }]],
       // M1：`<pre><code class="language-x">` → 上游 `figure.highlight`
       rehypePlugins: [rehypeHexoHighlight],
     })
