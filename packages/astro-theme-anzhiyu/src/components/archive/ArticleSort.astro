@@ -1,0 +1,109 @@
+---
+/**
+ * ArticleSort.astro — 上游 `layout/includes/mixins/article-sort.pug` 的移植（P2-9）。
+ *
+ * 归档 / 分类 / 标签三类页面共用同一份「按年分隔的文章列表」骨架：
+ *
+ *   .article-sort
+ *     .article-sort-item.year > span                 ← 年份变化时插入（含首条）
+ *     .article-sort-item[.no-article-cover]
+ *       a.article-sort-item-img > img                ← 只有 cover 字符串且 archives_enable 时
+ *       .article-sort-item-info
+ *         a.article-sort-item-title
+ *         span.article-sort-item-index               ← (page.current - 1) * per_page + 页内序号 + 1
+ *         .article-meta-wrap
+ *           span.article-sort-item-tags > a.article-meta__tags × N   ← post_meta.page.tags
+ *           .article-sort-item-time > i + time.post-meta-date-created
+ *
+ * 与上游逐行对齐的三处「看起来像小问题」的行为：
+ *  1. `no-article-cover` 的条件是 `cover === false || !archives_enable`（**不是**「封面为空」），
+ *     所以 `archives_enable: false` 时所有条目都会带这个 class；
+ *  2. `article-sort-item-index` 是**整份列表**的序号（跨页连续），所以页码要传 `current`；
+ *  3. 年份分隔只在本页内比较（上游 `var year` 每页重置），分页第 2 页也会重新输出年份。
+ *
+ * 数据必须由调用方按「date 降序」排好（Hexo archive/category/tag generator 的行为）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import LazyImage from './LazyImage.astro'
+import type { ArticleSortPost } from './types.ts'
+
+interface Props {
+  /** 当前页的文章（已按 date 降序）。 */
+  posts: ArticleSortPost[]
+  /** 上游 `page.current`（1 起），用于跨页连续的序号。 */
+  current?: number
+  /** 上游 `config.per_page`（站点级），决定序号基数。 */
+  perPage: number
+}
+
+const { posts, current = 1, perPage } = Astro.props
+
+const theme = getThemeConfig()
+const showCovers = theme.cover.archives_enable
+const showTags = theme.post_meta.page.tags
+
+/** 年份分隔：与前一条相比年份变化时插入（上游 `if tempYear !== year`）。 */
+let previousYear: string | undefined
+const rows = posts.map((post, index) => {
+  const showYear = post.yearLabel !== previousYear
+  previousYear = post.yearLabel
+  return {
+    post,
+    index,
+    showYear,
+    itemClass:
+      !showCovers || post.cover === false
+        ? 'article-sort-item no-article-cover'
+        : 'article-sort-item',
+  }
+})
+---
+
+<div class="article-sort">
+  {
+    rows.map(({ post, index, showYear, itemClass }) => (
+      <>
+        {showYear && (
+          <div class="article-sort-item year">
+            <span>{post.yearLabel}</span>
+          </div>
+        )}
+        <div class={itemClass}>
+          {showCovers && post.cover !== false && (
+            <a class="article-sort-item-img" href={post.href} title={post.title}>
+              <LazyImage src={post.cover} alt={post.title} />
+            </a>
+          )}
+          <div class="article-sort-item-info">
+            <a class="article-sort-item-title" href={post.href} title={post.title}>
+              {post.title}
+            </a>
+            <span class="article-sort-item-index">
+              {String((current - 1) * perPage + index + 1)}
+            </span>
+            <div class="article-meta-wrap">
+              {showTags && post.tags.length > 0 && (
+                <span class="article-sort-item-tags">
+                  {post.tags.map((tag) => (
+                    <a class="article-meta__tags" href={tag.href} tabindex="-1">
+                      <span>
+                        <i class="anzhiyu-icon-hashtag anzhiyufont" />
+                        {tag.name}
+                      </span>
+                    </a>
+                  ))}
+                </span>
+              )}
+              <div class="article-sort-item-time">
+                <i class="anzhiyu-icon-calendar-alt anzhiyufont" />
+                <time class="post-meta-date-created" datetime={post.isoDate} title={post.dateTitle}>
+                  {post.dateDisplay}
+                </time>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    ))
+  }
+</div>

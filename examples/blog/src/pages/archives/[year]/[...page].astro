@@ -1,0 +1,82 @@
+---
+/**
+ * P2-9 · 年归档与分页：`/archives/2025/`、`/archives/2025/page/2/`
+ *
+ * 上游 hexo-generator-archive 的 `yearly: true` 分支，页面模板与归档首页相同
+ * （`layout/archive.pug`），区别只是 `page.posts` 被生成器过滤成该年文章、
+ * `getArchiveLength()` 返回该年文章数。
+ *
+ * 路由参数：`[year]` + rest `[...page]`。
+ *   - `/archives/2025/`          → `{ year: '2025', page: undefined }`
+ *   - `/archives/2025/page/2/`   → `{ year: '2025', page: 'page/2' }`
+ */
+import type { GetStaticPaths } from 'astro'
+import BaseLayout from '../../../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import ArticleSort from '../../../../../../packages/astro-theme-anzhiyu/src/components/archive/ArticleSort.astro'
+import Pagination from '../../../../../../packages/astro-theme-anzhiyu/src/components/archive/Pagination.astro'
+import '../../../styles/upstream/index.styl'
+import {
+  ARCHIVE_PER_PAGE,
+  BASELINE_SITE,
+  SITE_PER_PAGE,
+  articlesSortTitle,
+  archivesTitle,
+  filterArchivePosts,
+  hexoPageUrl,
+  loadArchiveSite,
+  pageCount,
+  slicePage,
+  toArticleSortPosts,
+} from '../_data.ts'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const data = await loadArchiveSite()
+  const years = [...new Set(data.posts.map((post) => post.year))].sort((a, b) => b - a)
+  return years.flatMap((year) => {
+    const yearLabel = String(year)
+    const posts = filterArchivePosts(data, { year: yearLabel })
+    const total = pageCount(posts.length, ARCHIVE_PER_PAGE)
+    return Array.from({ length: total }, (_, index) => {
+      const current = index + 1
+      return {
+        params: {
+          year: yearLabel,
+          page: current === 1 ? undefined : `page/${current}`,
+        },
+        props: { year: yearLabel, current, total },
+      }
+    })
+  })
+}
+
+interface Props {
+  year: string
+  current: number
+  total: number
+}
+
+const { year, current, total } = Astro.props as Props
+const data = await loadArchiveSite()
+const page = { year }
+const posts = toArticleSortPosts(
+  slicePage(filterArchivePosts(data, page), ARCHIVE_PER_PAGE, current),
+)
+---
+
+<BaseLayout
+  site={BASELINE_SITE}
+  title={archivesTitle(page, data)}
+  ogType="website"
+  pageType="page"
+  pageUrl={hexoPageUrl(BASELINE_SITE, Astro.url.pathname)}
+>
+  <div id="archive">
+    <div class="article-sort-title">{articlesSortTitle(data, page)}</div>
+    <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />
+    <Pagination
+      current={current}
+      total={total}
+      basePath={`/archives/${year}/`}
+    />
+  </div>
+</BaseLayout>

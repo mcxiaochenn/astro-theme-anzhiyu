@@ -1,0 +1,92 @@
+---
+/**
+ * Pagination.astro — 上游 `includes/pagination.pug` 的非文章页分支（P2-9）。
+ *
+ * 上游用的是 `hexo-paginator`，非首页统一 `{ prev_text, next_text, mid_size: 1, escape: false }`：
+ *
+ *   nav#pagination
+ *     .pagination
+ *       a.extend.prev[rel=prev] > i.chevron-left + .pagination_tips_prev   ← current > 1
+ *       <span.current.page-number>当前页</span> 或 <a.page-number>n</a>     ← mid_size = 1 的窗口
+ *       a.extend.next[rel=next] > .pagination_tips_next + i.chevron-right   ← current < total
+ *
+ * 分页 URL 由 `pagination_dir: page` 决定：第 1 页是列表根路径，第 n 页是 `<root>/page/<n>/`。
+ * 注意 `prev`/`next` 的图标与文字顺序是**相反**的（上游 prev_text/next_text 的字面内容），
+ * 这不是笔误。
+ *
+ * 当前基准数据最大只有 2 页（9 篇 / per_page 6），`space` 省略号分支没有基线可对照，
+ * 按 hexo-paginator 的规则实现（`<span class="space">…</span>`），Phase 2 数据碰不到。
+ */
+
+interface Props {
+  /** 当前页（1 起）。 */
+  current: number
+  /** 总页数（>= 1）。 */
+  total: number
+  /** 第 1 页的站内路径，以 `/` 结尾（如 `/archives/`、`/archives/2025/`）。 */
+  basePath: string
+  /** 每页条数之外的中缝大小，hexo-paginator 默认 mid_size = 1。 */
+  midSize?: number
+}
+
+const { current, total, basePath, midSize = 1 } = Astro.props
+
+const rootPath = basePath.endsWith('/') ? basePath : `${basePath}/`
+/** 第 1 页回落到列表根，其余走 `pagination_dir`（`page`）。 */
+const pageUrl = (page: number): string =>
+  page <= 1 ? rootPath : `${rootPath}page/${page}/`
+
+/**
+ * hexo-paginator 的页码窗口：首页、末页、当前页 ± mid_size，中间连续省略只留一个 `space`。
+ * 页码总数恒为 `total`，重复页（如 total <= 2 时首页=当前页）只出现一次。
+ */
+const numbers: Array<number | 'space'> = []
+for (let page = 1; page <= total; page++) {
+  const inWindow = Math.abs(page - current) <= midSize
+  if (page === 1 || page === total || inWindow) {
+    numbers.push(page)
+  } else if (numbers[numbers.length - 1] !== 'space') {
+    numbers.push('space')
+  }
+}
+---
+
+<nav id="pagination">
+  <div class="pagination">
+    {
+      current > 1 && (
+        <a class="extend prev" href={pageUrl(current - 1)} rel="prev">
+          <i
+            class="anzhiyu-icon-chevron-left anzhiyufont fa-fw"
+            style="font-weight:inherit;font-size:1rem"
+          />
+          <div class="pagination_tips_prev">上页</div>
+        </a>
+      )
+    }
+    {
+      numbers.map((item) =>
+        item === 'space' ? (
+          <span class="space">…</span>
+        ) : item === current ? (
+          <span class="current page-number">{String(item)}</span>
+        ) : (
+          <a class="page-number" href={pageUrl(item)}>
+            {String(item)}
+          </a>
+        ),
+      )
+    }
+    {
+      current < total && (
+        <a class="extend next" href={pageUrl(current + 1)} rel="next">
+          <div class="pagination_tips_next">下页</div>
+          <i
+            class="anzhiyu-icon-chevron-right anzhiyufont fa-fw"
+            style="font-weight:inherit;font-size:1rem"
+          />
+        </a>
+      )
+    }
+  </div>
+</nav>

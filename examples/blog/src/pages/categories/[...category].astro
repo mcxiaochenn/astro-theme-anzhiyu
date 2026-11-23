@@ -1,0 +1,114 @@
+---
+/**
+ * P2-9 · 分类页与分页：`/categories/前端/`、`/categories/前端/Astro/`
+ *
+ * 上游 `layout/category.pug` 的 default 分支（`theme.category_ui` 为空 = 跟 archives 一样的 UI）：
+ *
+ *   #category
+ *     #catalog-bar
+ *       i.anzhiyufont.anzhiyu-icon-shapes
+ *       #catalog-list
+ *         .catalog-list-item > a[href="/"] 首页
+ *         != catalog_list("categories")           ← 上游 helper（已对拍移植）
+ *       .category-bar-next#category-bar-next[onclick=…]
+ *       a.catalog-more[href="/categories/"] 更多
+ *     .article-sort-title= `分类 - ${page.category}`
+ *     +articleSort(page.posts, page.current)
+ *     include includes/pagination.pug
+ *
+ * 为什么路由是 `[...category]` 而不是 `[category]`：Hexo 的分类支持层级，
+ * 基准站就有 `/categories/前端/Astro/`（两段）。单段 `[category]` 捕获不了斜杠，
+ * 所以用一个 rest 参数承载「分类层级 + 可选 page 分页段」（Astro 7 的 rest 参数值是字符串）：
+ *   - `/categories/前端/`            → `{ category: '前端' }`
+ *   - `/categories/前端/Astro/`      → `{ category: '前端/Astro' }`
+ *   - `/categories/前端/page/2/`     → `{ category: '前端/page/2' }`（当前数据无此页）
+ * 页面不解析 URL：`getStaticPaths` 把 `props.categoryId` 一起传下来，页面按 id 反查 term，
+ * 所以分类名不会和 `page` 段混淆。
+ */
+import type { GetStaticPaths } from 'astro'
+import BaseLayout from '../../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import ArticleSort from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/ArticleSort.astro'
+import Pagination from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/Pagination.astro'
+import '../../styles/upstream/index.styl'
+import {
+  BASELINE_SITE,
+  CATEGORY_PER_PAGE,
+  SITE_PER_PAGE,
+  catalogListHtml,
+  encodedTermUrl,
+  hexoPageUrl,
+  loadArchiveSite,
+  pageCount,
+  slicePage,
+  toArticleSortPosts,
+} from '../archives/_data.ts'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const data = await loadArchiveSite()
+  const paths = []
+  for (const term of data.categories) {
+    const total = pageCount(term.posts.length, CATEGORY_PER_PAGE)
+    for (let current = 1; current <= total; current++) {
+      paths.push({
+        params: {
+          // rest 参数是单个字符串：`前端` / `前端/Astro`（分页段同理追加在末尾）
+          category: current === 1 ? term.id : `${term.id}/page/${current}`,
+        },
+        props: { categoryId: term.id, current, total },
+      })
+    }
+  }
+  return paths
+}
+
+interface Props {
+  categoryId: string
+  current: number
+  total: number
+}
+
+const { categoryId, current, total } = Astro.props as Props
+const data = await loadArchiveSite()
+const term = data.categories.find((category) => category.id === categoryId)
+if (!term) throw new Error(`未找到分类：${categoryId}`)
+
+const posts = toArticleSortPosts(slicePage(term.posts, CATEGORY_PER_PAGE, current))
+/** 分类页 title 由 head.pug 拼成 `分类: <name>`（description 回退到 config.description）。 */
+const pageTitle = `${data.t('page.category')}: ${term.name}`
+---
+
+<BaseLayout
+  site={BASELINE_SITE}
+  title={pageTitle}
+  description={BASELINE_SITE.description}
+  ogType="website"
+  pageType="page"
+  pageUrl={hexoPageUrl(BASELINE_SITE, Astro.url.pathname)}
+>
+  <div id="category">
+    <div id="catalog-bar">
+      <i class="anzhiyufont anzhiyu-icon-shapes" />
+      <div id="catalog-list">
+        <div class="catalog-list-item">
+          <a href="/">首页</a>
+        </div>
+        <Fragment set:html={catalogListHtml(data.categories)} />
+      </div>
+      <div
+        class="category-bar-next"
+        id="category-bar-next"
+        onclick="anzhiyu.scrollCategoryBarToRight()"
+      >
+        <i class="anzhiyufont anzhiyu-icon-angle-double-right" />
+      </div>
+      <a class="catalog-more" href="/categories/">更多</a>
+    </div>
+    <div class="article-sort-title">{`${data.t('page.category')} - ${term.name}`}</div>
+    <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />
+    <Pagination
+      current={current}
+      total={total}
+      basePath={encodedTermUrl(term)}
+    />
+  </div>
+</BaseLayout>
