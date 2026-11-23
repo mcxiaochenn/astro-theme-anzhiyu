@@ -1,0 +1,193 @@
+---
+/**
+ * RoomPage.astro — 小房间页（`page.type === 'room'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/room.pug:1-278`：一整棵纯静态的 CSS 3D 房间。
+ * 每个家具是 `.x` 容器 + 6 个 `.x__front/back/right/left/top/bottom.face` 面；
+ * `libros` / `fotos` / `cajas` / `mesa-p` 是 `while` 循环（6 / 2 / 3 / 4 个）。
+ *
+ * 结构顺序严格按 pug：h-lights(×6) → h-shadow → alt → alb → arb → blt → blt2 →
+ * blb → blb2 → puerta-c → cuadro-l/r → librero → libros → fotos → cajas → tv →
+ * repisa-t/b → bocina-l/r → muro → sillon-c → mesa-c → tablet，最后是
+ * `.description` 与鼠标视差脚本（:262-278）。
+ */
+
+/** 六面体：`.${name}__front.face` … `.${name}__bottom.face`。 */
+const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'] as const
+
+/** 生成一个家具块的面列表。 */
+const faceList = (name: string) => faces.map((face) => `${name}__${face}`)
+---
+
+<div id="room_page">
+  <div class="house" id="h">
+    <div class="h-lights">
+      <div class="h-light" />
+      <div class="h-light" />
+      <div class="h-light" />
+      <div class="h-light" />
+      <div class="h-light" />
+      <div class="h-light" />
+    </div>
+    <div class="h-shadow" />
+    {/* --------------------- */}
+    <div class="alt">
+      <div class="alt__front face" />
+      <div class="alt__back face" />
+      <div class="alt__right face" />
+      <div class="alt__left face" />
+      <div class="alt__top face">
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+        <div class="light" />
+      </div>
+      <div class="alt__bottom face" />
+    </div>
+    <div class="alb">
+      {faceList('alb').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="arb">
+      {faceList('arb').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    {/* --------------------- */}
+    <div class="blt">
+      {faceList('blt').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="blt2">
+      {faceList('blt2').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="blb">
+      {faceList('blb').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="blb2">
+      {faceList('blb2').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    {/* --------------------- */}
+    <div class="puerta-c">
+      <div class="puerta">
+        {faceList('puerta').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="puerta-l">
+        {faceList('puerta-l').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="puerta-r">
+        {faceList('puerta-r').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="puerta-t">
+        {faceList('puerta-t').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+    </div>
+    <div class="cuadro-l">
+      {faceList('cuadro-l').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="cuadro-r">
+      {faceList('cuadro-r').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="librero">
+      {faceList('librero').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="libros">
+      {Array.from({ length: 6 }, () => (
+        <div class="libro">
+          {faceList('libro').map((cls) => <div class={`${cls} face`} />)}
+        </div>
+      ))}
+    </div>
+    <div class="fotos">
+      {Array.from({ length: 2 }, () => (
+        <div class="foto">
+          {faceList('foto').map((cls) => <div class={`${cls} face`} />)}
+        </div>
+      ))}
+    </div>
+    <div class="cajas">
+      {Array.from({ length: 3 }, () => (
+        <div class="caja">
+          {faceList('caja').map((cls) => <div class={`${cls} face`} />)}
+        </div>
+      ))}
+    </div>
+    <div class="tv">
+      {faceList('tv').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="repisa-t">
+      {faceList('repisa-t').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="repisa-b">
+      {faceList('repisa-b').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="bocina-l">
+      {faceList('bocina-l').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="bocina-r">
+      {faceList('bocina-r').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="muro">
+      {faceList('muro').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+    <div class="sillon-c">
+      <div class="sillon-b">
+        {faceList('sillon-b').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="sillon-t">
+        {faceList('sillon-t').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="sillon-l">
+        {faceList('sillon-l').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      <div class="sillon-r">
+        {faceList('sillon-r').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+    </div>
+    <div class="mesa-c">
+      <div class="mesa">
+        {faceList('mesa').map((cls) => <div class={`${cls} face`} />)}
+      </div>
+      {Array.from({ length: 4 }, () => (
+        <div class="mesa-p">
+          {faceList('mesa-p').map((cls) => <div class={`${cls} face`} />)}
+        </div>
+      ))}
+      <div class="mesa-shadow" />
+    </div>
+    <div class="tablet">
+      {faceList('tablet').map((cls) => <div class={`${cls} face`} />)}
+    </div>
+  </div>
+
+  <div class="description">
+    <span>哇,被你发现了,这里是我的小房间，要一起玩游戏🎮嘛</span>
+    <div class="banner-button-group">
+      <a class="banner-button" onclick='pjax.loadUrl("/about/")'>
+        <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" style="font-size: 1.5rem" />
+        <span class="banner-button-text">立刻玩</span>
+      </a>
+    </div>
+  </div>
+
+  {/* 上游 room.pug:262-278 —— 鼠标视差；Phase 4 的 pjax 会重绑，这里保持内联 */}
+  <script is:inline async>
+    const h = document.querySelector('#h')
+    const b = document.body
+
+    let base = (e) => {
+      var x = e.pageX / window.innerWidth - 0.5
+      var y = e.pageY / window.innerHeight - 0.5
+      h.style.transform = `
+						perspective(90vw)
+						rotateX(${y * 4 + 75}deg)
+						rotateZ(${-x * 12 + 45}deg)
+						translateZ(-9vw)
+						translateX(-50%)
+				`
+    }
+
+    b.addEventListener('pointermove', base)
+  </script>
+</div>

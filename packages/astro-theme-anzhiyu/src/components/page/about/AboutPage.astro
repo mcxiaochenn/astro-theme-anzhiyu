@@ -1,0 +1,27 @@
+---
+/**
+ * AboutPage.astro — 关于页占位（P3-2 先落路由，P3-3 由 about 模板替换）。
+ *
+ * 上游 `layout/includes/page/about.pug`（472 行）由单独的迁移任务实现：
+ * 该文件同时依赖 `site.data.about` 与 `site.data.creativity`，且包含团队卡片、
+ * 技能条、地图、追番、音乐等大量子块，不适合与 page.type 分发混在同一次改动里。
+ *
+ * 本占位只保留上游最外层的 `#about-page` 容器，保证：
+ *   1. `/about/` 的路由、`#page` 外壳、数据装配（about.yml）在 P3-2 就能构建；
+ *   2. about 模板替换时只需改这一个文件，站点路由与数据层不动。
+ *
+ * props 形状已按上游数据需求预留：`data`（`site.data.about`，顶层数组）与页面正文。
+ */
+interface Props {
+  /** 上游 `site.data.about`（数组，每项一段关于页配置）。 */
+  data?: unknown[]
+  /** 上游 `page.content`（上游 about.pug 不使用正文，保留给后续实现）。 */
+  html?: string
+}
+
+const { data = [] } = Astro.props
+---
+
+<div id="about-page" data-about-placeholder="P3-3">
+  {data.length === 0 && <p class="center">about 模板待 P3-3 实现。</p>}
+</div>

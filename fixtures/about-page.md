@@ -3,6 +3,7 @@ title: 关于本站
 date: 2025-05-01 08:00:00
 layout: page
 type: about
+permalink: /about/
 top_img: /img/default_cover.jpg
 ---
 

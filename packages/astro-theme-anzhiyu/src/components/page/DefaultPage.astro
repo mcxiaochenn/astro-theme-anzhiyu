@@ -1,0 +1,23 @@
+---
+/**
+ * DefaultPage.astro — 兜底页面（P3-2）。
+ *
+ * 上游 `layout/includes/page/default-page.pug:1-2`：
+ *
+ *   #article-container
+ *     != page.content
+ *
+ * 这是 `case page.type` 的 `default` 分支：没有 `type` 或类型未知的独立页面。
+ * `page.content` 在上游是渲染后的 HTML 字符串；这里优先用站点路由传入的 `html`，
+ * 拿不到（例如 dev 下尚未渲染）时退回内容集合的 `Content` 组件。
+ */
+import type { PageContentSlot } from './types.ts'
+
+interface Props extends PageContentSlot {}
+
+const { html, Content } = Astro.props
+---
+
+<div id="article-container">
+  {html ? <Fragment set:html={html} /> : Content ? <Content /> : null}
+</div>

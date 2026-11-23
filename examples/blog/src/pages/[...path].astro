@@ -1,0 +1,220 @@
+---
+/**
+ * 独立页面路由（P3-2）— 上游 `layout/page.pug` 的入口。
+ *
+ * 上游用 `source/<path>/index.md` 的文件位置决定 URL，并在 frontmatter 写
+ * `layout: page` + `type: <模板名>`；Hexo 生成器把两者组合成独立页面。
+ * Astro 侧改为根级 rest 路由：`getStaticPaths` 只产出 `layout === 'page'` 的条目，
+ * 路径优先取 frontmatter 的 `permalink`（P3-2 新增字段），缺省用 id 去掉 `-page`
+ * 后缀（`fixtures/about-page.md` → `/about/` 的兼容写法）。
+ *
+ * 分发严格照抄 `layout/page.pug:4-31`：
+ *
+ *   #page
+ *     if top_img === false && !page.top_single
+ *       h1.page-title= page.title
+ *     case page.type
+ *       tags / link / categories / essay / room / about / album / fcircle /
+ *       album_detail / music / equipment / default
+ *
+ * 注意与 `page/[...page].astro` 的优先级：Astro 的静态段优先于 rest 段，
+ * 所以 `/page/2` 只会命中 `page/[...page].astro`，不会被本文件吞掉；
+ * `/about/` 这类没有其它路由的路径才会落到这里。
+ */
+import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import DefaultPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/DefaultPage.astro'
+import TagsPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/TagsPage.astro'
+import CategoriesPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/CategoriesPage.astro'
+import EssayPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EssayPage.astro'
+import FcirclePage from '../../../../packages/astro-theme-anzhiyu/src/components/page/FcirclePage.astro'
+import FlinkPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/FlinkPage.astro'
+import MusicPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/MusicPage.astro'
+import AlbumPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/AlbumPage.astro'
+import AlbumDetailPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/AlbumDetailPage.astro'
+import RoomPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/RoomPage.astro'
+import EquipmentPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EquipmentPage.astro'
+import AboutPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/about/AboutPage.astro'
+import { getSiteData } from '../data/site-data.ts'
+import '../styles/upstream/index.styl'
+import { getCollection, render } from 'astro:content'
+import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
+import type {
+  AlbumGroup,
+  EssayGroup,
+  EquipmentGroup,
+  FlinkGroup,
+  TaxonomyItem,
+} from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
+
+/** 站点级元数据（基准站身份，对应上游 `config.*`）。 */
+const site = {
+  title: 'AnZhiYu Baseline',
+  subtitle: '上游 1.7.1 参考产物',
+  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
+  keywords: 'Hexo,AnZhiYu,baseline',
+  author: 'AnZhiYu Baseline',
+  language: 'zh-CN',
+  url: 'https://baseline.anzhiyu.test',
+  root: '/',
+}
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const entries = await getCollection('posts')
+  const pages = entries.filter((entry) => entry.data.layout === 'page')
+
+  /** 与模块级同名函数一致；getStaticPaths 会被单独打包，直接内联避免作用域丢失。 */
+  const trim = (value: string): string => value.replace(/^\/+|\/+$/g, '')
+
+  const paths = pages.map((entry) => {
+    const permalink = entry.data.permalink
+    const raw = typeof permalink === 'string' && permalink ? permalink : entry.id.replace(/-page$/, '')
+    return { path: trim(raw), id: entry.id }
+  })
+
+  const seen = new Set<string>()
+  for (const item of paths) {
+    if (!item.path) throw new Error(`[page] 独立页面 ${item.id} 的路径为空`)
+    if (seen.has(item.path)) throw new Error(`[page] 独立页面路径重复：/${item.path}/`)
+    seen.add(item.path)
+  }
+
+  return paths.map((item) => ({
+    params: { path: item.path },
+    props: { id: item.id },
+  }))
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+/** `posts` 集合里除独立页面外的文章（上游 `site.posts`）。 */
+const allEntries = await getCollection('posts')
+const articleEntries = allEntries.filter((entry) => entry.data.layout !== 'page')
+
+/* ------------------------------------------------------------------ */
+/* 标签 / 分类页的数据（上游 `hexo.locals.get('tags'|'categories')`）    */
+/* ------------------------------------------------------------------ */
+
+const tagCounts = new Map<string, number>()
+const categoryCounts = new Map<string, number>()
+
+/** 递归摊平 `categories: string | string[] | (string | string[])[]`。 */
+function collectCategoryNames(value: unknown, out: Set<string>): void {
+  if (typeof value === 'string') {
+    if (value) out.add(value)
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectCategoryNames(item, out)
+  }
+}
+
+for (const entry of articleEntries) {
+  const tags = entry.data.tags
+  if (Array.isArray(tags)) {
+    for (const tag of tags) {
+      if (typeof tag !== 'string' || !tag) continue
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
+    }
+  }
+  // 一篇文章对同一分类只计一次（上游 category.length 是文章数；嵌套分类的每一级都算一个节点）
+  const categoryNames = new Set<string>()
+  collectCategoryNames(entry.data.categories, categoryNames)
+  for (const name of categoryNames) categoryCounts.set(name, (categoryCounts.get(name) ?? 0) + 1)
+}
+
+/** `tagsPageList()` 需要的 `{ name, path, length }`；路径不加 `url_for`（与上游一致，中文不编码）。 */
+const tagItems: TaxonomyItem[] = [...tagCounts.entries()].map(([name, length]) => ({
+  name,
+  path: `tags/${name}/`,
+  length,
+}))
+const categoryItems: TaxonomyItem[] = [...categoryCounts.entries()].map(([name, length]) => ({
+  name,
+  path: `categories/${name}/`,
+  length,
+}))
+
+/* ------------------------------------------------------------------ */
+/* 当前页面                                                            */
+/* ------------------------------------------------------------------ */
+
+const { id } = Astro.props as Props
+const entry = allEntries.find((item) => item.id === id)
+if (!entry) throw new Error(`[page] 找不到条目 ${id}`)
+
+const data = entry.data as Record<string, unknown>
+const type = typeof data.type === 'string' ? data.type : ''
+
+/** 上游 `page.title`。 */
+const title = typeof data.title === 'string' ? data.title : ''
+
+/** 上游 `page.top_img`：false 表示显式关闭顶部图（与缺省不同）。 */
+const topImg =
+  typeof data.top_img === 'string' ? data.top_img : data.top_img === false ? false : undefined
+
+/** 上游 `page.top_single`：为真时即使 top_img === false 也不输出 page-title。 */
+const topSingle = data.top_single === true
+
+/** 上游 `page.top_background`（album 页用作卡片背景）。 */
+const topBackground = typeof data.top_background === 'string' ? data.top_background : undefined
+
+/** 上游 `page.aside === false` 时隐藏侧栏。 */
+const aside = data.aside === false ? false : undefined
+
+/** 页面正文：构建期 `entry.rendered.html` 优先，其次用 `render()` 的组件形式。 */
+const renderedHtml = (entry as unknown as { rendered?: { html?: string } }).rendered?.html ?? ''
+const { Content } = await render(entry)
+
+/** 上游 `page_description()` 用 `page.content` 回退，这里传渲染后的 HTML。 */
+const pageDescription = typeof data.description === 'string' ? data.description : undefined
+
+/* ------------------------------------------------------------------ */
+/* 站点数据（上游 `site.data.*`）                                      */
+/* ------------------------------------------------------------------ */
+
+const essayData = getSiteData<EssayGroup[]>('essay') ?? []
+const albumData = getSiteData<AlbumGroup[]>('album') ?? []
+const linkData = getSiteData<FlinkGroup[]>('link') ?? []
+const equipmentData = getSiteData<EquipmentGroup[]>('equipment') ?? []
+const aboutData = getSiteData<unknown[]>('about') ?? []
+---
+
+<BaseLayout
+  site={site}
+  title={title}
+  description={pageDescription}
+  content={renderedHtml}
+  pageType="page"
+  topImg={topImg}
+  aside={aside}
+>
+  <div id="page">
+    {topImg === false && !topSingle && <h1 class="page-title">{title}</h1>}
+
+    {type === 'tags' ? (
+      <TagsPage items={tagItems} />
+    ) : type === 'categories' ? (
+      <CategoriesPage items={categoryItems} />
+    ) : type === 'link' ? (
+      <FlinkPage data={linkData} html={renderedHtml} Content={Content} />
+    ) : type === 'essay' ? (
+      <EssayPage data={essayData} />
+    ) : type === 'room' ? (
+      <RoomPage />
+    ) : type === 'about' ? (
+      <AboutPage data={aboutData} html={renderedHtml} />
+    ) : type === 'album' ? (
+      <AlbumPage data={albumData} topBackground={topBackground} />
+    ) : type === 'fcircle' ? (
+      <FcirclePage />
+    ) : type === 'album_detail' ? (
+      <AlbumDetailPage data={albumData} currentPath={Astro.url.pathname} />
+    ) : type === 'music' ? (
+      <MusicPage />
+    ) : type === 'equipment' ? (
+      <EquipmentPage data={equipmentData} />
+    ) : (
+      <DefaultPage html={renderedHtml} Content={Content} />
+    )}
+  </div>
+</BaseLayout>

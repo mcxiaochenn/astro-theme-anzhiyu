@@ -1,0 +1,29 @@
+---
+/**
+ * CategoriesPage.astro — 分类总览页（`page.type === 'categories'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/categories.pug:1-2`：
+ *
+ *   #tag
+ *     .category-lists#tag-page-tags!= tags_page_list("categories")
+ *
+ * 结构与标签页一致，只是 id 挂在内层 `#tag-page-tags` 上（pug 的 `.a#b!= x` 把 x
+ * 放在同一元素内部）。列表条目同样由 `tagsPageList()` 产出，路径为 `categories/<name>/`。
+ */
+import { tagsPageList } from '../../utils/helpers.ts'
+import type { TaxonomyItem } from './types.ts'
+
+interface Props {
+  /** 分类条目（上游 `hexo.locals.get('categories')` 的投影）。 */
+  items?: TaxonomyItem[]
+}
+
+const { items = [] } = Astro.props
+const listHtml = tagsPageList(items)
+---
+
+<div id="tag">
+  <div class="category-lists" id="tag-page-tags">
+    <Fragment set:html={listHtml} />
+  </div>
+</div>

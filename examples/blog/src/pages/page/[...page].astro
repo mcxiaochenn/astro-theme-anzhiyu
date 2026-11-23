@@ -1,27 +1,28 @@
 ---
 /**
- * 首页 · 第 2..N 页（P2-7）
+ * 首页 · 第 2..N 页（P2-7，P3-2 迁入 `page/` 子目录）
  *
  * 对应 Hexo `hexo-generator-index` + `hexo-pagination` 产出的 `/page/2/`、`/page/3/`…：
  * 同一个 `layout/index.pug`，区别只有 `page.current` / `page.posts` / `page.prev` / `page.next`
  * 这几个 locals。所以这里和 `index.astro` 用同一套组件，只把「取第几页」换成路由参数。
  *
- * 路由形态：`[...page]` 是 rest 参数，参数值直接是路径片段，因此 `/page/2`
- * 对应的 `params.page` 是 `'page/2'`（不是 `'2'`）。
+ * 路由形态（P3-2）：从根级 rest 路由改成 `page/[...page].astro`，`page` 这一段由目录名
+ * 静态匹配，rest 参数只剩页码本身，因此 `/page/2` 对应 `params.page = '2'`。
+ * 这样根级才能腾给 `[...path].astro`（`layout: page` 的独立页面，见该文件）。
  * 第 1 页故意不在这里生成（`/` 由 `index.astro` 负责），避免两条路由抢同一个路径。
  *
  * 站点元数据常量与 `index.astro` 重复：Phase 7 站点配置层落地后两处一起删。
  */
-import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import PostCard from '../../../../packages/astro-theme-anzhiyu/src/components/post/PostCard.astro'
-import Pagination from '../../../../packages/astro-theme-anzhiyu/src/components/post/Pagination.astro'
-import CategoryBar from '../../../../packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro'
+import BaseLayout from '../../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import PostCard from '../../../../../packages/astro-theme-anzhiyu/src/components/post/PostCard.astro'
+import Pagination from '../../../../../packages/astro-theme-anzhiyu/src/components/post/Pagination.astro'
+import CategoryBar from '../../../../../packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro'
 import {
   collectCategoryBarItems,
   paginatePosts,
   preparePosts,
-} from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
-import '../styles/upstream/index.styl'
+} from '../../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
+import '../../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
 
@@ -32,7 +33,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return Array.from({ length: Math.max(total - 1, 0) }, (_, offset) => {
     const current = offset + 2
     return {
-      params: { page: `page/${current}` },
+      params: { page: String(current) },
       props: { current },
     }
   })

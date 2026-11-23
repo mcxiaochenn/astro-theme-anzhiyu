@@ -1,0 +1,221 @@
+---
+/**
+ * AlbumDetailPage.astro — 单个相册页（`page.type === 'album_detail'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/album_detail.pug:1-90`。它不按 `page.type` 的固定值取数据，
+ * 而是在 `site.data.album` 里找 `is_current(i.path_name)` 的那一组：
+ *
+ *   #album_detail
+ *     for each i in site.data.album
+ *       if path_name && i.album_list
+ *         .author-content…album.single      ← 顶部卡片（top_background / class_name / description / 按钮）
+ *         section.timeline.page-1
+ *           type == 1 → ul#waterfall.list > li.album-item（图片 / aplayer / 时间 / 链接 / 地址 / 来源）
+ *           type == 2 → .type-gallery > .gallery > .fj-gallery（data-* 交给 fj-gallery 运行时）
+ *
+ * `rowHeight` / `limit` / `lazyload` / `btnLazyload` / `url` 在上游用
+ * `!= "undefined"` 判断（YAML 缺字段时是 undefined），这里用 `?? 默认值` 等价表达。
+ * 交互（fj-gallery / fancybox / aplayer）留给 Phase 4/5。
+ */
+import type { AlbumGroup } from './types.ts'
+
+interface Props {
+  /** 上游 `site.data.album`。 */
+  data?: AlbumGroup[]
+  /** 当前 URL（上游 `is_current()` 的输入，通常是 `Astro.url.pathname`）。 */
+  currentPath?: string
+}
+
+const { data = [], currentPath = '' } = Astro.props
+
+/** 上游 `url_for()`：站根为 `/` 时原样返回。 */
+const urlFor = (value: string): string => value
+
+/** 统一成「首尾都有 `/`」再比较，等价于 Hexo `is_current()` 的尾斜杠容错。 */
+const normalizePath = (value?: string): string => {
+  if (!value) return ''
+  const withLeading = value.startsWith('/') ? value : `/${value}`
+  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+}
+
+/**
+ * 上游 `new Date(item.date).toISOString()`。与 EssayPage 相同：无时区字面量
+ * 按站点时区 +08 解释，避免结果随构建机器的 TZ 变化。
+ */
+const toIso = (value?: string): string => {
+  if (!value) return ''
+  const text = value.includes('T') ? value : value.replace(' ', 'T')
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text)
+  const parsed = new Date(hasZone ? text : `${text}+08:00`)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+}
+
+const current = normalizePath(currentPath)
+const groups = data.filter((group) => normalizePath(group.path_name) === current && group.album_list)
+---
+
+<div id="album_detail">
+  {groups.map((group) => {
+    const type = group.type
+    const topLink = group.top_link ? group.top_link : '/about'
+    const topBtnText = group.top_btn_text ? group.top_btn_text : '关于我'
+    return (
+      <>
+        <div
+          class="author-content author-content-item album single"
+          style={
+            group.top_background
+              ? `background: url(${group.top_background}) top / cover no-repeat;`
+              : ''
+          }
+        >
+          <div class="card-content">
+            <div class="author-content-item-tips">相册集</div>
+            <span class="author-content-item-title">{group.class_name}</span>
+            <div class="content-bottom">
+              <div class="tips">{group.description}</div>
+            </div>
+            <div class="banner-button-group">
+              <a
+                class="banner-button"
+                onclick={`pjax.loadUrl("${urlFor(topLink)}")`}
+                data-pjax-state=""
+              >
+                <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" style="font-size: 1.5rem" />
+                <span class="banner-button-text">{topBtnText}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+        {type === 1 ? (
+          <section class="timeline page-1">
+            <ul id="waterfall" class="list">
+              {(group.album_list ?? []).map((item) => (
+                <li class="album-item">
+                  <div class="album-content">
+                    <p class="datacont">
+                      {item.content}
+                      {item.image && (
+                        <div class="album-container-img">
+                          {item.image.map((src) => (
+                            <a
+                              class="album-content-img"
+                              href={urlFor(src)}
+                              target="_blank"
+                              data-fancybox="gallery"
+                              data-caption=""
+                            >
+                              <img src={urlFor(src)} />
+                            </a>
+                          ))}
+                          <div class="album-content-noimg" />
+                          <div class="album-content-noimg" />
+                          <div class="album-content-noimg" />
+                        </div>
+                      )}
+                      {item.aplayer && (
+                        <div class="album-music">
+                          <div
+                            class="aplayer no-destroy"
+                            data-id={String(item.aplayer.id)}
+                            data-server={item.aplayer.server}
+                            data-type="song"
+                            data-order="list"
+                            data-preload="none"
+                            data-autoplay="false"
+                            data-mutex="true"
+                            data-theme="var(--anzhiyu-main)"
+                          />
+                        </div>
+                      )}
+                    </p>
+                  </div>
+                  <hr />
+                  <div class="album-bottom">
+                    <div class="album-info">
+                      <div class="album-info-time">
+                        <i class="anzhiyufont anzhiyu-icon-instagram" />
+                        <time class="datatime" datetime={item.date}>{toIso(item.date)}</time>
+                      </div>
+                      {item.link && (
+                        <a
+                          class="album-content-link"
+                          target="_blank"
+                          title="跳转到短文指引的链接"
+                          href={item.link}
+                          rel="external nofollow"
+                        >
+                          <i class="anzhiyufont anzhiyu-icon-link" />链接
+                        </a>
+                      )}
+                      {item.address && (
+                        <div class="album-info-address">
+                          <i class="anzhiyufont anzhiyu-icon-location-dot" />
+                          <span>{item.address}</span>
+                        </div>
+                      )}
+                      {item.from && (
+                        <div class="album-info-from">
+                          <i class="anzhiyufont anzhiyu-icon-fw-fire" />
+                          <span>{item.from}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div
+                      class="album-reply"
+                      onclick={`rm.rightMenuCommentText('${item.content ?? ''}')`}
+                    >
+                      <i class="anzhiyufont anzhiyu-icon-message" />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : type === 2 ? (
+          (() => {
+            const rowHeight = group.rowHeight ?? 220
+            const limit = group.limit ?? 10
+            const lazyload = group.lazyload ?? true
+            const lazyloadClass = lazyload === true ? 'lazyload' : ''
+            const btn = group.btnLazyload ?? false
+            const btnLazyloadClass = btn === true ? ' btn_album_detail_lazyload' : ''
+            const imgType = group.url ? ' url' : ' data'
+            const dataStr = (group.album_list ?? []).flatMap((item) =>
+              (item.image ?? []).map((url) => ({
+                url,
+                alt: item.content,
+                title: item.content,
+                address: item.address,
+              })),
+            )
+            const durl = group.url ?? false
+            return (
+              <div class="type-gallery">
+                <div class="gallery">
+                  <div
+                    class={`fj-gallery ${lazyloadClass + btnLazyloadClass + imgType}`}
+                    data-rowHeight={rowHeight}
+                    data-limit={limit}
+                  >
+                    <span class="gallery-data">
+                      {durl ? durl : JSON.stringify(dataStr)}
+                    </span>
+                  </div>
+                  {btn ? (
+                    <button class="gallery-load-more">
+                      <span>加载更多</span>
+                      <i class="anzhiyufont anzhiyu-icon-arrow-down" />
+                    </button>
+                  ) : (
+                    <div id="album_detail_gallery_load_more" />
+                  )}
+                </div>
+              </div>
+            )
+          })()
+        ) : null}
+      </>
+    )
+  })}
+</div>

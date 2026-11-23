@@ -1,0 +1,187 @@
+---
+/**
+ * EssayPage.astro — 短文页（`page.type === 'essay'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/essay.pug:1-67`：`site.data.essay` 的每个分组渲染成
+ * 「一张 author-content 卡片 + 一条 #bber 时间线 + 底部条数提示」。
+ *
+ * 逐段对应：
+ *   - `:3`   `#essay_page`（每组一个）
+ *   - `:4-13` 卡片：top_background 内联到 style；标题/副标题/提示/按钮
+ *   - `:14-65` `#bber > section.timeline.page-1 > ul#waterfall.list > li.bber-item`
+ *   - `:17-18` `if index < i.limit` 截断
+ *   - `:21-44` 正文 + 图片 / 视频（B 站 iframe 与普通 video 两种）/ aplayer
+ *   - `:45-65` `hr` + 时间/链接/来源/地址 + 右键引用按钮
+ *   - `:66-67` `#bber-tips` 的「只展示最近 N 条短文」
+ *
+ * 交互（fancybox / meting / 右键菜单）留给 Phase 4/5，这里只出静态结构。
+ */
+import type { EssayGroup, EssayItem } from './types.ts'
+
+interface Props {
+  /** 上游 `site.data.essay`。 */
+  data?: EssayGroup[]
+}
+
+const { data = [] } = Astro.props
+
+/**
+ * 上游 `new Date(item.date).toISOString()`：UTC ISO 字符串作为 `<time>` 文本。
+ * Hexo 按站点时区（基准站 Asia/Shanghai，固定 +08）解释无时区字面量，
+ * 这里显式补 `+08:00`，避免结果随构建机器的 TZ 变化。
+ */
+const toIso = (value?: string): string => {
+  if (!value) return ''
+  const text = value.includes('T') ? value : value.replace(' ', 'T')
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text)
+  const parsed = new Date(hasZone ? text : `${text}+08:00`)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+}
+
+/** 上游 `url_for()`：站根为 `/` 时原样返回。 */
+const urlFor = (value: string): string => value
+
+/** 上游 `rm.rightMenuCommentText('…')`，单引号拼接，与 pug 的字符串插值一致。 */
+const replyOnclick = (content?: string): string => `rm.rightMenuCommentText('${content ?? ''}')`
+---
+
+{
+  data.map((group) => (
+    <div id="essay_page">
+      <div
+        class="author-content author-content-item essayPage single"
+        style={
+          group.top_background
+            ? `background: url(${group.top_background}) left 28% / cover no-repeat;`
+            : ''
+        }
+      >
+        <div class="card-content">
+          <div class="author-content-item-tips">{group.title}</div>
+          <span class="author-content-item-title">{group.subTitle}</span>
+          <div class="content-bottom">
+            <div class="tips">{group.tips}</div>
+          </div>
+          <div class="banner-button-group">
+            <a class="banner-button" href={group.buttonLink}>
+              <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />
+              <span class="banner-button-text">{group.buttonText}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div id="bber">
+        <section class="timeline page-1">
+          <ul id="waterfall" class="list">
+            {(group.essay_list ?? []).map((item: EssayItem, index: number) =>
+              index < (group.limit ?? 0) ? (
+                <li class="bber-item">
+                  <div class="bber-content">
+                    <p class="datacont">
+                      {item.content}
+                      {item.image && (
+                        <div class="bber-container-img">
+                          {item.image.map((src) => (
+                            <a
+                              class="bber-content-img"
+                              href={urlFor(src)}
+                              target="_blank"
+                              data-fancybox="gallery"
+                              data-caption=""
+                            >
+                              <img src={urlFor(src)} />
+                            </a>
+                          ))}
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                        </div>
+                      )}
+                      {item.video && (
+                        <div class="bber-container-img">
+                          {item.video.map((src) =>
+                            src.includes('player.bilibili.com') ? (
+                              <div style="position: relative; padding: 30% 45%;margin-top: 10px;margin-bottom: 10px;">
+                                <iframe
+                                  style="position: absolute; width: 100%; height: 100%; left: 0; top: 0;margin: 0;border-radius: 12px;border: var(--style-border);"
+                                  src={urlFor(src)}
+                                  scrolling="no"
+                                  border="0"
+                                  frameborder="no"
+                                  framespacing="0"
+                                  allowfullscreen="true"
+                                />
+                              </div>
+                            ) : (
+                              <a class="bber-content-video" href={urlFor(src)} data-fancybox="gallery" data-caption="">
+                                <video src={urlFor(src)} />
+                              </a>
+                            ),
+                          )}
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                        </div>
+                      )}
+                      {item.aplayer && (
+                        <div class="bber-music">
+                          <meting-js
+                            id={String(item.aplayer.id)}
+                            server={item.aplayer.server}
+                            type="song"
+                            mutex="true"
+                            preload="none"
+                            theme="var(--anzhiyu-main)"
+                            data-lrctype="0"
+                            order="list"
+                          />
+                        </div>
+                      )}
+                    </p>
+                  </div>
+                  <hr />
+                  <div class="bber-bottom">
+                    <div class="bber-info">
+                      <div class="bber-info-time">
+                        <i class="anzhiyufont anzhiyu-icon-clock" />
+                        <time class="datatime" datetime={item.date}>{toIso(item.date)}</time>
+                      </div>
+                      {item.link && (
+                        <a
+                          class="bber-content-link"
+                          title="跳转到短文指引的链接"
+                          href={urlFor(item.link)}
+                          rel="external nofollow"
+                        >
+                          <i class="anzhiyufont anzhiyu-icon-link" />链接
+                        </a>
+                      )}
+                      {item.from && (
+                        <div class="bber-info-from">
+                          <i class="anzhiyufont anzhiyu-icon-fw-fire" />
+                          <span>{item.from}</span>
+                        </div>
+                      )}
+                      {item.address && (
+                        <div class="bber-info-from">
+                          <i class="anzhiyufont anzhiyu-icon-location-dot" />
+                          <span>{item.address}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div class="bber-reply" onclick={replyOnclick(item.content)}>
+                      <i class="anzhiyufont anzhiyu-icon-message" />
+                    </div>
+                  </div>
+                </li>
+              ) : null,
+            )}
+          </ul>
+        </section>
+      </div>
+      <div id="bber-tips" style="color: var(--anzhiyu-secondtext);">
+        - 只展示最近{group.limit}条短文 -
+      </div>
+    </div>
+  ))
+}

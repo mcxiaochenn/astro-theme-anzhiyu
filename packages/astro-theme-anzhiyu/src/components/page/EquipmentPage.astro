@@ -1,0 +1,122 @@
+---
+/**
+ * EquipmentPage.astro — 装备页（`page.type === 'equipment'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/equipment.pug:1-33`：
+ *
+ *   #equipment
+ *     if site.data.equipment
+ *       each i in site.data.equipment
+ *         .author-content.author-content-item.fcirclePage.single  ← 顶部卡片（top_background）
+ *         each item in i.good_things
+ *           .goodthings-item
+ *             h2.goodthings-title / .goodthings-item-description
+ *             .equipment-item > .equipment-item-content
+ *               each iten in item.equipment_list
+ *                 .equipment-item-content-item
+ *                   .equipment-item-content-item-cover > img[data-lazy-src]
+ *                   .equipment-item-content-item-info
+ *                     .…-name[onclick=复制] / -specification / -description
+ *                     .…-toolbar > a（https 链接「详情」，否则「查看文章」）+ .bber-reply
+ *
+ * 懒加载与右键复制都在 Phase 4/5 接管，这里只有静态属性。
+ */
+import { getThemeConfig, readString } from '../../layouts/theme-context.ts'
+import type { EquipmentGroup } from './types.ts'
+
+interface Props {
+  /** 上游 `site.data.equipment`。 */
+  data?: EquipmentGroup[]
+}
+
+const { data = [] } = Astro.props
+const theme = getThemeConfig()
+const flinkErrorImg = readString(theme.error_img, 'flink')
+
+/** 上游 `_p('Snackbar.copy_equipment_name')`（zh-CN）。 */
+const COPY_EQUIPMENT_NAME = '已复制装备名称'
+
+/** 图片加载失败的兜底（上游 inline `onerror`）。 */
+const imgOnerror = `this.onerror=null;this.src='${flinkErrorImg}'`
+
+/** 上游 `iten.link.includes('https://') || iten.link.includes('http://')`。 */
+const isExternal = (link?: string): boolean =>
+  Boolean(link && (link.includes('https://') || link.includes('http://')))
+
+/** 上游 name 点击：复制名称并弹 snackbar。 */
+const nameOnclick = (name?: string): string =>
+  `rm.rightmenuCopyText("${name ?? ''}");anzhiyu.snackbarShow("${COPY_EQUIPMENT_NAME} 【${name ?? ''}】");`
+
+/** 上游 `.bber-reply` 的「引用到评论」。 */
+const replyOnclick = (name?: string, specification?: string, description?: string): string =>
+  `rm.rightMenuCommentText('${name ?? ''} ${specification ?? ''} ${description ?? ''}')`
+---
+
+<div id="equipment">
+  {data.map((group) => (
+    <>
+      <div
+        class="author-content author-content-item fcirclePage single"
+        style={`background: url(${group.top_background}) left 37% / cover no-repeat !important;`}
+      >
+        <div class="card-content">
+          <div class="author-content-item-tips">{group.class_name}</div>
+          <span class="author-content-item-title">{group.description}</span>
+          <div class="content-bottom">
+            <div class="tips">{group.tip}</div>
+          </div>
+        </div>
+      </div>
+      {(group.good_things ?? []).map((thing) => (
+        <div class="goodthings-item">
+          <h2 class="goodthings-title">{thing.title}</h2>
+          <div class="goodthings-item-description">{thing.description}</div>
+          <div class="equipment-item">
+            <div class="equipment-item-content">
+              {(thing.equipment_list ?? []).map((item) => (
+                <div class="equipment-item-content-item">
+                  <div class="equipment-item-content-item-cover">
+                    <img
+                      class="equipment-item-content-item-image"
+                      data-lazy-src={item.image}
+                      onerror={imgOnerror}
+                      alt={item.name}
+                    />
+                  </div>
+                  <div class="equipment-item-content-item-info">
+                    <div
+                      class="equipment-item-content-item-name"
+                      onclick={nameOnclick(item.name)}
+                      title={item.name}
+                    >
+                      {item.name}
+                    </div>
+                    <div class="equipment-item-content-item-specification">{item.specification}</div>
+                    <div class="equipment-item-content-item-description">{item.description}</div>
+                    <div class="equipment-item-content-item-toolbar">
+                      {isExternal(item.link) ? (
+                        <a class="equipment-item-content-item-link" href={item.link} target="_blank">
+                          详情
+                        </a>
+                      ) : (
+                        <a class="equipment-item-content-item-link" href={item.link} target="_blank">
+                          查看文章
+                        </a>
+                      )}
+                      <div
+                        class="bber-reply"
+                        onclick={replyOnclick(item.name, item.specification, item.description)}
+                      >
+                        <i class="anzhiyufont anzhiyu-icon-message" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </>
+  ))}
+</div>

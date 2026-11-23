@@ -1,0 +1,19 @@
+# 上游 `layout/includes/page/equipment.pug` 的数据源（`site.data.equipment`，顶层数组）。
+- class_name: 装备
+  description: 我常用的数码装备
+  tip: 记录一下正在使用的设备
+  top_background: /img/default_cover.jpg
+  good_things:
+    - title: 生产力工具
+      description: 写作与开发用
+      equipment_list:
+        - name: 笔记本电脑
+          image: /img/default_cover.jpg
+          specification: 16 英寸 / 32GB
+          description: 主力开发机
+          link: https://example.com/laptop
+        - name: 外接显示器
+          image: /img/default_cover.jpg
+          specification: 27 英寸 4K
+          description: 接笔记本使用
+          link: /archives/

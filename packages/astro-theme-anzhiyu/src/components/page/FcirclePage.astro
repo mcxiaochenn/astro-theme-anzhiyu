@@ -1,0 +1,83 @@
+---
+/**
+ * FcirclePage.astro — 友链朋友圈页（`page.type === 'fcircle'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/fcircle.pug:1-25`。整块由 `theme.friends_vue.enable`
+ * 门控（基准站为 false，所以不产出任何 DOM）：
+ *
+ *   .fcircle_page
+ *     .author-content.author-content-item.fcirclePage.single   ← 顶部卡片
+ *     .title-h2-a                                               ← 「🎣 钓鱼 / 全部友链」
+ *     #random-post
+ *     #hexo-circle-of-friends-root                              ← vue 应用挂载点
+ *   script[defer][data-pjax] × 2                                ← 朋友圈脚本
+ *
+ * 文案在上游走 `_p()`（languages/zh-CN.yml 的 `flink.*`），这里固定 zh-CN。
+ * 脚本只做静态输出，真正的请求/渲染由 Phase 5 的第三方集成接管。
+ */
+import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
+
+const theme = getThemeConfig()
+const friendsVue = theme.friends_vue
+
+const enabled = readFlag(friendsVue, 'enable')
+const topBackground = readString(friendsVue, 'top_background')
+const topTips = readString(friendsVue, 'top_tips')
+const vueJs = readString(friendsVue, 'vue_js')
+const apiurl = readString(friendsVue, 'apiurl')
+const randomFriendsPostJs = readString(theme.asset, 'random_friends_post_js')
+
+/** 上游 `_p('flink.*')`（zh-CN）。 */
+const t = {
+  friendLinks: '友链',
+  latestArticles: '最新文章订阅',
+  aboutMe: '关于本人',
+  fishing: '🎣 钓鱼',
+  allLinks: '全部友链',
+}
+---
+
+{
+  enabled && (
+    <>
+      <div class="fcircle_page">
+        <div
+          class="author-content author-content-item fcirclePage single"
+          style={`background: url(${topBackground}) left 28% / cover no-repeat !important;`}
+        >
+          <div class="card-content">
+            <div class="author-content-item-tips">{t.friendLinks}</div>
+            <span class="author-content-item-title">{t.latestArticles}</span>
+            <div class="content-bottom">
+              <div class="tips">{topTips}</div>
+            </div>
+            <div class="banner-button-group">
+              <a class="banner-button" onclick='pjax.loadUrl("/about")'>
+                <i
+                  class="anzhiyufont anzhiyu-icon-arrow-circle-right"
+                  style="font-size: 22px; margin-right: 0.25rem"
+                />
+                <span class="banner-button-text">{t.aboutMe}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="title-h2-a">
+          <div class="title-h2-a-left">
+            <h2 style="padding-top:0;margin:.6rem 0 .6rem">{t.fishing}</h2>
+            <a class="random-post-start" href="javascript:fetchRandomPost();">
+              <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+            </a>
+          </div>
+          <div class="title-h2-a-right">
+            <a class="random-post-all" href="/link/">{t.allLinks}</a>
+          </div>
+        </div>
+        <div id="random-post" />
+        <div id="hexo-circle-of-friends-root" />
+      </div>
+      {apiurl && <script is:inline defer data-pjax src={randomFriendsPostJs} />}
+      <script is:inline defer data-pjax src={vueJs} />
+    </>
+  )
+}

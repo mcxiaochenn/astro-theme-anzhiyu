@@ -1,0 +1,24 @@
+# 上游 `layout/includes/page/essay.pug` 的数据源（`site.data.essay`，顶层数组）。
+# 每个元素是一张「短文页头部卡片 + 时间线」的组合；`essay_list` 里按 `limit` 截断。
+- title: 短文
+  subTitle: 随手记录的一些碎片
+  tips: 想到什么写什么，不追求完整
+  buttonLink: /about/
+  buttonText: 关于本人
+  top_background: /img/default_cover.jpg
+  limit: 3
+  essay_list:
+    - content: 第一条短文：迁移验收先把结构对齐，再谈样式。
+      date: 2025-04-20 10:00:00
+      image:
+        - /img/default_cover.jpg
+      from: 基准站
+      address: 上海
+    - content: 第二条短文：页面的 DOM 结构要能和上游 pug 逐行对照。
+      date: 2025-04-21 11:30:00
+      link: /archives/
+      from: 基准站
+    - content: 第三条短文：这一条超出 limit 的部分不会渲染。
+      date: 2025-04-22 09:15:00
+    - content: 第四条短文（默认被 limit 截断）。
+      date: 2025-04-23 20:45:00

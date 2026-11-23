@@ -1,0 +1,34 @@
+---
+/**
+ * TagsPage.astro — 标签总览页（`page.type === 'tags'`，P3-2）。
+ *
+ * 上游 `layout/includes/page/tags.pug:1-4`：
+ *
+ *   .tag-cloud-list.is-center
+ *     #tag
+ *       #tag-page-tags
+ *         !=tags_page_list("tags")
+ *
+ * `tags_page_list` 是 `scripts/helpers/tags_page_list.js`：按文章数降序（插入排序，
+ * 相等时保持原序）输出 `<a href="/tags/x/" id="/tags/x/">` 列表。Astro 侧直接复用
+ * `utils/helpers.ts` 的 `tagsPageList()`，用 `set:html` 保留上游的换行与缩进。
+ */
+import { tagsPageList } from '../../utils/helpers.ts'
+import type { TaxonomyItem } from './types.ts'
+
+interface Props {
+  /** 标签条目（上游 `hexo.locals.get('tags')` 的投影）。 */
+  items?: TaxonomyItem[]
+}
+
+const { items = [] } = Astro.props
+const listHtml = tagsPageList(items)
+---
+
+<div class="tag-cloud-list is-center">
+  <div id="tag">
+    <div id="tag-page-tags">
+      <Fragment set:html={listHtml} />
+    </div>
+  </div>
+</div>

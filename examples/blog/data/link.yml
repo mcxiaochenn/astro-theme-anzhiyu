@@ -1,0 +1,33 @@
+# 上游 `layout/includes/page/flink.pug` 的数据源（`site.data.link`，顶层数组）。
+# 一个元素 = 一个友链分组：`class_name` 生成 h2、`flink_style` 决定列表结构。
+- class_name: 友链
+  class_desc: 三个分组分别覆盖 anzhiyu / telescopic / flexcard 三种列表结构
+  flink_style: anzhiyu
+  link_list:
+    - name: AnZhiYu
+      link: https://anzhiy.cn/
+      avatar: /img/512.png
+      descr: 上游主题作者的主页
+      recommend: true
+    - name: Hexo
+      link: https://hexo.io/
+      avatar: /img/512.png
+      descr: 静态博客生成器
+      color: '#425AEF'
+      tag: 常用
+- class_name: 缩略图
+  flink_style: telescopic
+  link_list:
+    - name: Astro
+      link: https://astro.build/
+      avatar: /img/512.png
+      descr: 内容驱动的 Web 框架
+      siteshot: /img/default_cover.jpg
+- class_name: 卡片
+  flink_style: flexcard
+  link_list:
+    - name: MDN
+      link: https://developer.mozilla.org/
+      avatar: /img/512.png
+      descr: Web 开发文档
+      siteshot: /img/default_cover.jpg

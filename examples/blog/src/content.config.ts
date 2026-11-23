@@ -121,6 +121,11 @@ const posts = defineCollection({
       // —— 页面类型（about 页：layout: page + type: about）——
       layout: z.string().optional(),
       type: z.string().optional(),
+
+      // —— 独立页面路由（P3-2）——
+      // 上游站点用 `source/<path>.md` 的文件位置决定 URL；Astro 侧改为显式 permalink，
+      // 缺省时由 `[...path].astro` 用 id 去掉 `-page` 后缀推导（见该文件 getStaticPaths）。
+      permalink: z.string().optional(),
     })
     // 未列出的 frontmatter 字段原样透传，不报错、不丢失
     .passthrough(),
