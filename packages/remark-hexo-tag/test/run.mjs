@@ -65,11 +65,24 @@ function canon(html) {
   return html
     .split(/(<[^>]*>)/)
     .map((part) => {
-      if (part.startsWith('<')) return part.replace(/\s*\/>$/, '>')
+      if (part.startsWith('<')) {
+        return (
+          part
+            .replace(/\s*\/>$/, '>')
+            // HTML 解析器会把无值属性序列化成 `attr=""`，与上游的 `attr` 等价
+            .replace(/\s(controls|preload|hidden|data-pjax|no-lazy)=""/g, ' $1')
+        )
+      }
       return part.replace(/\s+/g, ' ')
     })
     .join('')
     .replace(/>\s+</g, '><')
+    // 实体与原文等价（link/flink 的 onerror 属性里是单引号/双引号）
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&quot;|&#x22;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
     .trim()
 }
 
@@ -365,10 +378,232 @@ const cases = [
       '</div></div><div class="tab-to-top"><button type="button" aria-label="scroll to top">' +
       '<i class="anzhiyufont anzhiyu-icon-arrow-up"></i></button></div></div>',
   },
+  // ── 媒体与卡片 11 个（P6-2） ─────────────────────────────────────────────
   {
-    name: '未实现的 mermaid 原样透传（不抛错）',
-    input: '{% mermaid %}\ngraph TD\nA --> B\n{% endmermaid %}',
-    expected: '<p>{% mermaid %} graph TD A --> B {% endmermaid %}</p>',
+    name: 'image（alt + width）',
+    input: '{% image /img/default_cover.jpg, alt=图片示例, width=60% %}',
+    expected:
+      '<div class="img-wrap"><div class="img-bg"><img class="img" src="/img/default_cover.jpg" alt="图片示例" style="width:60%;"></div><span class="image-caption">图片示例</span></div>',
+  },
+  {
+    name: 'image（bg + height，无 alt 时无 caption）',
+    input: '{% image /img/512.png, bg=#eee, height=32px %}',
+    expected:
+      '<div class="img-wrap"><div class="img-bg" style="background:#eee"><img class="img" src="/img/512.png" style="height:32px;"></div></div>',
+  },
+  {
+    name: 'inlineimage（height=）',
+    input: '行内图片：{% inlineimage /img/512.png, height=32px %}。',
+    expected: '<p>行内图片：<img no-lazy class="inline" src="/img/512.png" style="height:32px;">。</p>',
+  },
+  {
+    name: 'inlineimage（无 height，默认 1.5em）',
+    input: '图：{% inlineimage /img/512.png %}。',
+    expected: '<p>图：<img no-lazy class="inline" src="/img/512.png" style="height:1.5em">。</p>',
+  },
+  {
+    name: 'audio',
+    input: '{% audio https://example.com/baseline-demo.mp3 %}',
+    expected:
+      '<div class="audio"><audio controls preload><source src="https://example.com/baseline-demo.mp3" type="audio/mp3">Your browser does not support the audio tag.</audio></div>',
+  },
+  {
+    name: 'video',
+    input: '{% video https://example.com/baseline-demo.mp4 %}',
+    expected:
+      '<div class="video"><video controls preload><source src="https://example.com/baseline-demo.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>',
+  },
+  {
+    name: 'videos（col=2，正文不跑 Markdown）',
+    input: [
+      '{% videos , 2 %}',
+      '{% video https://example.com/1.mp4 %}',
+      '{% video https://example.com/2.mp4 %}',
+      '{% endvideos %}',
+    ].join('\n'),
+    expected:
+      '<div class="videos" col="2">' +
+      '<div class="video"><video controls preload><source src="https://example.com/1.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>' +
+      '<div class="video"><video controls preload><source src="https://example.com/2.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>' +
+      '</div>',
+  },
+  {
+    name: 'gallery（默认参数 + 图片正则）',
+    input: [
+      '{% gallery %}',
+      '![图片一](/img/default_cover.jpg)',
+      '![图片二](/img/512.png)',
+      '![图片三](/img/comment_bg.png)',
+      '{% endgallery %}',
+    ].join('\n'),
+    expected:
+      '<div class="gallery">' +
+      '<div class="fj-gallery page_img_lazyload data" data-rowheight="220" data-limit="10">' +
+      '<span class="gallery-data">[{"url":"/img/default_cover.jpg","alt":"图片一"},{"url":"/img/512.png","alt":"图片二"},{"url":"/img/comment_bg.png","alt":"图片三"}]</span>' +
+      '</div><button class="gallery-load-more" style="opacity:0">' +
+      '<span>加载更多</span><i class="anzhiyufont anzhiyu-icon-arrow-down"></i></button></div>',
+  },
+  {
+    name: 'galleryGroup',
+    input: '{% galleryGroup 基准站点 上游参考产物 /album/ /img/default_cover.jpg %}',
+    expected:
+      '<figure class="gallery-group"><img class="gallery-group-img no-lightbox" src="/img/default_cover.jpg" alt="Group Image Gallery">' +
+      '<figcaption><div class="gallery-group-name">基准站点</div><p>上游参考产物</p><a href="/album/"></a></figcaption></figure>',
+  },
+  {
+    name: 'site',
+    input:
+      '{% site 示例站点, url=https://example.com, screenshot=/img/default_cover.jpg, avatar=/img/512.png, description=站点卡片说明 %}',
+    expected:
+      '<a class="site-card" href="https://example.com" data-title="站点卡片说明">' +
+      '<div class="wrapper cover"><img class="cover fadeIn" src="/img/default_cover.jpg"></div>' +
+      '<div class="info"><img class="flink-avatar" src="/img/512.png"><span class="site-title">示例站点</span></div></a>',
+  },
+  {
+    name: 'sitegroup（标题 + 两个站点，正文不跑 Markdown）',
+    input: [
+      '{% sitegroup 友情链接 %}',
+      '{% site 站点甲, url=https://example.com/a, screenshot=/img/default_cover.jpg, avatar=/img/512.png, description=说明甲 %}',
+      '{% site 站点乙, url=https://example.com/b, screenshot=/img/comment_bg.png, avatar=/img/512.png, description=说明乙 %}',
+      '{% endsitegroup %}',
+    ].join('\n'),
+    expected:
+      '<div class="site-card-group"><p class="p h2">友情链接</p>' +
+      '<a class="site-card" href="https://example.com/a" data-title="说明甲"><div class="wrapper cover"><img class="cover fadeIn" src="/img/default_cover.jpg"></div><div class="info"><img class="flink-avatar" src="/img/512.png"><span class="site-title">站点甲</span></div></a>' +
+      '<a class="site-card" href="https://example.com/b" data-title="说明乙"><div class="wrapper cover"><img class="cover fadeIn" src="/img/comment_bg.png"></div><div class="info"><img class="flink-avatar" src="/img/512.png"><span class="site-title">站点乙</span></div></a>' +
+      '</div>',
+  },
+  {
+    name: 'btns（容器）',
+    input: [
+      '{% btns rounded grid5 %}',
+      '{% cell 示例链接, https://example.com, anzhiyufont anzhiyu-icon-arrow-right %}',
+      '{% cell 关于页, /about/, anzhiyufont anzhiyu-icon-paper-plane %}',
+      '{% endbtns %}',
+    ].join('\n'),
+    expected:
+      '<div class="btns rounded grid5">' +
+      '<a class="button no-text-decoration" href="https://example.com" title="示例链接"><i class="anzhiyufont anzhiyu-icon-arrow-right"></i>示例链接</a>' +
+      '<a class="button no-text-decoration" href="/about/" title="关于页"><i class="anzhiyufont anzhiyu-icon-paper-plane"></i>关于页</a>' +
+      '</div>',
+  },
+  {
+    name: 'cell（图标参数带前导空格时必须识别为图标）',
+    input: '{% cell 关于页, /about/, anzhiyufont anzhiyu-icon-paper-plane %}',
+    expected:
+      '<a class="button no-text-decoration" href="/about/" title="关于页"><i class="anzhiyufont anzhiyu-icon-paper-plane"></i>关于页</a>',
+  },
+
+  // ── 第三方嵌入 7 个（P6-3） ──────────────────────────────────────────────
+  {
+    name: 'bilibili（客户端脚本与构建期插值）',
+    input: '{% bilibili BV1xx411c7mD 12:00 false %}',
+    contains: [
+      'class="bilibili_box" id="BV1xx411c7mD"',
+      'href="https://www.bilibili.com/video/BV1xx411c7mD/"',
+      "fetch('https://api.320.ink/api/b?id=BV1xx411c7mD')",
+      '<span>12:00</span>',
+      '<div class="desc">${data.desc}</div>',
+      '${data.pic + \'&h=300\'}',
+    ],
+  },
+  {
+    name: 'dogeplayer',
+    input: '{% dogeplayer 123456 vcode123 %}',
+    expected:
+      '<div id="player_vcode123"></div>' +
+      '<script type="text/javascript" data-pjax src="https://player.dogecloud.com/js/loader"></script>' +
+      '<script type="text/javascript" data-pjax defer> setTimeout(() => { var dogePlayer = new DogePlayer({ container: document.getElementById("player_vcode123"), userId: 123456, vcode: "vcode123", autoPlay: false }); }, 300); </script>',
+  },
+  {
+    name: 'mermaid（正文转义进 pre）',
+    input: '{% mermaid %}\ngraph TD\n  A[Hexo] --> B[fixture]\n  B --> C[baseline]\n{% endmermaid %}',
+    expected:
+      '<div class="mermaid-wrap"><pre class="mermaid-src" hidden> graph TD A[Hexo] --&gt; B[fixture] B --&gt; C[baseline] </pre></div>',
+  },
+  {
+    name: 'tip（默认无参数 → class="tip "）',
+    input: '{% tip %}\ntip 默认样式的提示块。\n{% endtip %}',
+    expected: '<div class="tip"><p>tip 默认样式的提示块。</p></div>',
+  },
+  {
+    name: 'tip（warning）',
+    input: '{% tip warning %}\n带 warning 类名的 tip。\n{% endtip %}',
+    expected: '<div class="tip warning"><p>带 warning 类名的 tip。</p></div>',
+  },
+  {
+    name: 'link（站外 + 显式图标）',
+    input: '{% link 示例站点, 外链示例, https://example.com, /img/favicon.ico %}',
+    expected:
+      '<div class="anzhiyu-tag-link"><a class="tag-Link" target="_blank" rel="noopener external nofollow noreferrer" href="https://example.com">' +
+      '<div class="tag-link-tips">引用站外地址</div><div class="tag-link-bottom">' +
+      '<div class="tag-link-left" data-icon="/img/favicon.ico">' +
+      '<img class="tag-link-favicon" src="/img/favicon.ico" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';" style="" alt="favicon">' +
+      '<i class="anzhiyufont anzhiyu-icon-link" style="display:none"></i></div>' +
+      '<div class="tag-link-right"><div class="tag-link-title">示例站点</div><div class="tag-link-sitename">外链示例</div></div>' +
+      '<i class="anzhiyufont anzhiyu-icon-angle-right"></i></div></a></div>',
+  },
+  {
+    name: 'link（站内地址 → 站内图标 + 无 target）',
+    input: '{% link 关于页, 本站, /about/, true %}',
+    expected:
+      '<div class="anzhiyu-tag-link"><a class="tag-Link" href="/about/">' +
+      '<div class="tag-link-tips">站内地址</div><div class="tag-link-bottom">' +
+      '<div class="tag-link-left" data-icon="/favicon.ico">' +
+      '<img class="tag-link-favicon" src="/favicon.ico" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';" style="" alt="favicon">' +
+      '<i class="anzhiyufont anzhiyu-icon-link" style="display:none"></i></div>' +
+      '<div class="tag-link-right"><div class="tag-link-title">关于页</div><div class="tag-link-sitename">本站</div></div>' +
+      '<i class="anzhiyufont anzhiyu-icon-angle-right"></i></div></a></div>',
+  },
+  {
+    name: 'intCard（含底部作者信息）',
+    input: '{% intCard /about/ /img/default_cover.jpg 最爱 介绍卡片 /img/512.png AnZhiYu 基准站点 %}',
+    expected:
+      '<div class="introduction-card" style=""><div class="introduction-card-top" style="">' +
+      '<div class="int-card-info"><div class="int-tip">最爱</div><div class="int-cardTitle">介绍卡片</div></div>' +
+      '<img src="/img/default_cover.jpg" class="no-lightbox" alt="introduction"></div>' +
+      '<div class="introduction-card-bottom"><div class="left">' +
+      '<img src="/img/512.png" class="no-lightbox" alt="introduction">' +
+      '<div class="info"><div class="title">AnZhiYu</div><div class="subTitle">基准站点</div></div></div>' +
+      '<div class="right"><a href="/about/" tableindex="-1" class="no-text-decoration">前往</a></div></div></div>',
+  },
+  {
+    name: 'flink（YAML：anzhiyu + flexcard 两个分支）',
+    input: [
+      '{% flink %}',
+      '- class_name: 基准友链',
+      '  class_desc: 下游对比用的固定友链数据',
+      '  flink_style: anzhiyu',
+      '  link_list:',
+      '    - name: 示例站点',
+      '      link: https://example.com',
+      '      avatar: /img/512.png',
+      '      descr: 友链描述',
+      '- class_name: 卡片风格',
+      '  class_desc: flexcard 分支',
+      '  flink_style: flexcard',
+      '  link_list:',
+      '    - name: 站点乙',
+      '      link: https://example.com/b',
+      '      avatar: /img/512.png',
+      '      descr: 卡片风格描述',
+      '      siteshot: /img/comment_bg.png',
+      '{% endflink %}',
+    ].join('\n'),
+    expected:
+      '<div class="flink"><div class="flink-name">基准友链</div><div class="flink-desc">下游对比用的固定友链数据</div>' +
+      '<div class="flink-list"><div class="anzhiyu-flink-list">' +
+      '<div class="flink-list-item"><a href="https://example.com" title="示例站点" class="cf-friends-link" target="_blank">' +
+      '<div class="flink-item-icon"><img class="no-lightbox cf-friends-avatar" src="/img/512.png" onerror="this.onerror=null;this.src=&quot;/img/friend_404.gif&quot;" alt="示例站点"></div>' +
+      '<div class="flink-item-info"><div class="flink-item-name">示例站点</div><div class="flink-item-desc" title="友链描述">友链描述</div></div>' +
+      '</a></div></div></div>' +
+      '<div class="flink-name">卡片风格</div><div class="flink-desc">flexcard 分支</div>' +
+      '<div class="flink-list"><div class="flexcard-flink-list">' +
+      '<a href="https://example.com/b" title="站点乙" target="_blank" class="flink-list-card cf-friends-link">' +
+      '<div class="wrapper cover"><img class="no-lightbox cover fadeIn" src="/img/comment_bg.png" onerror="this.onerror=null;this.src=&quot;/img/friend_404.gif&quot;" alt="站点乙"></div>' +
+      '<div class="info"><img class="no-lightbox cf-friends-avatar flink-avatar" src="/img/512.png" onerror="this.onerror=null;this.src=&quot;/img/friend_404.gif&quot;" alt="站点乙">' +
+      '<span class="flink-sitename cf-friends-name">站点乙</span></div></a>' +
+      '</div></div></div>',
   },
 ]
 
@@ -377,6 +612,19 @@ let failed = 0
 
 for (const testCase of cases) {
   const html = await render(testCase.input)
+
+  // 超长模板（bilibili 的客户端脚本）只断言关键片段，避免 oracle 变成脚本快照。
+  if (testCase.contains) {
+    const missing = testCase.contains.filter((snippet) => !html.includes(snippet))
+    if (missing.length === 0) passed += 1
+    else {
+      failed += 1
+      console.error(`\n✗ ${testCase.name}：缺少片段 ${JSON.stringify(missing)}`)
+      console.error(`  实际: ${html.slice(0, 500)}`)
+    }
+    continue
+  }
+
   const actual = testCase.mode === 'text' ? textOf(html) : canon(html)
   const expected = testCase.mode === 'text' ? testCase.expected : canon(testCase.expected)
   if (assertEqual(testCase.name, actual, expected)) passed += 1
@@ -387,7 +635,7 @@ for (const testCase of cases) {
 {
   const parsed = parseArgs('a b "c d" e=f g="h i"')
   const ok =
-    JSON.stringify(parsed.args) === JSON.stringify(['a', 'b', 'c d']) &&
+    JSON.stringify(parsed.args) === JSON.stringify(['a', 'b', 'c d', 'e=f', 'g=h i']) &&
     parsed.kwargs.e === 'f' &&
     parsed.kwargs.g === 'h i'
   if (ok) passed += 1

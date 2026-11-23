@@ -23,14 +23,14 @@
  *
  * ## 未知 tag
  *
- *   - 上游注册过、但本批未实现的 tag（media / thirdparty 两组）→ **原样透传** +
- *     构建期 warning（一次性，带文件与行号），保证其它文章不被拖垮；
+ *   - 附录 B 的 42 个 tag（P6-1 行内/块级 24 + P6-2 媒体 11 + P6-3 第三方 7）全部有
+ *     handler；
  *   - 完全没见过的 tag、未闭合容器、错配的 end tag → **抛错**，带 `文件:行:列`。
  *
  * @module remark-hexo-tag
  */
 
-import { positionOf, scanTags } from './parser.mjs'
+import { scanTags } from './parser.mjs'
 import { trimBlockBody } from './runtime.mjs'
 import { inlineTags } from './tags/inline/index.mjs'
 import { blockTags } from './tags/block/index.mjs'
@@ -38,63 +38,24 @@ import { mediaTags, mediaBlockTags } from './tags/media/index.mjs'
 import { thirdPartyTags, thirdPartyBlockTags } from './tags/thirdparty/index.mjs'
 
 /**
- * 上游已注册、本批尚未实现的 tag。
- *
- * 名单来自 `D:/Git-project/_research/anzhiyu-upstream/scripts/tag/` 的
- * `hexo.extend.tag.register(...)` 全集（附录 B 的 42 个），减去本批已实现的 25 个：
- *   - media（P6-2，11 个）
- *   - thirdparty（P6-3，7 个）
- *
- * 落地某个 tag 后，把名字从下面两张表删掉，并在对应的
- * `tags/{media,thirdparty}/index.mjs` 里补 handler 即可。
+ * 上游 42 个 tag 现已全部实现（P6-1 行内/块级 24 + P6-2 媒体 11 + P6-3 第三方 7）。
+ * 不再有「已注册但未实现」的透传名单：任何 registry 里没有的 tag 都按拼写错误抛错。
  */
-const PENDING_INLINE = new Set([
-  // media（P6-2）
-  'image',
-  'inlineimage',
-  'audio',
-  'video',
-  'galleryGroup',
-  'site',
-  'cell',
-  // thirdparty（P6-3）
-  'link',
-  'bilibili',
-  'dogeplayer',
-  'intCard',
-])
-
-const PENDING_BLOCK = new Set([
-  // media（P6-2）
-  'videos',
-  'gallery',
-  'sitegroup',
-  'btns',
-  // thirdparty（P6-3）
-  'mermaid',
-  'flink',
-  'tip',
-])
 
 /** `<!--hexo-tag-12-->` 形式的占位符。 */
 const PLACEHOLDER_RE = /^<!--hexo-tag-(\d+)-->$/
 
 /**
- * 把 tag 名解析成渲染规格。
+ * 全部行内 / 块级 tag（三个模块的并集）。
  *
  * @param {string} name
- * @returns {{ kind: 'inline' | 'block', ends?: boolean, passthrough?: boolean } | null}
+ * @returns {{ kind: 'inline' | 'block', ends?: boolean } | null}
  */
-function createResolver() {
-  return (name) => {
-    if (inlineTags[name]) return { kind: 'inline' }
-    if (blockTags[name]) return { kind: 'block', ends: blockTags[name].ends !== false }
-    if (mediaTags[name] || thirdPartyTags[name]) return { kind: 'inline' }
-    if (mediaBlockTags[name] || thirdPartyBlockTags[name]) return { kind: 'block', ends: true }
-    if (PENDING_INLINE.has(name)) return { kind: 'inline', passthrough: true }
-    if (PENDING_BLOCK.has(name)) return { kind: 'block', ends: true, passthrough: true }
-    return null
-  }
+function resolveTag(name) {
+  if (inlineTags[name] || mediaTags[name] || thirdPartyTags[name]) return { kind: 'inline' }
+  const block = blockTags[name] || mediaBlockTags[name] || thirdPartyBlockTags[name]
+  if (block) return { kind: 'block', ends: block.ends !== false }
+  return null
 }
 
 /**
@@ -105,11 +66,7 @@ function createResolver() {
  * @returns {string}
  */
 function renderInline(node, ctx) {
-  if (node.passthrough) {
-    ctx.warnPending(node.name, node.start)
-    return node.raw
-  }
-  const handler = inlineTags[node.name]
+  const handler = inlineTags[node.name] || mediaTags[node.name] || thirdPartyTags[node.name]
   return handler({
     tag: node.name,
     args: node.args,
@@ -126,16 +83,15 @@ function renderInline(node, ctx) {
  * @param {object} ctx
  * @returns {object[]}
  */
-function renderBlock(node, ctx) {
-  if (node.passthrough) {
-    ctx.warnPending(node.name, node.start)
-    return [{ type: 'text', value: node.raw }]
-  }
+/** 在三个 registry 里查块级 tag。 */
+function lookupBlock(name) {
+  return blockTags[name] || mediaBlockTags[name] || thirdPartyBlockTags[name]
+}
 
-  const entry = blockTags[node.name]
+/** 构造传给块级 handler 的上下文。 */
+function blockContext(node, ctx) {
   const trimmedBody = trimBlockBody(node.body)
-
-  return entry.render({
+  return {
     tag: node.name,
     args: node.args,
     kwargs: node.kwargs,
@@ -146,8 +102,27 @@ function renderBlock(node, ctx) {
     content: (markdown) => ctx.md(markdown === undefined ? trimmedBody : markdown),
     /** 解析任意 markdown 片段（用于标签自己切出来的小段，如 tab 标题）。 */
     md: ctx.md,
+    /** 只展开 tag、不解析 Markdown（videos / sitegroup / btns 上游就是直接拼 content）。 */
+    raw: (markdown) => ctx.raw(markdown === undefined ? trimmedBody : markdown),
     options: ctx.options,
-  })
+  }
+}
+
+/**
+ * 渲染块级 tag，返回 mdast 节点数组。
+ *
+ * `entry.string: true` 的自闭合 tag（site / cell / bilibili / intCard）直接返回
+ * 一段 HTML 字符串，这里包成一个 html 节点。
+ *
+ * @param {object} node
+ * @param {object} ctx
+ * @returns {object[]}
+ */
+function renderBlock(node, ctx) {
+  const entry = lookupBlock(node.name)
+  const api = blockContext(node, ctx)
+  if (entry.string) return [{ type: 'html', value: entry.render(api) }]
+  return entry.render(api)
 }
 
 /**
@@ -202,12 +177,6 @@ function renderMarkdown(markdown, ctx) {
       continue
     }
 
-    // 块级容器 / 容器型待实现 tag
-    if (node.passthrough) {
-      ctx.warnPending(node.name, node.start)
-      source += node.raw
-      continue
-    }
     const id = String((ctx.uid += 1))
     placeholders.set(id, node)
     source += `\n\n<!--hexo-tag-${id}-->\n\n`
@@ -219,10 +188,51 @@ function renderMarkdown(markdown, ctx) {
 }
 
 /**
+ * 只展开 tag、不解析 Markdown。
+ *
+ * 上游 `postVideos` / `postSiteCardGroup` / `postBtns` 都是把 `content` 原样拼进
+ * HTML（嵌套 tag 由 Nunjucks 先渲染，Markdown 语法保持字面量），所以这里不能走
+ * `ctx.md`。返回字符串，由调用方包进一个 `html` 节点。
+ *
+ * 已知限制：区域内若出现**容器型** tag，会保持原文（`ctx.md` 才能递归渲染容器），
+ * fixtures 与常见用法里这三类 tag 的正文只含行内 tag。
+ *
+ * @param {string} markdown
+ * @param {object} ctx
+ * @returns {string}
+ */
+function renderRaw(markdown, ctx) {
+  const nodes = scanTags(markdown, { resolve: ctx.resolve, fileLabel: ctx.fileLabel })
+  let output = ''
+  for (const node of nodes) {
+    if (node.type === 'text') {
+      output += node.value
+      continue
+    }
+    if (node.type === 'inline') {
+      output += renderInline(node, ctx)
+      continue
+    }
+    // `site` / `cell` 这类「字符串块级」自闭合 tag 也要在 raw 区域里展开，
+    // 否则 sitegroup / btns 的正文会残留 `{% site %}`。
+    const entry = lookupBlock(node.name)
+    if (entry && entry.ends === false && entry.string) {
+      output += entry.render(blockContext(node, ctx))
+      continue
+    }
+    output += node.raw
+  }
+  return output
+}
+
+/**
  * remark 插件入口。
  *
  * @param {{
  *   noteStyle?: 'flat' | 'modern' | 'simple' | 'disabled',
+ *   loadMoreText?: string,
+ *   favicon?: string,
+ *   flinkErrorImg?: string,
  *   onWarning?: (message: string) => void,
  * }} [options]
  * @returns {(tree: object, file?: object) => void}
@@ -235,6 +245,10 @@ export default function remarkHexoTag(options = {}) {
 
   const config = {
     noteStyle: 'flat',
+    // 上游 `theme.config.yml` / `languages/zh-CN.yml` 的默认值（基准站配置）
+    loadMoreText: '加载更多',
+    favicon: '/favicon.ico',
+    flinkErrorImg: '/img/friend_404.gif',
     onWarning: (message) => console.warn(message),
     ...options,
   }
@@ -250,25 +264,16 @@ export default function remarkHexoTag(options = {}) {
     if (!source || !source.includes('{%')) return
 
     const fileLabel = String(file?.path || file?.history?.[0] || '<unknown file>')
-    const warned = new Set()
 
     /** @type {object} */
     const ctx = {
       options: config,
       fileLabel,
-      resolve: createResolver(),
+      resolve: resolveTag,
       uid: 0,
       parse: (markdown) => processor.parse(markdown),
       md: (markdown) => renderMarkdown(markdown, ctx),
-      warnPending(name, offset) {
-        if (warned.has(name)) return
-        warned.add(name)
-        const { line, column } = positionOf(source, offset)
-        config.onWarning(
-          `[remark-hexo-tag] \`{% ${name} %}\` 尚未实现（P6-2 / P6-3），` +
-            `已按原文透传（${fileLabel}:${line}:${column}）。`,
-        )
-      },
+      raw: (markdown) => renderRaw(markdown, ctx),
     }
 
     tree.children = ctx.md(source)

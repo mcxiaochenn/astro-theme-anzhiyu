@@ -77,3 +77,19 @@ export function commaArgs(args) {
 export function toHtml(value) {
   return value === undefined || value === null ? '' : String(value)
 }
+
+/**
+ * 复刻 hexo-util 的 `escapeHTML()`：只转义 `& < > " '`，用于 `{% mermaid %}`
+ * 把源码放进 `<pre>` 时保持字面量。
+ *
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}

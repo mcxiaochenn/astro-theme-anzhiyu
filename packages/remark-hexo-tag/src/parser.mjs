@@ -87,8 +87,14 @@ export function parseArgs(raw) {
       index += 1
     }
 
-    if (hasKey) kwargs[key] = token
-    else args.push(token)
+    if (hasKey) {
+      // Hexo 的 `args` 里 `key=value` 仍然是普通 token（上游 tag 直接遍历 args 取
+      // `alt=` / `url=`），所以既放进 kwargs，也按 `key=value` 原样留在 args。
+      kwargs[key] = token
+      args.push(`${key}=${token}`)
+    } else {
+      args.push(token)
+    }
   }
 
   return { args, kwargs }

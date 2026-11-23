@@ -1,5 +1,8 @@
 # P6-1 · remark-hexo-tag 骨架 + 行内/块级 24 个 tag
 
+> 后续：媒体/卡片与第三方嵌入 18 个 tag 见 [`P6-2-hexo-tags-media.md`](./P6-2-hexo-tags-media.md)。
+> 本文的 PENDING 透传设计已在 P6-2 收尾时移除，42 个 tag 全部落地。
+
 > 范围：Phase 6 第一块。新建 `packages/remark-hexo-tag`，实现附录 B 中
 > 「行内语义（12）」与「块级容器（12）」；media / thirdparty 两组只留空表，
 > 插件对它们原样透传，留给 P6-2 / P6-3。

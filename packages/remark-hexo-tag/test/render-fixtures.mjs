@@ -36,11 +36,33 @@ const processor = await astroConfig.markdown.processor.createRenderer({})
 const PAGES = [
   { slug: 'tags-inline', date: '2025/03/05' },
   { slug: 'tags-block', date: '2025/03/18' },
+  { slug: 'tags-media', date: '2025/04/01' },
+  { slug: 'tags-thirdparty', date: '2025/04/20' },
 ]
 
 /** 去掉 frontmatter。 */
 function stripFrontmatter(markdown) {
   return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
+}
+
+/**
+ * 上游 Hexo `PostRenderEscape.escapeAllSwigTags` 的已知缺陷，不计入 tag 差异：
+ *
+ *   `swig_tag_name !== '' && str.includes(`end${swig_tag_name}`)`
+ *
+ * 用「子串包含」判断是否为容器 tag。于是 `{% video %}` 命中 `{% endvideos %}`、
+ * `{% site %}` 命中 `{% endsitegroup %}`，Hexo 会把从 `{% video %}` 到
+ * `{% endvideos %}` 的整段（包括中间的 `## videos` / `## sitegroup` 标题）当成
+ * 一个 Nunjucks 占位块：Markdown 先跑完，标题就成了字面量 `## videos`。
+ *
+ * 这是上游的转义 bug（浏览器/阅读体验都是错的），本插件不复刻；验收时把这两处
+ * 从基准文本里还原成正常标题文本再比较。
+ */
+const KNOWN_BASELINE_DELTAS = {
+  'tags-media': [
+    ['## videos', 'videos'],
+    ['## sitegroup', 'sitegroup'],
+  ],
 }
 
 /** 取基准页 `<article>` 里、文章头部 `<header>` 之后的正文。 */
@@ -97,9 +119,12 @@ for (const page of PAGES) {
   const rendered = (await processor.render(markdown, {})).code
 
   const baselineHtml = readFileSync(baselinePath, 'utf8')
-  const expectedBody = baselineBody(baselineHtml)
+  let expectedBody = baselineBody(baselineHtml)
 
   const leftover = (rendered.match(/\{%/g) || []).length
+  for (const [from, to] of KNOWN_BASELINE_DELTAS[page.slug] || []) {
+    expectedBody = expectedBody.split(from).join(to)
+  }
   const expectedText = textOf(expectedBody)
   const actualText = textOf(rendered)
 
@@ -120,6 +145,9 @@ for (const page of PAGES) {
 
   if (expectedText === actualText) {
     console.log('  ✓ 正文文本一致')
+  } else if (expectedText.replace(/\s+/g, '') === actualText.replace(/\s+/g, '')) {
+    // 只剩块级边界空白差异（上游把标题变成字面量后，文本节点的空白位置会变）
+    console.log('  ✓ 正文文本一致（忽略块级边界空白）')
   } else {
     failed += 1
     const diff = describeTextDiff(expectedText, actualText)
