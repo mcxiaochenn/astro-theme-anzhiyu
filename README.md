@@ -4,7 +4,7 @@
 
 [Anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 博客主题的 Astro 移植版。
 
-> **当前状态：规划阶段，尚无代码。** 本仓库目前只有项目文档和许可证，迁移工作尚未开始。
+> **当前状态：迁移进行中。** 验证站 [examples/blog](examples/blog) 已用上游全量样式与配置构建出 **62 个页面**；48 页与上游基线的 HTML 结构 diff 收敛到 **112 条差异**（验收工具 [scripts/diff-html.mjs](scripts/diff-html.mjs)，逐页比对）；42 个 Hexo tag 的 remark 插件完成，**59/59 单测通过**；Hexo → Astro 迁移工具与指南已交付（[docs/MIGRATION.md](docs/MIGRATION.md)）。交互层与第三方集成已落盘但**尚未接线与验收**——进度与验收口径见 [执行计划](docs/PLAN.md)。
 
 ## 背景
 
@@ -16,91 +16,102 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 ## 迁移目标
 
-下面这份清单取自上游 README 的「功能特性」。**全部属于待迁移，当前完成度为零。** 代码落地后逐项更新状态。
+清单取自上游 README 的「功能特性」。**勾选 = 已实现且通过对拍 / 单测验收**；未勾 = 未实现，或结构已落地但行为验收未通过。逐项口径以 [PLAN.md 附录 A](docs/PLAN.md) 为准，不靠自我评价。
 
 ### 内容与渲染
 
-- [ ] 多种代码高亮方案
-- [ ] 脚注语法
-- [ ] LaTeX 数学公式
-- [ ] mermaid 流程图
-- [ ] 文章字数统计
-- [ ] 文章 AI 摘要
-- [ ] 多语言配置
+- [ ] 多种代码高亮方案（highlight.js 的 `figure.highlight` DOM 已对齐基线，引擎切换未做）
+- [x] 脚注语法（真脚注渲染，与上游原样输出的差异已在 diff 白名单登记）
+- [ ] LaTeX 数学公式（组件已落盘，未接线）
+- [ ] mermaid 流程图（组件已落盘，未接线）
+- [x] 文章字数统计（12 个 helper 以上游 JS 为 oracle 对拍）
+- [ ] 文章 AI 摘要（组件已落盘，未接线）
+- [x] 多语言配置（4 语言字典 83 项通过）
 
 ### 导航与交互
 
-- [ ] 页面组件懒加载（上游用 pjax）
-- [ ] 图片懒加载
-- [ ] 图片大图查看
-- [ ] 暗色模式
-- [ ] 沉浸式状态栏
-- [ ] 定制化右键菜单
-- [ ] 主色调随封面图片颜色变化
-- [ ] 全局中控台
-- [ ] 快捷键
-- [ ] 丰富多样化的标签选项
+- [ ] 页面组件懒加载（ClientRouter + pjax 兼容 shim 已落盘，整站行为验收未做）
+- [ ] 图片懒加载 / 图片大图查看
+- [ ] 暗色模式（注入逻辑已落盘，行为验收未做）
+- [ ] 沉浸式状态栏（人工项，移动端截图）
+- [ ] 定制化右键菜单 / 主色调随封面变化 / 全局中控台 / 快捷键（DOM 与脚本已落盘，未验收）
+- [x] 丰富多样化的标签选项（42 个 Hexo tag 全实现，59/59 单测，fixture 渲染零残留）
 
 ### 评论、统计与第三方集成
 
-- [ ] 内置多款评论插件
-- [ ] 访问统计（Google / 百度 / 微软 / Cloudflare / CNZZ）
-- [ ] 本地搜索 / Algolia / DocSearch
-- [ ] 聊天系统
+- [ ] 评论 × 5、统计 × 5、搜索 × 3、聊天、广告、隐私协议（组件库 55 个文件已落盘，未接线、未自检）
 - [ ] 音乐球
-- [ ] 广告挂载
-- [ ] 隐私协议
 
 ### 视觉与资源
 
-- [ ] 瀑布流即刻说说
-- [ ] 瀑布流相册集
-- [ ] 阿里图标与 Font Awesome
-- [ ] 自定义 CDN 静态资源
+- [ ] 瀑布流即刻说说 / 瀑布流相册集（页面模板 DOM 已对齐，浏览器走查未做）
+- [ ] 阿里图标与 Font Awesome / 自定义 CDN（资源解析层已落盘，未验收）
 
 ### 构建与文档
 
 - [ ] PWA（上游靠外部 `hexo-swpp` 插件生成 Service Worker，主题本身只提供 manifest 与图标）
-- [ ] 配套用户文档
+- [x] Hexo → Astro 迁移工具与指南（[scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md)，真实站点演练通过）
 
 ## 技术选型
 
-已基于上游实测数据（120 个 Pug、72 个 Stylus、42 个自定义 tag、约 200 个配置键）确定：
+已基于上游实测数据（120 个 Pug、72 个 Stylus、42 个自定义 tag、133 个配置顶层键）确定：
 
-- **框架**：Astro 7.4 + Vite 8，pnpm workspace monorepo
+- **框架**：Astro 7.4 + Vite 8，pnpm workspace monorepo（`packages/*` + `examples/*`）
 - **模板**：Pug → `.astro` 组件，DOM 结构与 ID 保持上游原样
-- **样式**：继续用 Stylus。迁移 302 KB 样式的成本远高于补一层 `hexo-config()` 兼容插件
-- **Markdown**：显式切回 Unified 处理器（不是 Astro 7 默认的 Sätteri），以便用 remark 插件承接 42 个 Hexo tag
+- **样式**：继续用 Stylus。迁移 302 KB 样式的成本远高于补一层 `hexo-config()` 兼容插件（[vite-plugin-stylus-hexo-config](packages/vite-plugin-stylus-hexo-config/)）
+- **Markdown**：显式切回 Unified 处理器（不是 Astro 7 默认的 Sätteri），用 [remark-hexo-tag](packages/remark-hexo-tag/)（纯 ESM、零依赖）承接 42 个 Hexo tag；代码块用 highlight.js 重建上游 `figure.highlight` DOM
 - **交互**：ClientRouter + 兼容 shim 替代 pjax；前端 JS 保留 `anzhiyu` 命名空间，不重写
-- **配置**：沿用 YAML + zod 校验，键名与上游一致，便于用户直接拷贝旧配置
+- **配置**：沿用 YAML + zod 校验（133 顶层键 strict），键名与上游一致，便于用户直接拷贝旧配置
 
 完整依据与取舍见 [技术映射与架构决策](docs/02-astro-mapping.md)。
+
+## 本地验证
+
+需要 Node ≥ 22.23.4（Astro 7 要求）：
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter blog build                          # 62 页验证站
+node packages/remark-hexo-tag/test/run.mjs        # 59/59 单测
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 48 页结构 diff
+```
+
+从 Hexo 站点迁移：
+
+```bash
+node scripts/migrate-hexo.mjs --site <hexo站点目录> --dry-run      # 只读预览，不写文件
+node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<name>
+```
+
+用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| [执行计划](docs/PLAN.md) | **当前执行基线**：任务拆解、验收命令、进度、CI 设计与风险登记册 |
+| [执行计划](docs/PLAN.md) | **当前执行基线**：任务拆解、验收命令、进度、风险登记册 |
+| [迁移指南](docs/MIGRATION.md) | Hexo → Astro 站点迁移：CLI、配置键差异、时区 / 永久链接 FAQ、验证清单 |
 | [上游调研](docs/01-upstream-analysis.md) | 上游仓库的结构、六大核心机制、耦合强度排序 |
 | [技术映射](docs/02-astro-mapping.md) | 逐机制对应方案、6 个架构决策、待验证清单 |
-| [迁移计划](docs/03-migration-plan.md) | 初版：7 个阶段、验收标准、34–45 天的量级估算、风险表 |
+| [迁移计划](docs/03-migration-plan.md) | 初版：7 个阶段、验收标准、量级估算、风险表 |
+| [上游差异档](docs/upstream-delta.md) | 与上游的有意差异（U1–U8）登记 |
+| [验收笔记](docs/notes/) | 各任务的真实命令输出与剩余差异归属 |
 
 ## 路线
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| Phase 0 | 仓库骨架、调研与计划 | 已完成 |
-| Phase 1 | 构建管线与配置层（Stylus 兼容插件、配置 schema） | 进行中 |
-| Phase 2 | 布局与核心页面（首页、文章、归档、404） | 未开始 |
-| Phase 3 | widget 与 12 个页面模板 | 未开始 |
-| Phase 4 | 交互层（ClientRouter、暗色模式、右键菜单、音乐） | 未开始 |
-| Phase 5 | 第三方集成（评论 × 5、搜索 × 3、分析 × 5） | 未开始 |
-| Phase 6 | 42 个 Hexo tag 的 remark 插件 | 未开始 |
-| Phase 7 | PWA、性能、迁移指南 | 未开始 |
+| Phase 0 | 仓库骨架、调研与计划 | ✅ 已完成 |
+| Phase 1 | 构建管线与配置层（Stylus 兼容插件、schema、loader、CI） | ~87% |
+| Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ 已完成 |
+| Phase 2 | 布局与核心页面（首页、文章、归档、404、diff 工具） | ~95% |
+| Phase 3 | widget 与页面模板（15 aside 卡片、12 模板、about） | ~56% |
+| Phase 4 | 交互层（运行时、暗色、中控台、脚本层） | ~30%（结构落盘，行为验收未开始） |
+| Phase 5 | 第三方集成（组件库已落盘） | ~8%（未接线） |
+| Phase 6 | 42 个 Hexo tag 的 remark 插件 | ~87% |
+| Phase 7 | 迁移工具与指南、PWA、性能、发布 | ~18% |
 
-每个阶段的验收标准写在 [迁移计划](docs/03-migration-plan.md) 里，靠 HTML diff、截图对比和特性清单验收，不靠自我评价。
-
-Phase 1 进展：Stylus 管线的两个未知项已实测通过——glob `@import` 可用，`hexo-config()` 通过 [`vite-plugin-stylus-hexo-config`](packages/vite-plugin-stylus-hexo-config/) 静态处理。上游真实的 `var.styl`（63 处 `hexo-config`）配上游 `_config.yml` 已能在 Astro 里编译出正确 CSS，验证站见 [examples/blog](examples/blog)。配置 schema 与主题包尚未开始。
+整体收敛目标是 48 页 HTML 结构 diff 全部 PASS，之后把 CI 的 diff 步骤从 report-only 改为硬门禁。逐任务状态见 [PLAN.md](docs/PLAN.md)。
 
 ## 关于上游
 
@@ -108,7 +119,7 @@ Phase 1 进展：Stylus 管线的两个未知项已实测通过——glob `@impo
 - 上游文档：[docs.anheyu.com](https://docs.anheyu.com/)
 - 上游预览：[hexo.anheyu.com](https://hexo.anheyu.com/)
 
-本项目是它的衍生移植，不是 fork 后在原仓库上打补丁，也不是官方项目。上游的功能取舍以原仓库实现为准，移植过程中的差异会在文档里注明。
+本项目是它的衍生移植，不是 fork 后在原仓库上打补丁，也不是官方项目。上游的功能取舍以原仓库实现为准，移植过程中的差异会在 [上游差异档](docs/upstream-delta.md) 与文档里注明。
 
 ## 许可证
 
