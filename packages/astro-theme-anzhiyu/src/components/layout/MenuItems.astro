@@ -19,9 +19,13 @@
  *
  * 图标三种写法与上游一致（fa* → `<i>`；icon* → `<svg><use>`；anzhiyu* → `<i.anzhiyufont>`
  * 且菜单项带 `style="font-size: 0.9em;"`）。动画默认 `faa-tada`。
+ *
+ * 菜单值里的外站链接按 Hexo 站点级 `external_link` 补
+ * `target="_blank" rel="noopener"`，见 `utils/external-link.ts`。
  */
 import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { externalLinkAttrs } from '../../utils/external-link.ts'
 
 interface Props {
   site: SiteConfig
@@ -30,6 +34,12 @@ interface Props {
 const { site } = Astro.props
 const theme = getThemeConfig()
 const urlFor = createUrlFor(site.root ?? '/')
+
+/** `url_for()` 得到最终 href；外链按站点级 external_link 补 target/rel，一并返回展开。 */
+const linkAttrs = (path: string) => {
+  const href = urlFor(path)
+  return { href, ...externalLinkAttrs(href, site.url) }
+}
 
 /** 一份菜单值 → `{ href, icon, animation }`（`'url || icon || anima'`）。 */
 function parseMenuValue(value: string): { href: string; icon: string; animation: string } {
@@ -63,7 +73,7 @@ const menuEntries = menu ? Object.entries(menu) : []
           const leaf = parseMenuValue(String(value))
           return (
             <div class="menus_item">
-              <a class="site-page faa-parent animated-hover" href={urlFor(leaf.href)}>
+              <a class="site-page faa-parent animated-hover" {...linkAttrs(leaf.href)}>
                 {leaf.icon.startsWith('fa') ? (
                   <i class={`${leaf.icon} ${leaf.animation}`} />
                 ) : leaf.icon.startsWith('icon') ? (
@@ -100,7 +110,7 @@ const menuEntries = menu ? Object.entries(menu) : []
                 const child = parseMenuValue(String(childValue))
                 return (
                   <li>
-                    <a class="site-page child faa-parent animated-hover" href={urlFor(child.href)}>
+                    <a class="site-page child faa-parent animated-hover" {...linkAttrs(child.href)}>
                       {child.icon.startsWith('fa') ? (
                         <i class={`${child.icon} ${child.animation}`} />
                       ) : child.icon.startsWith('icon') ? (

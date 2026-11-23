@@ -19,10 +19,14 @@
  * 目录名（config.archive_dir / tag_dir / category_dir）在 Hexo 里是**站点配置**，
  * 当前仓库还没有站点配置层（Phase 7 才有），基准站是默认值，先按常量落在这里。
  * Phase 7 接站点配置后改成 props 即可，DOM 不变。
+ *
+ * `nav.menu` 里的外站链接（`https://…`）按 Hexo 站点级 `external_link` 补
+ * `target="_blank" rel="noopener"`，见 `utils/external-link.ts`。
  */
 import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
 import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
+import { externalLinkAttrs } from '../../utils/external-link.ts'
 import { cloudTags, type CloudTagLike } from '../../utils/helpers.ts'
 import MenuItems from './MenuItems.astro'
 import { lazyImageAttrs } from './lazyload.ts'
@@ -45,6 +49,12 @@ const theme = getThemeConfig()
 const urlFor = createUrlFor(site.root ?? '/')
 const lang = site.language
 const _p = (key: string) => tp(key, lang)
+
+/** `url_for()` 得到最终 href；外链按站点级 external_link 补 target/rel，一并返回展开。 */
+const linkAttrs = (path: string) => {
+  const href = urlFor(path)
+  return { href, ...externalLinkAttrs(href, site.url) }
+}
 
 const sidebar = theme.sidebar
 const nav = theme.nav
@@ -125,7 +135,7 @@ const tagCloudHtml = cloudTags(
               <div class="back-menu-list-title">{group.title}</div>
               <div class="back-menu-list">
                 {group.item.map((item) => (
-                  <a class="back-menu-item" href={urlFor(item.link)} title={item.name}>
+                  <a class="back-menu-item" {...linkAttrs(item.link)} title={item.name}>
                     <img
                       class="back-menu-item-icon"
                       alt={item.name}

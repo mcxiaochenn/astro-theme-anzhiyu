@@ -22,13 +22,15 @@
  * 明确不做：
  *   - `footerBar.subTitle` 打字机：要 Typed.js / 一言接口 / 今日诗词 SDK，属 P4-1 资源层 + 交互；
  *     本组件保留 `#footer-type-tips` 容器（baseline 也是空 div）。
- *   - 外链的 `target="_blank" rel="noopener"` 是 Hexo**站点级** `external_link` 过滤器
- *     （`field: site`）加的，不是 pug 写的 → 站点配置层（Phase 7）统一处理；
- *     作者链接的 `target="_blank"` 是 pug 自己写的，这里保留。
+ *   - 外链的 `target="_blank" rel="noopener"` 是 Hexo**站点级** `external_link`
+ *     过滤器（`field: site`）补的，不是 pug 写的；本组件用 `externalLinkAttrs()`
+ *     在输出 `<a>` 时按同一口径补齐（见 `utils/external-link.ts`）。
+ *     作者链接 / 徽标的 `target="_blank"` 是 pug 自己写死的，保持原样不动。
  */
 import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
+import { externalLinkAttrs } from '../../utils/external-link.ts'
 import { lazyImageAttrs } from './lazyload.ts'
 
 interface Props {
@@ -42,6 +44,12 @@ const theme = getThemeConfig()
 const urlFor = createUrlFor(site.root ?? '/')
 const lang = site.language
 const _p = (key: string) => tp(key, lang)
+
+/** `url_for()` 得到最终 href；外链按站点级 external_link 补 target/rel，一并返回展开。 */
+const linkAttrs = (path: string) => {
+  const href = urlFor(path)
+  return { href, ...externalLinkAttrs(href, site.url) }
+}
 
 const footer = theme.footer
 const footerBar = footer.footerBar
@@ -89,7 +97,7 @@ const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string }
       socialBar.enable && (
         <div id="footer_deal">
           {(socialBar.left ?? []).map((item) => (
-            <a class="deal_link" href={urlFor(item.link)} title={item.title}>
+            <a class="deal_link" {...linkAttrs(item.link)} title={item.title}>
               {iconKind(item.icon) === 'fa' ? (
                 <i class={item.icon} />
               ) : iconKind(item.icon) === 'svg' ? (
@@ -110,7 +118,7 @@ const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string }
             {...lazyImageAttrs(socialCenterImg, { theme, urlFor })}
           />
           {(socialBar.right ?? []).map((item) => (
-            <a class="deal_link" href={urlFor(item.link)} title={item.title}>
+            <a class="deal_link" {...linkAttrs(item.link)} title={item.title}>
               {iconKind(item.icon) === 'fa' ? (
                 <i class={item.icon} />
               ) : iconKind(item.icon) === 'svg' ? (
@@ -168,7 +176,7 @@ const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string }
               <div class="footer-title">{project.title}</div>
               <div class="footer-links">
                 {project.links.map((link) => (
-                  <a class="footer-item" title={link.title} href={urlFor(link.link)}>
+                  <a class="footer-item" title={link.title} {...linkAttrs(link.link)}>
                     {link.title}
                   </a>
                 ))}
@@ -245,14 +253,14 @@ const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string }
           </div>
           <div class="footer-bar-right">
             {footerBar.linkList.map((item) => (
-              <a class="footer-bar-link" href={urlFor(item.link)} title={item.text}>
+              <a class="footer-bar-link" {...linkAttrs(item.link)} title={item.text}>
                 {item.text}
               </a>
             ))}
             {footerBar.cc.enable && (
               <a
                 class="footer-bar-link cc"
-                href={urlFor(footerBar.cc.link)}
+                {...linkAttrs(footerBar.cc.link)}
                 title={_p('footer.cc_license')}
               >
                 <i class="anzhiyufont anzhiyu-icon-copyright-line" />
