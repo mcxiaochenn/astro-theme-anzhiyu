@@ -1,17 +1,47 @@
 ---
-// P1-5：直接编译上游 source/css 全量样式（72 个 .styl + 47 个 .css，入口 index.styl）
-import '../styles/upstream/index.styl'
+/**
+ * P1.5 垂直切片 · 首页
+ *
+ * 结构故意用上游真实 class（#recent-posts / .recent-post-item / .recent-post-info /
+ * .article-title / .note），用来验证「Astro 生成的 HTML 能命中上游 Stylus」。
+ */
+import BaseLayout from '../layouts/BaseLayout.astro'
 ---
 
-<html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <title>astro-theme-anzhiyu · 样式管线验证</title>
-  </head>
-  <body>
-    <div class="hero">hero</div>
-    <pre class="code-block"><code>const a = 1</code></pre>
-    <div class="beautify-off">beautify 未启用</div>
-    <div class="hr-off">hr 图标未启用</div>
-  </body>
-</html>
+<BaseLayout title="垂直切片 · 首页" pageId="home">
+  <h1 id="page-heading" class="post-title">首页</h1>
+
+  <section id="recent-posts">
+    <div class="recent-post-item" id="recent-post-probe">
+      <div class="recent-post-info">
+        <a class="article-title" id="article-link" href="/page2/">
+          第二页（普通 a 标签，交给 ClientRouter 拦截）
+        </a>
+        <div class="content">首页摘要：这条链路同时验证样式命中与 ClientRouter 导航。</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="note-probe" class="note blue icon-padding">
+    <i class="note-icon anzhiyu-icon-circle-check"></i>
+    <p>note 探针：.note.blue 的 padding / border-left-color / 背景应来自上游 Stylus。</p>
+  </div>
+
+  <!-- 页面级脚本（不带 data-astro-rerun）：验证 Astro 的跨导航按内容去重 -->
+  <script is:inline>
+    window.__homeScriptRuns = (window.__homeScriptRuns || 0) + 1
+  </script>
+
+  <!--
+    P1.5 垂直切片专用：只有在 ?slice-test=1 时才加载页内真浏览器 harness。
+    正常访问不会请求 /slice-harness.js。真实执行记录见 docs/notes/P1.5-vertical-slice.md。
+  -->
+  <script is:inline>
+    if (new URLSearchParams(location.search).get('slice-test') === '1') {
+      import('/slice-harness.js').catch(function (error) {
+        console.error('[slice] harness 加载失败', error)
+      })
+    }
+  </script>
+</BaseLayout>
+

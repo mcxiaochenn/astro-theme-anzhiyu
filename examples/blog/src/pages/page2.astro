@@ -1,0 +1,44 @@
+---
+/**
+ * P1.5 垂直切片 · 第二页
+ *
+ * 除了和首页同构的骨架，这里额外放：
+ * - page2 页级脚本（验证「旧页脚本不重复执行」与 dedupe 边界）
+ * - page2 的 data-pjax + data-astro-rerun 脚本（验证上游 script[data-pjax] 的等价映射）
+ * - pug 风格 HTML 探针（void 标签不闭合，验证 Astro 7 Rust 编译器是否接受）
+ */
+import BaseLayout from '../layouts/BaseLayout.astro'
+---
+
+<BaseLayout title="垂直切片 · 第二页" pageId="page2">
+  <h1 id="page-heading" class="post-title">第二页</h1>
+  <p id="page2-marker">PAGE2</p>
+  <p><a id="back-home" href="/">返回首页（普通 a 标签）</a></p>
+
+  <div id="note-probe" class="note red simple">
+    <p>note 探针（第二页版）：.note.red.simple 的 border 应来自上游 Stylus。</p>
+  </div>
+
+  <!--
+    假设 #6：pug 输出的 HTML 里 void 元素是不闭合的（<br> <img> <input> <hr>），
+    这里原样写进 .astro，构建如果报「未闭合标签」就直接暴露。
+  -->
+  <div id="pug-probe" class="pug-probe">
+    <p>
+      pug 风格 void 标签探针：<br>
+      <img src="/pug-probe.svg" alt="pug probe" width="16" height="16">
+      <input type="text" name="pug-input" value="pug">
+      <hr>
+    </p>
+  </div>
+
+  <!-- 页面级脚本（不带 data-astro-rerun）：第二次进入本页时 Astro 会按内容去重 -->
+  <script is:inline>
+    window.__page2ScriptRuns = (window.__page2ScriptRuns || 0) + 1
+  </script>
+
+  <!-- 页内 data-pjax 脚本：带 data-astro-rerun，验证「每次导航/每次进入都重新执行」 -->
+  <script is:inline data-pjax data-astro-rerun>
+    window.__page2PjaxRuns = (window.__page2PjaxRuns || 0) + 1
+  </script>
+</BaseLayout>

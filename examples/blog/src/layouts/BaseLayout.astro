@@ -1,0 +1,87 @@
+---
+/**
+ * P1.5 垂直切片：最小双页站骨架
+ *
+ * 目的不是做页面，而是把 5 项架构假设放进真实浏览器里跑：
+ *   #3 全局元素（#web_bg）在 ClientRouter 整 body 替换后是否还是同一个 DOM 节点、样式是否还在
+ *   #4 script[data-pjax] 的「每次导航执行一次」能否用 data-astro-rerun 等价
+ *   #5 上游 class 能否命中上游 Stylus（真实 computed style）
+ *   #6 pug 风格 HTML（void 标签不闭合）Astro 7 编译器是否接受
+ *   #8 持久元素（音乐播放器）导航后是否存活、音频是否不中断
+ *
+ * 骨架 ID 沿用上游： #web_bg / #body-wrap / #content-inner
+ */
+import { ClientRouter } from 'astro:transitions'
+import '../styles/upstream/index.styl'
+
+interface Props {
+  title: string
+  pageId: 'home' | 'page2'
+}
+
+const { title, pageId } = Astro.props
+---
+
+<!doctype html>
+<!--
+  data-theme 是上游主题的运行时契约：上游 CSS 里 --anzhiyu-* 变量只定义在
+  [data-theme="light"] / [data-theme="dark"] 下，主题 JS 会在首屏前写入。
+  垂直切片先静态写 light；Phase 4 需要补一个「首屏前设置 data-theme」的 bootstrap。
+-->
+<html lang="zh-CN" data-page-id={pageId} data-theme="light">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{title}</title>
+    <ClientRouter />
+  </head>
+  <body data-page-id={pageId} data-type={pageId}>
+    <!-- 假设 #3：#web_bg 是上游的全局背景层，ClientRouter 换 body 时必须活下来 -->
+    <div id="web_bg" transition:persist></div>
+
+    <div id="body-wrap">
+      <nav id="nav" class="nav-fixed">
+        <a id="nav-home" href="/">首页</a>
+        <a id="nav-page2" href="/page2/">第二页</a>
+        <!-- 假设 #4 的补充：上游模板直接调 pjax.loadUrl()，验证 shim 调用路径 -->
+        <button id="shim-page2" type="button" onclick="window.pjax && window.pjax.loadUrl('/page2/')">
+          pjax.loadUrl → /page2/
+        </button>
+      </nav>
+
+      <main id="content-inner" class="page">
+        <slot />
+      </main>
+    </div>
+
+    <!-- 假设 #8：音乐播放器必须跨导航存活（transition:persist 整棵子树） -->
+    <div id="music-player" data-testid="music-player" transition:persist>
+      <audio id="bgm" src="/bgm.wav" loop preload="auto"></audio>
+    </div>
+
+    <!--
+      假设 #4 的主角：等价于上游 <script data-pjax>。
+      data-astro-rerun 是 Astro 侧「每次 ClientRouter 导航都重新执行」的开关；
+      没有它，Astro 会按脚本原文/URL 去重，只在第一次执行。
+    -->
+    <script is:inline data-pjax data-astro-rerun>
+      ;(() => {
+        const w = window
+        w.__pjaxRuns = w.__pjaxRuns || []
+        w.__pjaxRuns.push({ path: location.pathname, at: Date.now() })
+        w.__pjaxRunTotal = (w.__pjaxRunTotal || 0) + 1
+
+        // 故意复刻上游「每个 data-pjax 脚本重新执行时都往 document 挂监听」的写法，
+        // 用来量化重复监听是否累加（浏览器不会为此报 console error，只能靠计数观察）。
+        document.addEventListener('pjax:probe', () => {
+          w.__pjaxProbeHits = (w.__pjaxProbeHits || 0) + 1
+        })
+      })()
+    </script>
+
+    <!-- pjax shim：window.pjax.loadUrl → navigate()，astro:page-load → pjax:complete -->
+    <script>
+      import '../scripts/pjax-shim.ts'
+    </script>
+  </body>
+</html>
