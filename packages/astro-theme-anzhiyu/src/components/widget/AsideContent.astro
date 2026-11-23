@@ -18,7 +18,7 @@
  * 数据只算一次：`getSiteStats()` 内部用模块级 Promise 缓存。
  */
 import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { resolveSite } from '../../layouts/site.ts'
+import { resolveSite, type SiteConfig } from '../../layouts/site.ts'
 import { getSiteStats } from '../../data/site-stats.ts'
 import type { TocHeading } from './toc.ts'
 import type { WidgetDataItem } from '../../data/widget-data.ts'
@@ -41,11 +41,17 @@ interface Props {
   showToc?: boolean
   /** 文章页抽出的标题列表（P2-8 通过 BaseLayout 传入）；非文章页为空。 */
   headings?: TocHeading[]
+  /**
+   * 站点级元数据（`config.description` / `config.author` …）。
+   * 由 BaseLayout 透传；作者卡的描述回退链需要它：
+   * `theme.aside.card_author.description || config.description`。
+   */
+  site?: Partial<SiteConfig>
 }
 
-const { pageType, showToc = false, headings = [] } = Astro.props
+const { pageType, showToc = false, headings = [], site: siteInput } = Astro.props
 const theme = getThemeConfig()
-const site = resolveSite()
+const site = resolveSite(siteInput)
 const stats = await getSiteStats()
 
 /** 上游 `showToc` 本身已经保证 `toc(page.content) !== ''`；这里再兜一层空数组。 */

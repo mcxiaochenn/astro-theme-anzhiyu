@@ -1,0 +1,23 @@
+---
+/**
+ * pwa.astro — 上游 `layout/includes/head/pwa.pug:1-59`（P5-1）。
+ *
+ * 门控：`theme.pwa.enable`（上游 head.pug:52-53，默认 false）。
+ * 输出 manifest link / msapplication-TileColor / mask-icon / apple-touch-icon /
+ * favicon 32/16 / bookmark / 30 条 apple-touch-startup-image。
+ * 接线建议：Head.astro:316（verificationMetas 之后）、:325（fontawesomeAnimationCss 之前），
+ * 对应上游 head.pug:49-53。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderPwa } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderPwa(theme)
+---
+
+<Fragment set:html={html} />

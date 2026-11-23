@@ -1,0 +1,25 @@
+---
+/**
+ * index.astro — 上游 `layout/includes/third-party/math/index.pug:1-18`（P5-1）。
+ *
+ * 聚合 mathjax / katex / mermaid（顺序与上游一致）。
+ * per_page=false 时需页面 props 传 `mathjax: true` / `katex: true`。
+ * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 的 `.js-pjax`（上游 additional-js.pug:72）。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderMathIndex } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  /** 上游 page.mathjax */
+  mathjax?: boolean
+  /** 上游 page.katex */
+  katex?: boolean
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderMathIndex(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

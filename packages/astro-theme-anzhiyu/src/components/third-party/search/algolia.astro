@@ -1,0 +1,21 @@
+---
+/**
+ * algolia.astro — 上游 `layout/includes/third-party/search/algolia.pug:1-22`（P5-1）。
+ *
+ * 门控：`theme.algolia_search.enable`；输出 `#algolia-search` / `#algolia-hits` /
+ * `#algolia-pagination` / `#algolia-info` / `#search-mask`，并读 `algolia_search.tags`
+ * 生成 `.tag-list` 链接。algolia/instantsearch 脚本由 additional-js.pug:45-48 加载。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderAlgolia } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderAlgolia(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

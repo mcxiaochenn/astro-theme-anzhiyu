@@ -19,6 +19,9 @@
 import { getThemeConfig } from '../layouts/theme-context.ts'
 import { createUrlFor, fullUrlFor, type SiteConfig } from '../layouts/site.ts'
 import { pageDescription, urlNoIndex } from '../utils/helpers.ts'
+import { resolveAssets } from '../config/assets.ts'
+import { buildGlobalConfigScript, buildGlobalConfigSiteScript } from './head/global-config.ts'
+import { buildInjectHeadJs } from './head/inject-head-js.ts'
 
 interface Props {
   /** 站点级元数据（title/description/author/url/language…）。 */
@@ -41,6 +44,16 @@ interface Props {
   isHome?: boolean
   /** 页面绝对 URL；缺省用 `site.url` + `Astro.url.pathname` 推导。 */
   pageUrl?: string
+  /** 页面类型（`GLOBAL_CONFIG_SITE.isPost`）。 */
+  pageType?: 'post' | 'page'
+  /** 文章页 TOC 是否可用（`GLOBAL_CONFIG_SITE.isToc`）。 */
+  showToc?: boolean
+  /** `page.updated` 的格式化结果（`GLOBAL_CONFIG_SITE.postUpdate`）。 */
+  postUpdate?: string
+  /** `page.ai`（`GLOBAL_CONFIG_SITE.postAI`）。 */
+  postAI?: string
+  /** `page.main_color`（`GLOBAL_CONFIG_SITE.postMainColor`）。 */
+  postMainColor?: string
 }
 
 const {
@@ -54,6 +67,11 @@ const {
   ogType,
   isHome = false,
   pageUrl,
+  pageType = 'page',
+  showToc = false,
+  postUpdate,
+  postAI,
+  postMainColor,
 } = Astro.props
 
 const theme = getThemeConfig()
@@ -193,6 +211,64 @@ const verificationMetas = Array.isArray(theme.site_verification)
       (item) => typeof item?.name === 'string' && typeof item?.content === 'string',
     )
   : []
+
+/* ------------------------------------------------------------------ */
+/* 6. 资源层（上游 head.pug:53-90 的 link 序列）                        */
+/* ------------------------------------------------------------------ */
+
+/** 任何 looseObject 区块的安全读取。 */
+function sectionObject(section: unknown): Record<string, unknown> {
+  return section && typeof section === 'object' ? (section as Record<string, unknown>) : {}
+}
+function sectionFlag(section: unknown, key: string, fallback = false): boolean {
+  const value = sectionObject(section)[key]
+  return typeof value === 'boolean' ? value : fallback
+}
+function sectionString(section: unknown, key: string, fallback = ''): string {
+  const value = sectionObject(section)[key]
+  return typeof value === 'string' ? value : fallback
+}
+
+/** `theme.asset`（等价物）：internal=local、third_party=cbd，见 config/assets.ts。 */
+const assets = resolveAssets(theme)
+/** 资源表里的值可能是相对路径，统一过一遍 `url_for()`。 */
+const assetUrl = (key: string): string => urlFor(assets[key] ?? '')
+
+const icons = sectionObject(theme.icons)
+const fontawesomeAnimationCss = sectionString(icons, 'fontawesome_animation_css')
+const fontawesomeEnabled = sectionFlag(icons, 'fontawesome')
+const snackbarCssEnabled = sectionFlag(theme.snackbar, 'enable')
+const fancyboxCssEnabled = theme.fancybox === true
+const homeTopSwiper = sectionObject(sectionObject(theme.home_top).swiper)
+const swiperCssEnabled = sectionFlag(homeTopSwiper, 'enable')
+const blogTitleFont = sectionObject(theme.blog_title_font)
+const blogTitleFontLink = sectionString(blogTitleFont, 'font_link')
+
+/* ------------------------------------------------------------------ */
+/* 7. 三段内联脚本（GLOBAL_CONFIG / config-diff / inject_head_js）      */
+/* ------------------------------------------------------------------ */
+
+const globalConfigScript = buildGlobalConfigScript(theme, site, assets)
+
+const highlightShrink: boolean | string = theme.highlight_shrink
+const isHighlightShrink = highlightShrink === 'none' ? undefined : (highlightShrink as boolean)
+
+const pageFillDescription = content || description || title || site.description || ''
+
+const globalConfigSiteScript = buildGlobalConfigSiteScript({
+  configTitle: site.title,
+  title: pageTitle,
+  postAI,
+  pageFillDescription,
+  isPost: pageType === 'post',
+  isHome,
+  isHighlightShrink,
+  isToc: showToc,
+  postUpdate,
+  postMainColor,
+})
+
+const injectHeadJs = buildInjectHeadJs(theme, site)
 ---
 
 <meta charset="UTF-8" />
@@ -240,11 +316,42 @@ const verificationMetas = Array.isArray(theme.site_verification)
 ))}
 
 {/*
-  上游 head.pug 的顺序是：config.pug（GLOBAL_CONFIG 内联脚本，85）→ config_site.pug（87）
-  → noscript（88）→ injectHeadJs（90）。所以在 noscript 之前留一个脚本插槽：
-  Phase 2 放首屏 theme bootstrap（相当于 GLOBAL_CONFIG 的位置），Phase 4 放 P4-1 的三段脚本。
+  上游 head.pug:53-90 的顺序：
+    fontawesome_animation_css → main_css → fontawesome → snackbar_css →
+    fancybox_css → swiper_css → (analytics/font) → config.pug → config_site.pug →
+    noscript.pug → injectHeadJs
+  基准站只命中 main_css / snackbar / fancybox 三条，其余分支保持同序占位。
 */}
-<slot name="head-script" />
+{fontawesomeAnimationCss && (
+  <link rel="stylesheet" href={urlFor(fontawesomeAnimationCss)} />
+)}
+<link rel="stylesheet" href={assetUrl('main_css')} />
+{fontawesomeEnabled && (
+  <link rel="stylesheet" href={assetUrl('fontawesome')} media="print" onload="this.media='all'" />
+)}
+{snackbarCssEnabled && (
+  <link rel="stylesheet" href={assetUrl('snackbar_css')} media="print" onload="this.media='all'" />
+)}
+{fancyboxCssEnabled && (
+  <link rel="stylesheet" href={assetUrl('fancybox_css')} media="print" onload="this.media='all'" />
+)}
+{swiperCssEnabled && (
+  <link
+    rel="stylesheet"
+    href={urlFor(sectionString(homeTopSwiper, 'swiper_css'))}
+    media="print"
+    onload="this.media='all'"
+  />
+)}
+{blogTitleFontLink && (
+  <link rel="stylesheet" href={urlFor(blogTitleFontLink)} media="print" onload="this.media='all'" />
+)}
+
+{/* 上游 `partial('includes/head/config')` —— GLOBAL_CONFIG 内联脚本 */}
+<script is:inline set:html={globalConfigScript}></script>
+
+{/* 上游 `head/config_site.pug` —— id="config-diff" 的 GLOBAL_CONFIG_SITE */}
+<script is:inline id="config-diff" set:html={globalConfigSiteScript}></script>
 
 <noscript>
   <style type="text/css">
@@ -261,3 +368,6 @@ const verificationMetas = Array.isArray(theme.site_verification)
     }
   </style>
 </noscript>
+
+{/* 上游 `inject_head_js()`：saveToLocal / getScript / getCSS / 暗色 / aside / apple */}
+<script is:inline set:html={injectHeadJs}></script>

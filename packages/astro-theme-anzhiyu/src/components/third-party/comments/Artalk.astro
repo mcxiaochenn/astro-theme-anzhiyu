@@ -1,0 +1,21 @@
+---
+/**
+ * Artalk.astro — 上游 `layout/includes/third-party/comments/artalk.pug:1-72`（P5-1）。
+ *
+ * 门控：`theme.comments.use` 含 `Artalk`；连接参数 `theme.artalk.server/site`，
+ * 另读 `theme.comments.lazyload/count`（.artalk-count）。
+ * 上游由 comments/js.pug:9-10 分发。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderArtalk } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderArtalk(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

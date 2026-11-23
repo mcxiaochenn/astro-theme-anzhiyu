@@ -1,0 +1,21 @@
+---
+/**
+ * index.astro — 上游 `layout/includes/third-party/search/index.pug:1-6`（P5-1）。
+ *
+ * 三选一分发（优先级 algolia_search > local_search > docsearch，与上游 if/else if 一致）。
+ * 挂载建议：BaseLayout.astro:379（`#nav-music` 之后）与 :381（`#rightMenu` 之前）之间，
+ * 对应上游 layout.pug:86。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderSearchIndex } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderSearchIndex(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

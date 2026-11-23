@@ -1,0 +1,20 @@
+---
+/**
+ * valine.astro — 上游 `layout/includes/third-party/card-post-count/valine.pug:1-21`（P5-1）。
+ *
+ * 门控：`theme.comments.card_post_count` + use 含 Valine；
+ * 读 `theme.valine.appId/appKey/serverURLs`。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderCardPostCountValine } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderCardPostCountValine(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

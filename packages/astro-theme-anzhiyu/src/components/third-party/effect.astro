@@ -1,0 +1,23 @@
+---
+/**
+ * effect.astro — 上游 `layout/includes/third-party/effect.pug:1-35`
+ * 与 `layout/includes/additional-js.pug:91-92`（bubble）（P5-1）。
+ *
+ * 各子项独立门控：fireworks / canvas_ribbon / canvas_fluttering_ribbon / canvas_nest /
+ * activate_power_mode / click_heart / ClickShowText / bubble（默认全 false）。
+ * bubble 分支输出 `data-pjax` 脚本（验收断言锚点）。
+ * 接线建议：BaseLayout.astro:500 `<AdditionalJs>` 之后（上游 additional-js.pug:113）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderEffect } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderEffect(theme)
+---
+
+<Fragment set:html={html} />

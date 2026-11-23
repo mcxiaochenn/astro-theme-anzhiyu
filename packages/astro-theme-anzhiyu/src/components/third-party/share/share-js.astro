@@ -1,0 +1,22 @@
+---
+/**
+ * share-js.astro — 上游 `layout/includes/third-party/share/share-js.pug:1-3`（P5-1）。
+ *
+ * 门控：`theme.sharejs.enable`；读 `sharejs.sites` 与 `page.cover || theme.avatar.img`，
+ * 输出 `.social-share` + sharejs CSS/JS。
+ * 注意：主题包已有 `post/ShareBox.astro` 实现同功能（见报告「重复实现」一节）。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderShareJs } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  cover?: string
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderShareJs(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

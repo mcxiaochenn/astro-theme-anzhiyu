@@ -1,0 +1,20 @@
+---
+/**
+ * mermaid.astro — 上游 `layout/includes/third-party/math/mermaid.pug:1-38`（P5-1）。
+ *
+ * 门控：`theme.mermaid.enable`；读 `mermaid.theme.light/dark`，
+ * 输出 `#article-container .mermaid-wrap` 渲染脚本。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderMermaid } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderMermaid(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

@@ -1,0 +1,30 @@
+---
+/**
+ * ai-info.astro — 上游 `layout/includes/anzhiyu/ai-info.pug:1-27`（P5-1）。
+ *
+ * 门控：`theme.post_head_ai_description.enable` + `pageFillDescription` + `page.ai`
+ * （任务描述里的 `theme.ai` 实际是主题键 `post_head_ai_description`）。
+ * 读 `gptName` / `mode`（tianli → `Tianli GPT`）/ `switchBtn`（#ai-Toggle），
+ * 输出 .post-ai-description 整块 + `script[data-pjax]`（asset.ai_abstract_js）。
+ * 注意：`post/PostAiDescription.astro` 已实现同块（少 switchBtn），接线时二选一。
+ * 挂载建议：文章页内容最前（上游 post.pug:7-8）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderAiInfo } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  /** 上游 page.ai */
+  ai?: boolean
+  /** 上游 get_page_fill_description() */
+  pageFillDescription?: string
+  description?: string
+  content?: string
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderAiInfo(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

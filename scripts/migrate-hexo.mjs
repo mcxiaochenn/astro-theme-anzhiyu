@@ -596,6 +596,18 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
     "path.join(root, 'theme.config.yml')",
     "path.join(root, 'anzhiyu.config.yml')",
   )
+  // 迁移产物面向 Hexo 历史内容：真实站 21/39 内容文件含 Hexo tag，且存在
+  // 未闭合 / 未知 / 错配 tag。启用 remark-hexo-tag 的宽松模式（默认严格模式不变），
+  // 让脏 tag 只 warning、原样透传，不中断内容集合渲染。若上游模板改了写法，
+  // 显式 fail 而不是静默退回严格模式（否则未来迁移会重新卡在 build A）。
+  const lenientBefore = astroConfig
+  astroConfig = astroConfig.replace(
+    "[[remarkHexoTag, { noteStyle: 'flat' }]]",
+    "[[remarkHexoTag, { noteStyle: 'flat', lenient: true }]]",
+  )
+  if (astroConfig === lenientBefore) {
+    fail('examples/blog/astro.config.mjs 的 remarkPlugins 模板已变化，无法注入 lenient: true；请同步更新 scripts/migrate-hexo.mjs 的注入规则。')
+  }
   writeOut('astro.config.mjs', astroConfig)
 
   // content.config.ts：复用 examples/blog 的 schema，把 loader base 指向本站内容目录。

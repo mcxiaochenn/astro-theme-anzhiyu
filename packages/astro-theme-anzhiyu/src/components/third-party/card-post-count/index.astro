@@ -1,0 +1,21 @@
+---
+/**
+ * index.astro — 上游 `layout/includes/third-party/card-post-count/index.pug:1-9`（P5-1）。
+ *
+ * 门控：`theme.comments.card_post_count` + `theme.comments.use[0]`（上游
+ * mixins/post-ui.pug:78 / additional-js.pug:66-67 的 needLoadCountJs）。
+ * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 之后、`.js-pjax` 内。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderCardPostCountIndex } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderCardPostCountIndex(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

@@ -1,0 +1,21 @@
+---
+/**
+ * mathjax.astro — 上游 `layout/includes/third-party/math/mathjax.pug:1-38`（P5-1）。
+ *
+ * 门控：`theme.mathjax.enable` + per_page/page.mathjax；
+ * 输出 MathJax 3 配置脚本（动态插入 `#MathJax-script`）。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderMathjax } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  mathjax?: boolean
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderMathjax(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

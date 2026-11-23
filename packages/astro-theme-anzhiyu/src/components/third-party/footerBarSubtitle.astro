@@ -1,0 +1,22 @@
+---
+/**
+ * footerBarSubtitle.astro — 上游 `layout/includes/third-party/footerBarSubtitle.pug:1-129`（P5-1）。
+ *
+ * 门控：`theme.footer.footerBar.subTitle.enable`（上游 footer.pug:82-84）。
+ * 与 subtitle.pug 同源逻辑，目标 selector 为 `#footer-type-tips`。
+ * 接线建议：BaseLayout.astro:335 `<Footer>` 附近（上游 footer.pug:81-84）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderFooterBarSubtitle } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  siteSubtitle?: string
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderFooterBarSubtitle(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

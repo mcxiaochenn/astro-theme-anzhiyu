@@ -1,0 +1,21 @@
+---
+/**
+ * Waline.astro — 上游 `layout/includes/third-party/comments/waline.pug:1-45`（P5-1）。
+ *
+ * 门控：`theme.comments.use` 含 `Waline`；连接参数 `theme.waline.*`，
+ * 另读 `theme.comments.lazyload/count`（pageview / comment 开关）。
+ * 上游由 comments/js.pug:7-8 分发。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderWaline } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderWaline(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

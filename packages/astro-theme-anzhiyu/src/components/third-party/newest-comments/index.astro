@@ -1,0 +1,21 @@
+---
+/**
+ * index.astro — 上游 `layout/includes/third-party/newest-comments/index.pug:1-13`（P5-1）。
+ *
+ * 门控：`theme.newest_comments.enable` + `theme.aside.enable` + `theme.comments.use`，
+ * 以及 `theme.pjax.enable`（false 时仅非文章页，上游 additional-js.pug:85-89）。
+ * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 之后。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderNewestCommentsIndex } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderNewestCommentsIndex(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

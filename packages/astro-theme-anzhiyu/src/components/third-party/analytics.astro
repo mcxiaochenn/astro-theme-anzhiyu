@@ -1,0 +1,23 @@
+---
+/**
+ * analytics.astro — 上游 `layout/includes/head/analytics.pug:1-31`（P5-1）。
+ *
+ * 5 个分支分别门控 `theme.baidu_analytics` / `google_analytics` / `cnzz_analytics` /
+ * `cloudflare_analytics` / `microsoft_clarity`（默认全 null → 0 节点）。
+ * cnzz / cloudflare 分支输出 `data-pjax` 脚本。
+ * 接线建议：Head.astro:348 之后、:350 `<script is:inline set:html={globalConfigScript}>` 之前
+ * （上游 head.pug:75-78，位于 swiper_css / blog_title_font 之后、config.pug 之前）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderAnalytics } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderAnalytics(theme)
+---
+
+<Fragment set:html={html} />

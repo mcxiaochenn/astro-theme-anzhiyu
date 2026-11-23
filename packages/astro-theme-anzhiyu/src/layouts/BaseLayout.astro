@@ -39,6 +39,7 @@
  * 由站点（`examples/blog/src/pages/index.astro`）统一 import 一次，主题包不复制样式。
  */
 import { getCollection } from 'astro:content'
+import { ClientRouter } from 'astro:transitions'
 import Head from '../components/Head.astro'
 import Header from '../components/layout/Header.astro'
 import Footer from '../components/layout/Footer.astro'
@@ -46,8 +47,10 @@ import Sidebar from '../components/layout/Sidebar.astro'
 import Rightside from '../components/layout/Rightside.astro'
 import HomeTop from '../components/home/HomeTop.astro'
 import AsideContent from '../components/widget/AsideContent.astro'
+import AdditionalJs from '../components/head/AdditionalJs.astro'
+import { resolveAssets } from '../config/assets.ts'
 import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
-import { resolveSite, type SiteConfig } from './site.ts'
+import { createUrlFor, resolveSite, type SiteConfig } from './site.ts'
 
 interface Props {
   /** 站点级元数据；缺省用主题包的中性默认值。 */
@@ -189,12 +192,16 @@ const sidebarTags = [...tagCounts.entries()].map(([name, length]) => ({
 /* ------------------------------------------------------------------ */
 
 const preloaderEnabled = readFlag(theme.preloader, 'enable')
+const preloaderSource = readNumber(theme.preloader, 'source')
+/** 上游 loading/index.pug：1=fullpage，2=pace，其它=两者都出。 */
+const preloaderFullpage = preloaderSource === 1 || (preloaderSource !== 1 && preloaderSource !== 2)
+const preloaderPace = preloaderSource === 2 || (preloaderSource !== 1 && preloaderSource !== 2)
 const loadingAvatar = readString(
   theme.preloader,
   'avatar',
   (theme.avatar as { img?: string } | undefined)?.img ?? '',
 )
-/** 上游 loading/fullpage-loading.pug:6-21 的脚本，逐 token 对齐（Phase 4 会换成 pjax 版）。 */
+/** 上游 loading/fullpage-loading.pug:6-21 的脚本，逐 token 对齐。 */
 const preloaderScript = `const preloader = {
     endLoading: () => {
       document.getElementById('loading-box').classList.add("loaded");
@@ -211,56 +218,22 @@ const preloaderScript = `const preloader = {
     document.addEventListener('pjax:complete', () => { preloader.endLoading() })
   }`
 
+/** 上游 loading/pace.pug：`pace_css_url || asset.pace_default_css` + `asset.pace_js`。 */
+const preloaderAssets = resolveAssets(theme)
+const paceCssUrl = readString(theme.preloader, 'pace_css_url') || preloaderAssets.pace_default_css || ''
+const paceJsUrl = preloaderAssets.pace_js || ''
+
 /* ------------------------------------------------------------------ */
-/* 4. 首屏 theme bootstrap（html[data-theme] 的运行时契约）              */
+/* 4. html[data-theme] 的静态兜底                                      */
 /* ------------------------------------------------------------------ */
 
 /**
- * 上游把 `--anzhiyu-*` 变量只定义在 `[data-theme="light"|"dark"]` 下，
- * 属性缺失时 `background: var(--anzhiyu-background)` 整条声明失效 → 首屏透明
- * （P1.5 实测，见 docs/notes/P1.5-vertical-slice.md §4.1）。
- *
- * 分两层保证：
- *   1. `<html data-theme={display_mode}>` 静态兜底（= 上游 pug 的行为，无 JS 也有值）；
- *   2. 本段同步脚本在首屏 paint 前按「用户上次选择 → 系统偏好 → 静态默认」修正。
- *
- * localStorage 的格式对齐上游 `saveToLocal`：`{"value":"dark","expiry":<ms>}`，
- * key = `theme`、TTL 2 天（source/js/main.js:856 `saveToLocal.set("theme", mode, 2)`）。
- * autoChangeMode：1 = 跟随系统（不支持 dark 时回退 18:00–06:00），2 = 只看时段。
+ * 上游把 `--anzhiyu-*` 变量只定义在 `[data-theme="light"|"dark"]` 下，属性缺失时
+ * `background: var(--anzhiyu-background)` 整条声明失效 → 首屏透明（P1.5 §4.1）。
+ * `<html data-theme={display_mode}>` 是静态兜底；运行时修正（localStorage / 系统偏好 /
+ * 时段）由 Head.astro 里的 `inject_head_js` 内联脚本完成（P4-1 接管原 P2-2 的过渡实现）。
  */
 const displayMode = theme.display_mode === 'dark' ? 'dark' : 'light'
-const darkmodeConfig = theme.darkmode
-const autoChangeMode =
-  darkmodeConfig.enable && (darkmodeConfig.autoChangeMode === 1 || darkmodeConfig.autoChangeMode === 2)
-    ? darkmodeConfig.autoChangeMode
-    : 0
-
-const themeBootstrap = `(function () {
-    var root = document.documentElement
-    var fallback = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
-    var AUTO = ${autoChangeMode}
-    var mode = fallback
-    try {
-      var raw = localStorage.getItem('theme')
-      var saved = raw ? JSON.parse(raw) : null
-      var alive = saved && (!saved.expiry || saved.expiry > Date.now())
-      if (alive && (saved.value === 'dark' || saved.value === 'light')) {
-        mode = saved.value
-      } else if (AUTO) {
-        var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
-        var supportsPrefers = !!(prefers && typeof prefers.matches === 'boolean')
-        if (AUTO === 1 && supportsPrefers) {
-          mode = prefers.matches ? 'dark' : 'light'
-        } else {
-          var hour = new Date().getHours()
-          mode = hour >= 18 || hour < 6 ? 'dark' : 'light'
-        }
-      }
-    } catch (error) {
-      mode = fallback
-    }
-    root.setAttribute('data-theme', mode)
-  })()`
 
 /* ------------------------------------------------------------------ */
 /* 5. 其它 layout.pug 挂载点的开关                                      */
@@ -290,21 +263,22 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
       ogType={ogType}
       isHome={isHome}
       pageUrl={pageUrl}
-    >
-      {/* 首屏 theme bootstrap：必须在 paint 前执行；位置对应上游 GLOBAL_CONFIG（noscript 之前） */}
-      <script slot="head-script" is:inline set:html={themeBootstrap}></script>
-    </Head>
+      pageType={pageType}
+      showToc={showToc}
+    />
+    {/* P4-3：ClientRouter 取代上游 Pjax；交互映射见 components/head/runtime.ts */}
+    <ClientRouter />
     <slot name="head-extra" />
   </head>
 
   <body data-type="anzhiyu">
-    {/* layout.pug:11 — 全局背景层。Phase 4 改成 transition:persist="web_bg" */}
-    <div id="web_bg"></div>
+    {/* layout.pug:11 — 全局背景层。跨 ClientRouter 导航 persist */}
+    <div id="web_bg" transition:persist="web_bg"></div>
     {/* layout.pug:12 — 音乐播放器背景层 */}
-    <div id="an_music_bg"></div>
+    <div id="an_music_bg" transition:persist="an_music_bg"></div>
 
     {
-      preloaderEnabled && (
+      preloaderEnabled && preloaderFullpage && (
         <div
           id="loading-box"
           onclick='document.getElementById("loading-box").classList.add("loaded")'
@@ -316,7 +290,20 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
         </div>
       )
     }
-    {preloaderEnabled && <script is:inline set:html={preloaderScript}></script>}
+    {preloaderEnabled && preloaderFullpage && <script is:inline set:html={preloaderScript}></script>}
+
+    {/* 上游 loading/pace.pug（preloader.source 2 / 其它） */}
+    {preloaderEnabled && preloaderPace && paceCssUrl && (
+      <link rel="stylesheet" href={createUrlFor(site.root ?? '/')(paceCssUrl)} />
+    )}
+    {preloaderEnabled && preloaderPace && paceJsUrl && (
+      <script
+        is:inline
+        async
+        src={createUrlFor(site.root ?? '/')(paceJsUrl)}
+        data-pace-options='{ "restartOnRequestAfter":false,"eventLag":false}'
+      ></script>
+    )}
 
     {
       is404 ? (
@@ -339,7 +326,7 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
 
               {/* layout.pug:48-49 — widget/index.pug */}
               {theme.aside.enable && aside !== false && (
-                <AsideContent pageType={pageType} showToc={showToc} headings={headings} />
+                <AsideContent pageType={pageType} showToc={showToc} headings={headings} site={site} />
               )}
             </div>
           </main>
@@ -371,7 +358,7 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
     {/* layout.pug:84-85 — music.pug（静态结构，交互由 P4-7 接管） */}
     {
       navMusicEnabled && (
-        <div id="nav-music">
+        <div id="nav-music" transition:persist="nav_music">
           <a id="nav-music-hoverTips" onclick="anzhiyu.musicToggle()" accesskey="m">
             播放音乐
           </a>
@@ -392,7 +379,7 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
     }
 
     {/* layout.pug:87 — anzhiyu/rightmenu.pug（静态结构，交互由 P4-5 接管） */}
-    <div id="rightMenu">
+    <div id="rightMenu" transition:persist="right_menu">
       <div class="rightMenu-group rightMenu-small">
         <div class="rightMenu-item" id="menu-backward">
           <i class="anzhiyufont anzhiyu-icon-arrow-left"></i>
@@ -507,13 +494,13 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
         </a>
       </div>
     </div>
-    <div id="rightmenu-mask"></div>
+    <div id="rightmenu-mask" transition:persist="rightmenu_mask"></div>
 
-    {/* layout.pug:88 — additional-js.pug 的挂载点；脚本本体 P4-2/P4-3 填 */}
-    <div></div>
+    {/* layout.pug:88 — additional-js.pug 的整棵子树（本组件自带外层 div） */}
+    <AdditionalJs site={site} isHome={isHome} pageType={pageType} />
 
     {/* layout.pug:91 — popup/index.pug（静态结构） */}
-    <div id="popup-window">
+    <div id="popup-window" transition:persist="popup_window">
       <div class="popup-window-title">通知</div>
       <div class="popup-window-divider"></div>
       <div class="popup-window-content">
@@ -523,5 +510,10 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
         </div>
       </div>
     </div>
+
+    {/* P4-3：ClientRouter ↔ 上游 Pjax 契约适配（pjax.loadUrl / pjax:send / pjax:complete） */}
+    <script>
+      import '../components/head/runtime.ts'
+    </script>
   </body>
 </html>

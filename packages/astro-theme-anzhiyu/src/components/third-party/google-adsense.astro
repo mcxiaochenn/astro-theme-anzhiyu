@@ -1,0 +1,21 @@
+---
+/**
+ * google-adsense.astro — 上游 `layout/includes/head/google_adsense.pug:1-9`（P5-1）。
+ *
+ * 门控：`theme.google_adsense.enable`（默认 false）；二级门控 `auto_ads`，
+ * 读 `js` / `client` / `enable_page_level_ads`。
+ * 接线建议：Head.astro:348 之后（上游 head.pug:74-75，紧邻 analytics 之前）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { renderGoogleAdsense } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderGoogleAdsense(theme)
+---
+
+<Fragment set:html={html} />

@@ -21,11 +21,15 @@
  *
  * 最后 `remark-rehype` + `rehype-raw` 会把 `html` 节点解析成正常 DOM。
  *
- * ## 未知 tag
+ * ## 未知 tag / 宽松模式
  *
  *   - 附录 B 的 42 个 tag（P6-1 行内/块级 24 + P6-2 媒体 11 + P6-3 第三方 7）全部有
  *     handler；
- *   - 完全没见过的 tag、未闭合容器、错配的 end tag → **抛错**，带 `文件:行:列`。
+ *   - 严格模式（默认）：完全没见过的 tag、未闭合容器、错配的 end tag → **抛错**，
+ *     带 `文件:行:列`；
+ *   - `lenient: true`（宽松模式，供 Hexo 历史站迁移）：未闭合容器自动补齐
+ *     `{% endX %}`、其余脏 tag 原样透传，均输出 warning，绝不因内容语法中断构建。
+ *     严格模式行为与单测零回归。
  *
  * @module remark-hexo-tag
  */
@@ -161,7 +165,12 @@ function replacePlaceholders(node, placeholders, ctx) {
  * @returns {object[]}
  */
 function renderMarkdown(markdown, ctx) {
-  const nodes = scanTags(markdown, { resolve: ctx.resolve, fileLabel: ctx.fileLabel })
+  const nodes = scanTags(markdown, {
+    resolve: ctx.resolve,
+    fileLabel: ctx.fileLabel,
+    lenient: ctx.options.lenient,
+    onWarning: ctx.options.onWarning,
+  })
 
   let source = ''
   /** @type {Map<string, object>} */
@@ -202,7 +211,12 @@ function renderMarkdown(markdown, ctx) {
  * @returns {string}
  */
 function renderRaw(markdown, ctx) {
-  const nodes = scanTags(markdown, { resolve: ctx.resolve, fileLabel: ctx.fileLabel })
+  const nodes = scanTags(markdown, {
+    resolve: ctx.resolve,
+    fileLabel: ctx.fileLabel,
+    lenient: ctx.options.lenient,
+    onWarning: ctx.options.onWarning,
+  })
   let output = ''
   for (const node of nodes) {
     if (node.type === 'text') {
@@ -233,6 +247,7 @@ function renderRaw(markdown, ctx) {
  *   loadMoreText?: string,
  *   favicon?: string,
  *   flinkErrorImg?: string,
+ *   lenient?: boolean,
  *   onWarning?: (message: string) => void,
  * }} [options]
  * @returns {(tree: object, file?: object) => void}
@@ -249,8 +264,20 @@ export default function remarkHexoTag(options = {}) {
     loadMoreText: '加载更多',
     favicon: '/favicon.ico',
     flinkErrorImg: '/img/friend_404.gif',
+    // 严格模式（默认）。宽松模式供 Hexo 历史站迁移：脏 tag 不抛错，见 parser.mjs。
+    lenient: false,
     onWarning: (message) => console.warn(message),
     ...options,
+  }
+
+  // 宽松模式下同一条 warning（含 文件:行:列）只输出一次，避免历史脏内容刷屏；
+  // 去重表放在工厂级，跨文件、跨容器递归共享。
+  const warned = new Set()
+  const emitWarning = config.onWarning
+  config.onWarning = (message) => {
+    if (warned.has(message)) return
+    warned.add(message)
+    emitWarning(message)
   }
 
   if (!processor || typeof processor.parse !== 'function') {

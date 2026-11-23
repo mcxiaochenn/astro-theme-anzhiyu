@@ -1,0 +1,20 @@
+---
+/**
+ * artalk.astro — 上游 `layout/includes/third-party/newest-comments/artalk.pug:1-118`（P5-1）。
+ *
+ * 门控：newest_comments.enable + aside.enable + use 含 Artalk；
+ * 读 `theme.artalk.server/site/option.gravatar` 与 newest_comments.limit/storage。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderNewestCommentsArtalk } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderNewestCommentsArtalk(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

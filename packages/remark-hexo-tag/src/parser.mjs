@@ -6,7 +6,9 @@
  *
  *   1. **支持嵌套**：容器 tag 可以套容器 tag，同名 tag 也能套（Hexo 的 Nunjucks
  *      实现其实不支持同名嵌套，但真实文章里出现过，这里按计数配对，行为更宽容）。
- *   2. **未知 tag 必须报错**：带文件路径 + `行:列`，绝不静默吞掉。
+ *   2. **严格模式（默认）**：未知 tag 必须报错，带文件路径 + `行:列`，绝不静默吞掉；
+ *      `lenient: true`（宽松模式）时未闭合容器自动补齐、其余脏 tag 原样透传并
+ *      warning，供 Hexo 历史站迁移使用（见 scanTags 的 JSDoc）。
  *   3. **自闭合 / 容器**由调用方的 `resolve()` 决定：`ends: false` 的按行内处理，
  *      `ends: true` 的必须找到配对的 `{% endname %}`。
  *
@@ -124,14 +126,26 @@ function tagError(message, source, offset, fileLabel) {
 /**
  * 扫描整段 Markdown。
  *
+ * 默认（严格模式）：未知 tag / 未闭合容器 / 错配 end tag 一律抛错，带
+ * `文件:行:列`（见文件头「三个硬性要求」）。
+ *
+ * `lenient: true`（宽松模式，供迁移站的历史脏内容使用）：
+ *   - 未闭合的块级容器 → 隐式补齐 `{% endX %}`（产出节点，正文到文末），并 warning；
+ *   - 未知 tag / 孤立或错配的 end tag / 未终止 / 格式错误 → **原样透传**（保留
+ *     `{% … %}` 字面量），并 warning；
+ *   - 绝不会因为内容里的 tag 语法错误中断构建。
+ * 严格模式的行为与报错文案完全不变（59/59 单测守护）。
+ *
  * @param {string} source
  * @param {{
  *   resolve: (name: string) => ({ kind: 'inline' | 'block', ends?: boolean, passthrough?: boolean } | null),
  *   fileLabel?: string,
+ *   lenient?: boolean,
+ *   onWarning?: (message: string) => void,
  * }} options
  * @returns {Array<object>} 顶层节点列表
  */
-export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
+export function scanTags(source, { resolve, fileLabel = '<unknown file>', lenient = false, onWarning }) {
   /** @type {Array<object>} 顶层节点 */
   const nodes = []
   /** @type {Array<object>} 容器 tag 的栈（root 不占栈） */
@@ -139,6 +153,13 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
 
   let textStart = 0
   let cursor = 0
+
+  /** 宽松模式下的 warning（带 文件:行:列），由插件工厂注入的回调去重后输出。 */
+  const warn = (message, offset) => {
+    if (typeof onWarning !== 'function') return
+    const { line, column } = positionOf(source, offset)
+    onWarning(`[remark-hexo-tag][lenient] ${message} (${fileLabel}:${line}:${column})`)
+  }
 
   const flushText = (end) => {
     if (end > textStart) {
@@ -155,7 +176,11 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
 
     const close = source.indexOf('%}', innerStart)
     if (close === -1) {
-      throw tagError('Unterminated Hexo tag: missing `%}`', source, open, fileLabel)
+      if (!lenient) throw tagError('Unterminated Hexo tag: missing `%}`', source, open, fileLabel)
+      warn('未终止的 Hexo tag（缺少 `%}`），按原文透传', open)
+      // 直接结束扫描：textStart 之后的全部内容（含这个 `{%`）由结尾的
+      // flushText 原样输出；若此时还有未闭合容器，结尾逻辑会一并补齐。
+      break
     }
 
     let inner = source.slice(innerStart, close)
@@ -163,7 +188,12 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
 
     const header = HEADER_RE.exec(inner)
     if (!header) {
-      throw tagError(`Malformed Hexo tag \`{%${inner}%}\`: missing tag name`, source, open, fileLabel)
+      if (!lenient) {
+        throw tagError(`Malformed Hexo tag \`{%${inner}%}\`: missing tag name`, source, open, fileLabel)
+      }
+      warn(`格式错误的 Hexo tag \`{%${inner}%}\`（缺少 tag 名），按原文透传`, open)
+      cursor = close + 2
+      continue
     }
 
     const name = header[1]
@@ -175,19 +205,32 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
     // ── 结束标签 ────────────────────────────────────────────────────────────
     if (endMatch) {
       const expected = endMatch[1]
+      // 先 peek 再 pop：宽松模式下遇到孤立 / 错配 end tag 要保留栈顶容器，
+      // 让后续真正的 `{% endX %}` 还能配对。严格模式的报错文案保持完全一致。
+      const top = stack[stack.length - 1]
+      if (!top) {
+        if (!lenient) {
+          throw tagError(`Unexpected \`{% ${name} %}\`: no matching open tag`, source, open, fileLabel)
+        }
+        warn(`孤立的 \`{% ${name} %}\`（没有匹配的开始 tag），按原文透传`, open)
+        cursor = tagEnd
+        continue
+      }
+      if (top.name !== expected) {
+        if (!lenient) {
+          throw tagError(
+            `Mismatched \`{% ${name} %}\`: expected \`{% end${top.name} %}\` ` +
+              `for the tag opened at ${positionOf(source, top.start).line}:${positionOf(source, top.start).column}`,
+            source,
+            open,
+            fileLabel,
+          )
+        }
+        warn(`错配的 \`{% ${name} %}\`（期望 \`{% end${top.name} %}\`），按原文透传`, open)
+        cursor = tagEnd
+        continue
+      }
       const frame = stack.pop()
-      if (!frame) {
-        throw tagError(`Unexpected \`{% ${name} %}\`: no matching open tag`, source, open, fileLabel)
-      }
-      if (frame.name !== expected) {
-        throw tagError(
-          `Mismatched \`{% ${name} %}\`: expected \`{% end${frame.name} %}\` ` +
-            `for the tag opened at ${positionOf(source, frame.start).line}:${positionOf(source, frame.start).column}`,
-          source,
-          open,
-          fileLabel,
-        )
-      }
 
       const body = source.slice(frame.bodyStart, open)
       if (stack.length === 0) {
@@ -215,13 +258,18 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
     // ── 开始标签 ────────────────────────────────────────────────────────────
     const spec = resolve(name)
     if (!spec) {
-      throw tagError(
-        `Unknown Hexo tag \`{% ${name} %}\`. ` +
-          'Known tags live in src/tags/{inline,block,media,thirdparty}.',
-        source,
-        open,
-        fileLabel,
-      )
+      if (!lenient) {
+        throw tagError(
+          `Unknown Hexo tag \`{% ${name} %}\`. ` +
+            'Known tags live in src/tags/{inline,block,media,thirdparty}.',
+          source,
+          open,
+          fileLabel,
+        )
+      }
+      warn(`未知的 Hexo tag \`{% ${name} %}\`，按原文透传`, open)
+      cursor = tagEnd
+      continue
     }
 
     const { args, kwargs } = parseArgs(rawArgs)
@@ -286,12 +334,38 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>' }) {
 
   if (stack.length > 0) {
     const frame = stack[stack.length - 1]
-    throw tagError(
-      `Unclosed Hexo tag \`{% ${frame.name} %}\`: missing \`{% end${frame.name} %}\``,
-      source,
-      frame.start,
-      fileLabel,
-    )
+    if (!lenient) {
+      throw tagError(
+        `Unclosed Hexo tag \`{% ${frame.name} %}\`: missing \`{% end${frame.name} %}\``,
+        source,
+        frame.start,
+        fileLabel,
+      )
+    }
+
+    // 宽松模式：为每个未闭合容器隐式补齐 `{% endX %}`（warning）。
+    // 只产出「最外层」一个 block 节点，正文一直延伸到文末；内层未闭合容器
+    // 会在 body 递归（ctx.md，同样是宽松模式）时被同样地补齐，效果等价于
+    // 在文末按栈的逆序追加了所有 `{% endX %}`。
+    for (const open of stack) {
+      warn(`未闭合的 Hexo tag \`{% ${open.name} %}\`，自动补齐 \`{% end${open.name} %}\``, open.start)
+    }
+    const outer = stack[0]
+    nodes.push({
+      type: 'block',
+      name: outer.name,
+      args: outer.args,
+      kwargs: outer.kwargs,
+      rawArgs: outer.rawArgs,
+      raw: source.slice(outer.start, source.length),
+      body: source.slice(outer.bodyStart, source.length),
+      bodyStart: outer.bodyStart,
+      start: outer.start,
+      end: source.length,
+      passthrough: outer.passthrough,
+    })
+    // 阻止结尾的 flushText 把外层容器正文（已由 block 节点承载）重复成 text。
+    textStart = source.length
   }
 
   flushText(source.length)

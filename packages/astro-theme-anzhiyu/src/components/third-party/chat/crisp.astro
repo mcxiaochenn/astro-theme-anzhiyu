@@ -1,0 +1,19 @@
+---
+/**
+ * crisp.astro — 上游 `layout/includes/third-party/chat/crisp.pug:1-45`（P5-1）。
+ *
+ * 门控：`theme.crisp.enable`；读 `crisp.website_id` 与 `theme.chat_btn/chat_hide_show`。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderCrisp } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderCrisp(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

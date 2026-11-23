@@ -1,0 +1,21 @@
+---
+/**
+ * katex.astro — 上游 `layout/includes/third-party/math/katex.pug:1-9`（P5-1）。
+ *
+ * 门控：`theme.katex.enable` + per_page/page.katex；
+ * 输出 katex CSS / copy-tex JS / `#article-container span.katex-display` 包装脚本。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderKatex } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  katex?: boolean
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderKatex(theme, Astro.props)
+---
+
+<Fragment set:html={html} />

@@ -1,0 +1,21 @@
+---
+/**
+ * local-search.astro — 上游 `layout/includes/third-party/search/local-search.pug:1-20`（P5-1）。
+ *
+ * 门控：`theme.local_search.enable`；输出 `#local-search` / `.search-dialog` /
+ * `#loading-database` / `#local-search-input` / `#local-search-results` / `#search-mask`。
+ * 注意：本站搜索脚本（asset.local_search）由 additional-js.pug:49-50 单独加载，不在本组件内。
+ */
+import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { renderLocalSearch } from './render.mjs'
+
+interface Props {
+  page?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+const theme = getThemeConfig()
+const html = renderLocalSearch(theme, Astro.props)
+---
+
+<Fragment set:html={html} />
