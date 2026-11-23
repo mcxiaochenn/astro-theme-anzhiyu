@@ -6,7 +6,11 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/config/schema.ts",
-    "./defaults": "./src/config/defaults.ts"
+    "./defaults": "./src/config/defaults.ts",
+    "./components/Head.astro": "./src/components/Head.astro",
+    "./components/*": "./src/components/*",
+    "./layouts/BaseLayout.astro": "./src/layouts/BaseLayout.astro",
+    "./layouts/*": "./src/layouts/*"
   },
   "files": [
     "src"
@@ -16,7 +20,8 @@
     "check:schema": "node scripts/check-schema.mjs",
     "check:loader": "node scripts/check-loader.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "check:helpers": "node scripts/check-helpers.mjs"
+    "check:helpers": "node scripts/check-helpers.mjs",
+    "check:date": "node scripts/check-date.mjs"
   },
   "dependencies": {
     "zod": "^4.6.7"

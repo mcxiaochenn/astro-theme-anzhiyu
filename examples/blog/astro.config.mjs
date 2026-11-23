@@ -12,7 +12,29 @@ export default defineConfig({
   // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。
   // 代价是失去 Sätteri 的构建速度，对几百篇文章的站点在秒级，可接受（见 docs/02-astro-mapping.md §ADR-001）。
   markdown: {
-    processor: unified(),
+    // smartypants: false —— 关掉 unified 的「智能标点」替换，与 Hexo/marked 对齐。
+    //
+    // @astrojs/markdown-remark 的默认值是 `smartypants: true`
+    //（node_modules/@astrojs/internal-helpers/dist/markdown.js 的 markdownConfigDefaults），
+    // 它会在 remark 阶段把正文文本节点做一遍排版替换：
+    //   -->  →  —>      （U+2014 + '>'，`--` 被当作 em dash）
+    //   --   →  —       （单段 `--` → em dash；`---` → em dash 同款）
+    //   ...  →  …       （U+2026）
+    //   "x"  →  “x”     （直角/弯引号成对替换）
+    // 上游 Hexo 用 hexo-renderer-marked，默认 `smartypants: false`，以上一律原样输出。
+    //
+    // 这个差异不是「样式好看不好看」的问题，它有两处硬后果：
+    //  1. `{% mermaid %}` 块里的 `A --> B` 会被改写成 `A —> B`，Phase 6 的 tag 解析器
+    //     按字面量取块内容时拿到的就不是 Mermaid 语法，图直接画不出来
+    //     （实测 fixtures/tags-thirdparty.md 3 条 `-->` 全被替换，见
+    //      docs/notes/P-markdown-date-align.md §1）。
+    //  2. HTML diff 里凡是正文出现 `--` / `...` / 引号的段落都会报假文本差异。
+    //
+    // 关闭方式按 @astrojs/markdown-remark 的 processor API：`unified({ ... })` 的选项
+    // 会覆盖 `markdown.smartypants` 顶层默认值（dist/processor.js:
+    // `smartypants: processor.options.smartypants ?? shared.smartypants`），
+    // 所以这里传 `smartypants: false` 是生效路径，不需要再写顶层 `markdown.smartypants`。
+    processor: unified({ smartypants: false }),
   },
   vite: {
     build: {

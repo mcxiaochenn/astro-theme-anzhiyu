@@ -1,0 +1,263 @@
+---
+/**
+ * Head.astro — 上游 `layout/includes/head.pug` 的基础部分（P2-3）。
+ *
+ * 覆盖范围（head.pug 第 21–49 行 + Open_Graph + preconnect + site_verification + noscript）：
+ *   charset / X-UA-Compatible / viewport / title / keywords / author / copyright /
+ *   format-detection / theme-color / 移动端 meta / OG / description / favicon /
+ *   canonical / preconnect / 站长验证 / noscript
+ *
+ * 明确不在本组件里做（留给后续阶段，理由见 docs/notes/P2-2-3-layout-head.md）：
+ *   - `GLOBAL_CONFIG` / `config-diff` / `inject_head_js` 三段内联脚本 → P4-1（资源解析层）
+ *   - `main_css` / fontawesome / snackbar / fancybox / PWA / icons 的 `<link>` → P4-1（asset 层）
+ *   - pwa.pug（默认关闭）、analytics / google_adsense（P5-3）
+ *   - inject.head（配置注入）
+ *
+ * `<html lang>` 不在本组件里：Astro 的 `<html>` 只能由布局组件声明，
+ * 所以 lang 由 BaseLayout 从同一份 site 数据写出（见 BaseLayout.astro）。
+ */
+import { getThemeConfig } from '../layouts/theme-context.ts'
+import { createUrlFor, fullUrlFor, type SiteConfig } from '../layouts/site.ts'
+import { pageDescription, urlNoIndex } from '../utils/helpers.ts'
+
+interface Props {
+  /** 站点级元数据（title/description/author/url/language…）。 */
+  site: SiteConfig
+  /** 页面标题（上游 `page.title`）；首页留空。 */
+  title?: string
+  /** 页面描述（上游 `page.description`）。 */
+  description?: string
+  /** 页面正文（上游 `page.content`，`page_description()` 的回退链会用到）。 */
+  content?: string
+  /** 页面关键词覆盖（上游 `page.keywords`）。 */
+  keywords?: string | string[]
+  /** 页面标签名（上游 `page.tags[].name`，keywords 的第二级回退）。 */
+  tagNames?: string[]
+  /** OG 图片覆盖（上游 `page.cover`）。 */
+  ogImage?: string
+  /** OG 类型；缺省按 `isHome` 推导（上游 `is_post() ? 'article' : 'website'`）。 */
+  ogType?: 'website' | 'article'
+  /** 是否首页（决定 `<title>` 的拼接方式）。 */
+  isHome?: boolean
+  /** 页面绝对 URL；缺省用 `site.url` + `Astro.url.pathname` 推导。 */
+  pageUrl?: string
+}
+
+const {
+  site,
+  title,
+  description,
+  content,
+  keywords,
+  tagNames,
+  ogImage,
+  ogType,
+  isHome = false,
+  pageUrl,
+} = Astro.props
+
+const theme = getThemeConfig()
+const urlFor = createUrlFor(site.root ?? '/')
+
+/* ------------------------------------------------------------------ */
+/* 1. title / keywords / author / copyright / theme-color              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上游 head.pug 第 6–9 行：
+ *   首页或没有 pageTitle → `config.title + ' - ' + config.subtitle`
+ *   其它页面 → `pageTitle + ' | ' + config.title`
+ * `pageTitle` 的回退是 `page.title || config.title`。
+ */
+const pageTitle = title || site.title || ''
+const subtitleSuffix = site.subtitle ? ` - ${site.subtitle}` : ''
+const tabTitle = isHome || !pageTitle ? `${site.title}${subtitleSuffix}` : `${pageTitle} | ${site.title}`
+
+/** 上游 head.pug 第 11–14 行：page.keywords > page.tags > config.keywords。 */
+function normalizeKeywordList(value: string | string[] | undefined): string | undefined {
+  if (value === undefined || value === null) return undefined
+  const list = Array.isArray(value) ? value : [value]
+  const joined = list.filter((item) => item !== '').join(',')
+  return joined || undefined
+}
+const pageKeywords =
+  normalizeKeywordList(keywords) ??
+  (tagNames && tagNames.length ? tagNames.join(',') : undefined) ??
+  normalizeKeywordList(site.keywords)
+
+/** 上游 head.pug 第 15–16 行。 */
+const pageAuthor = site.email ? `${site.author},${site.email}` : site.author
+const pageCopyright = site.copyright || site.author
+
+/**
+ * 上游 head.pug 第 17–19 行：theme_color 关闭时回退 `#ffffff` / `#0d0d0d`，
+ * 分支依据是**配置**的 display_mode（不是运行时 data-theme）。
+ */
+const themeColorLight = (theme.theme_color?.enable && theme.theme_color.meta_theme_color_light) || '#ffffff'
+const themeColorDark = (theme.theme_color?.enable && theme.theme_color.meta_theme_color_dark) || '#0d0d0d'
+const themeColor = theme.display_mode === 'dark' ? themeColorDark : themeColorLight
+
+/* ------------------------------------------------------------------ */
+/* 2. URL / description / OG                                           */
+/* ------------------------------------------------------------------ */
+
+const origin = Astro.url.origin
+const siteOrigin = (site.url ? site.url.replace(/\/+$/, '') : origin.replace(/\/+$/, '')) || ''
+const resolvedPageUrl =
+  pageUrl ??
+  `${siteOrigin}${urlFor(Astro.url.pathname === '/' ? '/' : Astro.url.pathname)}`
+
+/** 上游 `urlNoIndex()`：canonical 去掉结尾 `index.html`。 */
+const canonical = urlNoIndex(resolvedPageUrl)
+
+/** 上游 `page_description()`：page.description > page.content > page.title > config.description。 */
+const metaDescription = pageDescription({
+  page: { title, description, content },
+  config: { description: site.description },
+})
+
+/** 上游 Open_Graph.pug 第 3 行：`page.cover || theme.avatar.img`，一律转绝对 URL。 */
+const avatarImage = (theme.avatar as { img?: string } | undefined)?.img
+const metaImage = fullUrlFor(ogImage || avatarImage, site, origin)
+
+const resolvedOgType = ogType ?? (isHome ? 'website' : 'article')
+const ogTitle = pageTitle
+const ogSiteName = site.title
+const ogLocale = site.language
+const articleAuthor = site.author
+const articleTag = normalizeKeywordList(site.keywords)
+const openGraphEnabled = theme.Open_Graph_meta === true
+
+/* ------------------------------------------------------------------ */
+/* 3. favicon                                                          */
+/* ------------------------------------------------------------------ */
+
+/** 上游 `favicon_tag(theme.favicon || config.favicon)`。 */
+const faviconPath =
+  (theme.favicon as string | undefined) || site.favicon || '/favicon.ico'
+const faviconHref = urlFor(faviconPath)
+/** 上游 hexo-util 的 favicon_tag：`.ico` 用 `shortcut icon`，否则 `icon`。 */
+const faviconRel = /\.ico$/i.test(faviconHref) ? 'shortcut icon' : 'icon'
+
+/* ------------------------------------------------------------------ */
+/* 4. preconnect（上游 head/preconnect.pug）                            */
+/* ------------------------------------------------------------------ */
+
+const providers: Record<string, string | undefined> = {
+  jsdelivr: '//cdn.jsdelivr.net',
+  cdnjs: '//cdnjs.cloudflare.com',
+  unpkg: '//unpkg.com',
+  elemecdn: '//npm.elemecdn.com',
+  onmicrosoft: '//npm.onmicrosoft.cn',
+  cbd: '//cdn.cbd.int',
+  anheyu: '//cdn.anheyu.com',
+  custom: undefined,
+}
+const cdn = theme.CDN
+if (cdn.internal_provider === 'custom' || cdn.third_party_provider === 'custom') {
+  const customFormat = typeof cdn.custom_format === 'string' ? cdn.custom_format : ''
+  const matched = /^((https?:)?(\/\/[^/]+)|([^/]+))(\/|$)/.exec(customFormat)
+  providers.custom = matched?.[1]
+}
+
+const preconnectHrefs: string[] = []
+const addPreconnect = (provider: string) => {
+  const href = providers[provider]
+  if (href && !preconnectHrefs.includes(href)) preconnectHrefs.push(href)
+}
+// 上游 preconnect.pug 15–21 行的分支（含 pug 里第三分支挂错缩进的原始行为）
+if (cdn.internal_provider === cdn.third_party_provider && cdn.internal_provider !== 'local') {
+  addPreconnect(cdn.internal_provider)
+} else {
+  if (cdn.internal_provider !== 'local') addPreconnect(cdn.internal_provider)
+  if (cdn.third_party_provider !== 'local') addPreconnect(cdn.third_party_provider)
+}
+if (theme.google_analytics) preconnectHrefs.push('//www.google-analytics.com')
+if (theme.baidu_analytics) preconnectHrefs.push('//hm.baidu.com')
+if (theme.cloudflare_analytics) preconnectHrefs.push('//static.cloudflareinsights.com')
+if (theme.microsoft_clarity) preconnectHrefs.push('//www.clarity.ms')
+if (
+  theme.blog_title_font &&
+  theme.blog_title_font.font_link &&
+  theme.blog_title_font.font_link.includes('//fonts.googleapis.com')
+) {
+  preconnectHrefs.push('//fonts.googleapis.com')
+}
+
+/* ------------------------------------------------------------------ */
+/* 5. site_verification（上游 head/site_verification.pug）              */
+/* ------------------------------------------------------------------ */
+
+const verificationMetas = Array.isArray(theme.site_verification)
+  ? (theme.site_verification as Array<{ name?: unknown; content?: unknown }>).filter(
+      (item) => typeof item?.name === 'string' && typeof item?.content === 'string',
+    )
+  : []
+---
+
+<meta charset="UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>{tabTitle}</title>
+{pageKeywords && <meta name="keywords" content={pageKeywords} />}
+{pageAuthor && <meta name="author" content={pageAuthor} />}
+{pageCopyright && <meta name="copyright" content={pageCopyright} />}
+<meta name="format-detection" content="telephone=no" />
+<meta name="theme-color" content={themeColor} />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-touch-fullscreen" content="yes" />
+<meta name="apple-mobile-web-app-title" content={pageTitle} />
+<meta name="application-name" content={pageTitle} />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content={themeColor} />
+
+{openGraphEnabled && (
+  <>
+    <meta property="og:type" content={resolvedOgType} />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:url" content={resolvedPageUrl} />
+    <meta property="og:site_name" content={ogSiteName} />
+    {metaDescription && <meta property="og:description" content={metaDescription} />}
+    {ogLocale && <meta property="og:locale" content={ogLocale} />}
+    {metaImage && <meta property="og:image" content={metaImage} />}
+    {articleAuthor && <meta property="article:author" content={articleAuthor} />}
+    {articleTag && <meta property="article:tag" content={articleTag} />}
+    <meta name="twitter:card" content="summary" />
+    {metaImage && <meta name="twitter:image" content={metaImage} />}
+  </>
+)}
+{metaDescription && <meta name="description" content={metaDescription} />}
+
+<link rel={faviconRel} href={faviconHref} />
+<link rel="canonical" href={canonical} />
+
+{preconnectHrefs.map((href) => (
+  <link rel="preconnect" href={href} />
+))}
+
+{verificationMetas.map((item) => (
+  <meta name={item.name as string} content={item.content as string} />
+))}
+
+{/*
+  上游 head.pug 的顺序是：config.pug（GLOBAL_CONFIG 内联脚本，85）→ config_site.pug（87）
+  → noscript（88）→ injectHeadJs（90）。所以在 noscript 之前留一个脚本插槽：
+  Phase 2 放首屏 theme bootstrap（相当于 GLOBAL_CONFIG 的位置），Phase 4 放 P4-1 的三段脚本。
+*/}
+<slot name="head-script" />
+
+<noscript>
+  <style type="text/css">
+    #nav {
+      opacity: 1
+    }
+    .justified-gallery img {
+      opacity: 1
+    }
+
+    #recent-posts time,
+    #post-meta time {
+      display: inline !important
+    }
+  </style>
+</noscript>

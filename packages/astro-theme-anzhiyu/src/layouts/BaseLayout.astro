@@ -1,0 +1,476 @@
+---
+/**
+ * BaseLayout.astro — 上游 `layout/includes/layout.pug` 的 DOM 骨架（P2-2）。
+ *
+ * 复刻的是 layout.pug 的**挂载顺序与容器**，不是每个 include 的内容：
+ *
+ *   body[data-type=anzhiyu]
+ *     #web_bg                         layout.pug:11   全局背景层（persist 对象，Phase 4 挂 transition:persist）
+ *     #an_music_bg                    layout.pug:12
+ *     #loading-box                    layout.pug:13-14（preloader，theme.preloader.enable）
+ *     #body-wrap.page|.post           layout.pug:18（pageType = is_post() ? 'post' : 'page'）
+ *       header#page-header            layout.pug:19   占位：P2-4 填 nav / site-info
+ *       main#blog-container           layout.pug:20
+ *         #home_top                   layout.pug:23-24（is_current("/")，占位：P2-7）
+ *         #content-inner.layout       layout.pug:43   页面内容 slot + widget 侧栏
+ *           <slot />                  layout.pug:44-47（block content）
+ *           #aside-content            layout.pug:48-49 占位：P3-1 填 widget 卡片
+ *       footer#footer                 layout.pug:60
+ *         #footer-wrap                layout.pug:60-61 占位：P2-4
+ *         #footer-bar                 footer.pug:67-68（theme.footer.footerBar.enable）
+ *     #sidebar                        layout.pug:78    占位：P2-5
+ *     #rightside                      layout.pug:82    占位：P2-5
+ *     #nav-music                      layout.pug:84-85（music.pug 静态结构）
+ *     #rightMenu / #rightmenu-mask    layout.pug:87（rightmenu 静态结构）
+ *     div                             layout.pug:88（additional-js 的挂载点，脚本 P4-2 填）
+ *     #popup-window                   layout.pug:91（popup 静态结构）
+ *
+ * 明确不做（留给后续阶段）：
+ *   - 404 分支（`page.type === '404'` → 404.pug）→ P2-10
+ *   - shortcutKey（默认关闭）→ P4-5
+ *   - search（三套搜索默认关闭，include 本身输出为空）→ P4-8
+ *   - ClientRouter / `transition:persist` / pjax shim → P4-3
+ *   - pace 进度条（theme.preloader.source === 3 的第二段）→ P4-1（asset URL）
+ *
+ * 样式入口不在这里引入：上游 302KB Stylus 当前还在 `examples/blog/src/styles/upstream/`，
+ * 由站点（`examples/blog/src/pages/index.astro`）统一 import 一次，主题包不复制样式。
+ */
+import Head from '../components/Head.astro'
+import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
+import { resolveSite, type SiteConfig } from './site.ts'
+
+interface Props {
+  /** 站点级元数据；缺省用主题包的中性默认值。 */
+  site?: Partial<SiteConfig>
+  /** 页面标题（`page.title`）。 */
+  title?: string
+  /** 页面描述（`page.description`）。 */
+  description?: string
+  /** 页面正文（`page.content`）。 */
+  content?: string
+  /** 页面关键词覆盖（`page.keywords`）。 */
+  keywords?: string | string[]
+  /** 页面标签名（`page.tags[].name`）。 */
+  tagNames?: string[]
+  /** OG 图片覆盖（`page.cover`）。 */
+  ogImage?: string
+  /** OG 类型；缺省按 `isHome` 推导。 */
+  ogType?: 'website' | 'article'
+  /** 是否首页（对应上游 `is_home()`）。 */
+  isHome?: boolean
+  /** 当前 URL 是否根路径 `'/'`（对应上游 `is_current("/")`）。 */
+  isCurrentRoot?: boolean
+  /** `page.type` 是否 404；404 分支留给 P2-10。 */
+  is404?: boolean
+  /** `page.aside === false` 时隐藏侧栏（上游 layout.pug:3）。 */
+  aside?: boolean
+  /** 页面绝对 URL，透传给 Head。 */
+  pageUrl?: string
+  /** `#body-wrap` 的 pageType（上游 `is_post() ? 'post' : 'page'`）。 */
+  pageType?: 'post' | 'page'
+}
+
+const {
+  site: siteInput,
+  title,
+  description,
+  content,
+  keywords,
+  tagNames,
+  ogImage,
+  ogType,
+  isHome = false,
+  isCurrentRoot = Astro.url.pathname === '/',
+  is404 = false,
+  aside,
+  pageUrl,
+  pageType: pageTypeProp,
+} = Astro.props
+
+const site = resolveSite(siteInput)
+const theme = getThemeConfig()
+
+/* ------------------------------------------------------------------ */
+/* 1. html / body 级 class 与 data-*                                   */
+/* ------------------------------------------------------------------ */
+
+/** 上游 layout.pug:4：`pageType = is_post() ? 'post' : 'page'`（首页是 page）。 */
+const pageType: 'post' | 'page' = pageTypeProp ?? 'page'
+
+/** 上游 layout.pug:1：`theme.aside.enable && theme.aside.hide`。 */
+const htmlClass = theme.aside.enable && theme.aside.hide ? 'hide-aside' : ''
+
+/** 上游 layout.pug:3：`!theme.aside.enable || page.aside === false`。 */
+const contentInnerClass = !theme.aside.enable || aside === false ? 'layout hide-aside' : 'layout'
+
+/* ------------------------------------------------------------------ */
+/* 2. header / footer 的显示分支（内容由 P2-4 填）                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上游 header/index.pug:1-24：首页 top_img = `index_img !== false ? index_img || default_top_img : false`。
+ * 默认配置 `index_img: false`、`default_top_img: false` → `not-top-img`，不渲染 site-info。
+ */
+const homeTopImg =
+  !theme.disable_top_img && theme.index_img !== false ? theme.index_img || theme.default_top_img : false
+const pageHeaderClass = homeTopImg === false ? 'not-top-img' : 'full_page'
+
+/**
+ * 上游 layout.pug:51-60：footer 的内联背景。
+ * `footer_bg === false`（默认）→ 无 style 属性；`true` → 用首页 top_img（P2-4 接 bg_img）；
+ * 字符串 → `background-image: url(...)` 或 `background: <css>`。P2-2 只保留分支占位。
+ */
+const footerStyle = undefined as string | undefined
+
+/* ------------------------------------------------------------------ */
+/* 3. preloader（layout.pug:13-14 → loading/index.pug）                 */
+/* ------------------------------------------------------------------ */
+
+const preloaderEnabled = readFlag(theme.preloader, 'enable')
+const loadingAvatar = readString(
+  theme.preloader,
+  'avatar',
+  (theme.avatar as { img?: string } | undefined)?.img ?? '',
+)
+/** 上游 loading/fullpage-loading.pug:6-21 的脚本，逐 token 对齐（Phase 4 会换成 pjax 版）。 */
+const preloaderScript = `const preloader = {
+    endLoading: () => {
+      document.getElementById('loading-box').classList.add("loaded");
+    },
+    initLoading: () => {
+      document.getElementById('loading-box').classList.remove("loaded")
+    }
+  }
+  window.addEventListener('load',()=> { preloader.endLoading() })
+  setTimeout(function(){preloader.endLoading();},10000)
+
+  if (${theme.pjax.enable}) {
+    document.addEventListener('pjax:send', () => { preloader.initLoading() })
+    document.addEventListener('pjax:complete', () => { preloader.endLoading() })
+  }`
+
+/* ------------------------------------------------------------------ */
+/* 4. 首屏 theme bootstrap（html[data-theme] 的运行时契约）              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上游把 `--anzhiyu-*` 变量只定义在 `[data-theme="light"|"dark"]` 下，
+ * 属性缺失时 `background: var(--anzhiyu-background)` 整条声明失效 → 首屏透明
+ * （P1.5 实测，见 docs/notes/P1.5-vertical-slice.md §4.1）。
+ *
+ * 分两层保证：
+ *   1. `<html data-theme={display_mode}>` 静态兜底（= 上游 pug 的行为，无 JS 也有值）；
+ *   2. 本段同步脚本在首屏 paint 前按「用户上次选择 → 系统偏好 → 静态默认」修正。
+ *
+ * localStorage 的格式对齐上游 `saveToLocal`：`{"value":"dark","expiry":<ms>}`，
+ * key = `theme`、TTL 2 天（source/js/main.js:856 `saveToLocal.set("theme", mode, 2)`）。
+ * autoChangeMode：1 = 跟随系统（不支持 dark 时回退 18:00–06:00），2 = 只看时段。
+ */
+const displayMode = theme.display_mode === 'dark' ? 'dark' : 'light'
+const darkmodeConfig = theme.darkmode
+const autoChangeMode =
+  darkmodeConfig.enable && (darkmodeConfig.autoChangeMode === 1 || darkmodeConfig.autoChangeMode === 2)
+    ? darkmodeConfig.autoChangeMode
+    : 0
+
+const themeBootstrap = `(function () {
+    var root = document.documentElement
+    var fallback = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
+    var AUTO = ${autoChangeMode}
+    var mode = fallback
+    try {
+      var raw = localStorage.getItem('theme')
+      var saved = raw ? JSON.parse(raw) : null
+      var alive = saved && (!saved.expiry || saved.expiry > Date.now())
+      if (alive && (saved.value === 'dark' || saved.value === 'light')) {
+        mode = saved.value
+      } else if (AUTO) {
+        var prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
+        var supportsPrefers = !!(prefers && typeof prefers.matches === 'boolean')
+        if (AUTO === 1 && supportsPrefers) {
+          mode = prefers.matches ? 'dark' : 'light'
+        } else {
+          var hour = new Date().getHours()
+          mode = hour >= 18 || hour < 6 ? 'dark' : 'light'
+        }
+      }
+    } catch (error) {
+      mode = fallback
+    }
+    root.setAttribute('data-theme', mode)
+  })()`
+
+/* ------------------------------------------------------------------ */
+/* 5. 其它 layout.pug 挂载点的开关                                      */
+/* ------------------------------------------------------------------ */
+
+const footerBarEnabled = theme.footer.footerBar.enable
+const navMusicEnabled =
+  readFlag(theme.nav_music, 'enable') || readFlag(theme.nav_music, 'console_widescreen_music')
+const navMusicId = readNumber(theme.nav_music, 'id')
+const navMusicServer = readString(theme.nav_music, 'server', 'netease')
+const navMusicVolume = readNumber(theme.nav_music, 'volume', 0.7)
+const navMusicPlaylistLink = readString(theme.nav_music, 'all_playlist')
+const translateConfig = theme.translate
+const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
+---
+
+<!doctype html>
+<html lang={site.language} data-theme={displayMode} class={htmlClass || undefined}>
+  <head>
+    <Head
+      site={site}
+      title={title}
+      description={description}
+      content={content}
+      keywords={keywords}
+      tagNames={tagNames}
+      ogImage={ogImage}
+      ogType={ogType}
+      isHome={isHome}
+      pageUrl={pageUrl}
+    >
+      {/* 首屏 theme bootstrap：必须在 paint 前执行；位置对应上游 GLOBAL_CONFIG（noscript 之前） */}
+      <script slot="head-script" is:inline set:html={themeBootstrap}></script>
+    </Head>
+    <slot name="head-extra" />
+  </head>
+
+  <body data-type="anzhiyu">
+    {/* layout.pug:11 — 全局背景层。Phase 4 改成 transition:persist="web_bg" */}
+    <div id="web_bg"></div>
+    {/* layout.pug:12 — 音乐播放器背景层 */}
+    <div id="an_music_bg"></div>
+
+    {
+      preloaderEnabled && (
+        <div
+          id="loading-box"
+          onclick='document.getElementById("loading-box").classList.add("loaded")'
+        >
+          <div class="loading-bg">
+            <img class="loading-img nolazyload" alt="加载头像" src={loadingAvatar} />
+            <div class="loading-image-dot"></div>
+          </div>
+        </div>
+      )
+    }
+    {preloaderEnabled && <script is:inline set:html={preloaderScript}></script>}
+
+    {
+      is404 ? (
+        <slot name="404" />
+      ) : (
+        <div id="body-wrap" class={pageType}>
+          {/* layout.pug:19 — header/index.pug。P2-4 填充 nav / site-info。 */}
+          <header id="page-header" class={pageHeaderClass}>
+            <nav id="nav">
+              <div id="nav-group"></div>
+            </nav>
+          </header>
+
+          {/* layout.pug:20 — 主内容区 */}
+          <main id="blog-container">
+            {/* layout.pug:23-24 — top/top.pug，仅首页根路径；内容 P2-7 */}
+            {isHome && isCurrentRoot && (
+              <div id="home_top">
+                <div class="swiper_container_card" style="height:auto;width:100%"></div>
+              </div>
+            )}
+
+            {/* layout.pug:43 — 双栏容器：#content-inner.layout */}
+            <div id="content-inner" class={contentInnerClass}>
+              <slot />
+
+              {/* layout.pug:48-49 — widget/index.pug。P3-1 填充 aside 卡片。 */}
+              {theme.aside.enable && aside !== false && (
+                <div id="aside-content" class="aside-content"></div>
+              )}
+            </div>
+          </main>
+
+          {/* layout.pug:60 — footer.pug。P2-4 填充 #footer-wrap 与 #footer-bar。 */}
+          <footer id="footer" style={footerStyle}>
+            <div id="footer-wrap"></div>
+            {footerBarEnabled && (
+              <div id="footer-bar">
+                <div class="footer-bar-links">
+                  <div class="footer-bar-left"></div>
+                  <div class="footer-bar-right"></div>
+                </div>
+              </div>
+            )}
+          </footer>
+        </div>
+      )
+    }
+
+    {/* layout.pug:78 — includes/sidebar。P2-5 填充。 */}
+    <div id="sidebar">
+      <div id="menu-mask"></div>
+      <div id="sidebar-menus"></div>
+    </div>
+
+    {/* layout.pug:82 — rightside.pug。P2-5 填充按钮组。 */}
+    <div id="rightside">
+      <div id="rightside-config-hide"></div>
+      <div id="rightside-config-show"></div>
+    </div>
+
+    {/* layout.pug:84-85 — music.pug（静态结构，交互由 P4-7 接管） */}
+    {
+      navMusicEnabled && (
+        <div id="nav-music">
+          <a id="nav-music-hoverTips" onclick="anzhiyu.musicToggle()" accesskey="m">
+            播放音乐
+          </a>
+          <div id="console-music-bg"></div>
+          <meting-js
+            id={String(navMusicId)}
+            server={navMusicServer}
+            type="playlist"
+            mutex="true"
+            preload="none"
+            theme="var(--anzhiyu-main)"
+            data-lrctype="0"
+            order="random"
+            volume={String(navMusicVolume)}
+          ></meting-js>
+        </div>
+      )
+    }
+
+    {/* layout.pug:87 — anzhiyu/rightmenu.pug（静态结构，交互由 P4-5 接管） */}
+    <div id="rightMenu">
+      <div class="rightMenu-group rightMenu-small">
+        <div class="rightMenu-item" id="menu-backward">
+          <i class="anzhiyufont anzhiyu-icon-arrow-left"></i>
+        </div>
+        <div class="rightMenu-item" id="menu-forward">
+          <i class="anzhiyufont anzhiyu-icon-arrow-right"></i>
+        </div>
+        <div class="rightMenu-item" id="menu-refresh">
+          <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" style="font-size: 1rem;"></i>
+        </div>
+        <div class="rightMenu-item" id="menu-top">
+          <i class="anzhiyufont anzhiyu-icon-arrow-up"></i>
+        </div>
+      </div>
+      <div class="rightMenu-group rightMenu-line rightMenuPlugin">
+        <div class="rightMenu-item" id="menu-copytext">
+          <i class="anzhiyufont anzhiyu-icon-copy"></i>
+          <span>复制选中文本</span>
+        </div>
+        <div class="rightMenu-item" id="menu-pastetext">
+          <i class="anzhiyufont anzhiyu-icon-paste"></i>
+          <span>粘贴文本</span>
+        </div>
+        <a class="rightMenu-item" id="menu-commenttext">
+          <i class="anzhiyufont anzhiyu-icon-comment-medical"></i>
+          <span>引用到评论</span>
+        </a>
+        <div class="rightMenu-item" id="menu-newwindow">
+          <i class="anzhiyufont anzhiyu-icon-window-restore"></i>
+          <span>新窗口打开</span>
+        </div>
+        <div class="rightMenu-item" id="menu-copylink">
+          <i class="anzhiyufont anzhiyu-icon-link"></i>
+          <span>复制链接地址</span>
+        </div>
+        <div class="rightMenu-item" id="menu-copyimg">
+          <i class="anzhiyufont anzhiyu-icon-images"></i>
+          <span>复制此图片</span>
+        </div>
+        <div class="rightMenu-item" id="menu-downloadimg">
+          <i class="anzhiyufont anzhiyu-icon-download"></i>
+          <span>下载此图片</span>
+        </div>
+        <div class="rightMenu-item" id="menu-newwindowimg">
+          <i class="anzhiyufont anzhiyu-icon-window-restore"></i>
+          <span>新窗口打开图片</span>
+        </div>
+        <div class="rightMenu-item" id="menu-search">
+          <i class="anzhiyufont anzhiyu-icon-magnifying-glass"></i>
+          <span>站内搜索</span>
+        </div>
+        <div class="rightMenu-item" id="menu-searchBaidu">
+          <i class="anzhiyufont anzhiyu-icon-magnifying-glass"></i>
+          <span>百度搜索</span>
+        </div>
+        <div class="rightMenu-item" id="menu-music-toggle">
+          <i class="anzhiyufont anzhiyu-icon-play"></i>
+          <span>播放音乐</span>
+        </div>
+        <div class="rightMenu-item" id="menu-music-back">
+          <i class="anzhiyufont anzhiyu-icon-backward"></i>
+          <span>切换到上一首</span>
+        </div>
+        <div class="rightMenu-item" id="menu-music-forward">
+          <i class="anzhiyufont anzhiyu-icon-forward"></i>
+          <span>切换到下一首</span>
+        </div>
+        <div
+          class="rightMenu-item"
+          id="menu-music-playlist"
+          onclick={`window.open("${navMusicPlaylistLink}", "_blank");`}
+          style="display: none;"
+        >
+          <i class="anzhiyufont anzhiyu-icon-radio"></i>
+          <span>查看所有歌曲</span>
+        </div>
+        <div class="rightMenu-item" id="menu-music-copyMusicName">
+          <i class="anzhiyufont anzhiyu-icon-copy"></i>
+          <span>复制歌名</span>
+        </div>
+      </div>
+      <div class="rightMenu-group rightMenu-line rightMenuOther">
+        <a class="rightMenu-item menu-link" id="menu-randomPost">
+          <i class="anzhiyufont anzhiyu-icon-shuffle"></i>
+          <span>随便逛逛</span>
+        </a>
+        <a class="rightMenu-item menu-link" href="/categories/">
+          <i class="anzhiyufont anzhiyu-icon-cube"></i>
+          <span>博客分类</span>
+        </a>
+        <a class="rightMenu-item menu-link" href="/tags/">
+          <i class="anzhiyufont anzhiyu-icon-tags"></i>
+          <span>文章标签</span>
+        </a>
+      </div>
+      <div class="rightMenu-group rightMenu-line rightMenuOther">
+        <a class="rightMenu-item" href="javascript:void(0);" id="menu-copy">
+          <i class="anzhiyufont anzhiyu-icon-copy"></i>
+          <span>复制地址</span>
+        </a>
+        <a class="rightMenu-item" href="javascript:void(0);" id="menu-commentBarrage">
+          <i class="anzhiyufont anzhiyu-icon-message"></i>
+          <span class="menu-commentBarrage-text">关闭热评</span>
+        </a>
+        <a class="rightMenu-item" href="javascript:void(0);" id="menu-darkmode">
+          <i class="anzhiyufont anzhiyu-icon-circle-half-stroke"></i>
+          <span class="menu-darkmode-text">深色模式</span>
+        </a>
+        <a class="rightMenu-item" href="javascript:void(0);" id="menu-translate">
+          <i class="anzhiyufont anzhiyu-icon-language"></i>
+          <span>{rightMenuTranslateText}</span>
+        </a>
+      </div>
+    </div>
+    <div id="rightmenu-mask"></div>
+
+    {/* layout.pug:88 — additional-js.pug 的挂载点；脚本本体 P4-2/P4-3 填 */}
+    <div></div>
+
+    {/* layout.pug:91 — popup/index.pug（静态结构） */}
+    <div id="popup-window">
+      <div class="popup-window-title">通知</div>
+      <div class="popup-window-divider"></div>
+      <div class="popup-window-content">
+        <div class="popup-tip">你好呀</div>
+        <div class="popup-link">
+          <i class="anzhiyufont anzhiyu-icon-arrow-circle-right"></i>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
