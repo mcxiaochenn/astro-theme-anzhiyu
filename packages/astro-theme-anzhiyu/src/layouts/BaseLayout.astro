@@ -44,6 +44,8 @@ import Header from '../components/layout/Header.astro'
 import Footer from '../components/layout/Footer.astro'
 import Sidebar from '../components/layout/Sidebar.astro'
 import Rightside from '../components/layout/Rightside.astro'
+import HomeTop from '../components/home/HomeTop.astro'
+import AsideContent from '../components/widget/AsideContent.astro'
 import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
 import { resolveSite, type SiteConfig } from './site.ts'
 
@@ -84,6 +86,8 @@ interface Props {
   topImg?: string | false
   /** 文章页 TOC 是否可用（上游 `showToc`，P2-8 按 `toc(page.content)` 算好后传入）。 */
   showToc?: boolean
+  /** 文章页抽出的标题（P2-8），交给 aside 的 TOC 卡片渲染。 */
+  headings?: import('../components/widget/toc.ts').TocHeading[]
   /** 评论系统是否加载（上游 `commentsJsLoad`，评论阶段传入）。 */
   commentsLoaded?: boolean
 }
@@ -105,6 +109,7 @@ const {
   pageType: pageTypeProp,
   topImg,
   showToc = false,
+  headings = [],
   commentsLoaded = false,
 } = Astro.props
 
@@ -325,20 +330,16 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
 
           {/* layout.pug:20 — 主内容区 */}
           <main id="blog-container">
-            {/* layout.pug:23-24 — top/top.pug，仅首页根路径；内容 P2-7 */}
-            {isHome && isCurrentRoot && (
-              <div id="home_top">
-                <div class="swiper_container_card" style="height:auto;width:100%"></div>
-              </div>
-            )}
+            {/* layout.pug:23-24 — top/top.pug，仅首页根路径 */}
+            {isHome && isCurrentRoot && <HomeTop site={site} posts={posts} />}
 
             {/* layout.pug:43 — 双栏容器：#content-inner.layout */}
             <div id="content-inner" class={contentInnerClass}>
               <slot />
 
-              {/* layout.pug:48-49 — widget/index.pug。P3-1 填充 aside 卡片。 */}
+              {/* layout.pug:48-49 — widget/index.pug */}
               {theme.aside.enable && aside !== false && (
-                <div id="aside-content" class="aside-content"></div>
+                <AsideContent pageType={pageType} showToc={showToc} headings={headings} />
               )}
             </div>
           </main>

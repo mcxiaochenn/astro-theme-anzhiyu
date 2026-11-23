@@ -1,0 +1,29 @@
+---
+/**
+ * AsideContent.astro — 上游 `layout/includes/widget/index.pug`（P3-1）。
+ *
+ * 挂载点由 BaseLayout 提供：`theme.aside.enable && page.aside !== false` 时渲染
+ * `#aside-content.aside-content`。本文件是该子树的唯一所有者。
+ *
+ * 分支（与上游一致）：
+ *   - `is_post()`：toc_style_simple 为真且 showToc → sticky_layout + TOC；
+ *                  否则作者卡 / 公告 / 微信 / top_self + sticky_layout(TOC? + 最近文章 + 广告)
+ *   - 其它页面：作者卡 / 公告 / 微信 / top_self / 分类 + sticky_layout(广告 + 标签 + 归档 + 站点信息)
+ *
+ * 当前状态：占位空容器，P3-1 填 15 个 widget 卡片。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import type { TocHeading } from './toc.ts'
+
+interface Props {
+  pageType: 'post' | 'page'
+  showToc?: boolean
+  /** 文章页抽出的标题列表（P2-8 通过 BaseLayout 传入）；非文章页为空。 */
+  headings?: TocHeading[]
+}
+
+const { pageType: _pageType, showToc: _showToc = false, headings: _headings = [] } = Astro.props
+const _theme = getThemeConfig()
+---
+
+<div id="aside-content" class="aside-content"></div>

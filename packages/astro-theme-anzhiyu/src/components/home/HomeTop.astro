@@ -1,0 +1,68 @@
+---
+/**
+ * HomeTop.astro — 上游 `layout/includes/top/top.pug`（P2-7 收尾）。
+ *
+ * 挂载点由 BaseLayout 提供：`is_home() && is_current("/")` 时渲染 `#home_top`
+ * （layout.pug:23-24）。本文件是唯一负责该子树的地方，BaseLayout 不再内联任何 home_top 结构。
+ *
+ * 结构（top.pug 逐行对照）：
+ *
+ *   #home_top                                    → 同（home_top.enable 开关）
+ *   .swiper_container_card[style]                → 同
+ *     #bannerGroup                               → <BannerGroup />（random-banner + categoryGroup）
+ *     if theme.home_top.swiper.enable
+ *       #swiper_container_blog                   → <SwiperGroup />
+ *     else
+ *       .topGroup + a#todayCard + link[stylesheet] → <TopGroup />
+ *
+ * 不实现的分支：top.pug:98-135 的 `initBlogSlider()` 脚本（P4 客户端脚本阶段）。
+ */
+import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
+import type { SiteConfig } from '../../layouts/site.ts'
+import { preparePosts, selectTopGroupPosts } from '../post/post-list.ts'
+import BannerGroup from './BannerGroup.astro'
+import TopGroup from './TopGroup.astro'
+import SwiperGroup from './SwiperGroup.astro'
+
+interface Props {
+  site: SiteConfig
+  /** 站点文章集合（Hexo `site.posts`），由 BaseLayout 传入以避免重复查询。 */
+  posts: Array<{ data: Record<string, unknown>; id: string; rendered?: { html?: string } | null }>
+  /** 等价 `site.data.creativity`（tags-group-all.pug 的数据源；上游为可选数据文件）。 */
+  creativity?: unknown
+}
+
+const { site, posts, creativity } = Astro.props
+const theme = getThemeConfig()
+const homeTop = theme.home_top
+
+/** `if home_top_config.enable`（top.pug:3）。 */
+const enabled = homeTop.enable === true
+
+/** `theme.home_top.swiper.enable`（top.pug:33）。 */
+const swiperEnabled = homeTop.swiper.enable === true
+
+/** `theme.peoplecanvas.enable`（top.pug:8）。 */
+const peoplecanvasEnabled = readFlag(theme.peoplecanvas, 'enable')
+
+// `sort_attr_post("top_group_list")` / `sort_attr_post("swiper_list")` 的数据来源：
+// Hexo `hexo.locals.get('posts').data`，即 posts 集合按 date 降序（与首页 sticky 排序无关）。
+const preparedPosts = enabled ? preparePosts(posts) : []
+const topGroupPosts = enabled && !swiperEnabled ? selectTopGroupPosts(preparedPosts, false) : []
+const swiperPosts = enabled && swiperEnabled ? selectTopGroupPosts(preparedPosts, true) : []
+---
+
+{
+  enabled && (
+    <div id="home_top">
+      <div class="swiper_container_card" style="height: auto;width: 100%">
+        <BannerGroup site={site} peoplecanvasEnabled={peoplecanvasEnabled} creativity={creativity} />
+        {swiperEnabled ? (
+          <SwiperGroup posts={swiperPosts} />
+        ) : (
+          <TopGroup posts={topGroupPosts} banner={homeTop.banner} />
+        )}
+      </div>
+    </div>
+  )
+}

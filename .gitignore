@@ -36,3 +36,7 @@ Thumbs.db
 
 # 垂直切片测试的临时证据（截图/日志，结论见 docs/notes/P1.5-vertical-slice.md）
 examples/blog/tests/artifacts/
+
+# 并行 agent 构建用的互斥锁（mkdir 实现，勿提交）
+.build.lock/
+.diff.json
