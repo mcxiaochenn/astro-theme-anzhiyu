@@ -1,0 +1,114 @@
+---
+/**
+ * PostContent.astro — 上游 `layout/post.pug:10-29` 的 `article#article-container.post-content`。
+ *
+ * 结构：
+ *
+ *   article.post-content#article-container[itemscope][itemtype=url]
+ *     header
+ *       a.post-meta-categories × N      post.pug:12-14（post_meta.post.categories）
+ *       a[href][tabindex=-1][itemprop=url] × N   post.pug:15-17（post_meta.page.tags）
+ *       h1#CrawlerTitle
+ *       span[itemprop=author][itemscope][itemtype=schema.org/Person]
+ *       time × 1|2                      post_meta.post.date_type
+ *     != page.content                  → props.bodyHtml（已在 post-page.ts 改写标题）
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import type { SiteConfig } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import { categoryHref } from './post-page.ts'
+import type { PreparedPost } from './post-list.ts'
+
+interface Props {
+  post: PreparedPost
+  data: Record<string, unknown>
+  site: SiteConfig
+  /** `page.copyright_url || page.permalink`（`itemtype` 用）。 */
+  articleUrl: string
+  /** 正文 HTML（标题已改写）。 */
+  bodyHtml: string
+  language?: string | null
+}
+
+const { post, data, site, articleUrl, bodyHtml, language = null } = Astro.props
+const theme = getThemeConfig()
+const _p = (key: string) => tp(key, language)
+
+const postMeta = theme.post_meta
+const dateType = postMeta.post.date_type
+const isBoth = dateType === 'both'
+const updatedMode = dateType === 'updated'
+const mainDate = updatedMode ? post.updated : post.date
+const mainLabel = _p(updatedMode ? 'post.updated' : 'post.created')
+
+const author = (data.copyright_author as string | undefined) || site.author || ''
+const categories = post.categories
+const tags = post.tags
+---
+
+<article
+  class="post-content"
+  id="article-container"
+  itemscope
+  itemtype={articleUrl}
+>
+  <header>
+    {
+      postMeta.post.categories && categories.length > 0 && (
+        <>
+          {categories.map((category) => (
+            <a class="post-meta-categories" href={categoryHref(category.path)} itemprop="url">
+              {category.name}
+            </a>
+          ))}
+        </>
+      )
+    }
+    {
+      postMeta.page.tags && tags.length > 0 && (
+        <>
+          {tags.map((tag) => (
+            <a href={tag.href} tabindex="-1" itemprop="url">
+              {tag.name}
+            </a>
+          ))}
+        </>
+      )
+    }
+    <h1 id="CrawlerTitle" itemprop="name headline">{post.title}</h1>
+    <span itemprop="author" itemscope itemtype="http://schema.org/Person">{author}</span>
+    {
+      dateType && (
+        <>
+          {isBoth ? (
+            <>
+              <time
+                itemprop="dateCreated datePublished"
+                datetime={post.date.xml}
+                title={`${_p('post.created')} ${post.date.full}`}
+              >
+                {post.date.display}
+              </time>
+              <time
+                itemprop="dateCreated datePublished"
+                datetime={post.updated.xml}
+                title={`${_p('post.updated')} ${post.updated.full}`}
+              >
+                {post.updated.display}
+              </time>
+            </>
+          ) : (
+            <time
+              itemprop="dateCreated datePublished"
+              datetime={mainDate.xml}
+              title={`${mainLabel} ${mainDate.full}`}
+            >
+              {mainDate.display}
+            </time>
+          )}
+        </>
+      )
+    }
+  </header>
+  <Fragment set:html={bodyHtml} />
+</article>

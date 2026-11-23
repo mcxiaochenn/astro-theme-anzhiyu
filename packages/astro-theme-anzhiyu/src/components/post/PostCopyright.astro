@@ -1,0 +1,196 @@
+---
+/**
+ * PostCopyright.astro — 上游 `layout/includes/post/post-copyright.pug`（P2-8）。
+ *
+ * 一个组件输出两棵**同级**子树（post-copyright.pug 里它们同属 `if theme.post_copyright.enable`
+ * 块，`.post-tools-right` 不是 `.post-copyright` 的子节点）：
+ *
+ *   .post-copyright
+ *     .copyright-cc-box > i
+ *     .post-copyright__author_box
+ *       a.post-copyright__author_img > img_back + img_front
+ *       .post-copyright__author_name / __author_desc
+ *     .post-copyright__post__info
+ *       a.post-copyright__original|reprint
+ *       a.post-copyright-title > span[onclick=rm.copyPageUrl(...)]
+ *     [PostPtool]                      → .post-copyright__notice
+ *   .post-tools-right
+ *     .tag_share
+ *       .post-meta__box > .post-meta__box__tag-list | __category-list
+ *       [ShareBox]
+ *
+ * 关闭条件：`theme.post_copyright.enable === false` 或 `page.copyright === false`
+ * （short-note 就是后者，整块不输出）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { categoryHref } from './post-page.ts'
+import type { PreparedPost } from './post-list.ts'
+import PostPtool from './PostPtool.astro'
+import ShareBox from './ShareBox.astro'
+
+interface Props {
+  post: PreparedPost
+  data: Record<string, unknown>
+  site: SiteConfig
+  /** `page.copyright_url || page.permalink`。 */
+  articleUrl: string
+  /** `#post-top-bg` 的背景图（ptool 的微博分享 `pic`）。 */
+  bgImg: string
+  tagCounts: Record<string, number>
+  categoryCounts: Record<string, number>
+  language?: string | null
+}
+
+const {
+  post,
+  data,
+  site,
+  articleUrl,
+  bgImg,
+  tagCounts,
+  categoryCounts,
+  language = null,
+} = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor(site.root ?? '/')
+const _p = (key: string) => tp(key, language)
+
+const copy = theme.post_copyright as {
+  enable?: boolean
+  decode?: boolean
+  location?: string
+  license?: string
+  license_url?: string
+  copyright_author_img_back?: string | null
+  copyright_author_img_front?: string | null
+  copyright_author_link?: string
+}
+const avatar = (theme.avatar as { img?: string }).img ?? ''
+
+const enabled = copy.enable === true && data.copyright !== false
+const author = (data.copyright_author as string | undefined) || site.author || ''
+const isReprint = Boolean(data.copyright_author) && data.copyright_author !== site.author
+
+const imgBack = copy.copyright_author_img_back || avatar
+const imgFront = copy.copyright_author_img_front || avatar
+const authorLink = copy.copyright_author_link || '/'
+
+const decode = copy.decode === true
+const urlForCopy = decode ? decodeURI(articleUrl) : articleUrl
+
+/**
+ * `_p('post.copyright.copyright_content', license_url, license, config.url, config.title)`
+ * 的 4 个参数按顺序插值。语言包里该值是一段带 4 个 `%s` 的 HTML 片段，直接 set:html。
+ */
+function copyrightContent(): string {
+  const template = _p('post.copyright.copyright_content')
+  const args = [copy.license_url ?? '', copy.license ?? '', site.url ?? '', site.title]
+  let cursor = 0
+  return template.replace(/%s/g, () => args[cursor++] ?? '')
+}
+
+const info = (typeof data.copyright_info === 'string' && data.copyright_info) || copyrightContent()
+
+const ptool = theme.ptool as { categories?: boolean }
+const showCategories = ptool.categories === true
+const tags = post.tags
+const categories = post.categories
+---
+
+{
+  enabled && (
+    <>
+      <div class="post-copyright">
+        <div class="copyright-cc-box">
+          <i class="anzhiyufont anzhiyu-icon-copyright" />
+        </div>
+        <div class="post-copyright__author_box">
+          <a class="post-copyright__author_img" href={urlFor(authorLink)} title="头像">
+            <img
+              class="post-copyright__author_img_back"
+              title="头像"
+              alt="头像"
+              {...lazyImageAttrs(urlFor(imgBack), { theme, urlFor })}
+            />
+            <img
+              class="post-copyright__author_img_front"
+              title="头像"
+              alt="头像"
+              {...lazyImageAttrs(urlFor(imgFront), { theme, urlFor })}
+            />
+          </a>
+          <div class="post-copyright__author_name">{author}</div>
+          <div class="post-copyright__author_desc">{site.subtitle}</div>
+        </div>
+        <div class="post-copyright__post__info">
+          {isReprint ? (
+            <a
+              class="post-copyright__reprint"
+              title="该文章为转载文章，注意版权协议"
+              href={urlFor(articleUrl)}
+            >
+              转载
+            </a>
+          ) : (
+            <a
+              class="post-copyright__original"
+              title="该文章为原创文章，注意版权协议"
+              href={urlFor(articleUrl)}
+            >
+              原创
+            </a>
+          )}
+          <a class="post-copyright-title">
+            <span onclick={`rm.copyPageUrl('${urlForCopy}')`}>{post.title}</span>
+          </a>
+        </div>
+        <PostPtool
+          siteTitle={post.title}
+          url={articleUrl}
+          bgImg={bgImg}
+          language={language}
+        />
+        <div class="post-copyright__notice">
+          <span class="post-copyright-info" set:html={info} />
+        </div>
+      </div>
+
+      <div class="post-tools-right">
+        <div class="tag_share">
+          <div class="post-meta__box">
+            {showCategories && categories.length > 0 && (
+              <div class="post-meta__box__category-list">
+                {categories.map((category) => (
+                  <a class="post-meta__box__categoryes" href={categoryHref(category.path)}>
+                    <span class="categoryes-punctuation">
+                      <i class="anzhiyufont anzhiyu-icon-inbox" />
+                    </span>
+                    {category.name}
+                    <span class="categoryesPageCount">{categoryCounts[category.name] ?? 0}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+            {theme.post_meta.post.tags && tags.length > 0 && (
+              <div class="post-meta__box__tag-list">
+                {tags.map((tag) => (
+                  <a class="post-meta__box__tags" href={tag.href}>
+                    <span class="tags-punctuation">
+                      <i class="anzhiyufont anzhiyu-icon-tag" />
+                    </span>
+                    {tag.name}
+                    <span class="tagsPageCount">{tagCounts[tag.name] ?? 0}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <ShareBox post={post} />
+      </div>
+    </>
+  )
+}

@@ -1,0 +1,65 @@
+---
+/**
+ * RelatedPosts.astro — 上游 `scripts/helpers/related_post.js` 的字符串拼接结果（P2-8）。
+ *
+ *   .relatedPosts
+ *     .headline > i.anzhiyufont.anzhiyu-icon-thumbs-up.fa-fw + span
+ *     .relatedPosts-list
+ *       div > a[href][title] > img.cover + .content.is-center(.date + .title)
+ *
+ * 排序与截断在 `post-page.ts` 的 `buildRelated()` 里完成（按权重降序、limit 截断）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import { lazyImageAttrs } from '../layout/lazyload.ts'
+import type { RelatedPostItem } from './post-page.ts'
+
+interface Props {
+  items: RelatedPostItem[]
+  language?: string | null
+}
+
+const { items, language = null } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+const _p = (key: string) => tp(key, language)
+
+const relatedConfig = theme.related_post as { date_type?: string }
+const updatedMode = relatedConfig.date_type === 'updated'
+const dateIcon = updatedMode ? 'anzhiyu-icon-history' : 'anzhiyu-icon-calendar-days'
+---
+
+{
+  items.length > 0 && (
+    <div class="relatedPosts">
+      <div class="headline">
+        <i
+          class="anzhiyufont anzhiyu-icon-thumbs-up fa-fw"
+          style="font-size: 1.5rem; margin-right: 4px"
+        />
+        <span>{_p('post.recommend')}</span>
+      </div>
+      <div class="relatedPosts-list">
+        {items.map(({ post }) => {
+          const cover = post.cover === false ? undefined : post.cover
+          const coverSrc = urlFor(cover)
+          const date = updatedMode ? post.updated : post.date
+          return (
+            <div>
+              <a href={post.href} title={post.title}>
+                <img class="cover" alt="cover" {...lazyImageAttrs(coverSrc, { theme, urlFor })} />
+                <div class="content is-center">
+                  <div class="date">
+                    <i class:list={['anzhiyufont', dateIcon, 'fa-fw']} /> {date.display}
+                  </div>
+                  <div class="title">{post.title}</div>
+                </div>
+              </a>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

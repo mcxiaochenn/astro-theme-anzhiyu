@@ -1,0 +1,54 @@
+---
+/**
+ * PostAiDescription.astro — 上游 `layout/includes/anzhiyu/ai-info.pug`（P2-8 附带）。
+ *
+ * `post.pug:7-8` 在 `theme.post_head_ai_description` 开启且 `page.ai` 为真时，
+ * 把这块插在 `#post` 的最前面。基准站长文 fixture 有 `ai: true`，所以它出现在文章页 DOM 里；
+ * 不实现会在 diff 里留下整棵缺失子树，故与文章页一起落地。
+ *
+ * 内部文案是固定中文（上游 pug 写死），`#ai-tag` 取 `gptName + ' GPT'`。
+ * `script` 的 src 对应上游 `theme.asset.ai_abstract_js`，基准产物为
+ * `/js/anzhiyu/ai_abstract.js`。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+
+interface Props {
+  /** `page.ai`。 */
+  ai?: unknown
+}
+
+const { ai } = Astro.props
+const theme = getThemeConfig()
+
+const aiConfig = theme.post_head_ai_description as {
+  enable?: boolean
+  gptName?: string
+  mode?: string
+}
+const enabled = aiConfig.enable === true && ai === true
+const gptName = aiConfig.gptName || 'AnZhiYu'
+const tag = aiConfig.mode === 'tianli' ? 'Tianli GPT' : `${gptName} GPT`
+---
+
+{
+  enabled && (
+    <div class="post-ai-description">
+      <div class="ai-title">
+        <i class="anzhiyufont anzhiyu-icon-bilibili" />
+        <div class="ai-title-text">AI-摘要</div>
+        <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+        <i class="anzhiyufont anzhiyu-icon-circle-dot" title="朗读摘要" />
+        <div id="ai-tag">{tag}</div>
+      </div>
+      <div class="ai-explanation">AI初始化中...</div>
+      <div class="ai-btn-box">
+        <div class="ai-btn-item">介绍自己 🙈</div>
+        <div class="ai-btn-item">生成本文简介 👋</div>
+        <div class="ai-btn-item">推荐相关文章 📖</div>
+        <div class="ai-btn-item">前往主页 🏠</div>
+        <div class="ai-btn-item" id="go-tianli-blog">前往爱发电购买</div>
+      </div>
+      <script is:inline src="/js/anzhiyu/ai_abstract.js" data-pjax />
+    </div>
+  )
+}

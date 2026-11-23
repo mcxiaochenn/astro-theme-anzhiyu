@@ -21,7 +21,8 @@
     "check:loader": "node scripts/check-loader.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:helpers": "node scripts/check-helpers.mjs",
-    "check:date": "node scripts/check-date.mjs"
+    "check:date": "node scripts/check-date.mjs",
+    "check:slugger": "node scripts/check-slugger.mjs"
   },
   "dependencies": {
     "zod": "^4.6.7"

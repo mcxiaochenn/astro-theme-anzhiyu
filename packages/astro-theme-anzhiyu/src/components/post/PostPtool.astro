@@ -1,0 +1,120 @@
+---
+/**
+ * PostPtool.astro — 上游 `layout/includes/post/ptool.pug`（P2-8）。
+ *
+ * 结构：
+ *
+ *   #post-tools.post-tools
+ *     .post-tools-left
+ *       .rewardLeftButton
+ *         [PostReward]                  ptool.pug:18-20（reward.enable && QR_code）
+ *         .reward-link.mode             ptool.pug:21-25（ptool.mode 非空）
+ *       .shareRight
+ *         .share-link.mobile            ptool.share_mobile
+ *         .share-link.weibo             ptool.share_weibo
+ *         script + .share-link.copyurl  ptool.share_copyurl
+ *
+ * 基准配置：share_mobile / share_weibo / share_copyurl 全开，mode 为空。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import PostReward from './PostReward.astro'
+
+interface Props {
+  /** `page.title`（微博分享的 `title` 参数）。 */
+  siteTitle: string
+  /** `page.copyright_url || page.permalink`。 */
+  url: string
+  /** `top_img` 链解析出的背景图（微博分享的 `pic` 参数）。 */
+  bgImg: string
+  language?: string | null
+}
+
+const { siteTitle, url, bgImg, language = null } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+
+const ptool = theme.ptool as {
+  enable?: boolean
+  share_mobile?: boolean
+  share_weibo?: boolean
+  share_copyurl?: boolean
+  mode?: string | null
+}
+
+/** ptool.pug:41-51 的内联脚本，逐字符对齐 baseline 与上游 pug。 */
+const copyUrlScript = `function copyCurrentPageUrl() {
+  var currentPageUrl = window.location.href;
+  var input = document.createElement("input");
+  input.setAttribute("value", currentPageUrl);
+  document.body.appendChild(input);
+  input.select();
+  input.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+  document.body.removeChild(input);
+}`
+---
+
+{
+  ptool.enable === true && (
+    <div id="post-tools" class="post-tools">
+      <div class="post-tools-left">
+        <div class="rewardLeftButton">
+          <PostReward language={language} />
+          {ptool.mode && (
+            <div class="reward-link mode">
+              <a class="reward-link-button" href={urlFor(ptool.mode)}>
+                <i class="anzhiyufont anzhiyu-icon-plant-fill" />
+                运营模式与责任
+              </a>
+            </div>
+          )}
+        </div>
+        <div class="shareRight">
+          {ptool.share_mobile && (
+            <div class="share-link mobile">
+              <div class="share-qrcode">
+                <div class="share-button" title="使用手机访问这篇文章">
+                  <i class="anzhiyufont anzhiyu-icon-qrcode" />
+                </div>
+                <div class="share-main">
+                  <div class="share-main-all">
+                    <div id="qrcode" title={url} />
+                    <div class="reward-dec">使用手机访问这篇文章</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {ptool.share_weibo && (
+            <div class="share-link weibo">
+              <a
+                class="share-button"
+                target="_blank"
+                href={`https://service.weibo.com/share/share.php?title=${siteTitle}&url=${url}&pic=${bgImg}`}
+                rel="external nofollow noreferrer noopener"
+              >
+                <i class="anzhiyufont anzhiyu-icon-weibo" />
+              </a>
+            </div>
+          )}
+          {ptool.share_copyurl && (
+            <>
+              <script is:inline set:html={copyUrlScript} />
+              <div class="share-link copyurl">
+                <div
+                  class="share-button"
+                  id="post-share-url"
+                  title="复制链接"
+                  onclick="copyCurrentPageUrl()"
+                >
+                  <i class="anzhiyufont anzhiyu-icon-link" />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

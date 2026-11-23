@@ -1,0 +1,67 @@
+---
+/**
+ * PostReward.astro — 上游 `layout/includes/post/reward.pug` + `ptool.pug:18-20`。
+ *
+ * 只在 `theme.reward.enable && theme.reward.QR_code` 时由 PostPtool 渲染。
+ * `#quit-box` 与 `.post-reward` 是同级节点（reward.pug:1 与 :18），所以整块由本组件输出。
+ *
+ * 二维码图片走 lazyload 改写：`post_lazyload.js` 会改写所有 `<img src>`，
+ * 与首页卡片用同一个 `lazyImageAttrs()`。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import { lazyImageAttrs } from '../layout/lazyload.ts'
+
+interface Props {
+  language?: string | null
+}
+
+const { language = null } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+const _p = (key: string) => tp(key, language)
+
+const reward = theme.reward as {
+  enable?: boolean
+  QR_code?: Array<{ img: string; link?: string | null; text: string }>
+}
+const items = Array.isArray(reward.QR_code) ? reward.QR_code : []
+---
+
+{
+  reward.enable === true && items.length > 0 && (
+    <>
+      <div class="post-reward" onclick="anzhiyu.addRewardMask()">
+        <div class="reward-button button--animated" title={_p('reward.title')}>
+          <i class="anzhiyufont anzhiyu-icon-hand-heart-fill" />
+          {_p('reward.button')}
+        </div>
+        <div class="reward-main">
+          <div class="reward-all">
+            <span class="reward-title">{_p('reward.thanks')}</span>
+            <ul class="reward-group">
+              {items.map((item) => (
+                <li class="reward-item">
+                  <a href={urlFor(item.link || item.img)} target="_blank">
+                    <img
+                      class="post-qr-code-img"
+                      alt={item.text}
+                      {...lazyImageAttrs(urlFor(item.img), { theme, urlFor })}
+                    />
+                  </a>
+                  <div class="post-qr-code-desc">{item.text}</div>
+                </li>
+              ))}
+            </ul>
+            <a class="reward-main-btn" href="/about/#about-reward" target="_blank">
+              <div class="reward-text">{_p('reward.list')}</div>
+              <div class="reward-dec">{_p('reward.list_desc')}</div>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div id="quit-box" onclick="anzhiyu.removeRewardMask()" style="display: none" />
+    </>
+  )
+}
