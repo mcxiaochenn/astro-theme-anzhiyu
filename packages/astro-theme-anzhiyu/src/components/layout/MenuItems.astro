@@ -1,0 +1,124 @@
+---
+/**
+ * MenuItems.astro — 上游 `layout/includes/header/menu_item.pug`（P2-4 抽出的公共片段）。
+ *
+ * 两个消费者，输出必须完全一致：
+ *   - `Header.astro` 的 `#menus`（nav.pug:27-28）
+ *   - `Sidebar.astro` 的 `#sidebar-menus`（sidebar.pug:35-36，`theme.sidebar.menus_items`）
+ *
+ * 数据源是**顶层** `theme.menu`（不是 `theme.nav.menu`；后者只喂导航下拉与侧栏
+ * 「返回菜单」分组）。两种值形态：
+ *
+ *   menu:
+ *     文章: /archives/ || anzhiyu-icon-box-archive          # 叶子：url || icon || animation
+ *     友链:                                                 # 下拉：label 也可带 icon
+ *       友人帐: /link/ || anzhiyu-icon-link
+ *
+ * 基准站 `theme.menu: null`（theme.config.yml 里整块注释掉）→ 上游 `if theme.menu`
+ * 不成立，组件输出空；baseline 的 `#menus` 也是空 div。这里的循环是为配置完整性保留。
+ *
+ * 图标三种写法与上游一致（fa* → `<i>`；icon* → `<svg><use>`；anzhiyu* → `<i.anzhiyufont>`
+ * 且菜单项带 `style="font-size: 0.9em;"`）。动画默认 `faa-tada`。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+
+interface Props {
+  site: SiteConfig
+}
+
+const { site } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor(site.root ?? '/')
+
+/** 一份菜单值 → `{ href, icon, animation }`（`'url || icon || anima'`）。 */
+function parseMenuValue(value: string): { href: string; icon: string; animation: string } {
+  const parts = value.split('||')
+  return {
+    href: parts[0].trim(),
+    icon: parts[1] ? parts[1].trim() : '',
+    animation: parts[2] ? parts[2].trim() : 'faa-tada',
+  }
+}
+
+type MenuMap = Record<string, string | Record<string, string>>
+
+/**
+ * `theme.menu` 在 schema 里是 `z.unknown()`（上游允许任意嵌套结构），这里做一次
+ * 形状收窄：只要是非空对象就按上游 `each value, label in theme.menu` 遍历。
+ */
+const rawMenu = theme.menu
+const menu: MenuMap | null =
+  rawMenu && typeof rawMenu === 'object' && !Array.isArray(rawMenu)
+    ? (rawMenu as MenuMap)
+    : null
+const menuEntries = menu ? Object.entries(menu) : []
+---
+
+{
+  menuEntries.length > 0 && (
+    <div class="menus_items">
+      {menuEntries.map(([label, value]) => {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+          const leaf = parseMenuValue(String(value))
+          return (
+            <div class="menus_item">
+              <a class="site-page faa-parent animated-hover" href={urlFor(leaf.href)}>
+                {leaf.icon.startsWith('fa') ? (
+                  <i class={`${leaf.icon} ${leaf.animation}`} />
+                ) : leaf.icon.startsWith('icon') ? (
+                  <svg class={`icon ${leaf.animation}`} aria-hidden="true">
+                    <use xlink:href={`#${leaf.icon}`} />
+                  </svg>
+                ) : leaf.icon.startsWith('anzhiyu') ? (
+                  <i class={`anzhiyufont ${leaf.icon} ${leaf.animation}`} style="font-size: 0.9em;" />
+                ) : null}
+                <span>{' ' + label}</span>
+              </a>
+            </div>
+          )
+        }
+
+        // 下拉：label 自己也可以带 icon / animation
+        const parent = parseMenuValue(label)
+        return (
+          <div class="menus_item">
+            <a class="site-page" href="javascript:void(0);">
+              {parent.icon.startsWith('fa') ? (
+                <i class={`${parent.icon} ${parent.animation}`} />
+              ) : parent.icon.startsWith('icon') ? (
+                <svg class={`icon ${parent.animation}`} aria-hidden="true">
+                  <use xlink:href={`#${parent.icon}`} />
+                </svg>
+              ) : parent.icon.startsWith('anzhiyu') ? (
+                <i class={`anzhiyufont ${parent.icon} ${parent.animation}`} style="font-size: 0.9em;" />
+              ) : null}
+              <span>{' ' + parent.href}</span>
+            </a>
+            <ul class="menus_item_child">
+              {Object.entries(value).map(([childLabel, childValue]) => {
+                const child = parseMenuValue(String(childValue))
+                return (
+                  <li>
+                    <a class="site-page child faa-parent animated-hover" href={urlFor(child.href)}>
+                      {child.icon.startsWith('fa') ? (
+                        <i class={`${child.icon} ${child.animation}`} />
+                      ) : child.icon.startsWith('icon') ? (
+                        <svg class={`icon ${child.animation}`} aria-hidden="true">
+                          <use xlink:href={`#${child.icon}`} />
+                        </svg>
+                      ) : child.icon.startsWith('anzhiyu') ? (
+                        <i class={`anzhiyufont ${child.icon} ${child.animation}`} style="font-size: 0.9em;" />
+                      ) : null}
+                      <span>{' ' + childLabel}</span>
+                    </a>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

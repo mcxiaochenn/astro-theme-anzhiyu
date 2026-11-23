@@ -9,17 +9,15 @@
  *     #an_music_bg                    layout.pug:12
  *     #loading-box                    layout.pug:13-14（preloader，theme.preloader.enable）
  *     #body-wrap.page|.post           layout.pug:18（pageType = is_post() ? 'post' : 'page'）
- *       header#page-header            layout.pug:19   占位：P2-4 填 nav / site-info
+ *       <Header />                    layout.pug:19   header/index.pug（P2-4：header#page-header + nav）
  *       main#blog-container           layout.pug:20
  *         #home_top                   layout.pug:23-24（is_current("/")，占位：P2-7）
  *         #content-inner.layout       layout.pug:43   页面内容 slot + widget 侧栏
  *           <slot />                  layout.pug:44-47（block content）
  *           #aside-content            layout.pug:48-49 占位：P3-1 填 widget 卡片
- *       footer#footer                 layout.pug:60
- *         #footer-wrap                layout.pug:60-61 占位：P2-4
- *         #footer-bar                 footer.pug:67-68（theme.footer.footerBar.enable）
- *     #sidebar                        layout.pug:78    占位：P2-5
- *     #rightside                      layout.pug:82    占位：P2-5
+ *       <Footer />                    layout.pug:60   footer.pug（P2-4：footer#footer + footer-wrap + footer-bar）
+ *     <Sidebar />                     layout.pug:78   sidebar.pug（P2-5）
+ *     <Rightside />                   layout.pug:82   rightside.pug（P2-5）
  *     #nav-music                      layout.pug:84-85（music.pug 静态结构）
  *     #rightMenu / #rightmenu-mask    layout.pug:87（rightmenu 静态结构）
  *     div                             layout.pug:88（additional-js 的挂载点，脚本 P4-2 填）
@@ -31,11 +29,21 @@
  *   - search（三套搜索默认关闭，include 本身输出为空）→ P4-8
  *   - ClientRouter / `transition:persist` / pjax shim → P4-3
  *   - pace 进度条（theme.preloader.source === 3 的第二段）→ P4-1（asset URL）
+ *   - `#console` 中控台面板（nav.pug 的 include）→ P4-6
+ *
+ * 站点数据（P2-5 新增）：`sidebar` 的文章数 / 标签数 / 分类数 / 标签云，在上游来自
+ * Hexo 的站点全局 `site.posts` / `site.tags` / `site.categories`。这里从内容集合
+ * `posts` 现场算出来传给 Sidebar（唯一的数据源等价物）。
  *
  * 样式入口不在这里引入：上游 302KB Stylus 当前还在 `examples/blog/src/styles/upstream/`，
  * 由站点（`examples/blog/src/pages/index.astro`）统一 import 一次，主题包不复制样式。
  */
+import { getCollection } from 'astro:content'
 import Head from '../components/Head.astro'
+import Header from '../components/layout/Header.astro'
+import Footer from '../components/layout/Footer.astro'
+import Sidebar from '../components/layout/Sidebar.astro'
+import Rightside from '../components/layout/Rightside.astro'
 import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
 import { resolveSite, type SiteConfig } from './site.ts'
 
@@ -68,6 +76,16 @@ interface Props {
   pageUrl?: string
   /** `#body-wrap` 的 pageType（上游 `is_post() ? 'post' : 'page'`）。 */
   pageType?: 'post' | 'page'
+  /**
+   * 页面顶部图（上游 `page.top_img` 链）：
+   * string = 有图 / false = 显式关闭 / 缺省 = 按主题配置（`index_img`、`default_top_img`）回退。
+   * 文章页应传 `page.top_img || page.cover || page.randomcover`（P2-8）。
+   */
+  topImg?: string | false
+  /** 文章页 TOC 是否可用（上游 `showToc`，P2-8 按 `toc(page.content)` 算好后传入）。 */
+  showToc?: boolean
+  /** 评论系统是否加载（上游 `commentsJsLoad`，评论阶段传入）。 */
+  commentsLoaded?: boolean
 }
 
 const {
@@ -85,6 +103,9 @@ const {
   aside,
   pageUrl,
   pageType: pageTypeProp,
+  topImg,
+  showToc = false,
+  commentsLoaded = false,
 } = Astro.props
 
 const site = resolveSite(siteInput)
@@ -104,23 +125,59 @@ const htmlClass = theme.aside.enable && theme.aside.hide ? 'hide-aside' : ''
 const contentInnerClass = !theme.aside.enable || aside === false ? 'layout hide-aside' : 'layout'
 
 /* ------------------------------------------------------------------ */
-/* 2. header / footer 的显示分支（内容由 P2-4 填）                       */
+/* 2. 站点数据：sidebar 的 site.posts / site.tags / site.categories       */
 /* ------------------------------------------------------------------ */
 
 /**
- * 上游 header/index.pug:1-24：首页 top_img = `index_img !== false ? index_img || default_top_img : false`。
- * 默认配置 `index_img: false`、`default_top_img: false` → `not-top-img`，不渲染 site-info。
+ * 上游这三个是 Hexo 的站点全局变量（`site.posts.length` 等），不是主题配置。
+ * Astro 侧唯一的等价数据源是内容集合：基准站与本站的集合名都是 `posts`
+ * （见 `examples/blog/src/content.config.ts`），这里直接读它。
+ *
+ * 取舍：这是 P2-5 引入的一次「主题布局 → 站点内容集合」耦合。Phase 7 站点配置层
+ * 落地后，应该改成由站点向布局注入 site 数据（或主题导出一个 data adapter），
+ * 届时 Sidebar 的 props 不变、只换数据来源。详见
+ * docs/notes/P2-4-5-header-footer-sidebar.md。
+ *
+ * 计数口径与 Hexo 对齐：
+ *   - posts：`site.posts` = 所有文章，**不含** `layout: page` 的独立页面；
+ *   - tags：`site.tags` = 去重后的标签种类数；
+ *   - categories：`site.categories` = 分类节点数。Hexo 的嵌套分类（fixtures 里的
+ *     `categories: [[前端, Astro], 工程实践]`）会给每一级都建节点，所以这里递归摊平后去重。
  */
-const homeTopImg =
-  !theme.disable_top_img && theme.index_img !== false ? theme.index_img || theme.default_top_img : false
-const pageHeaderClass = homeTopImg === false ? 'not-top-img' : 'full_page'
+const collectionEntries = await getCollection('posts')
+const posts = collectionEntries.filter((entry) => entry.data.layout !== 'page')
 
-/**
- * 上游 layout.pug:51-60：footer 的内联背景。
- * `footer_bg === false`（默认）→ 无 style 属性；`true` → 用首页 top_img（P2-4 接 bg_img）；
- * 字符串 → `background-image: url(...)` 或 `background: <css>`。P2-2 只保留分支占位。
- */
-const footerStyle = undefined as string | undefined
+const tagCounts = new Map<string, number>()
+const categoryNames = new Set<string>()
+
+/** 递归摊平 `categories: string | string[] | (string | string[])[]`。 */
+function collectCategoryNames(value: unknown, out: Set<string>): void {
+  if (typeof value === 'string') {
+    if (value) out.add(value)
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectCategoryNames(item, out)
+  }
+}
+
+for (const post of posts) {
+  const postTags = post.data.tags
+  if (Array.isArray(postTags)) {
+    for (const tag of postTags) {
+      if (typeof tag !== 'string' || !tag) continue
+      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
+    }
+  }
+  collectCategoryNames(post.data.categories, categoryNames)
+}
+
+/** 上游 `site.tags` 的等价投影：cloudTags 需要的 `{ name, path, length }`。 */
+const sidebarTags = [...tagCounts.entries()].map(([name, length]) => ({
+  name,
+  path: `tags/${encodeURIComponent(name)}/`,
+  length,
+}))
 
 /* ------------------------------------------------------------------ */
 /* 3. preloader（layout.pug:13-14 → loading/index.pug）                 */
@@ -204,7 +261,6 @@ const themeBootstrap = `(function () {
 /* 5. 其它 layout.pug 挂载点的开关                                      */
 /* ------------------------------------------------------------------ */
 
-const footerBarEnabled = theme.footer.footerBar.enable
 const navMusicEnabled =
   readFlag(theme.nav_music, 'enable') || readFlag(theme.nav_music, 'console_widescreen_music')
 const navMusicId = readNumber(theme.nav_music, 'id')
@@ -262,12 +318,10 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
         <slot name="404" />
       ) : (
         <div id="body-wrap" class={pageType}>
-          {/* layout.pug:19 — header/index.pug。P2-4 填充 nav / site-info。 */}
-          <header id="page-header" class={pageHeaderClass}>
-            <nav id="nav">
-              <div id="nav-group"></div>
-            </nav>
-          </header>
+          {/* layout.pug:19 — header/index.pug（P2-4）。文章页的 #post-info 由 P2-8 通过插槽注入 */}
+          <Header site={site} isHome={isHome} pageType={pageType} topImg={topImg} siteTitle={title}>
+            <slot name="post-info" slot="post-info" />
+          </Header>
 
           {/* layout.pug:20 — 主内容区 */}
           <main id="blog-container">
@@ -289,33 +343,29 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
             </div>
           </main>
 
-          {/* layout.pug:60 — footer.pug。P2-4 填充 #footer-wrap 与 #footer-bar。 */}
-          <footer id="footer" style={footerStyle}>
-            <div id="footer-wrap"></div>
-            {footerBarEnabled && (
-              <div id="footer-bar">
-                <div class="footer-bar-links">
-                  <div class="footer-bar-left"></div>
-                  <div class="footer-bar-right"></div>
-                </div>
-              </div>
-            )}
-          </footer>
+          {/* layout.pug:60 — footer.pug（P2-4） */}
+          <Footer site={site} topImg={topImg} />
         </div>
       )
     }
 
-    {/* layout.pug:78 — includes/sidebar。P2-5 填充。 */}
-    <div id="sidebar">
-      <div id="menu-mask"></div>
-      <div id="sidebar-menus"></div>
-    </div>
+    {/* layout.pug:78 — sidebar.pug（P2-5） */}
+    <Sidebar
+      site={site}
+      postCount={posts.length}
+      tagCount={tagCounts.size}
+      categoryCount={categoryNames.size}
+      tags={sidebarTags}
+    />
 
-    {/* layout.pug:82 — rightside.pug。P2-5 填充按钮组。 */}
-    <div id="rightside">
-      <div id="rightside-config-hide"></div>
-      <div id="rightside-config-show"></div>
-    </div>
+    {/* layout.pug:82 — rightside.pug（P2-5） */}
+    <Rightside
+      site={site}
+      pageType={pageType}
+      aside={aside}
+      showToc={showToc}
+      commentsLoaded={commentsLoaded}
+    />
 
     {/* layout.pug:84-85 — music.pug（静态结构，交互由 P4-7 接管） */}
     {

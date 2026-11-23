@@ -1,0 +1,269 @@
+---
+/**
+ * Footer.astro — 上游 `layout/includes/footer.pug`（P2-4）。
+ *
+ * 复刻结构：
+ *   footer#footer[style]（style 来自 layout.pug:51-58 的 footer_bg 三段分支）
+ *     #footer-wrap
+ *       #footer_deal（footer.socialBar：左右 deal_link + 中间头像，点击回顶）
+ *       .copyright（footer.owner，且 footerBar 关闭时才出）
+ *       #workboard（footer.runtime：摸鱼状态图 + #runtimeTextTip）
+ *       .footer_custom_text（footer.custom_text，原样 HTML）
+ *       #anzhiyu-footer（footer.list：项目链接组 + 随机友链按钮）
+ *       p#ghbdages（footer.bdageitem：shields 徽标）
+ *     #footer-bar（footer.footerBar）
+ *       .footer-bar-links > .footer-bar-left（#footer-bar-tips 版权 + #footer-type-tips + 打字机）
+ *                        + .footer-bar-right（linkList + CC 协议图标）
+ *
+ * 基准站配置：`footer.owner.enable: true`、`footer.footerBar.enable: true`，
+ * 其余（socialBar/runtime/list/bdageitem）全关 → baseline 的 `#footer-wrap` 是空 div，
+ * 实际可见只剩 `#footer-bar` 里的版权 + 主题链接。分支都实现，供配置完整复刻。
+ *
+ * 明确不做：
+ *   - `footerBar.subTitle` 打字机：要 Typed.js / 一言接口 / 今日诗词 SDK，属 P4-1 资源层 + 交互；
+ *     本组件保留 `#footer-type-tips` 容器（baseline 也是空 div）。
+ *   - 外链的 `target="_blank" rel="noopener"` 是 Hexo**站点级** `external_link` 过滤器
+ *     （`field: site`）加的，不是 pug 写的 → 站点配置层（Phase 7）统一处理；
+ *     作者链接的 `target="_blank"` 是 pug 自己写的，这里保留。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import { lazyImageAttrs } from './lazyload.ts'
+
+interface Props {
+  site: SiteConfig
+  /** 页面 top_img（`layout.pug:51-58` 的 `footer_bg === true` 分支会复用它）。 */
+  topImg?: string | false
+}
+
+const { site, topImg } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor(site.root ?? '/')
+const lang = site.language
+const _p = (key: string) => tp(key, lang)
+
+const footer = theme.footer
+const footerBar = footer.footerBar
+const nowYear = new Date().getFullYear()
+
+/* ------------------------------------------------------------------ */
+/* 1. footer#footer 的 style（layout.pug:51-58）                        */
+/* ------------------------------------------------------------------ */
+
+/** `bg_img`：header 里的 top_img 转成 URL（`header/index.pug:13-14`）。 */
+const bgImg = topImg && topImg !== false ? (topImg.includes('/') ? urlFor(topImg) : topImg) : ''
+
+const rawFooterBg: unknown = theme.footer_bg
+let footerStyle: string | undefined
+if (rawFooterBg) {
+  if (rawFooterBg === true) {
+    // 上游把 `bg_img`（裸 URL）直接塞进 style 属性，浏览器会整条丢弃；照抄语义。
+    footerStyle = bgImg
+  } else if (typeof rawFooterBg === 'string') {
+    footerStyle = rawFooterBg.includes('/')
+      ? `background-image: url('${urlFor(rawFooterBg)}')`
+      : `background: ${rawFooterBg}`
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* 2. #footer_deal（socialBar）的图标分支                               */
+/* ------------------------------------------------------------------ */
+
+/** 三种图标写法：fa* → `<i>`；icon* → `<svg><use>`；anzhiyu* → `<i.anzhiyufont>`（无动画类）。 */
+function iconKind(icon: string): 'fa' | 'svg' | 'anzhiyu' | 'none' {
+  if (icon.startsWith('fa')) return 'fa'
+  if (icon.startsWith('icon')) return 'svg'
+  if (icon.startsWith('anzhiyu')) return 'anzhiyu'
+  return 'none'
+}
+
+const socialBar = footer.socialBar
+const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string } | undefined)?.img || ''
+---
+
+<footer id="footer" style={footerStyle}>
+  <div id="footer-wrap">
+    {
+      socialBar.enable && (
+        <div id="footer_deal">
+          {(socialBar.left ?? []).map((item) => (
+            <a class="deal_link" href={urlFor(item.link)} title={item.title}>
+              {iconKind(item.icon) === 'fa' ? (
+                <i class={item.icon} />
+              ) : iconKind(item.icon) === 'svg' ? (
+                <svg class="icon" aria-hidden="true">
+                  <use xlink:href={`#${item.icon}`} />
+                </svg>
+              ) : iconKind(item.icon) === 'anzhiyu' ? (
+                <i class={`anzhiyufont ${item.icon}`} />
+              ) : null}
+            </a>
+          ))}
+          <img
+            class="footer_mini_logo"
+            title={_p('footer.back_to_top')}
+            alt={_p('footer.back_to_top')}
+            onclick="anzhiyu.scrollToDest(0, 500)"
+            size="50px"
+            {...lazyImageAttrs(socialCenterImg, { theme, urlFor })}
+          />
+          {(socialBar.right ?? []).map((item) => (
+            <a class="deal_link" href={urlFor(item.link)} title={item.title}>
+              {iconKind(item.icon) === 'fa' ? (
+                <i class={item.icon} />
+              ) : iconKind(item.icon) === 'svg' ? (
+                <svg class="icon" aria-hidden="true">
+                  <use xlink:href={`#${item.icon}`} />
+                </svg>
+              ) : iconKind(item.icon) === 'anzhiyu' ? (
+                <i class={`anzhiyufont ${item.icon}`} />
+              ) : null}
+            </a>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      /* footer.pug:27 —— footerBar 关闭时才在 #footer-wrap 里出独立版权行 */
+      footer.owner.enable && !footerBar.enable && (
+        <div class="copyright">
+          {footer.owner.since && footer.owner.since !== nowYear
+            ? `©${footer.owner.since} - ${nowYear} By `
+            : `©${nowYear} By `}
+          {site.author ?? ''}
+        </div>
+      )
+    }
+
+    {
+      footer.runtime.enable && (
+        <div id="workboard">
+          {footer.runtime.work_img != null && (
+            <img
+              class="workSituationImg boardsign"
+              alt={footer.runtime.work_description}
+              title={footer.runtime.work_description}
+              {...lazyImageAttrs(footer.runtime.work_img, { theme, urlFor })}
+            />
+          )}
+          <div id="runtimeTextTip" />
+        </div>
+      )
+    }
+
+    {
+      footer.custom_text && (
+        <div class="footer_custom_text" set:html={footer.custom_text} />
+      )
+    }
+
+    {
+      footer.list.enable && (
+        <div id="anzhiyu-footer">
+          {(footer.list.project ?? []).map((project) => (
+            <div class="footer-group">
+              <div class="footer-title">{project.title}</div>
+              <div class="footer-links">
+                {project.links.map((link) => (
+                  <a class="footer-item" title={link.title} href={urlFor(link.link)}>
+                    {link.title}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+          {footer.list.randomFriends > 0 && (
+            <div class="footer-group">
+              <div class="footer-title-group">
+                <div class="footer-title">{_p('footer.friend_links')}</div>
+                <a
+                  class="random-friends-btn"
+                  id="footer-random-friends-btn"
+                  href="javascript:addFriendLinksInFooter();"
+                  title={_p('footer.refresh_friends')}
+                >
+                  <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+                </a>
+              </div>
+              <div class="footer-links" id="friend-links-in-footer" />
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    {
+      footer.bdageitem.enable && (
+        <p id="ghbdages">
+          {footer.bdageitem.list.map((item) => (
+            <a
+              class="github-badge"
+              target="_blank"
+              href={item.link}
+              style="margin-inline:5px"
+              data-title={item.message}
+              title={item.message}
+            >
+              <img src={item.shields} alt={item.message} />
+            </a>
+          ))}
+        </p>
+      )
+    }
+  </div>
+
+  {
+    footerBar.enable && (
+      <div id="footer-bar">
+        <div class="footer-bar-links">
+          <div class="footer-bar-left">
+            <div id="footer-bar-tips">
+              {footer.owner.enable && (
+                <div class="copyright">
+                  {footer.owner.since && footer.owner.since !== nowYear
+                    ? `©${footer.owner.since} - ${nowYear} By `
+                    : `©${nowYear} By `}
+                  <a
+                    class="footer-bar-link"
+                    href={urlFor(footerBar.authorLink ? footerBar.authorLink : (site.url ?? '/'))}
+                    title={site.author ?? ''}
+                    target="_blank"
+                  >
+                    {site.author ?? ''}
+                  </a>
+                </div>
+              )}
+            </div>
+            <div id="footer-type-tips" />
+            {
+              /* footerBar.subTitle 打字机（footerBarSubtitle.pug）→ P4-1 资源层 + 交互；
+                 开启后这里应出 `.js-pjax` 包住一段 Typed.js 初始化脚本 */
+            }
+          </div>
+          <div class="footer-bar-right">
+            {footerBar.linkList.map((item) => (
+              <a class="footer-bar-link" href={urlFor(item.link)} title={item.text}>
+                {item.text}
+              </a>
+            ))}
+            {footerBar.cc.enable && (
+              <a
+                class="footer-bar-link cc"
+                href={urlFor(footerBar.cc.link)}
+                title={_p('footer.cc_license')}
+              >
+                <i class="anzhiyufont anzhiyu-icon-copyright-line" />
+                <i class="anzhiyufont anzhiyu-icon-creative-commons-by-line" />
+                <i class="anzhiyufont anzhiyu-icon-creative-commons-nc-line" />
+                <i class="anzhiyufont anzhiyu-icon-creative-commons-nd-line" />
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+</footer>

@@ -1,0 +1,123 @@
+---
+/**
+ * Rightside.astro — 上游 `layout/includes/rightside.pug`（P2-5）。
+ *
+ * 复刻结构：
+ *   #rightside
+ *     #rightside-config-hide   ← rightside_item_order.hide（默认 readmode,translate,darkmode,hideAside）
+ *     #rightside-config-show   ← 可选 #rightside-config（齿轮）+ rightside_item_order.show
+ *                                （默认 toc,chat,comment）+ #go-up（回顶）
+ *
+ * 顺序语义：`rightside_item_order.enable: false`（基准站配置）时上游写死
+ *   hide = ['readmode','translate','darkmode','hideAside']、show = ['toc','chat','comment']；
+ * enable: true 时按配置里逗号分隔的字符串顺序渲染（`readString` 拆数组，单元素由
+ * RightsideItem.astro 负责 case 分支）。齿轮按钮的出现条件也跟上游两支一致。
+ *
+ * 回顶按钮 `#go-up` 始终存在；`#percent`（导航栏里的百分比）在 Header.astro。
+ *
+ * 运行时契约（Phase 4 移植 main.js 时必须保持）：
+ *   - `#darkmode` 由 `darkmodeChange()` 改 `<html data-theme>`，按钮自身的 `.darkmode-switch`?
+ *     上游只按 id 取节点，不改按钮 class → 不要给按钮加额外的状态 class。
+ *   - `#hide-aside-btn` / `#rightside-config` 切的是 `html.hide-aside`（`anzhiyu.hideAsideBtn()`），
+ *     状态挂在 html 而不是按钮上。
+ *   - `#go-up` 的显示由 main.js 的 scroll 监听 toggle `display`/`.show` 类（见 source/js/main.js
+ *     `rightsideScroll`），静态 DOM 只出按钮。
+ */
+import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
+import type { SiteConfig } from '../../layouts/site.ts'
+import { tp } from '../../i18n/index.ts'
+import RightsideItem from './RightsideItem.astro'
+
+interface Props {
+  site: SiteConfig
+  /** `is_post()`：文章页多一个 #readmode */
+  pageType?: 'post' | 'page'
+  /** `page.aside !== false`（hideAside 按钮条件） */
+  aside?: boolean
+  /** `showToc`（TOC 按钮条件，P2-8 传入） */
+  showToc?: boolean
+  /** `commentsJsLoad`（评论按钮条件，评论阶段传入） */
+  commentsLoaded?: boolean
+}
+
+const { site, pageType = 'page', aside, showToc = false, commentsLoaded = false } = Astro.props
+
+const theme = getThemeConfig()
+const lang = site.language
+const _p = (key: string) => tp(key, lang)
+
+const order = theme.rightside_item_order
+const orderEnabled = readFlag(order, 'enable')
+
+/**
+ * 上游 rightside.pug:37-39：
+ *   hideArray = enable ? (hide && hide.split(',')) : ['readmode','translate','darkmode','hideAside']
+ *   showArray = enable ? (show && show.split(',')) : ['toc','chat','comment']
+ * `hide && ...` 在值为空/未配置时得到假值 → 上游 `if hideArray` 不成立，整块不渲染。
+ */
+function splitOrderList(value: unknown): string[] | null {
+  if (!value || typeof value !== 'string') return null
+  const list = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item !== '')
+  return list.length > 0 ? list : null
+}
+
+const hideList: string[] | null = orderEnabled
+  ? splitOrderList(readString(order, 'hide', ''))
+  : ['readmode', 'translate', 'darkmode', 'hideAside']
+const showList: string[] | null = orderEnabled
+  ? splitOrderList(readString(order, 'show', ''))
+  : ['toc', 'chat', 'comment']
+
+/* 齿轮 #rightside-config 的显示条件（rightside.pug:46-57） */
+const translateEnabled = readFlag(theme.translate, 'enable')
+const darkmodeEnabled = theme.darkmode.enable && theme.darkmode.button
+const showConfigButton = orderEnabled
+  ? splitOrderList(readString(order, 'hide', '')) !== null
+  : pageType === 'post'
+    ? theme.readmode || translateEnabled || darkmodeEnabled
+    : translateEnabled || darkmodeEnabled
+---
+
+<div id="rightside">
+  <div id="rightside-config-hide">
+    {
+      (hideList ?? []).map((item) => (
+        <RightsideItem
+          item={item}
+          site={site}
+          pageType={pageType}
+          aside={aside}
+          showToc={showToc}
+          commentsLoaded={commentsLoaded}
+        />
+      ))
+    }
+  </div>
+  <div id="rightside-config-show">
+    {
+      showConfigButton && (
+        <button id="rightside-config" type="button" title={_p('rightside.setting')}>
+          <i class="anzhiyufont anzhiyu-icon-gear" />
+        </button>
+      )
+    }
+    {
+      (showList ?? []).map((item) => (
+        <RightsideItem
+          item={item}
+          site={site}
+          pageType={pageType}
+          aside={aside}
+          showToc={showToc}
+          commentsLoaded={commentsLoaded}
+        />
+      ))
+    }
+    <button id="go-up" type="button" title={_p('rightside.back_to_top')}>
+      <i class="anzhiyufont anzhiyu-icon-arrow-up" />
+    </button>
+  </div>
+</div>
