@@ -21,7 +21,7 @@
  *   - `per_page` / `timezone` / `date_format` / `time_format` 现在取基准站 `_config.yml` 的值；
  *   - `url_for()` 只实现 root 前缀，不含 CDN 解析（与 `layouts/site.ts` 同口径）。
  */
-import { stripHtml } from '../../utils/helpers.ts'
+import { stripHtml, sortAttrPost } from '../../utils/helpers.ts'
 import { createSiteDateFormatter, type SiteDateConfig } from '../../utils/date.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { createUrlFor } from '../../layouts/site.ts'
@@ -96,12 +96,18 @@ export interface PostTagItem {
 export interface PreparedPost {
   id: string
   title: string
+  /** Hexo `article.path`：不带前导 `/` 的站内路径，如 `2025/02/02/sticky-top/`。 */
+  path: string
   /** `url_for(article.path)`。 */
   href: string
   /** `article.cover`：字符串为封面图；`false` 表示「无封面」（见 random_cover.js）。 */
   cover: string | false
   top: boolean
   sticky: number
+  /** frontmatter 的 `swiper_index`（`sort_attr_post` 的轮播排序键）。 */
+  swiperIndex?: number
+  /** frontmatter 的 `top_group_index`（`sort_attr_post` 的顶部推荐位排序键）。 */
+  topGroupIndex?: number
   date: HexoDateInfo
   updated: HexoDateInfo
   categories: PostCategoryItem[]
@@ -315,9 +321,8 @@ export function preparePosts(entries: PostEntryLike[], options: PrepareOptions =
       const parts = formatter.parts(date)
       // Hexo permalink `:year/:month/:day/:title/`：年月日取站点时区下的日历字段并补零
       const pad = (value: number): string => String(value).padStart(2, '0')
-      const href = urlFor(
-        encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${entry.id}/`),
-      )
+      const path = encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${entry.id}/`).slice(1)
+      const href = urlFor(path)
       const tags = (Array.isArray(entry.data.tags) ? entry.data.tags : [])
         .filter((tag): tag is string => typeof tag === 'string' && tag !== '')
         .map((name) => ({ name, href: tagHref(name) }))
@@ -329,10 +334,15 @@ export function preparePosts(entries: PostEntryLike[], options: PrepareOptions =
         id: entry.id,
         // `article.title || _p('no_title')`：缺标题时回退字典里的「无题」
         title: title || '无题',
+        path,
         href,
         cover: resolveCover(entry.data.cover, themeList.defaultCover),
         top: entry.data.top === true,
         sticky: typeof entry.data.sticky === 'number' ? entry.data.sticky : 0,
+        swiperIndex:
+          typeof entry.data.swiper_index === 'number' ? entry.data.swiper_index : undefined,
+        topGroupIndex:
+          typeof entry.data.top_group_index === 'number' ? entry.data.top_group_index : undefined,
         date: buildDateInfo(date, formatter),
         updated: buildDateInfo(entry.data.updated ?? date, formatter),
         categories: flattenCategories(entry.data.categories),
@@ -386,6 +396,28 @@ export function paginatePosts(
 }
 
 /**
+ * 站点级 `lazyload` 过滤器的等效配置（`scripts/filters/post_lazyload.js`）。
+ *
+ * `theme.lazyload.enable && field === 'site'` 时，上游在 after_render:html 阶段把每个
+ * `<img … src="x">` 改写成 `src=<placeholder> onerror=… data-lazy-src="x"`。
+ * Astro 没有这个钩子，组件直接输出改写后的最终属性；这里统一解析一次配置。
+ */
+export function resolveImageLazyload(): {
+  enabled: boolean
+  placeholder: string
+  errorPostPage: string
+} {
+  const theme = getThemeConfig()
+  const lazyload = theme.lazyload as { enable?: boolean; field?: string; placeholder?: string | null }
+  const errorImages = theme.error_img as { post_page?: string }
+  return {
+    enabled: lazyload?.enable === true && lazyload?.field === 'site',
+    placeholder: lazyload?.placeholder ? urlFor(lazyload.placeholder) : LAZYLOAD_PLACEHOLDER,
+    errorPostPage: urlFor(errorImages.post_page ?? '/img/404.jpg'),
+  }
+}
+
+/**
  * 分类导航条（includes/categoryGroup.pug → `catalog_list("categories")`）的数据：
  * 站点全部分类按 name 码点升序（基准站 reproducible.js 的固定顺序）。
  *
@@ -404,4 +436,32 @@ export function collectCategoryBarItems(posts: PreparedPost[]): CategoryBarItem[
     }
   }
   return [...seen.values()].sort((a, b) => byCodePoint(a.name, b.name))
+}
+
+/**
+ * `top/top.pug` 的 `.topGroup`：`sort_attr_post("top_group_list").splice(0, 6)`。
+ *
+ * 注意上游 helper 的入参是 `hexo.locals.get("posts").data`，那份数据的顺序是
+ * `reproducible.js` 固定出来的「date 降序 → path 码点升序」，**不是**首页的 sticky 排序。
+ * 「用最新文章补足到 6 个」这一段依赖的就是这个顺序，所以这里先本地按同一口径排一份。
+ */
+export function selectTopGroupPosts(posts: PreparedPost[], swiperEnable = false): PreparedPost[] {
+  // date 降序（ISO 串可直接字典序比较）→ path 码点升序
+  const byDate = [...posts].sort(
+    (a, b) => b.date.xml.localeCompare(a.date.xml) || byCodePoint(a.path, b.path),
+  )
+  const byPath = new Map(byDate.map((post) => [post.path, post]))
+  const selected =
+    sortAttrPost('top_group_list', {
+      posts: byDate.map((post) => ({
+        path: post.path,
+        swiper_index: post.swiperIndex,
+        top_group_index: post.topGroupIndex,
+      })),
+      swiperEnable,
+    }) ?? []
+  return selected
+    .map((item) => byPath.get(item.path))
+    .filter((post): post is PreparedPost => Boolean(post))
+    .slice(0, swiperEnable ? 4 : 6)
 }

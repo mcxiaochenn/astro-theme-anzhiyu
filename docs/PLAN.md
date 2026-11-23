@@ -12,16 +12,17 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 18:35**
+**快照时间：2026-11-23 20:30（收尾快照）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `724d571` ci: 上游基线 HTML 归档进仓库并在 CI 自动跑结构 diff |
-| 提交数 | 23 |
-| 工作区 | 干净，与 `origin/main` 同步 |
-| CI | 12 步：install / build / CSS 基准 / CSS 变量 / 上游差异守卫 / 解压基线 / HTML 结构 diff（只出报告）/ artifact |
+| 提交 | `bfe5c80` wip: 首页分页与 PostCard 骨架（M1 highlight.js 对齐进行中） |
+| 提交数 | 27 |
+| 工作区 | `examples/blog/package.json` + `pnpm-lock.yaml` 未提交（agent-24 的 highlight.js 依赖） |
+| CI | 12 步流水线，主干全绿；diff 步骤只出报告不阻断 |
+| 产物规模 | **40 页**构建成功（基线 48 页），基线文件覆盖 3 → 40 |
 | CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
 | 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
 
@@ -45,6 +46,9 @@
 | P2-6/P2-11 helper 与 i18n | ✅ 12 个 helper 以上游 JS 为 oracle 对拍 269 项全过；4 语言字典 83 项通过 |
 | P2-14 基线归档进 CI | ✅ 48 页基线 HTML 压到 477 KB 进仓库（manifest 逐文件校验），CI 自动解压 + 跑 diff 出报告 |
 | P2-15 Markdown/日期对齐 | ✅ smartypants 关闭（`-->` 不再被改写）；Hexo 语义日期格式化 59 条对拍全过 |
+| P2-4/P2-5 布局组件 | ✅ Header/Footer/Sidebar/Rightside 真实组件替换占位，BaseLayout 的 26 个挂载点全部有归属 |
+| P2-9/P2-10 归档与 404 | ✅ 归档（年/月三级）、分类、标签、404 路由全生成，构建 40 页 |
+| P2-7 首页与 PostCard | ◐ PostCard/分页/CategoryBar 骨架已落盘；M1（highlight.js 代码块对齐）进行中 |
 | 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
 | P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
 | P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
@@ -224,13 +228,13 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
 | Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 6.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
-| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 3.5 |
+| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 6 |
 | Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
 | Phase 4 | 交互层与路由 | ⬜ | 13 | 0 |
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
 | Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 12.3 |
+| **合计** | | | **≈62** | 14.8 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -658,17 +662,44 @@ jobs:
 
 ---
 
-## 8. 下一步（Phase 2 页面骨架，三路并行）
+## 8. 当前进度与剩余清单（2026-11-23 收尾）
 
-Phase 2 的地基已就位：组件骨架、内容集合、helper/i18n、diff 度量、日期与 Markdown 对齐全部完成。现在往已就位的容器里填内容。
+### 8.1 已完成（可以随时接手）
 
-1. **P2-4/P2-5 布局组件**（2 人日）—— Header / Footer / Sidebar / Rightside / nav，对应上游 `header/index.pug`、`footer.pug`、`sidebar.pug`、`rightside.pug`。预计吃掉当前 857 节点缺口里约 500 的份额。
-2. **P2-7 首页与分页 + PostCard**（1.5 人日）—— `index.astro` 改造 + `[...page].astro` + PostCard 组件，同时把 M1（代码块）在卡片摘要里先处理。
-3. **P2-9/P2-10 归档·分类·标签 + 404**（1.5 人日）—— 三个路由 + 分页 + 404，目标是 48 个基线页面里能对上的页数从 0 涨到约 20。
+- **Phase 0 ✅ / Phase 1.5 ✅**，Phase 1 约 87%（P1-9 第三条随 P2-1 接 loader 收口）
+- **Phase 2 约 63%**：地基五件套（diff 度量、内容集合、helper/i18n、骨架+Head、日期/Markdown 对齐）+ 布局四组件 + 归档/分类/标签/404 + 首页 PostCard 骨架
+- CI 12 步全绿，含 HTML 结构 diff 报告；上游镜像 SHA 守卫 29 项
+- 关键度量：**构建 40 页**（基线 48），verify-css PASS（−0.03%），CSS 变量 69/69
 
-三路完成后的验收动作：`pnpm baseline:extract && BASELINE_HTML_DIR=.baseline-html pnpm diff:html --all`，看 PASS 页数与缺口节点数两条曲线。
+### 8.2 剩余未完成（按优先级）
 
-**下一批**：P2-8 文章页（最大单页）+ M3 slugger + i18n/date 接线 + 清理 P1.5 遗留（blog 里的旧 BaseLayout/page2/slice-harness）。
+**Phase 2 收尾（近期）**
+
+| # | 任务 | 估时 | 状态 |
+| --- | --- | --- | --- |
+| 1 | P2-7 M1：highlight.js + rehype 把代码块渲染成上游 `figure.highlight` 结构（agent-24 进行中，依赖已批） | 0.5 | ◐ |
+| 2 | P2-7 收尾：home_top slot、分页与上游 per_page 对齐、diff 数字补录 | 0.5 | ◐ |
+| 3 | P2-8 文章页（最大单页）：PostInfo/版权/打赏/ptool + M3 slugger（标题 id 保留中文标点） | 1.5 | ⬜ |
+| 4 | helper/i18n/date 接线进组件（当前组件多数直接取 config，未走 t() 与 hexoDate） | 0.5 | ⬜ |
+| 5 | 删 P1.5 遗留：blog 内旧 BaseLayout/page2/slice-harness/vertical-slice 探针 | 0.3 | ⬜ |
+| 6 | diff 从 40 页里挑 5 个代表页收敛到可解释状态；48 页全 PASS 是 Phase 2 退出标准 | 1 | ⬜ |
+| 7 | Phase 2 退出动作：CI 里 diff 步骤去 `|| true` 变硬门禁 + artifact `if: always()` | 0.2 | ⬜ |
+
+**Phase 3–7（后续大块）**
+
+- **Phase 3**（10.8 人日）：15 个 widget 卡片、12 个 page.type 模板（about 23KB 最重）
+- **Phase 4**（13 人日）：GLOBAL_CONFIG 注入、main.js/utils.js 移植（115KB）、pjax shim 幂等化（Phase 1.5 已发现监听叠加问题）、暗色/右键/中控台/音乐/搜索
+- **Phase 5**（6.3 人日）：评论 ×5、搜索 ×3、分析 ×5、聊天/广告/隐私协议
+- **Phase 6**（7.5 人日）：42 个 Hexo tag 的 remark 插件 + 输出对齐
+- **Phase 7**（5.5 人日）：PWA、性能、迁移指南、发布
+
+### 8.3 已知待决策项
+
+1. **资源路径策略**：diff 每页报 1 条资源路径豁免（`/css/index.css` ↔ `/_astro/*.css`），Phase 7 按 [resource-path-policy](resource-path-policy.md) 决定是否做到字节级
+2. **M2 脚注差异**：我们渲染真脚注（特性），上游原样输出——diff 白名单已登记，保留我们的
+3. **归档 vs baseline 48 页**：当前 40 页构建成功但 diff FAIL 48（结构差异），收敛是 Phase 2 后半段的主线
+
+**恢复工作时的入口**：`git pull` → `pnpm install` → `pnpm build` → `node scripts/extract-baseline-html.mjs` → `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all` 看两条曲线（PASS 页数、缺口节点数）。
 
 ---
 
