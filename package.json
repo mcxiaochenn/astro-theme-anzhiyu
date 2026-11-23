@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "pnpm --filter blog dev",
     "build": "pnpm --filter blog build",
-    "preview": "pnpm --filter blog preview"
+    "preview": "pnpm --filter blog preview",
+    "verify": "node scripts/verify-css.mjs"
   }
 }
