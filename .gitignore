@@ -42,3 +42,9 @@ examples/blog/tests/artifacts/
 .diff.json
 # diff 验收用的产物快照（避免与并行构建抢 dist）
 .dist-snapshot/
+.migration-out/
+
+# 并行 agent 的临时诊断产物（结论落在 docs/notes/，中间文件不进仓库）
+.tmp-*
+.diff-*.json
+.dist-snapshot*/
