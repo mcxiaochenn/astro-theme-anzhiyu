@@ -1,10 +1,281 @@
 import { defineConfig } from 'astro/config'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { unified } from '@astrojs/markdown-remark'
+import { createMarkdownProcessor } from '@astrojs/markdown-remark'
 import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
+
+/* ================================================================== */
+/* M1 · 代码块 DOM 对齐（P2-7）                                        */
+/* ================================================================== */
+/*
+ * 上游链路（Hexo 7 + hexo-theme-anzhiyu 1.7.1）：
+ *   1. `hexo/dist/plugins/filter/before_post_render/backtick_code_block.js` 在 Markdown
+ *      渲染**之前**把 ```lang 围栏整段换成 `<hexoPostRenderCodeBlock>` + 高亮产物；
+ *   2. 高亮本身是 hexo-util 的 `highlight()`（`syntax_highlighter: highlight.js`，
+ *      `highlight: { line_number: true, wrap: true, hljs: false }`），输出：
+ *
+ *        <figure class="highlight js"><table><tr>
+ *          <td class="gutter"><pre><span class="line">1</span><br>…</pre></td>
+ *          <td class="code"><pre><span class="line">…</span><br>…</pre></td>
+ *        </tr></table></figure>
+ *
+ *   3. 词法着色用 highlight.js 11（`classPrefix: ''`、`ignoreIllegals: true`），
+ *      类名形如 `keyword` / `title function_` / `punctuation`；每个 token span 在行尾
+ *      闭合、行首重开（hexo-util 的 `closeTags()`），所以每一行都是自洽的。
+ *   `source/css/_highlight/*.styl` 全部按 `figure.highlight` + 这套类名写选择器。
+ *
+ * Astro 侧：Shiki 的结构（`<pre class="astro-code">` + 内联 style）在这里永远对不上，
+ * 也没法通过主题配置改成 hljs 类名，所以：
+ *   - `markdown.syntaxHighlight: false` → remark-rehype 先产出 `<pre><code class="language-x">`；
+ *   - 本 rehype 插件在字符串化之前把它改写成上面的 `figure.highlight` DOM。
+ *
+ * highlight.js 依赖：它是「词法着色」的唯一正确实现（上游用的就是同一个库、同一套类名）。
+ * 2026-11 这一轮 P2-7 的写范围没有 `examples/blog/package.json`，依赖仍待组长批准加入；
+ * 未安装时本插件**降级为结构等价**（figure/table/gutter/行号/`span.line`/`br` 全部一致，
+ * 只是行内没有 token span），并在构建日志里警告一次。装上 `highlight.js`（^11）后
+ * 无需改代码即自动补齐 token span，证据见 docs/notes/P2-7-home-postcard.md §5。
+ */
+
+/** 构建期只加载一次 highlight.js；缺失时返回 null（降级分支）。 */
+let highlightJsPromise
+function loadHighlightJs() {
+  if (!highlightJsPromise) {
+    highlightJsPromise = import('highlight.js')
+      .then((mod) => mod.default ?? mod)
+      .catch(() => {
+        console.warn(
+          '[hexo-highlight] 未安装 highlight.js：代码块输出 figure.highlight 结构但缺少 hljs token span。' +
+            '装上 highlight.js@^11 后自动补齐（上游 hexo-util 3.3.0 依赖的同一实现）。',
+        )
+        return null
+      })
+  }
+  return highlightJsPromise
+}
+
+/** HAST 节点的纯文本内容。 */
+function textOf(node) {
+  if (!node) return ''
+  if (node.type === 'text') return node.value
+  if (Array.isArray(node.children)) return node.children.map(textOf).join('')
+  return ''
+}
+
+/** strip-indent 的等价实现（hexo-util 默认 `stripIndent: true`）。 */
+function stripIndent(value) {
+  const matches = value.match(/^[ \t]*(?=\S)/gm)
+  if (!matches) return value
+  const indent = Math.min(...matches.map((line) => line.length))
+  if (indent === 0) return value
+  return value.replace(new RegExp(`^[ \\t]{${indent}}`, 'gm'), '')
+}
+
+/** hljs/hexo 只转义这几种实体，其余按原文处理（HAST 里存解码后的文本）。 */
+function decodeHljsEntities(value) {
+  return value.replace(/&(amp|lt|gt|quot|#x27|#39);/g, (_, name) => {
+    switch (name) {
+      case 'amp':
+        return '&'
+      case 'lt':
+        return '<'
+      case 'gt':
+        return '>'
+      case 'quot':
+        return '"'
+      default:
+        return "'"
+    }
+  })
+}
+
+const element = (tagName, properties = {}, children = []) => ({
+  type: 'element',
+  tagName,
+  properties,
+  children,
+})
+const text = (value) => ({ type: 'text', value })
+
+/** hexo-util `closeTags()`：hljs 的 token span 可以跨行，逐行闭合再逐行重开。 */
+function closeTagsPerLine(value) {
+  const stack = []
+  return value
+    .split('\n')
+    .map((line) => {
+      const prepend = stack.map((token) => `<span class="${token}">`).join('')
+      for (const match of line.matchAll(/(<span class="(.*?)">|<\/span>)/g)) {
+        if (match[0] === '</span>') stack.shift()
+        else stack.unshift(match[2])
+      }
+      return prepend + line + '</span>'.repeat(stack.length)
+    })
+    .join('\n')
+}
+
+/** 把 `<span class="token">…</span>` 片段转成 HAST 子节点（hljs 只会产出 span + 文本）。 */
+function tokenHtmlToHast(html) {
+  const root = { children: [] }
+  const stack = [root]
+  const re = /<span class="([^"]*)">|<\/span>|([^<]+)/g
+  let match
+  while ((match = re.exec(html))) {
+    if (match[0] === '</span>') {
+      if (stack.length > 1) stack.pop()
+      continue
+    }
+    if (match[1] !== undefined) {
+      const node = element('span', {
+        className: decodeHljsEntities(match[1]).split(/\s+/).filter(Boolean),
+      })
+      stack[stack.length - 1].children.push(node)
+      stack.push(node)
+      continue
+    }
+    if (match[2]) stack[stack.length - 1].children.push(text(decodeHljsEntities(match[2])))
+  }
+  return root.children
+}
+
+/**
+ * 计算一个代码块的行内容：
+ *   - highlight.js 可用 → 每行 `span.line` 内含 hljs token span；
+ *   - 不可用 → 每行 `span.line` 只有原文（结构等价、无着色）。
+ */
+async function buildCodeLines(code, language) {
+  const hljs = await loadHighlightJs()
+  const hasLanguage = language && hljs && hljs.getLanguage(language)
+  // hexo-util：未知/缺省语言一律落到 plaintext；降级模式下没有语言表，保留原名（见报告 §5 限制）
+  const resolvedLanguage = hasLanguage ? language : hljs ? 'plaintext' : language || 'plaintext'
+  if (hljs) {
+    hljs.configure({ classPrefix: '' })
+    try {
+      const highlighted = hljs.highlight(code, {
+        language: resolvedLanguage,
+        ignoreIllegals: true,
+      }).value
+      return {
+        language: resolvedLanguage,
+        html: true,
+        lines: closeTagsPerLine(highlighted).split('\n'),
+      }
+    } catch {
+      /* 词法失败时退回纯文本行（上游 hexo-util 不会失败，这里只为构建不中断） */
+    }
+  }
+  return { language: resolvedLanguage, html: false, lines: code.split('\n') }
+}
+
+/** `<pre><code class="language-x">` → 上游 `figure.highlight`。 */
+function rehypeHexoHighlight() {
+  return async (tree) => {
+    const replaceCode = async (pre) => {
+      const codeNode =
+        pre.children.length === 1 &&
+        pre.children[0].type === 'element' &&
+        pre.children[0].tagName === 'code'
+          ? pre.children[0]
+          : null
+      if (!codeNode) return null
+
+      const className = codeNode.properties?.className
+      const classes = Array.isArray(className) ? className : className ? [className] : []
+      const languageClass = classes.find(
+        (name) => typeof name === 'string' && name.startsWith('language-'),
+      )
+      const requestedLanguage = languageClass ? languageClass.slice('language-'.length) : ''
+
+      // Hexo：content 去掉一个行尾换行再交给 highlight()（backtick_code_block.js:27）
+      const raw = textOf(codeNode).replace(/\n$/, '')
+      const source = stripIndent(raw)
+      const { language, html, lines } = await buildCodeLines(source, requestedLanguage)
+
+      const gutter = element('pre', {}, lines.flatMap((_, index) => [
+        element('span', { className: ['line'] }, [text(String(index + 1))]),
+        element('br'),
+      ]))
+      const code = element('pre', {}, lines.flatMap((line) => {
+        const children = html ? tokenHtmlToHast(line) : [text(line)]
+        return [element('span', { className: ['line'] }, children), element('br')]
+      }))
+
+      return element('figure', { className: ['highlight', language] }, [
+        element('table', {}, [
+          element('tr', {}, [
+            element('td', { className: ['gutter'] }, [gutter]),
+            element('td', { className: ['code'] }, [code]),
+          ]),
+        ]),
+      ])
+    }
+
+    /** 递归替换（异步，逐个 `pre` 处理；tree 里其它节点原样保留）。 */
+    const walk = async (node) => {
+      if (!Array.isArray(node.children)) return
+      for (let index = 0; index < node.children.length; index++) {
+        const child = node.children[index]
+        if (child.type === 'element' && child.tagName === 'pre') {
+          const replacement = await replaceCode(child)
+          if (replacement) {
+            node.children[index] = replacement
+            continue
+          }
+        }
+        await walk(child)
+      }
+    }
+    await walk(tree)
+  }
+}
+
+/**
+ * `rehype-raw`（Astro 管线里固定的最后一步 rehype）会把整棵树交给 parse5 重新解析；
+ * HTML 解析规则会把 `<table><tr>` 补成 `<table><tbody><tr>`。上游 hexo-util 的
+ * `figure.highlight` 是字符串拼接产物，**没有** tbody，`_highlight/*.styl` 也按没有 tbody 写。
+ *
+ * Astro 没有「rehype-raw 之后」的插件位，所以在处理器外层对 HTML 字符串做一次精确还原：
+ * 只摘掉 `<figure class="highlight…"><table>` 里面的那一层 tbody（Markdown 表格的 tbody
+ * 是上游 marked 也有的，不能动）。
+ */
+function unwrapFigureTbody(html) {
+  return html.replace(
+    /(<figure class="highlight[^"]*"><table>)<tbody>([\s\S]*?)<\/tbody>(<\/table><\/figure>)/g,
+    '$1$2$3',
+  )
+}
+
+/**
+ * 自定义 Markdown 处理器：等价于 `unified({ smartypants: false, rehypePlugins: [...] })`，
+ * 额外只在 `render()` 外面套一层 {@link unwrapFigureTbody}。
+ *
+ * 为什么不用 `unified()` helper：它只接受 remark/rehype 插件，插件一律跑在 rehype-raw 之前，
+ * 拿不到「解析后」的时机；而 tbody 是 rehype-raw 注入的。见文件头「M1」说明。
+ */
+const hexoMarkdownProcessor = {
+  name: 'anzhiyu-hexo-unified',
+  async createRenderer(shared) {
+    const renderer = await createMarkdownProcessor({
+      ...shared,
+      // 与 unified({...}) 相同：smartypants 必须是 false（Hexo hexo-renderer-marked 的默认）
+      smartypants: false,
+      // Shiki 的高亮结构与类名都对不上上游 highlight.js，关掉后由 rehypeHexoHighlight 重建
+      syntaxHighlight: false,
+      // Phase 6 的 42 个 Hexo tag 语法插件挂在这里（remark 阶段，解析 `{% … %}`）；
+      // 顶层 `markdown.remarkPlugins` 是 Astro 的 legacy 入口，对自定义处理器不生效
+      // （Astro 只会打印一条警告并忽略，见 astro/dist/core/config/validate.js:79-83）。
+      remarkPlugins: [],
+      // M1：`<pre><code class="language-x">` → 上游 `figure.highlight`
+      rehypePlugins: [rehypeHexoHighlight],
+    })
+    return {
+      async render(content, opts) {
+        const result = await renderer.render(content, opts)
+        return { ...result, code: unwrapFigureTbody(result.code) }
+      },
+    }
+  },
+}
 
 export default defineConfig({
   // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
@@ -30,11 +301,14 @@ export default defineConfig({
     //      docs/notes/P-markdown-date-align.md §1）。
     //  2. HTML diff 里凡是正文出现 `--` / `...` / 引号的段落都会报假文本差异。
     //
-    // 关闭方式按 @astrojs/markdown-remark 的 processor API：`unified({ ... })` 的选项
-    // 会覆盖 `markdown.smartypants` 顶层默认值（dist/processor.js:
+    // 关闭方式按 @astrojs/markdown-remark 的 processor API：处理器选项会覆盖
+    // `markdown.smartypants` 顶层默认值（dist/processor.js:
     // `smartypants: processor.options.smartypants ?? shared.smartypants`），
-    // 所以这里传 `smartypants: false` 是生效路径，不需要再写顶层 `markdown.smartypants`。
-    processor: unified({ smartypants: false }),
+    // 所以这里在处理器里传 `smartypants: false` 是生效路径，不需要再写顶层 `markdown.smartypants`。
+    //
+    // M1（代码块 DOM）需要「rehype-raw 之后」的时机，`unified()` helper 给不了，
+    // 因此改成下面的自定义处理器（行为等价 + 摘掉 figure.highlight 里被 parse5 补上的 tbody）。
+    processor: hexoMarkdownProcessor,
   },
   vite: {
     build: {

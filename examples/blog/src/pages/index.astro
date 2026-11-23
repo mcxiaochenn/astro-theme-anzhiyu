@@ -1,27 +1,37 @@
 ---
 /**
- * P2-2 / P2-3 · 首页
+ * 首页 · 第 1 页（P2-7）
  *
- * 用 examples/blog 的真实内容集合（`posts`，10 条 fixture：9 篇文章 + 1 个独立页面）
- * 渲染上游首页骨架里的文章列表，结构对齐 `layout/index.pug` + `mixins/post-ui.pug` 的
- * 最小可用形态（完整 PostCard 由 P2-7 做）：
+ * 上游模板：`layout/index.pug`
  *
  *   #recent-posts.recent-posts
- *     .recent-post-item（首条多一个 .lastestpost-item，对应 post-ui.pug:8）
- *       .no-cover.recent-post-info
- *         .recent-post-info-top > a.article-title
- *         .article-meta-wrap > .post-meta-date > time
+ *     include includes/categoryGroup.pug      → <CategoryBar />
+ *     +postUI                                 → <PostCard /> × per_page
+ *     include includes/pagination.pug         → <Pagination />
  *
- * 排序复刻 Hexo 首页：`sticky` 降序 → `date` 降序（见 docs/notes/P2-2-3-layout-head.md §排序）。
+ * 分页模型：Hexo `_config.yml` 的 `index_generator.per_page: 6`，
+ * 第 1 页由本文件生成（`/`），第 2..N 页由 `[...page].astro` 生成（`/page/2/`...）。
+ * 两个页面共用 `components/post/post-list.ts` 的排序 / 切页 / 摘要语义，只是取第几页不同。
  *
- * 样式入口在页面里 import：上游 302KB Stylus 目前还在 `examples/blog/src/styles/upstream/`
- * （属于站点资产，不在主题包里），主题布局只负责 DOM 骨架、不复制样式。
+ * 排序（复刻 `hexo-generator-index` + `.baseline-work/scripts/reproducible.js`）：
+ * sticky 降序 → date 降序 → 同日期 path 码点升序。
+ *
+ * 站点元数据仍以页面常量传入（Phase 7 的迁移脚本把 Hexo `_config.yml` 落成站点配置层后，
+ * 这份常量应删除；`[...page].astro` 里有一份同样的常量，届时一并删）。
  */
 import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import PostCard from '../../../../packages/astro-theme-anzhiyu/src/components/post/PostCard.astro'
+import Pagination from '../../../../packages/astro-theme-anzhiyu/src/components/post/Pagination.astro'
+import CategoryBar from '../../../../packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro'
+import {
+  collectCategoryBarItems,
+  paginatePosts,
+  preparePosts,
+} from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
 import '../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 
-/** 站点级元数据。Phase 2 还没有站点配置层（Phase 7 迁移脚本才落 `_config.yml`）。 */
+/** 站点级元数据（基准站身份，对应上游 `config.*`）。 */
 const site = {
   title: 'AnZhiYu Baseline',
   subtitle: '上游 1.7.1 参考产物',
@@ -33,69 +43,21 @@ const site = {
   root: '/',
 }
 
-/** 基准站 `_config.yml` 的 `timezone: 'Asia/Shanghai'`（content.config.ts 已按此时区归一化日期）。 */
-const SITE_TIME_ZONE = 'Asia/Shanghai'
-const dayFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: SITE_TIME_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
-
-interface Article {
-  id: string
-  title: string
-  href: string
-  isoDate: string
-  displayDate: string
-  sticky: number
-  createdAt: number
-}
-
 const entries = await getCollection('posts')
-const articles: Article[] = entries
-  // 独立页面（about 页：layout: page）不进首页列表，Phase 3 由 page.type 分发
-  .filter((entry) => entry.data.layout !== 'page')
-  .map((entry) => {
-    const date = entry.data.date instanceof Date ? entry.data.date : new Date(0)
-    // Hexo permalink 默认 `:year/:month/:day/:title/`；Astro 侧路由由 P2-8 落地
-    const [year, month, day] = dayFormatter.format(date).split('-')
-    return {
-      id: entry.id,
-      title: entry.data.title,
-      href: `/${year}/${month}/${day}/${entry.id}/`,
-      isoDate: date.toISOString(),
-      displayDate: dayFormatter.format(date),
-      sticky: typeof entry.data.sticky === 'number' ? entry.data.sticky : 0,
-      createdAt: date.getTime(),
-    }
-  })
-  // Hexo 首页排序：sticky 降序（置顶权重）→ date 降序
-  .sort((a, b) => b.sticky - a.sticky || b.createdAt - a.createdAt)
+const posts = preparePosts(entries)
+const { total, pages } = paginatePosts(posts)
+const pagePosts = pages[0] ?? []
+const categoryBarItems = collectCategoryBarItems(posts)
 ---
 
 <BaseLayout site={site} isHome>
   <div id="recent-posts" class="recent-posts">
+    <CategoryBar items={categoryBarItems} />
     {
-      articles.map((article, index) => (
-        <div
-          class={index === 0 ? 'recent-post-item lastestpost-item' : 'recent-post-item'}
-          onclick={`pjax.loadUrl('${article.href}')`}
-        >
-          <div class="no-cover recent-post-info">
-            <div class="recent-post-info-top">
-              <a class="article-title" href={article.href} title={article.title}>
-                {article.title}
-              </a>
-            </div>
-            <div class="article-meta-wrap">
-              <span class="post-meta-date">
-                <time datetime={article.isoDate}>{article.displayDate}</time>
-              </span>
-            </div>
-          </div>
-        </div>
+      pagePosts.map((post, index) => (
+        <PostCard post={post} index={index} language={site.language} isHome showNew />
       ))
     }
+    <Pagination current={1} total={total} isHome format="page/%d/#content-inner" />
   </div>
 </BaseLayout>

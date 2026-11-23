@@ -1,0 +1,137 @@
+---
+/**
+ * Pagination.astro — 列表页分页条（P2-7）。
+ *
+ * 上游两段拼起来才是完整行为：
+ *   1. `layout/includes/pagination.pug`（非文章分支）：`nav#pagination > .pagination`，
+ *      首页额外追加 `.toPageGroup`，并把 `options.format` 改成 `page/%d/#content-inner`；
+ *   2. Hexo 内置 helper `paginator(options)`（hexo/dist/plugins/helper/paginator.js）：
+ *      prev/next + `paginationPartShow()` 的 首页尾页 + 当前页附近 mid_size 个页码。
+ *
+ * 本组件逐行复刻上面的默认参数：`end_size: 1`、`mid_size: 1`（pug 覆盖）、`space: '&hellip;'`、
+ * `prev_next: true`、`escape: false`、`page_class: 'page-number'`、`current_class: 'current'`、
+ * `space_class: 'space'`、`prev_class: 'extend prev'`、`next_class: 'extend next'`、
+ * `force_prev_next: false`。文案「上页/下页」在上游是硬编码，不走 i18n。
+ */
+import { createUrlFor } from '../../layouts/site.ts'
+
+interface Props {
+  /** 当前页（从 1 开始）。 */
+  current: number
+  /** 总页数。 */
+  total: number
+  /**
+   * 路径前缀，对应上游 `page.base`：首页是 `''`（此时第 1 页是 `/`）；
+   * 归档/分类页传 `/archives/` 这样的前缀。
+   */
+  base?: string
+  /**
+   * 链接模板，对应上游 `options.format`。首页分支是 `page/%d/#content-inner`；
+   * 其余页面用 Hexo 默认的 `<pagination_dir>/%d/`。
+   */
+  format?: string
+  /** 是否首页（上游 `is_home()`）：首页才输出 toPageGroup。 */
+  isHome?: boolean
+}
+
+const {
+  current,
+  total,
+  base = '',
+  format = 'page/%d/',
+  isHome = false,
+} = Astro.props
+
+const urlFor = createUrlFor('/')
+
+/** 上游 `createLink()`：第 1 页是 base 本身，其余页走 format 模板再 `url_for()`。 */
+const link = (page: number): string =>
+  urlFor(page === 1 ? base : `${base}${format.replace('%d', String(page))}`)
+
+/** 上游 `createPageTag()`：当前页是 `span.page-number.current`，其余是 `a.page-number`。 */
+const pageTag = (page: number): { current: boolean; tag: 'span' | 'a'; href: string } => ({
+  current: page === current,
+  tag: page === current ? 'span' : 'a',
+  href: link(page),
+})
+
+/* ------------------------------------------------------------------ */
+/* paginationPartShow() 的页码序列                                      */
+/* ------------------------------------------------------------------ */
+
+const END_SIZE = 1
+const MID_SIZE = 1
+const SPACE = '\u2026' // '&hellip;'（escape:false 直接输出实体，等价于省略号）
+
+const leftEnd = Math.min(END_SIZE, current - 1)
+const rightEnd = Math.max(total - END_SIZE + 1, current + 1)
+const leftMid = Math.max(leftEnd + 1, current - MID_SIZE)
+const rightMid = Math.min(rightEnd - 1, current + MID_SIZE)
+
+/** 渲染顺序：左边缘 → [省略号] → 左中段 → 当前页 → 右中段 → [省略号] → 右边缘。 */
+const pageItems: Array<{ kind: 'page'; page: number } | { kind: 'space' }> = []
+for (let i = 1; i <= leftEnd; i++) pageItems.push({ kind: 'page', page: i })
+if (leftMid - leftEnd > 1) pageItems.push({ kind: 'space' })
+for (let i = leftMid; i < current; i++) pageItems.push({ kind: 'page', page: i })
+pageItems.push({ kind: 'page', page: current })
+for (let i = current + 1; i <= rightMid; i++) pageItems.push({ kind: 'page', page: i })
+if (rightEnd - rightMid > 1) pageItems.push({ kind: 'space' })
+for (let i = rightEnd; i <= total; i++) pageItems.push({ kind: 'page', page: i })
+---
+
+<nav id="pagination">
+  <div class="pagination">
+    {
+      current > 1 && (
+        <a class="extend prev" rel="prev" href={link(current - 1)}>
+          <i
+            class="anzhiyufont anzhiyu-icon-chevron-left fa-fw"
+            style="font-weight: inherit; font-size: 1rem;"
+          />
+          <div class="pagination_tips_prev">上页</div>
+        </a>
+      )
+    }
+    {
+      pageItems.map((item) => {
+        if (item.kind === 'space') return <span class="space">{SPACE}</span>
+        const tag = pageTag(item.page)
+        return tag.tag === 'span' ? (
+          <span class="page-number current">{item.page}</span>
+        ) : (
+          <a class="page-number" href={tag.href}>{item.page}</a>
+        )
+      })
+    }
+    {
+      current < total && (
+        <a class="extend next" rel="next" href={link(current + 1)}>
+          <div class="pagination_tips_next">下页</div>
+          <i
+            class="anzhiyufont anzhiyu-icon-chevron-right fa-fw"
+            style="font-weight: inherit; font-size: 1rem;"
+          />
+        </a>
+      )
+    }
+    {
+      isHome && (
+        <div class="toPageGroup">
+          <input
+            id="toPageText"
+            oninput="value=value.replace(/[^0-9]/g,'')"
+            maxlength="3"
+            onkeyup="this.value=this.value.replace(/[^u4e00-u9fa5w]/g,'')"
+            aria-label="toPage"
+          />
+          <a id="toPageButton" onclick="anzhiyu.toPage()">
+            <i
+              class="anzhiyufont anzhiyu-icon-angles-right"
+              style="font-weight: inherit; font-size: 1rem;"
+            />
+          </a>
+        </div>
+      )
+    }
+  </div>
+</nav>

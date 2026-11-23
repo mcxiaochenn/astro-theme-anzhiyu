@@ -1,0 +1,79 @@
+---
+/**
+ * 首页 · 第 2..N 页（P2-7）
+ *
+ * 对应 Hexo `hexo-generator-index` + `hexo-pagination` 产出的 `/page/2/`、`/page/3/`…：
+ * 同一个 `layout/index.pug`，区别只有 `page.current` / `page.posts` / `page.prev` / `page.next`
+ * 这几个 locals。所以这里和 `index.astro` 用同一套组件，只把「取第几页」换成路由参数。
+ *
+ * 路由形态：`[...page]` 是 rest 参数，参数值直接是路径片段，因此 `/page/2`
+ * 对应的 `params.page` 是 `'page/2'`（不是 `'2'`）。
+ * 第 1 页故意不在这里生成（`/` 由 `index.astro` 负责），避免两条路由抢同一个路径。
+ *
+ * 站点元数据常量与 `index.astro` 重复：Phase 7 站点配置层落地后两处一起删。
+ */
+import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import PostCard from '../../../../packages/astro-theme-anzhiyu/src/components/post/PostCard.astro'
+import Pagination from '../../../../packages/astro-theme-anzhiyu/src/components/post/Pagination.astro'
+import CategoryBar from '../../../../packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro'
+import {
+  collectCategoryBarItems,
+  paginatePosts,
+  preparePosts,
+} from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
+import '../styles/upstream/index.styl'
+import { getCollection } from 'astro:content'
+import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const entries = await getCollection('posts')
+  const { total } = paginatePosts(preparePosts(entries))
+  // 第 1 页由 index.astro 生成；这里只产出 2..total
+  return Array.from({ length: Math.max(total - 1, 0) }, (_, offset) => {
+    const current = offset + 2
+    return {
+      params: { page: `page/${current}` },
+      props: { current },
+    }
+  })
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+/** 站点级元数据（基准站身份，对应上游 `config.*`）。 */
+const site = {
+  title: 'AnZhiYu Baseline',
+  subtitle: '上游 1.7.1 参考产物',
+  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
+  keywords: 'Hexo,AnZhiYu,baseline',
+  author: 'AnZhiYu Baseline',
+  language: 'zh-CN',
+  url: 'https://baseline.anzhiyu.test',
+  root: '/',
+}
+
+const { current } = Astro.props as Props
+const entries = await getCollection('posts')
+const posts = preparePosts(entries)
+const { total, pages } = paginatePosts(posts)
+const pagePosts = pages[current - 1] ?? []
+const categoryBarItems = collectCategoryBarItems(posts)
+---
+
+<BaseLayout site={site} isHome>
+  <div id="recent-posts" class="recent-posts">
+    <CategoryBar items={categoryBarItems} />
+    {
+      pagePosts.map((post, index) => (
+        <PostCard
+          post={post}
+          index={index}
+          language={site.language}
+          isHome
+          showNew={false}
+        />
+      ))
+    }
+    <Pagination current={current} total={total} isHome format="page/%d/#content-inner" />
+  </div>
+</BaseLayout>
