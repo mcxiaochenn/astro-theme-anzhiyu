@@ -56,14 +56,29 @@ node scripts/migrate-hexo.mjs --help
 
 ## 3. 真实站演练（`D:/Git-project/xcAnzhiyu`）
 
-### 3.1 命令与退出码
+### 3.1 验收命令：真实迁移 vs `--dry-run` 输出对比
+
+两条命令都在仓库根 `D:/Git-project/astro-theme-anzhiyu` 执行，参数只差一个开关：
 
 ```bash
+# A. 真实迁移（验收命令）
 node scripts/migrate-hexo.mjs --site D:/Git-project/xcAnzhiyu --out .migration-out/xcAnzhiyu
-# EXIT=0
+# B. dry-run
 node scripts/migrate-hexo.mjs --site D:/Git-project/xcAnzhiyu --out .migration-out/xcAnzhiyu --dry-run
-# EXIT=0，且 dry-run 前后 .migration-out/xcAnzhiyu/migration-report.json 的 mtime 未变
 ```
+
+| 观察项 | A 真实迁移 | B `--dry-run` |
+| --- | --- | --- |
+| EXIT | `0` | `0` |
+| 头部 | `Hexo → Astro 迁移脚手架` | `Hexo → Astro 迁移脚手架（DRY-RUN，不写任何文件）` |
+| 逐文件进度 | `+ site.config.ts`、`+ src/content/posts/1.hello-world.md  <- source/_posts/2025/07/1.hello-world.md`（共 292 行） | `[dry-run] write site.config.ts`、`[dry-run] copy data/about.yml  <- source/_data/about.yml`（共 291 行） |
+| 8 个阶段 | `[1/8] 校验` … `[8/8] migration-report.json` 全部执行 | 同样的 8 个阶段输出，但每步不落盘 |
+| 报告落点 | `+ migration-report.json`（写入产物目录，47174 字节） | `--- migration-report.json（dry-run，未写入任何文件）---` 之后把完整 JSON（约 1400 行）打 stdout |
+| 汇总关键行 | `产物文件 292（写 28 / 复制 264）` / `报告 migration-report.json` | `产物文件 291（dry-run：0 字节落盘）` / `报告 stdout（未写文件）` |
+| 阶段数字 | `覆盖率 132/136 = 97.06%`、`1.7.1 新增键 (1): umami`、`1.7.1 缺失键 (4): …` | 与 A 完全一致（读的是同一份源站配置） |
+| 对磁盘影响 | 新建 `.migration-out/xcAnzhiyu/` 共 292 文件 | **零写入**；产物已存在时再跑，`migration-report.json` 的 mtime 不变 |
+
+A 的完整 stdout 汇总见 §3.2。B 不写任何文件（含报告自身），因此可以直接在真实产物目录上反复跑来做回归对比。
 
 ### 3.2 stdout 汇总（验收命令原样）
 
@@ -196,16 +211,65 @@ astro.config.mjs                               → '../../packages/remark-hexo-t
 - dry-run 分别验证了两条基准路径：`--upstream D:/Git-project/_research/anzhiyu-upstream`（133 键）
   与不传（走 `defaults.ts`，133 键），结果一致。
 
-### 3.6 源站只读验证
+### 3.6 源站只读：保证机制与验证（含真实命令输出）
+
+**代码层 5 条机制**（行号对应 `scripts/migrate-hexo.mjs`，`docs/MIGRATION.md` §0-A 有同样清单）：
+
+| # | 机制 | 位置 |
+| --- | --- | --- |
+| 1 | 前置校验：`--out` 等于源站目录或位于源站目录内 → `fail()` 非零退出，不产生任何写入 | `:337` |
+| 2 | 目标目录已存在且非空 → 拒绝运行，不覆盖/不合并写入已有目录 | `:340` |
+| 3 | 所有写操作收敛到 `writeOut()` / `copyOut()`，目标路径一律 `path.join(OUT, rel)`；源站路径只作为 `readFileSync` / `readdirSync` / `statSync` 的参数，或 `copyFileSync(srcAbs, abs)` 的 **src** 侧 | `:146`、`:152`、`:160`、`:166`、`:168` |
+| 4 | `--dry-run` 在两个写函数开头 `if (DRY) return`，不调用 `mkdirSync` / `writeFileSync` / `copyFileSync`；报告只 `console.log` 不落盘 | `:148`、`:162`、`:823` |
+| 5 | 不 `chdir` 进源站、不删除/重命名源站文件、不回写源站 frontmatter；`layout: page` / `permalink` 只补在目标站新建的内容文件里 | `injectPageFrontmatter()` |
+
+**外部验证**：对源站全量文件（排除 `.git/` 与 `node_modules/`）做 `路径 + 字节数 + mtime` 清单并取 sha256，
+在「迁移前 / 真实迁移后 / dry-run 后」各算一次；同时跑 `git status` 与 `git diff --stat`。
 
 ```bash
-git -C D:/Git-project/xcAnzhiyu status --short   # 迁移前：空
-node scripts/migrate-hexo.mjs --site ... --out ...
-git -C D:/Git-project/xcAnzhiyu status --short   # 迁移后：空
+# 清单哈希函数
+snapshot() {
+  find D:/Git-project/xcAnzhiyu -type f \
+    -not -path '*/.git/*' -not -path '*/node_modules/*' \
+    -printf '%P %s %T@\n' | LC_ALL=C sort | sha256sum
+}
 ```
 
-脚本只读 `_config.yml` / `_config.anzhiyu.yml` / `source/**` / `themes/anzhiyu/**`，
-所有写入都发生在 `--out` 下；`--out` 落在源站内会被前置校验拒绝。
+真实命令输出（三次哈希**完全一致**）：
+
+```
+=== [BEFORE] ===
+d698da2697713d2d550a71b51614f07b8bd879a80cc9c5744706beb31c31f27e *-
+git status: ''
+git diff --stat: ''
+
+$ node scripts/migrate-hexo.mjs --site D:/Git-project/xcAnzhiyu --out .migration-out/xcAnzhiyu
+REAL_EXIT=0                       # 产物文件 292（写 28 / 复制 264）
+
+=== [AFTER REAL] ===
+d698da2697713d2d550a71b51614f07b8bd879a80cc9c5744706beb31c31f27e *-
+git status: ''
+git diff --stat: ''
+
+$ node scripts/migrate-hexo.mjs --site D:/Git-project/xcAnzhiyu --out .migration-out/xcAnzhiyu --dry-run
+DRY_EXIT=0                        # 产物文件 291（dry-run：0 字节落盘）
+
+=== [AFTER DRY] ===
+d698da2697713d2d550a71b51614f07b8bd879a80cc9c5744706beb31c31f27e *-
+```
+
+抽查关键文件 mtime，全部仍是源站原始时间（2025 年），未见任何写入：
+
+```
+2025-11-16 00:07:24.570042900 +0800  D:/Git-project/xcAnzhiyu/_config.yml
+2025-11-16 00:06:45.980161400 +0800  D:/Git-project/xcAnzhiyu/_config.anzhiyu.yml
+2025-11-16 00:02:33.364090300 +0800  D:/Git-project/xcAnzhiyu/source/about/index.md
+2025-10-06 06:53:32.659863600 +0800  D:/Git-project/xcAnzhiyu/source/_posts/2025/07/1.hello-world.md
+```
+
+`migration-report.json` 里的 `sourceSiteReadOnly: true` 只是脚本自述；上面三次哈希与
+`git status` / `diff --stat` / mtime 才是独立复核。脚本只读 `_config.yml` / `_config.anzhiyu.yml` /
+`source/**` / `themes/anzhiyu/**`，所有写入都发生在 `--out` 下。
 
 ---
 
@@ -316,16 +380,33 @@ build C 输出的页面（节选）：`/about/`、`/categories/`、`/charts/`、
 
 ### 6.1 `unsupported`（21 项，8 类）
 
-| 类别 | 项 | 说明 |
-| --- | --- | --- |
-| `page.type` | `charts`、`todolist` | 非标准类型，落到 `DefaultPage`，专属布局/数据丢失 |
-| `layout` | `sitetime`（`source/log/index.md`） | 不命中 `[...path].astro`，URL 会 404 |
-| `config-key` | 4 个 1.6.14 遗留键 | strict schema 会拒绝，已剔除 + 备份，需按 `aliasHints` 人工映射 |
-| `comment-backend-secret` | `valine.appId/appKey`、`waline.serverURL`、`twikoo.envId`、`friends_vue.apiurl`、`post_head_ai_description.key`、`aisummary.token`、`baidu_url_submit.token` | 后端地址/密钥需改成环境变量 + 前端组件，不能进前端产物 |
-| `cdn` | `CDN.custom_format` / `CDN.option`、`internal_provider=local` / `third_party_provider=cbd` | 无 Astro 等价机制，改 `build.assetsPrefix` / 部署层回源 |
-| `inject` | `inject.head` 8 项、`inject.bottom` 5 项 | 需搬到布局/插槽 |
-| `hexo-only` | `pjax.enable` | 静态 MPA 无 pjax，删除或评估 View Transitions |
-| `hexo-plugin` | `abbrlink, bangumi, envelope_comment, hexo_safego, baidu_url_submit, aisummary, feed, sitemap, baidusitemap, search, all_minifier, aplayer, nofollow, auto_spacing, highlight, prismjs, deploy` | 需换 `@astrojs/rss`、`@astrojs/sitemap`、CI 脚本等；`abbrlink` 已作为 frontmatter 被文章路由读取 |
+各类项数由 `migration-report.json` 实测统计：`page.type 2 / layout 1 / config-key 4 /
+comment-backend-secret 8 / cdn 2 / inject 2 / hexo-only 1 / hexo-plugin 1 = 21`。
+
+| 类别 | 项数 | 本站条目 | 说明 / 处理建议 |
+| --- | --- | --- | --- |
+| `page.type` | 2 | `charts`、`todolist` | 非标准类型，落到 `DefaultPage`，专属布局/数据丢失；需在 `[...path].astro` 加分支或改自定义页面 |
+| `layout` | 1 | `sitetime`（`source/log/index.md`） | `layout !== 'page'`，不命中 `[...path].astro`，URL 会 404；需专用路由 |
+| `config-key` | 4 | `Umami`、`ai_summary`、`Day_night_toggle_button`、`friends_lite` | strict schema 会拒绝，已剔除 + 备份到 `anzhiyu.config.original.yml`，按 `aliasHints` 人工映射 |
+| `comment-backend-secret` | 8 | `valine.appId/appKey`、`waline.serverURL`、`twikoo.envId`、`friends_vue.apiurl`、`post_head_ai_description.key`、`aisummary.token`、`baidu_url_submit.token` | 后端地址/密钥改环境变量 + 前端组件，不能进前端产物 |
+| `cdn` | 2 | `CDN.custom_format / CDN.option`、`internal_provider=local / third_party_provider=cbd` | 无 Astro 等价机制，改 `build.assetsPrefix` / 部署层回源 |
+| `inject` | 2 | `inject.head` 8 项、`inject.bottom` 5 项 | 搬到布局 / `BaseLayout` 插槽 |
+| `hexo-only` | 1 | `pjax.enable` | 静态 MPA 无 pjax，删除或评估 View Transitions |
+| `hexo-plugin` | 1 | `abbrlink, bangumi, envelope_comment, hexo_safego, baidu_url_submit, aisummary, feed, sitemap, baidusitemap, search, all_minifier, aplayer, nofollow, auto_spacing, highlight, prismjs, deploy` | 换 `@astrojs/rss`、`@astrojs/sitemap`、CI 脚本等；`abbrlink` 已作为 frontmatter 被文章路由读取 |
+
+**两条真实缺口 —— 属 Phase 3 / Phase 7 已知边界，脚本如实标注、不假装支持：**
+
+1. **`charts` 页 `type` 未分发**：Astro 侧 `[...path].astro` 的 `case page.type` 只分发
+   `tags / categories / link / essay / room / about / album / album_detail / music /
+   equipment / fcircle / default`（12 种），`charts`（以及 `todolist`）不在其中，
+   会落到 `DefaultPage` 只渲染正文，专属布局和数据丢失。脚本把它们写进 `unsupported`，
+   **没有**在产物里生成任何分发分支来假装支持。
+2. **`layout: sitetime` 页会 404**：`[...path].astro` 的 `getStaticPaths` 用
+   `entry.data.layout === 'page'` 过滤；`source/log/index.md` 声明 `layout: sitetime` ≠ `page`，
+   因此不产出该 URL。脚本补 `layout: page` 时只对**缺失该字段**的页面补，已有的 `sitetime`
+   原样保留并列入 `unsupported`，避免静默改写用户语义。
+
+两条都在 `docs/MIGRATION.md` §5.2 / §13.1 有对应的人工处理建议。
 
 ### 6.2 warnings（1 条）
 
