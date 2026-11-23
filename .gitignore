@@ -48,3 +48,6 @@ examples/blog/tests/artifacts/
 .tmp-*
 .diff-*.json
 .dist-snapshot*/
+
+# WorkBuddy 本地数据（工作日志等，不进仓库）
+.workbuddy/
