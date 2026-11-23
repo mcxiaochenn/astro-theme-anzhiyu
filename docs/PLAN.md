@@ -12,17 +12,17 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 17:00**
+**快照时间：2026-11-23 18:35**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `783c106` feat: 落地 Stylus 兼容插件与 monorepo 骨架 |
-| 提交数 | 4 |
+| 提交 | `ad20443` feat: P1-5 全量样式编译打通并归档报告；P1-7 配置默认值与 schema 首版 |
+| 提交数 | 12 |
 | 工作区 | 干净，与 `origin/main` 同步 |
-| CI | **无**（`.github/` 不存在） |
-| 代码量 | 插件 230 行 + 验证站 7 个文件 |
+| CI | 已建立（`.github/workflows/ci.yml`），首次运行已定位并修复一处真实构建错误 |
+| 代码量 | 插件约 700 行 + 配置包 6 文件 + 验证站 + fixture 10 篇 |
 
 ### 1.2 已完成
 
@@ -32,19 +32,25 @@
 | monorepo 骨架 | pnpm workspace，`packages/*` + `examples/*`，`.npmrc` 设 `node-linker=hoisted` |
 | Stylus 兼容插件 | `vite-plugin-stylus-hexo-config` 230 行：import 展开 + `hexo-config()` 调用点变量化 |
 | 技术验证 1、2 | glob import ✅；`hexo-config()` 在条件/`convert()`/`alpha()` 里求值 ✅ |
+| P1-5 全量样式编译 | ✅ 上游 72 styl + 47 css 全量进产物：686772 B / gzip 79071，与基准 +0.52% / −0.07%，零残留 `@import` |
+| P1-6 基准固化 | ✅ 上游 hexo g 实测 CSS 683218 B / gzip 79124；48 页 HTML 摘要；10 篇 fixture 覆盖 42 个 tag；4 次构建逐字节可复现 |
+| P1-7 配置层首版 | ◐ `defaults.ts`（133 顶层键，与上游 YAML 深比较一致）+ `schema.ts`（133 顶层，31 个区块精确类型 / 178 二级键） |
+| P1-10 CI | ◐ 流水线 + `verify-css.mjs` 已跑通本地行为矩阵；GitHub 首次运行暴露并修复了 lightningcss 构建错误 |
 
 ### 1.3 Phase 1 的真实边界
 
-**Phase 1 完成度：按 03 的原口径约 45%（2.5 / 5.5 人日），按本文件的细拆口径 33%（2.5 / 7.5）。** 两种算法差在 P1-5/P1-6/P1-9/P1-10 这四项是新补进来的，03 里没有。差异的实质在这里：
+**Phase 1 完成度：按 03 原口径约 78%（4.5 / 5.5 人日），按本文件细拆口径 60%（4.5 / 7.5）。**
 
-| 说法 | 实际 |
+17:00 时这里记的是「只编译过 `var.styl` 一个文件、302 KB 主体从未编译」。**现在这个缺口已经补上了**，记录如下以便追溯：
+
+| 17:00 的状态 | 18:35 的实测 |
 | --- | --- |
-| 「Stylus 管线已实测通过」 | 只对 `var.styl` 一个文件（9.5 KB / 63 处 `hexo-config`）成立 |
-| 上游 302 KB 样式主体 | **从未编译过**。`index.styl` 的 9 组导入、`_layout/` 的 4 个 >12 KB 文件、`_extra/**/*.css` 都未触碰 |
-| 179 处 `hexo-config` 分布 27 个文件 | 只验证了其中 63 处（35%） |
-| 构建产物 | `dist/index.html` 823 B，CSS 内联。没有独立 CSS 产物，无法与上游 470 KB 对比 |
+| 只编译 `var.styl`（63 处 `hexo-config`） | 全量 72 styl + 47 css，展开 150 个文件，102 个唯一配置键 |
+| 302 KB 主体从未编译 | 产物 686772 B，与上游基准差 +0.52% |
+| `dist/index.html` 823 B、CSS 内联 | 产出独立 `_astro/index.*.css`，index.html 引用它 |
+| 179 处 `hexo-config` 只覆盖 63 处 | 179 处全部命中，唯一键 102 个与插件日志闭环 |
 
-验证站 `examples/blog` 只引入 `var.styl` + 自写的 `probe.styl`，这是**变量层**验证，不是**样式层**验证。`_global/`、`_layout/`、`_page/`、`_tags/`、`_mode/` 全部没进去过。
+这一块的真实成本比预估高：插件从 230 行扩到约 700 行，补了 `@require` 语义、nib 兼容（vendor 30 个 styl）、`.css` 的 `@css{}` 字面量内联、Stylus 注释与 glob 语义复刻。**当初「Phase 1 是最容易的一段」的判断是错的。**
 
 ### 1.4 已知问题与文档债
 
@@ -55,7 +61,10 @@
 | D3 | 03 的 Phase 1 说「配置 schema」是 M 级任务，没拆 | 约 200 个键 + 默认值对齐，实际是全阶段最机械的一块 | 拆成 P1-7 / P1-8 |
 | D4 | 上游参考产物没有产出计划 | 三层验收全部依赖它，缺了等于无法验收 | P1-6 补上 |
 | D5 | 没有示例内容 fixture | HTML diff / 像素 diff 需要同一份内容喂两边 | P1-6 一并产出 |
-| D6 | 插件对 `@import` 做了全局去重 | Stylus 原生 include 语义是重复展开，去重后产物可能不同 | P1-5 对比字节数时确认；有差异则改为按文件路径 + 深度记账 |
+| D6 | 插件对 `@import` 做了全局去重 | Stylus 原生 include 语义是重复展开，去重后产物可能不同 | ✅ 已解决：改成按 Stylus 的 `@require`/`@import` 语义分别处理，产物与基准 +0.52% |
+| D7 | 上游自身有非法 CSS：`source/css/_mode/readmode.styl:120` 写成 `var(-highlight-bg)`（104 行是正确的 `--highlight-bg`） | 浏览器静默丢弃该声明；lightningcss 严格解析直接构建失败。修上游会改变视觉，不修则必须关压缩 | 已决策：不改上游，`examples/blog/astro.config.mjs` 关 `cssMinify`，Phase 7 处理压缩时再议 |
+| D8 | 量级纠正：上游 `_config.yml` 不是「约 200 键」，而是 **133 个顶层键 / 662 个递归 mapping key** | P1-7 的工作量估算需上调；schema 还有约 351 个嵌套键是 passthrough | 以 P1-7 报告实测为准，本文件相关表述已改 |
+| D9 | **未定位**：`_highlight/highlight.styl:29` 的 `if $prismjs_enable` 守卫在全部 72 个 styl 里从未赋值，本地实测 Stylus 未定义变量在 `if` 里当假，但产物多出 34 条 prismjs 规则（+3.5 KB） | +0.52% 差异的主要来源；若上游实际不输出这些规则，则我们多输出了约 3.5 KB | Phase 7 动压缩/基准前必须定位；不影响 P1-5 判定 |
 
 ---
 
@@ -184,7 +193,7 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | 阶段 | 内容 | 状态 | 估时 | 已完成 |
 | --- | --- | --- | --- | --- |
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
-| Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 2.5 |
+| Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 4.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ⬜ | 1.8 | 0 |
 | Phase 2 | 布局与核心页面 | ⬜ | 9.5 | 0 |
 | Phase 3 | widget 与页面模板 | ⬜ | 10.8 | 0 |
@@ -192,7 +201,7 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
 | Phase 6 | 42 个 Hexo tag | ⬜ | 7.5 | 0 |
 | Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 3 |
+| **合计** | | | **≈62** | 5 |
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -218,44 +227,32 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | P1-2 | Astro 7 项目初始化 | `examples/blog`，astro 7.4.13 | `pnpm dev` 起得来 | 0.5 | ✅ |
 | P1-3 | Stylus 管线（变量层） | `var.styl` 编译成功 | 63 处 `hexo-config` 求值正确（02 §6.6） | 0.5 | ✅ |
 | P1-4 | `vite-plugin-stylus-hexo-config` | 230 行插件 + README | import 展开、调用点变量化、引号规则、缺失键告警 | 1 | ✅ |
-| P1-5 | **上游完整样式全量编译** | `examples/blog/src/styles/` 下上游 `source/css/` 全量拷贝能编译 | 见下 | 1 | ⬜ |
-| P1-6 | 基准固化 + 内容 fixture | `docs/baseline.json`、`fixtures/` 10 篇示例文章 | 上游 `hexo g` 跑通，CSS 字节数记入 baseline | 0.5 | ⬜ |
-| P1-7 | 配置 schema | `packages/astro-theme-anzhiyu/src/config/schema.ts`，zod 约 200 键 | 上游 `_config.yml` 全量通过校验，零 unknown key | 1.5 | ⬜ |
-| P1-8 | 配置加载层 | `loader.ts`：YAML → 校验 → 补默认值 → 类型导出 | 少写必填键时构建失败并打印键路径 | 1 | ⬜ |
-| P1-9 | Phase 1 验收 | 三条验收全绿 | 见下 | 0.5 | ⬜ |
-| P1-10 | CI 基础流水线 | `.github/workflows/ci.yml` | PR 上自动 install + build + verify | 0.5 | ⬜ |
+| P1-5 | **上游完整样式全量编译** | 上游 `source/css/` 全量进 `examples/blog`，产物 686772 B | 见 docs/notes/P1-5-full-style-build.md | 1 | ✅ |
+| P1-6 | 基准固化 + 内容 fixture | `docs/baseline.json`（CSS 683218 B / 48 页）、`fixtures/` 10 篇覆盖 42 tag | 上游 `hexo g` 跑通，4 次构建逐字节可复现 | 0.5 | ✅ |
+| P1-7 | 配置 schema | `packages/astro-theme-anzhiyu/src/config/schema.ts`（133 顶层，31 区块精确类型） | 上游 `_config.yml` 校验零错误、unknown key 0 | 1.5 | ◐ |
+| P1-8 | 配置加载层 | `loader.ts`：YAML → 深合并默认值 → 校验 → 类型导出 | 少写必填键时失败并打印键路径 | 1 | ⬜ |
+| P1-9 | Phase 1 验收 | 三条验收全绿 | 见下 | 0.5 | ◐ |
+| P1-10 | CI 基础流水线 | `.github/workflows/ci.yml` + `scripts/verify-css.mjs` | PR 上自动 install + build + verify | 0.5 | ◐ |
 
-#### P1-5 是当前最高风险项
+#### P1-5 ✅ 已完成（原「最高风险项」，现已关闭）
 
-**为什么先做**：Phase 2–7 全部建立在这条管线上。现在只编译了 63/179 处 `hexo-config`、1/72 个 styl 文件。如果全量编译跑不通，后面全是空中楼阁。
+17:00 的判断是「先做它，因为 Phase 2–7 全压在这条管线上」，事实证明判断没错——但也严重低估了成本。实际踩到四类问题：
 
-**具体做法**：
+| 原预期问题 | 实际结果 |
+| --- | --- |
+| `_extra/**/*.css` 的 glob | 不是 glob 问题，是**纯 CSS 内联**：必须复刻 hexo-renderer-stylus 的 `include css: true`，用 Stylus `@css{}` 字面量承载，还要抵消 compiler 每行剥 2 空格的行为 |
+| 116 处未验证 `hexo-config` | 另有发现：值可能是对象/数组（7 个键），按 truthy 处理；缺失键按 Hexo `getProperty` 返回 `''` 而非 `null` |
+| 4 处条件 import | 正常，无问题 |
+| import 去重差异 | D6 已解决；但新增了 `@require` 语义（只展开一次）与 nib 兼容（vendor 30 个 styl） |
+| — | **新增**：上游 `readmode.styl:120` 的非法 CSS 触发 lightningcss 构建失败（D7） |
 
-1. 把上游 `source/css/` 整棵目录拷贝到 `examples/blog/src/styles/upstream/`（验证期用拷贝，Phase 2 再决定进主题包的形式）。
-2. `probe.styl` 改成只 `@import 'upstream/index.styl'`。
-3. 目标是产物里出现完整的样式表，而不是现在的 823 字节内联片段。
+验收数据：686772 B / gzip 79071 / verify PASS（+0.52% / −0.07%）/ 零残留 `@import`。完整证据见 [P1-5 报告](notes/P1-5-full-style-build.md)。
 
-**已知会在这一步暴露的四个问题**：
+#### P1-6 ✅ 基准固化（已完成）
 
-| 问题 | 现象预期 | 应对 |
-| --- | --- | --- |
-| `_extra/**/*.css` 的 glob | 插件对 `.css` 的 import 保持原样，Stylus 输出 CSS `@import`，Vite 可能 resolve 失败 | 在插件里加 `.css` 的内联选项；或把 `_extra` 的 glob 展开成显式 import |
-| 27 个文件里的 116 处未验证 `hexo-config` | 某个调用形态插件没覆盖（比如嵌套在 `calc()` 里） | 按报错逐类补，插件加单测 |
-| `index.styl` 的 4 处条件 import | `algolia_search.enable` 为 false 时导入被跳过，产物缺样式 | 接受（与上游一致），但在 baseline 里给两个配置各存一份 |
-| import 去重差异（D6） | 产物字节数比上游少 | 对比后若超 5%，把去重改成按引用路径记账 |
+本地 `_research/anzhiyu-upstream` + hexo 7.3.0 跑通 `hexo g`：75 文件 / 48 页 / CSS 683218 B / gzip 79124。同一 fixture 连续 4 次构建产物清单 SHA-256 完全一致（含 clean 与增量）。为达到可复现，额外做了 3 个站点级归一化（冻结生成时间戳、排序模型数据、关闭 fragment_cache），**Astro 侧必须按同样约定输出才能逐字节对齐**。详见 [P1-6 报告](notes/P1-6-baseline.md)。
 
-**验收**：`pnpm --filter blog build` 产出独立 CSS 文件；字节数与上游 `index.css` 差异 ≤5%；产物能被浏览器正确应用到验证页。
-
-#### P1-6 基准固化
-
-本地已有条件：`_research/anzhiyu-upstream`（基线 commit）+ 全局 hexo 4.3.2。步骤：
-
-1. 造 fixture：10 篇 Markdown，覆盖长文、短讯、多分类、多标签、含 42 tag 的语法、`sticky`/`top`/`cover`/`top_img` 各变体、about 类独立页。
-2. 建一个临时 Hexo 工程，装 `hexo-renderer-pug` + `hexo-renderer-stylus`，把上游主题挂进去，跑 `hexo g`。
-3. 提取摘要写 `docs/baseline.json`：CSS 字节数 / gzip / SHA-256、每页 HTML 字节数 / SHA-256、CSS 变量取值表。
-4. fixture 进仓库（`fixtures/`），基准摘要进仓库，完整产物不进。
-
-**验收**：`docs/baseline.json` 里的 CSS 字节数是实测值不是估算；同一 fixture 重跑两次摘要一致。
+注意：`hexo 7.3.0` 版本必须钉死，换机器要同版本。
 
 #### P1-7 / P1-8 配置层
 
@@ -271,13 +268,13 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 
 #### P1-9 / P1-10
 
-Phase 1 三条验收（来自 03）：
+Phase 1 三条验收（来自 03），当前状态：
 
-- [ ] 构建产出 CSS，与上游 `index.css` 差异 ≤5%
-- [ ] `var(--anzhiyu-main)` 等 CSS 变量值与上游一致
-- [ ] 配置缺必填键时构建失败，报出键路径
+- [x] 构建产出 CSS，与上游 `index.css` 差异 ≤5% —— 实测 +0.52%（686772 vs 683218），gzip −0.07%
+- [ ] `var(--anzhiyu-main)` 等 CSS 变量值与上游一致 —— 待逐值比对（baseline 已存 69 个 `--anzhiyu-*` 变量）
+- [ ] 配置缺必填键时构建失败，报出键路径 —— 待 P1-8 完成后验
 
-CI 流水线见 §6.1。
+CI 流水线见 §6.1。已实际运行一次并修复 lightningcss 构建错误。
 
 **退出标准**：三条验收全绿 + CI 在 PR 上跑通。
 
@@ -581,23 +578,15 @@ jobs:
 
 ---
 
-## 8. 立即可执行的三步
+## 8. 下一步（按性价比排序）
 
-按性价比排序，前两步做完 Phase 1 就走完一半（4 / 7.5 人日）。
+**第一步：P1-8 配置加载层**（1 人日）—— schema 与 defaults 已落盘，补 loader + 三条验收。同时也是 Phase 1 唯一还没接上的环节。
 
-**第一步：P1-5 全量样式编译**（1 人日，最高风险 + 最低成本）
+**第二步：Phase 1.5 垂直切片**（1.8 人日）—— 样式管线已通，现在可以真实检验 ClientRouter 那 5 项架构假设。这是下一个真正的闸门。
 
-拿上游 `source/css/` 全量进验证站，跑 `pnpm build`，把每一个报错都当成必须解决的问题。这一步的结论直接决定整个计划是否成立。
+**第三步：配置变量逐值比对 + CI 绿灯确认**（0.3 人日）—— 补齐 P1-9 第二条验收，并把 CI 跑绿作为可回归的基线。
 
-**第二步：P1-6 基准固化**（0.5 人日）
-
-造 fixture → 跑上游 `hexo g` → 提取 `docs/baseline.json`。没有基准，后面所有「一致」「通过」都是空话。
-
-**第三步：P1-10 CI**（0.5 人日）
-
-把构建和比对放进 GitHub Actions。再晚建，就要回过头补一堆已经合进去的提交。
-
-三步之后的顺序：P1-7/P1-8 配置层 → P1.5 垂直切片 → Phase 2。
+三步之后的顺序：Phase 2 骨架（P2-1 内容集合 → P2-2 BaseLayout → P2-3 Head）。
 
 ---
 
@@ -677,8 +666,8 @@ jobs:
 
 | # | 问题 | 状态 | 归属 |
 | --- | --- | --- | --- |
-| 1 | Stylus glob `@import '_global/*'` 在 Vite 8 + Astro 7 下工作 | ✅ 通过（但只测了小样例） | P1-3 |
-| 2 | `hexo-config()` 在 `if` / `convert()` / `alpha()` 里求值 | ✅ 通过（变量注入方案） | P1-3 |
+| 1 | Stylus glob `@import '_global/*'` 在 Vite 8 + Astro 7 下工作 | ✅ 通过（全量 72 styl + 47 css 实际编译验证） | P1-5 |
+| 2 | `hexo-config()` 在 `if` / `convert()` / `alpha()` 里求值 | ✅ 通过（179 处全命中，102 个唯一键） | P1-5 |
 | 3 | ClientRouter 整 body 替换后 `#web_bg` 样式是否保留 | ⏳ | P1.5-2 |
 | 4 | ClientRouter 下 `script[data-pjax]` 重执行能否等价 | ⏳ | P1.5-3 |
 | 5 | 生成的 HTML 能否命中现有 Stylus 的 class | ⏳ | P1.5-5 |
@@ -690,7 +679,7 @@ jobs:
 
 | 里程碑 | 内容 | 判据 |
 | --- | --- | --- |
-| M1 | 样式管线可信 | Phase 1 三条验收全绿 |
+| M1 | 样式管线可信 | ✅ P1-5 已过：全量编译 + 与基准差 +0.52% |
 | M2 | 架构分叉消除 | Phase 1.5 五项有结论 |
 | M3 | 静态站可看 | Phase 2 视觉 diff ≤1% |
 | M4 | 全部页面可渲染 | Phase 3 退出 |
