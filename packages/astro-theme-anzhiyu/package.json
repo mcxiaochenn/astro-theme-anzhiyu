@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "gen:defaults": "node scripts/gen-defaults.mjs",
-    "check:schema": "node scripts/check-schema.mjs"
+    "check:schema": "node scripts/check-schema.mjs",
+    "check:loader": "node scripts/check-loader.mjs"
   },
   "dependencies": {
     "zod": "^4.6.7"

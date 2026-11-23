@@ -10,6 +10,11 @@
     "dev": "pnpm --filter blog dev",
     "build": "pnpm --filter blog build",
     "preview": "pnpm --filter blog preview",
-    "verify": "node scripts/verify-css.mjs"
+    "verify": "node scripts/verify-css.mjs",
+    "compare-vars": "node scripts/compare-css-vars.mjs",
+    "check:upstream-delta": "node scripts/check-upstream-delta.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }
