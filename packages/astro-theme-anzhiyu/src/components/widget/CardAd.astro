@@ -1,0 +1,23 @@
+---
+/**
+ * CardAd.astro — 上游 `layout/includes/widget/card_ad.pug`（P3-1）。
+ *
+ * ```pug
+ * if theme.ad && theme.ad.aside
+ *   .card-widget.ads-wrap
+ *     != theme.ad.aside
+ * ```
+ *
+ * `theme.ad` 在主题配置里是松散对象；`ad.aside` 为空时不输出任何节点。
+ */
+import { getThemeConfig, readString } from '../../layouts/theme-context.ts'
+
+const theme = getThemeConfig()
+const asideAd = readString(theme.ad, 'aside')
+---
+
+{
+  asideAd && (
+    <div class="card-widget ads-wrap" set:html={asideAd} />
+  )
+}

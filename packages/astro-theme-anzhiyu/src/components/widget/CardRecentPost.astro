@@ -1,0 +1,98 @@
+---
+/**
+ * CardRecentPost.astro — 上游 `layout/includes/widget/card_recent_post.pug`（P3-1）。
+ *
+ * ```pug
+ * if theme.aside.card_recent_post.enable
+ *   .card-widget.card-recent-post
+ *     .item-headline > i.anzhiyu-icon-history + span
+ *     .aside-list
+ *       site.posts.sort(sort, -1).limit(postLimit).each(article =>
+ *         .aside-list-item(class=no_cover)
+ *           if post_cover && theme.cover.aside_enable
+ *             a.thumbnail > img[data-lazy-src]
+ *           .content
+ *             a.title
+ *             time[datetime][title] == date(article.date, config.date_format)
+ * ```
+ *
+ * 两个容易写错的点：
+ *  1. `no_cover` 的条件是 `article.cover === false || !theme.cover.aside_enable`，
+ *     不是「没有封面字符串」；
+ *  2. 这里取的是 **frontmatter 原始 cover**，不能套 `cover.default_cover`
+ *     （上游最近文章卡没有默认封面回退）。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import { resolveImageLazyload } from '../post/post-list.ts'
+import { tp } from '../../i18n/index.ts'
+import type { RecentPostItem } from '../../data/site-stats.ts'
+
+interface Props {
+  /** 已按 date 降序排好（同日期 path 码点升序）。 */
+  items: RecentPostItem[]
+}
+
+const { items } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+const config = theme.aside.card_recent_post
+
+const limit = config.limit === 0 ? items.length : config.limit || 5
+const sortByUpdated = config.sort === 'updated'
+const asideCoverEnabled = theme.cover.aside_enable
+const lazyload = resolveImageLazyload()
+
+const visible = items.slice(0, limit).map(({ post, cover }) => {
+  const coverSrc = typeof cover === 'string' && cover ? urlFor(cover) : ''
+  return {
+    post,
+    coverSrc,
+    noCover: cover === false || !asideCoverEnabled,
+    date: sortByUpdated ? post.updated : post.date,
+    dateLabel: tp(sortByUpdated ? 'post.updated' : 'post.created'),
+    /**
+     * 开启站级 lazyload 时，过滤器插入的 `onerror`（post_page，逗号 + 双引号）
+     * 排在 pug 自带那条前面，baseline 解析后生效的是前者。
+     */
+    onError: lazyload.enabled
+      ? `this.onerror=null,this.src="${lazyload.errorPostPage}"`
+      : `this.onerror=null;this.src='${lazyload.errorPostPage}'`,
+  }
+})
+---
+
+{
+  config.enable && (
+    <div class="card-widget card-recent-post">
+      <div class="item-headline">
+        <i class="anzhiyufont anzhiyu-icon-history" />
+        <span>{tp('aside.card_recent_post')}</span>
+      </div>
+      <div class="aside-list">
+        {visible.map((item) => (
+          <div class:list={['aside-list-item', item.noCover && 'no-cover']}>
+            {item.coverSrc && asideCoverEnabled && (
+              <a class="thumbnail" href={item.post.href} title={item.post.title}>
+                <img
+                  src={lazyload.enabled ? lazyload.placeholder : item.coverSrc}
+                  onerror={item.onError}
+                  data-lazy-src={lazyload.enabled ? item.coverSrc : undefined}
+                  alt={item.post.title}
+                />
+              </a>
+            )}
+            <div class="content">
+              <a class="title" href={item.post.href} title={item.post.title}>
+                {item.post.title}
+              </a>
+              <time datetime={item.date.xml} title={`${item.dateLabel} ${item.date.full}`}>
+                {item.date.display}
+              </time>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

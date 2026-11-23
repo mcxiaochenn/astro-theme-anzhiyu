@@ -1,0 +1,38 @@
+---
+/**
+ * CardBottomSelf.astro — 上游 `layout/includes/widget/card_bottom_self.pug`（P3-1）。
+ *
+ * ```pug
+ * if site.data.widget && site.data.widget.bottom
+ *   each item in site.data.widget.bottom
+ *     .card-widget(class=item.class_name id=item.id_name style=item.order ? `order: ${item.order}` : '')
+ *       .item-headline …
+ *       .item-content !=item.html
+ * ```
+ *
+ * 与 `card_top_self.pug` 的唯一差别是支持 `order` 内联样式。
+ */
+import type { WidgetDataItem } from '../../data/widget-data.ts'
+
+interface Props {
+  items?: WidgetDataItem[]
+}
+
+const { items = [] } = Astro.props
+---
+
+{
+  items.map((item) => (
+    <div
+      class:list={['card-widget', item.class_name]}
+      id={item.id_name}
+      style={item.order ? `order: ${item.order}` : undefined}
+    >
+      <div class="item-headline">
+        <i class={item.icon} />
+        <span>{item.name}</span>
+      </div>
+      <div class="item-content" set:html={item.html ?? ''} />
+    </div>
+  ))
+}

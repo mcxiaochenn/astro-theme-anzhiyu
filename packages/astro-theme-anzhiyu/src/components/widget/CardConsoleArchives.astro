@@ -1,0 +1,56 @@
+---
+/**
+ * CardConsoleArchives.astro — 上游 `layout/includes/widget/card_console_archives.pug`（P3-1）。
+ *
+ * 与 `card_archives.pug` 结构相同，只是读 `theme.centerConsole.card_archives`
+ * （中控台页面的归档卡），且外面没有 `.card-widget` 包装。
+ */
+import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor } from '../../layouts/site.ts'
+import { asideArchives } from '../../utils/helpers.ts'
+import { tp } from '../../i18n/index.ts'
+import { SITE_LANGUAGE, SITE_TIME_ZONE } from '../../data/site-stats.ts'
+
+interface Props {
+  posts: Array<{ date: Date }>
+}
+
+const { posts } = Astro.props
+const theme = getThemeConfig()
+const urlFor = createUrlFor('/')
+
+interface ConsoleArchivesConfig {
+  enable?: boolean
+  type?: string
+  format?: string
+  order?: number
+  limit?: number
+}
+
+const config = theme.centerConsole.card_archives as ConsoleArchivesConfig
+const type = config.type || 'monthly'
+const format = config.format || 'MMMM YYYY'
+const order = (config.order || -1) as 1 | -1
+const limit = config.limit === 0 ? 0 : config.limit || 8
+
+const html = asideArchives(
+  { type, format, order, limit },
+  {
+    posts,
+    archiveDir: 'archives',
+    timezone: SITE_TIME_ZONE,
+    language: SITE_LANGUAGE,
+    urlFor,
+    t: (key: string) => tp(key),
+  },
+)
+---
+
+{
+  config.enable && (
+    <>
+      <div class="card-archives" set:html={html} />
+      <hr />
+    </>
+  )
+}
