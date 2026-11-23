@@ -12,18 +12,19 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 22:20（Wave 1 收尾 / Phase 4 进行中）**
+**快照时间：2026-11-23 22:56（Wave 2 收尾 / Phase 4 收尾中）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `61a84fe` feat(P3-2): page.type 分发与 11 个页面模板（后续还有未提交的 Phase 4 工作） |
-| 提交数 | 35 |
-| 工作区 | Phase 4 运行时（Head/BaseLayout/public js）与 about 页面未提交 |
+| 提交 | `19c9b80` fix(diff): 忽略机制元素后合并相邻文本节点（后续还有未提交的 Phase 4 收尾 / 迁移脚本 / 上游 public 资源） |
+| 提交数 | 39 |
+| 工作区 | Head/Header/AsideContent/BaseLayout 的 Phase 4 改动、`head/**`、`console/**`、`config/assets.ts`、`public/{js,css,img,anzhiyu}/`、`scripts/migrate-hexo.mjs` 均未提交；三个 agent 在跑 |
 | CI | 12 步流水线，主干全绿；diff 步骤只出报告不阻断 |
 | 产物规模 | **62 页**构建成功（基线 48 页 + 9 文章 + about + 11 个 page.type fixture） |
 | 代码量 | 主题包约 8k 行 + remark-hexo-tag 42 tag + 验证站 62 页 |
+| 全量 diff | 48 页 / **PASS 0 / FAIL 48**、差异 **112** 条（脚本样式 48 / 属性 29 / 结构 29 / 文本 6）、缺 56 / 多 113 节点 |
 
 ### 1.2 已完成
 
@@ -39,7 +40,7 @@
 | P1-10 CI | ◐ 流水线 + `verify-css.mjs` 已跑通本地行为矩阵；GitHub 首次运行暴露并修复了 lightningcss 构建错误 |
 | P1-8 配置加载层 | ✅ loader + 30/30 用例通过；错误信息含完整键路径；CSS 变量比对 69/69 命中 |
 | Phase 1.5 垂直切片 | ✅ 五项假设全过（详见 §Phase 1.5），Phase 4 原方案成立 |
-| P2-13 HTML diff 工具 | ✅ 14 条归一化规则、48 页可全量比对；当前基线 vs 产物：缺 857 / 多 60 节点 |
+| P2-13 HTML diff 工具 | ✅ 21 条归一化规则（N1–N21）+ 忽略机制元素后合并相邻文本节点；48 页全量比对，当前 112 条差异 |
 | P2-1 内容集合 | ✅ 10 篇直接读 `fixtures/`（零复制）、frontmatter 19/19 字段覆盖、unified 处理器生效 |
 | P2-2/P2-3 骨架与 Head | ✅ BaseLayout 26 个挂载点 ID 全命中；Head 32 条 meta/link；首页由真实内容渲染 |
 | P2-6/P2-11 helper 与 i18n | ✅ 12 个 helper 以上游 JS 为 oracle 对拍 269 项全过；4 语言字典 83 项通过 |
@@ -47,17 +48,21 @@
 | P2-15 Markdown/日期对齐 | ✅ smartypants 关闭（`-->` 不再被改写）；Hexo 语义日期格式化 59 条对拍全过 |
 | P2-4/P2-5 布局组件 | ✅ Header/Footer/Sidebar/Rightside 真实组件替换占位，BaseLayout 的 26 个挂载点全部有归属 |
 | P2-9/P2-10 归档与 404 | ✅ 归档（年/月三级）、分类、标签、404 路由全生成，构建 40 页 |
-| P2-7 首页与 PostCard | ◐ PostCard/分页/CategoryBar 骨架已落盘；M1（highlight.js 代码块对齐）进行中 |
+| P2-7 首页与 PostCard | ✅ M1 highlight.js 对齐上游 `figure.highlight`；首页缺口 857 → 480 |
 | 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
 | P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
 | P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
-| P2-7 首页收尾 | ✅ home_top 全子树（bannerGroup/topGroup/todayCard/分类条）；首页缺口 480 → 388 |
+| P2-7 首页收尾 | ✅ home_top 全子树（bannerGroup/topGroup/todayCard/分类条）；首页缺口 480 → 388 → 223 → 当前 4 条 |
 | P2-8 文章页 | ✅ 9 篇文章路由与 post 组件；slugger 41 个标题 id 与基线一致（额外 footnote-label 属 M2） |
 | P3-1 aside widgets | ✅ 15 张卡片；首页/归档/文章页 aside 结构差异 0 |
 | P3-2 page.type 分发 | ✅ `[...path]` 独立页面路由 + 11 个模板；12 个 page.type fixture 全部命中根选择器 |
 | P6-1 tag 骨架 | ✅ `packages/remark-hexo-tag`（纯 ESM 零依赖）+ 24 个行内/块级 tag，38 条单测 |
 | P6-2 剩余 tag | ✅ 媒体/卡片 11 + 第三方 7，42 个 tag 全落地，59/59 单测；四篇 fixture `{%` 残留 0 |
-| P4 运行时（进行中） | ◐ GLOBAL_CONFIG / 资源解析 / 上游 JS 搬运 / ClientRouter / console 已落盘；首页缺口 388 → 11 |
+| P2-4 外链语义 | ✅ `external-link.ts` + Footer/Sidebar/MenuItems 补 `target/rel`；attr-missing 286 → 0，全量 diff 398 → 112 |
+| P3-3 about 页面 | ✅ 14 个区块组件，`#about-page` 子树独立 diff 0 条 |
+| diff 归一化 N15–N21 | ✅ generator / ClientRouter / pjax / Vite CSS 路径 / 中文空白 / M2 脚注 / 上游未渲染标题豁免 |
+| P4 运行时（进行中） | ◐ GLOBAL_CONFIG / config-diff / inject_head_js / 资源解析 / 上游 JS 搬运 / ClientRouter / console 已落盘；全量 diff 收敛到 112 条，收尾中 |
+| P7 迁移脚本（进行中） | ◐ `scripts/migrate-hexo.mjs` + xcAnzhiyu 演练产物 292 文件 / 22 post / 21 项 unsupported；文档收尾中 |
 
 ### 1.3 Phase 1 的真实边界
 
@@ -234,13 +239,15 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 0 | 仓库骨架、调研与计划 | ✅ | 0.5 | 0.5 |
 | Phase 1 | 构建管线与配置层 | ◐ | 7.5 | 6.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
-| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 8.5 |
-| Phase 3 | widget 与页面模板 | ◐ | 10.8 | 4.5 |
-| Phase 4 | 交互层与路由 | ◐ | 13 | 3 |
-| Phase 5 | 第三方集成 | ⬜ | 6.3 | 0 |
-| Phase 6 | 42 个 Hexo tag | ◐ | 7.5 | 6 |
-| Phase 7 | PWA、性能、迁移文档 | ⬜ | 5.5 | 0 |
-| **合计** | | | **≈62** | 25.3 |
+| Phase 2 | 布局与核心页面 | ◐ | 9.5 | 9.0 |
+| Phase 3 | widget 与页面模板 | ◐ | 10.8 | 6.0 |
+| Phase 4 | 交互层与路由 | ◐ | 13 | 4.0 |
+| Phase 5 | 第三方集成 | ◐ | 6.3 | 0.5 |
+| Phase 6 | 42 个 Hexo tag | ◐ | 7.5 | 6.5 |
+| Phase 7 | PWA、性能、迁移文档 | ◐ | 5.5 | 1.0 |
+| **合计** | | | **≈62** | **35.8** |
+
+> 合计按「已完成」列逐项相加；22:20 版写的 25.3 与列和不一致，此处按实修正。
 
 **关于量级**：这里的分阶段汇总 ≈62 人日，比 [03 初版计划](03-migration-plan.md) 的 34–45 天高约 40%。差额不是加了新功能，而是细拆后暴露的：03 的原估算没算 CI、基准产物、fixture、去风险切片这四样，Phase 6 的 42 个 tag 也只按「一个插件」估。这一版按任务逐条估，数字更接近真实成本。
 
@@ -668,38 +675,41 @@ jobs:
 
 ---
 
-## 8. 当前进度与剩余清单（2026-11-23 22:20）
+## 8. 当前进度与剩余清单（2026-11-23 22:56）
 
 ### 8.1 已完成（可以随时接手）
 
 - **Phase 0 ✅ / Phase 1.5 ✅ / Phase 1 约 87%**（P1-9 第三条随构建链路收口）
-- **Phase 2 约 90%**：布局四组件、首页 + home_top、文章页、归档/分类/标签/404、helper/i18n/日期、diff 工具全部落地
-- **Phase 3 约 42%**：15 个 aside widget、page.type 分发 + 11 个模板；about 进行中
-- **Phase 4 约 23%**：GLOBAL_CONFIG / 资源解析 / 上游 JS / ClientRouter / console；首页缺口 388 → 11
-- **Phase 6 约 80%**：42 个 tag 全实现（P6-1/P6-2），P6-6/P6-7 输出对齐待收
-- 关键度量：**构建 62 页**；全量 diff 48 页 / PASS 0 / 缺口 338（其中 about 占位 239）
+- **Phase 2 约 95%**：布局四组件、首页 + home_top、文章页、归档/分类/标签/404、helper/i18n/日期、外链语义、diff 21 条归一化全部落地；退出动作（48 页 PASS + CI 硬门禁）未做
+- **Phase 3 约 56%**：15 个 aside widget、page.type 分发 + 11 个模板、about 14 个区块组件（`#about-page` 子树 0 差异）
+- **Phase 4 约 30%**：GLOBAL_CONFIG / config-diff / inject_head_js / 资源解析 / 上游 JS / ClientRouter / console 已落盘；7 类收尾差异修复中
+- **Phase 5 约 8%**：第三方集成组件库 + 自检脚本进行中（未接线）
+- **Phase 6 约 87%**：42 个 tag 全实现、59/59 单测；剩视觉与 TOC/脚注边角
+- **Phase 7 约 18%**：迁移脚本 + xcAnzhiyu 真实站演练产物 292 文件已完成，指南/验收报告收尾中
+- 关键度量：**构建 62 页**；全量 diff 48 页 / **PASS 0** / **差异 112 条**（脚本样式 48 / 属性 29 / 结构 29 / 文本 6）/ 缺 56 / 多 113
 
 ### 8.2 剩余未完成（按优先级）
 
 | # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | Phase 4 收尾：og:url/index.html、config-diff、console 图片、行为验收 | phase4-runtime | ◐ |
-| 2 | about 页面 500 行 pug 全量复刻 | about-page | ◐ |
-| 3 | footer/sidebar 外链 `target/rel`、孤儿结构差异收敛 | 待分配 | ⬜ |
-| 4 | Phase 2 退出：48 页 PASS / CI diff 去 `|| true` | Lead + 待分配 | ⬜ |
-| 5 | Phase 3 剩余：模板浏览器走查（11 个 page.type） | 待分配 | ⬜ |
-| 6 | Phase 4 行为：暗色/右键/中控台/音乐/搜索/主色调 | 待分配 | ⬜ |
-| 7 | Phase 5：评论 ×5、分析 ×5、聊天、广告、隐私、AI 摘要、数学 | 待分配 | ⬜ |
-| 8 | Phase 6 收尾：42 tag 视觉与 `_tags/*.styl` 命中 | 待分配 | ⬜ |
-| 9 | Phase 7：PWA、性能、迁移指南/脚本、真实站验收、上游同步 | 待分配 | ⬜ |
+| 1 | Phase 4 收尾 7 类：config-diff 48 条（含 tags-thirdparty head 注入）、og:url 15 条、input#page-type 9 条、short-note 47 节点、console 二维码、about 2 脚本、postAI | p4-finish | ◐ |
+| 2 | Phase 5 组件库 + `check-third-party.mjs` + P5-1 报告落盘 | p5-integrations | ◐ |
+| 3 | Phase 7 文档：`docs/MIGRATION.md`（时区/CLI/只读/unsupported 21 项）、`docs/notes/P7-3-migration.md`、`.gitignore` 追加 `.migration-out/`、源站只读证明 | migration-tool-v2 | ◐ |
+| 4 | Phase 2 退出：48 页 PASS / `.github/workflows/ci.yml` diff 去 `\|\| true` 改硬门禁 / artifact 加 `if: always()` | Lead + 待分配 | ⬜ |
+| 5 | Phase 4 行为验收：暗色/右键/中控台/音乐/搜索/主色调/站内无整页刷新 | 待分配 | ⬜ |
+| 6 | Phase 3 剩余：11 个 page.type 模板浏览器走查 | 待分配 | ⬜ |
+| 7 | Phase 6 收尾：42 tag 视觉与 `_tags/*.styl` 命中、tags-media TOC 偏移（`#gallery`↔`#videos`）、tags-thirdparty head 节点、脚注定义段落 | 待分配 | ⬜ |
+| 8 | Phase 5 接线：组件库挂到 Head / BaseLayout（Lead 统一安排） | Lead | ⬜ |
+| 9 | Phase 7 剩余：PWA、性能、发布、上游同步、迁移产物可构建验证 | 待分配 | ⬜ |
 
 ### 8.3 已知待决策项
 
 1. **资源路径策略**：diff 每页报 1 条资源路径豁免（`/css/index.css` ↔ `/_astro/*.css`），Phase 7 按 [resource-path-policy](resource-path-policy.md) 决定是否做到字节级
-2. **M2 脚注差异**：我们渲染真脚注（特性），上游原样输出——diff 白名单已登记，保留我们的
-3. **归档 vs baseline 48 页**：当前 40 页构建成功但 diff FAIL 48（结构差异），收敛是 Phase 2 后半段的主线
+2. **M2 脚注差异**：我们渲染真脚注（特性），上游原样输出——diff 白名单已登记，保留我们的；剩余 1 条脚注定义段落 `node-missing` 待归一化或补渲染
+3. **config-diff 根因已定位**：`Head.astro:256` 把整篇正文塞进内联 JS，`tags-thirdparty` 页正文里的 `</script>` 提前闭合脚本导致正文泄进 `<head>`。修 `getPageFillDescription()` + `postUpdate` 可同时消掉 48 条 content 与 8 个 head 异常节点（p4-finish 进行中）
+4. **迁移脚本两条真实边界**：`charts` 页 type 未分发、`layout: sitetime` 页会 404，属 Phase 3/7 已知缺口，文档如实标注不假装支持
 
-**恢复工作时的入口**：`git pull` → `pnpm install` → `pnpm build` → `node scripts/extract-baseline-html.mjs` → `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all` 看两条曲线（PASS 页数、缺口节点数）。
+**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"`（Astro 7 需 Node ≥22.23.4）→ `git pull` → `pnpm install --frozen-lockfile` → `pnpm --filter blog build` → `node scripts/extract-baseline-html.mjs` → `DIST_DIR=.dist-snapshot BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all --json` 看两条曲线（PASS 页数、diffCount）。并行构建须持 `.build.lock` 并设 `CODEBUDDY_SAFE_DELETE_ENABLED=0`。
 
 ---
 
