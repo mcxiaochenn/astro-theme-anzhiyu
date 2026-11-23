@@ -1,0 +1,18 @@
+# 上游镜像必须逐字节保真。
+#
+# 上游 hexo-theme-anzhiyu 1.7.1 的 source/css/*.styl 与 _config.yml 全部是 CRLF
+# （见 docs/upstream-delta.md U7）。如果让 git 按平台的 core.autocrlf 做转换，
+# 同一份仓库在不同平台 checkout 出来的字节不同：
+#   - 本地 Windows 工作树：CRLF
+#   - CI Linux checkout：LF
+# 后果是 scripts/check-upstream-delta.mjs 的 SHA-256 守卫在 CI 里必然红——2026-11-23
+# 第一次进 CI 就是这么挂的（9 项 FAIL）。
+#
+# 用 -text 关掉一切行尾转换，让仓库里存的字节 == 上游的字节。
+# 注意：git 属性是「最后匹配的规则生效」，所以具体规则必须写在通用规则之后。
+# 新增/替换上游镜像文件后要跑 git add --renormalize <路径>。
+
+* text=auto
+
+examples/blog/src/styles/upstream/** -text
+examples/blog/theme.config.yml -text
