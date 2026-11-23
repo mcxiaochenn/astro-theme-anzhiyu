@@ -14,7 +14,9 @@
   "scripts": {
     "gen:defaults": "node scripts/gen-defaults.mjs",
     "check:schema": "node scripts/check-schema.mjs",
-    "check:loader": "node scripts/check-loader.mjs"
+    "check:loader": "node scripts/check-loader.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:helpers": "node scripts/check-helpers.mjs"
   },
   "dependencies": {
     "zod": "^4.6.7"
