@@ -1,13 +1,39 @@
 {
   "name": "astro-theme-anzhiyu",
-  "version": "0.0.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "Anzhiyu（Hexo hexo-theme-anzhiyu）博客主题的 Astro 移植版：组件、布局、配置层与主题静态资源 integration",
   "type": "module",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcxiaochenn/astro-theme-anzhiyu.git",
+    "directory": "packages/astro-theme-anzhiyu"
+  },
+  "homepage": "https://github.com/mcxiaochenn/astro-theme-anzhiyu#readme",
+  "bugs": {
+    "url": "https://github.com/mcxiaochenn/astro-theme-anzhiyu/issues"
+  },
+  "keywords": [
+    "astro",
+    "astro-component",
+    "astro-integration",
+    "astro-theme",
+    "theme",
+    "blog",
+    "anzhiyu",
+    "butterfly",
+    "hexo"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./integration": "./integration.mjs",
     "./schema": "./src/config/schema.ts",
     "./defaults": "./src/config/defaults.ts",
+    "./utils/*": "./src/utils/*",
+    "./i18n/*": "./src/i18n/*",
     "./components/Head.astro": "./src/components/Head.astro",
     "./components/*": "./src/components/*",
     "./layouts/BaseLayout.astro": "./src/layouts/BaseLayout.astro",
@@ -28,9 +54,14 @@
     "check:slugger": "node scripts/check-slugger.mjs"
   },
   "dependencies": {
+    "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
-  "devDependencies": {
-    "yaml": "^2.9.1"
+  "peerDependencies": {
+    "astro": "^7.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }

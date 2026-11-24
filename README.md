@@ -65,6 +65,80 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 完整依据与取舍见 [技术映射与架构决策](docs/02-astro-mapping.md)。
 
+## 安装 / 使用 / 发布
+
+### 安装
+
+主题包在 [packages/astro-theme-anzhiyu](packages/astro-theme-anzhiyu/)（`astro-theme-anzhiyu@1.0.0`）。**尚未发布到 npm**——P7-6 只完成 `npm pack` 与 tarball 安装冒烟，真 publish 待授权（前置与命令见 [发布笔记](docs/notes/P7-6-release.md)）。发布后：
+
+```bash
+pnpm add astro-theme-anzhiyu astro@^7
+# 发布前 / 离线安装：pnpm add file:<绝对路径>/astro-theme-anzhiyu-1.0.0.tgz
+```
+
+站点侧需要自备的配套依赖（版本取自 [examples/blog/package.json](examples/blog/package.json) 与迁移产物 `.migration-out/xcAnzhiyu/package.json`，两者都实测能构建）：
+
+| 依赖 | 版本范围 | 作用 | 必需性 |
+| --- | --- | --- | --- |
+| `astro` | `^7.4.13`（主题包 `peerDependencies` 声明 `^7.0.0`） | 框架本体 | 必需（peer） |
+| `@astrojs/markdown-remark` | `^7.3.10` | 自定义 Unified 处理器（`remark-hexo-tag`、`figure.highlight` 重建） | 用 Hexo tag / 代码块对齐时需要 |
+| `stylus` | `^0.64.0` | 编译站点侧 74 个 `.styl`（上游样式） | 要上游样式时必需 |
+| `vite-plugin-stylus-hexo-config` | `0.1.0`（workspace 包，**未发布**） | 把 Stylus 里的 `hexo-config()` 静态替换成配置值 | 同上 |
+| `remark-hexo-tag` | `0.1.0`（workspace 包，**未发布**） | 42 个 Hexo tag 语法 | 文章带 Hexo tag 时必需 |
+| `highlight.js` | `^11.12.0` | 代码块 token 着色（缺失时降级为结构等价） | 可选 |
+| `yaml` / `zod` | `^2.9.1` / `^4.6.7` | `loadThemeConfig()` 读 YAML + 配置 schema 校验 | 已声明为主题包 `dependencies`，站点无需重复安装 |
+
+> `vite-plugin-stylus-hexo-config` 与 `remark-hexo-tag` 还没发 npm，仓库外使用需要先发布或改 git / tarball 引用——这是「`npm i` 直接用起来」的最后一公里，登记在 [发布笔记](docs/notes/P7-6-release.md) 的未做事项里。
+
+### 使用
+
+`astro.config.mjs` 三行接法：
+
+```js
+import { defineConfig } from 'astro/config'
+import anzhiyuAssets from 'astro-theme-anzhiyu/integration'
+
+export default defineConfig({ integrations: [anzhiyuAssets()] })
+```
+
+- `anzhiyuAssets()`：build 时把主题包 `assets/`（11 个文件——`/js/main.js`、`/js/utils.js`、`/js/tw_cn.js`、`/js/anzhiyu/*.js`、`/js/search/*.js`、`/css/index.css`）复制进 `dist/`；dev 时挂中间件按 URL 直接读。站点 `public/` 已有同名文件时保留站点版本，只打一行 warn。
+- 组件 / 布局按子路径导入：`astro-theme-anzhiyu/layouts/BaseLayout.astro`、`astro-theme-anzhiyu/components/post/PostCard.astro`——`exports` 已声明 `./layouts/*`、`./components/*`、`./utils/*`、`./i18n/*`、`./schema`、`./defaults`、`./integration`。
+- 配置层：`loadThemeConfig()` 从 `anzhiyu.config.yml` 读主题配置，与默认值深合并后做 133 顶层键的 strict 校验（zod）。
+
+完整站点见 [examples/blog](examples/blog)；迁移产物 `.migration-out/xcAnzhiyu` 的副本 `.migration-out/p7-6-consumer` 以 `file:<绝对路径>.tgz` 安装主题并接上 `anzhiyuAssets()`，构建 **exit 0 / 94 页**、产物含 `/js/main.js`、`/css/index.css`、`/posts/pXXXX/`——这是 P7-6 的 tarball 冒烟证据（细节见[发布笔记](docs/notes/P7-6-release.md)）。
+
+### 发布
+
+前置（人工逐条确认）：
+
+1. `npm whoami --registry https://registry.npmjs.org` 已登录（本机当前是 `ENEEDAUTH`）；`npm config get registry` 指向 `https://registry.npmmirror.com` 镜像——**镜像不支持 publish**，包内 `publishConfig.registry` 已把发布目标钉到官方源。
+2. 账号对包名有发布权限；官方 registry 上 `astro-theme-anzhiyu` 目前 404，即名称未被占用（`npm view astro-theme-anzhiyu version` 实测）。
+3. 开了 2FA 的账号需要 `--otp <6 位>`。
+
+命令（在 `packages/astro-theme-anzhiyu/` 下）：
+
+```bash
+npm pack --dry-run          # 清单：173 个文件，只有 src/ + assets/ + integration.mjs + package.json
+npm publish --dry-run       # 实测输出：Publishing to https://registry.npmjs.org/ with tag latest and public access (dry-run)
+npm publish --access public # 真发布；2FA 账号加 --otp 123456
+```
+
+发布后验证：`npm view astro-theme-anzhiyu@1.0.0 dist.tarball`，再在一个空目录 `npm i astro-theme-anzhiyu@1.0.0` 跑一次构建。
+
+版本与 tag：本次 `1.0.0`（首个公开版本，理由见[发布笔记](docs/notes/P7-6-release.md)），dist-tag 用默认 `latest`。**tag 只在本地打、不 push**：`git tag -a v1.0.0 -m "astro-theme-anzhiyu v1.0.0"`；`git push origin v1.0.0` 需要单独授权。之后按 semver：修复 `1.0.1` / 新功能 `1.1.0` / 破坏性 `2.0.0`。
+
+### demo 站部署
+
+[scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一条命令：demo 构建（`DEPLOY_SITE_URL/ROOT` 映射到 `site.url`/`root` 与 Astro `base`）→ HTML 站内绝对路径补子路径前缀 → clone 用户站仓库 → 覆盖 `blog/` → commit → push。
+
+```bash
+node scripts/deploy-demo-pages.mjs
+# 可选环境变量：DEMO_PAGES_REPO（默认 mcxiaochenn/mcxiaochenn.github.io）
+#                DEMO_PAGES_PATH（默认 blog）/ DEMO_PAGES_URL / DEMO_PAGES_BRANCH
+```
+
+**授权边界**：该脚本会写**另一个仓库**（`mcxiaochenn/mcxiaochenn.github.io`）并 push 到它的 `main`。本仓库的任何自动化都不会执行它；要执行需要作者明确授权 + 本机对该仓库有 push 凭据。`git push`、`git push --tags`、GitHub Pages 构建触发都不在自动流程里。已知降级：子路径部署下上游 JS 的运行时路径（音乐球、搜索等）不生效，页面导航 / 样式 / 视觉不受影响。
+
 ## 本地验证
 
 需要 Node ≥ 22.23.4（Astro 7 要求）：
