@@ -156,7 +156,12 @@ jobs:
   #
   # 门槛：categories 四项 + 资源预算（total-byte-weight / script / stylesheet /
   #   third-party），全部 error 级硬门禁；不达标先优化，禁止靠调低阈值掩盖（§7）。
-  #   四项分数初值是在 PSI 取不到上游分数时的保守占位值，CI 首跑后按 §6 模板回填。
+  #   分数门禁演进：task-12 的占位初值（a11y 0.80 / seo 0.85）被 CI 首跑实测
+  #   （run 45395473424：a11y 0.77/0.76、seo 0.83）证伪，task-16 按「实测基线 - 0.01」
+  #   校准为 a11y 0.75 / seo 0.82；performance 0.60 / best-practices 0.80 首跑通过保持不变。
+  #   演进表 / 证据 / 回填模板见 docs/notes/P7-2-perf.md §4.1、§6、§9。
+  #   a11y、seo 的真实水平受上游主题 DOM 限制，提升它们是 Phase 7 后续 backlog，
+  #   不是本次迁移的退出条件（同文档 §9.2）。
   lighthouse:
     name: lighthouse
     runs-on: ubuntu-latest
@@ -188,13 +193,17 @@ jobs:
       # astro preview，本机实测报 `Unknown command: astro preview --host`。
       # 后台起在 127.0.0.1:4321（.lighthouserc.json 的三个 URL 都指向它），轮询到
       # HTTP 200 再往下走——直接 sleep 不可靠，CI 冷启动有快有慢。
+      # 轮询用 `curl -fs`（-s 静默 + -f HTTP 非 2xx 即失败）：首轮探测连不上是正常的
+      # 冷启动状态，不该在成功 run 的日志里留 `curl: (7) Failed to connect` 噪音
+      # （run 45395473424 的 `curl: (7)` 就是 `-S` 把首轮失败打出来的）；只有 60s 真超时
+      # 才输出 `::error::` + 服务端日志并 exit 1。
       - name: Start preview server
         run: |
           set -euo pipefail
           PREVIEW_LOG="$RUNNER_TEMP/anzhiyu-preview.log"
           pnpm --filter blog exec astro preview --host 127.0.0.1 --port 4321 > "$PREVIEW_LOG" 2>&1 &
           for i in $(seq 1 60); do
-            if curl -fsS -o /dev/null "http://127.0.0.1:4321/"; then
+            if curl -fs -o /dev/null "http://127.0.0.1:4321/"; then
               echo "preview ready after ${i}s"
               exit 0
             fi
@@ -209,13 +218,26 @@ jobs:
       # dist-tag latest（内置 lighthouse 13.6.0）。
       # Chrome 用 ubuntu-latest 预装的 google-chrome，不设 CHROME_PATH，交给
       # chrome-launcher 自动发现；换 runner 镜像时要先确认有 Chrome，见文档 §5 排障。
+      #
+      # 落盘语义（run 45395473424 的 artifact 为空就是这个坑）：
+      #   - `lhci collect` 通过 @lhci/utils/src/saved-reports.js 把 lhr-*.json / lhr-*.html
+      #     写到 `<cwd>/.lighthouseci/`；`lhci assert` 失败前也会把 assertion-results.json
+      #     写进同一目录——即 lhci 本身**是**落盘的，不是「没配置 upload 所以没文件」。
+      #   - 真正丢文件的是 upload-artifact@v4：v4.4+ 默认排除 hidden 文件（`include-hidden-files:
+      #     false`），`.lighthouseci` 是点目录，于是 glob 一个都匹配不到，日志报
+      #     "No files were found with the provided path: .lighthouseci"。
+      #   - 修法两层：① .lighthouserc.json 的 `ci.upload` 配 filesystem target（autorun 只有
+      #     在 rc 有 upload 段时才执行 upload，产出 manifest.json + 可读名报告）；
+      #     ② 下面的 Upload 步骤显式 `include-hidden-files: true`（根因修复，少了它
+      #     连 lhr-*.json 也传不上去）。
       - name: Run Lighthouse CI
         run: npx --yes @lhci/cli@0.16.1 autorun
 
       # 失败也要留证据：.lighthouseci 里是逐次 lhr-*.json（categories / audits /
-      # resource-summary 原始数值）与 assertion-results.json（逐条断言的 actual/expected）；
-      # preview.log 是服务端日志（4xx/5xx、启动失败时的根因）。
+      # resource-summary 原始数值）、assertion-results.json（逐条断言的 actual/expected）、
+      # filesystem target 产出的 manifest.json + 可读名报告，preview.log 是服务端日志。
       # 先 mkdir -p：collect 阶段就挂掉时该目录可能不存在，artifact 步骤不能因此报错。
+      # 最后把清单打进日志：将来 artifact 再空，日志里能直接分清「没落盘」还是「没上传」。
       - name: Collect Lighthouse artifacts
         if: always()
         run: |
@@ -223,6 +245,8 @@ jobs:
           if [ -f "$RUNNER_TEMP/anzhiyu-preview.log" ]; then
             cp "$RUNNER_TEMP/anzhiyu-preview.log" .lighthouseci/preview.log
           fi
+          echo "== .lighthouseci inventory =="
+          ls -la .lighthouseci
 
       - name: Upload Lighthouse report
         if: always()
@@ -230,4 +254,8 @@ jobs:
         with:
           name: lighthouse-report
           path: .lighthouseci
-          if-no-files-found: ignore
+          # 根因修复：.lighthouseci 是隐藏目录，upload-artifact@v4.4+ 默认不传 hidden 文件。
+          # 置为 error：连 preview.log（也在这个隐藏目录里）都传不上去时让 CI 直接红，
+          # 避免「门禁绿了但 artifact 空」的静默回归。
+          include-hidden-files: true
+          if-no-files-found: error

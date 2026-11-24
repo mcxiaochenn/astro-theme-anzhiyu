@@ -333,5 +333,115 @@
     "tags-inline.md",
     "tags-media.md",
     "tags-thirdparty.md"
-  ]
+  ],
+  "perf": {
+    "updatedAt": "2026-11-24",
+    "task": "W5-B / task-16",
+    "docs": "docs/notes/P7-2-perf.md",
+    "config": ".lighthouserc.json",
+    "ciJob": ".github/workflows/ci.yml#lighthouse",
+    "note": "本段由 task-16 手工追加（CI 实测 + 门禁）；baseline/css/pages/fixtures 仍由 P1-6 流程产出，重新生成 baseline.json 时不要丢掉本段",
+    "measurement": {
+      "tool": "@lhci/cli@0.16.1",
+      "lighthouseVersion": "13.6.0",
+      "device": "mobile（Lighthouse 默认：Moto G Power 视口 / Slow 4G / 4x CPU / simulate 节流）",
+      "runsPerUrl": 3,
+      "aggregation": "median",
+      "urls": [
+        "http://127.0.0.1:4321/",
+        "http://127.0.0.1:4321/2024/11/01/longform-hexo-astro/",
+        "http://127.0.0.1:4321/about/"
+      ],
+      "target": "examples/blog CI 构建产物（astro preview 127.0.0.1:4321）",
+      "thirdParty": "14 条 blockedUrlPatterns 全部拦截 → 分数 = 自有资源口径，不含第三方 CDN",
+      "transferEncoding": "gzip（preview server，无 brotli）",
+      "scope": "自有资源口径的回归基线；不等价于真实站 / PSI（含第三方 CDN + brotli）的现场分数",
+      "notMeasured": "performance / best-practices 精确分（assert 默认不打印通过项，且首跑 artifact 为空）"
+    },
+    "ciRun": {
+      "runId": 45395473424,
+      "job": "lighthouse",
+      "headSha": "d6c80c309b5099472b1faa2b5d7206d4d5cdd8e8",
+      "assertCompletedAt": "2026-11-24T12:40:57Z",
+      "outcome": "assertion failed",
+      "failures": [
+        "home categories:accessibility 0.77 < 0.80",
+        "post categories:accessibility 0.76 < 0.80",
+        "post categories:seo 0.83 < 0.85"
+      ],
+      "artifact": "empty（upload-artifact@v4 默认排除 hidden 文件；task-16 修复为 include-hidden-files: true + ci.upload filesystem target）"
+    },
+    "measuredScores": {
+      "home": {
+        "path": "/",
+        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
+        "accessibility": { "median": 0.77, "allRunValues": [0.77, 0.77, 0.77], "status": "failed-vs-old-gate" },
+        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
+        "seo": { "median": null, "lowerBound": 0.85, "status": "passed" }
+      },
+      "post": {
+        "path": "/2024/11/01/longform-hexo-astro/",
+        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
+        "accessibility": { "median": 0.76, "allRunValues": [0.76, 0.76, 0.76], "status": "failed-vs-old-gate" },
+        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
+        "seo": { "median": 0.83, "allRunValues": [0.83, 0.83, 0.83], "status": "failed-vs-old-gate" }
+      },
+      "about": {
+        "path": "/about/",
+        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
+        "accessibility": { "median": null, "lowerBound": 0.8, "status": "passed" },
+        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
+        "seo": { "median": null, "lowerBound": 0.85, "status": "passed" }
+      }
+    },
+    "budgets": {
+      "categories": {
+        "performance": 0.6,
+        "accessibility": 0.75,
+        "best-practices": 0.8,
+        "seo": 0.82
+      },
+      "categoriesRule": "minScore = 同口径 CI 实测最低 URL 中位数 - 0.01（回归检测，不是目标分）",
+      "resources": {
+        "total-byte-weight": 245760,
+        "resource-summary:total:size": 245760,
+        "resource-summary:script:size": 65536,
+        "resource-summary:script:count": 26,
+        "resource-summary:stylesheet:size": 112640,
+        "resource-summary:stylesheet:count": 12,
+        "resource-summary:third-party:size": 4096
+      },
+      "resourcesRule": "本机 astro preview 真实传输实测 + 余量（P7-2-perf.md §4.2）；run 45395473424 全部通过"
+    },
+    "evolution": [
+      {
+        "stage": "placeholder",
+        "task": "task-12",
+        "accessibility": 0.8,
+        "seo": 0.85,
+        "note": "PSI 429 + 本机无浏览器下的保守占位值，从无实测支持"
+      },
+      {
+        "stage": "ci-measured",
+        "task": "task-16",
+        "accessibility": 0.76,
+        "seo": 0.83,
+        "note": "run 45395473424 三 URL 中位数的最低值（a11y home 0.77 / post 0.76；seo post 0.83）"
+      },
+      {
+        "stage": "regression-gate",
+        "task": "task-16",
+        "accessibility": 0.75,
+        "seo": 0.82,
+        "note": "实测 - 0.01；禁止再无证据下调，a11y/seo 提升列为 Phase 7 后续 backlog"
+      }
+    ],
+    "backlog": [
+      "从下一轮 CI artifact 取逐项失败的 a11y/seo audit 清单（首跑 artifact 为空，不猜具体 audit）",
+      "a11y 提升：图标锚点 aria-label、javascript:void(0) 可聚焦化、颜色对比度（需过 48/48 baseline diff + e2e）",
+      "seo 提升：crawlable-anchors、结构化数据 JSON-LD",
+      "回填 performance / best-practices 精确值，按 P7-2-perf.md §6.4 判断是否向上收紧门禁",
+      "PSI 有 API key 后补上游同口径分数对照（当前 429 + 上游站已换 Astro，见文档 §2）"
+    ]
+  }
 }
