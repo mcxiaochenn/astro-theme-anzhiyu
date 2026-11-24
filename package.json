@@ -14,7 +14,8 @@
     "compare-vars": "node scripts/compare-css-vars.mjs",
     "check:upstream-delta": "node scripts/check-upstream-delta.mjs",
     "diff:html": "node scripts/diff-html.mjs",
-    "baseline:extract": "node scripts/extract-baseline-html.mjs"
+    "baseline:extract": "node scripts/extract-baseline-html.mjs",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",

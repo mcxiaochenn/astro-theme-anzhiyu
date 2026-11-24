@@ -49,3 +49,44 @@ export async function waitForClientRoute(page: Page, previousUrl: string) {
   // ClientRouter 换完 body 后会给 <html> 打上 astro-* 状态；等它稳定下来
   await page.locator('body[data-type="anzhiyu"]').waitFor({ state: 'attached' })
 }
+
+/**
+ * 记录所有 `document` 类型的请求（整页刷新的硬证据）。
+ *
+ * 必须在 `page.goto` 之前挂监听，否则首访的那次 document 请求会被漏掉；
+ * 首访之后用返回数组的长度作为基线，站内导航不应再追加任何一条。
+ */
+export function trackDocumentRequests(page: Page): string[] {
+  const documents: string[] = []
+  page.on('request', (request) => {
+    if (request.resourceType() === 'document') documents.push(request.url())
+  })
+  return documents
+}
+
+/** 页面运行期错误收集器：console 的 error 级消息 + 未捕获 JS 异常分开记。 */
+export function collectPageErrors(page: Page): {
+  consoleErrors: string[]
+  pageErrors: string[]
+} {
+  const consoleErrors: string[] = []
+  const pageErrors: string[] = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  return { consoleErrors, pageErrors }
+}
+
+/**
+ * 过滤掉「资源加载失败」类 console 噪音。
+ *
+ * 第三方 CDN（Meting / fancybox / lazyload…）与图片 404 属于 P4 资源与第三方集成
+ * 的验收范围（另有用例覆盖），不是 ClientRouter 的运行时错误；把它们排除后只留
+ * 真正的 JS 报错。
+ */
+export function runtimeConsoleErrors(errors: string[]): string[] {
+  return errors.filter(
+    (text) => !/Failed to load resource|net::ERR|ERR_(?:CONNECTION|NAME|CERT|ABORTED)/.test(text),
+  )
+}

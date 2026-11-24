@@ -75,3 +75,49 @@ jobs:
             examples/blog/dist
             diff-report.json
           if-no-files-found: error
+
+  # Phase 4 行为验收（P4-10）：tests/e2e 的行为基线 + 站内无刷新导航 / 12 种
+  # page.type 冒烟 / 搜索 UI 检测。本机 Playwright 被 DSH Windows 沙箱阻断
+  # （spawn EPERM + Chromium mojo 0x5，见 docs/PLAN.md 风险 R12），浏览器级验证
+  # 只能在 Ubuntu runner 上真跑，这也是「放 CI 不放本地」的原因。
+  # 站点由 playwright.config.ts 的 webServer 自己 build + preview，所以这里不重复构建；
+  # 与 build job 并行：两者互不依赖，e2e 自己会产出 dist 的临时副本。
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 与 build job 一样不写 with.version：pnpm/action-setup@v4 读根 package.json 的
+      # packageManager（pnpm@10.29.3），写死 version 会报 "Multiple versions of pnpm specified"。
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # @playwright/test 是根 devDependency，npx 走本地 node_modules，不联网拉包
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright e2e
+        run: npx playwright test
+
+      # 首次真实执行结果由 Lead 回填到 docs/notes/P4-10-e2e-ci.md
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

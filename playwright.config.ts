@@ -8,6 +8,13 @@
  *   - 默认端口 4321；
  *   - 已有一个服务在跑时复用（本地开发方便），CI 里强制新起，避免误连旧产物；
  *   - 设置 `E2E_BASE_URL` 可指向任意已部署的实例（此时不再自动拉起 webServer）。
+ *
+ * webServer 命令里两个环节都在本机验证过（node-linker=hoisted，Astro 在仓库根）：
+ *   - `pnpm --filter blog build` 与 CI build job 用的是同一条命令；
+ *   - `pnpm --filter blog exec astro --version` → astro v7.4.13（pnpm 会把 workspace
+ *     根的 node_modules/.bin 加进 PATH，所以 hoisted 布局下也能解析到），
+ *     `pnpm --filter blog exec astro preview` 在本机起服务，13 个页面 URL 全部 200。
+ * 因此 CI（ubuntu）与本地跑的是同一串命令，不依赖额外的全局 astro。
  */
 import { defineConfig, devices } from '@playwright/test'
 
@@ -42,7 +49,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `pnpm --filter blog exec astro build && pnpm --filter blog exec astro preview --host ${HOST} --port ${PORT}`,
+        command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --host ${HOST} --port ${PORT}`,
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
