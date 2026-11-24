@@ -23,6 +23,11 @@ import { normalizeFootnoteSectionForDescription, stripSwallowedHeadings } from '
 import { resolveAssets } from '../config/assets.ts'
 import { buildGlobalConfigScript, buildGlobalConfigSiteScript } from './head/global-config.ts'
 import { buildInjectHeadJs } from './head/inject-head-js.ts'
+// P5-2：head 区的第三方集成组件（门控与渲染都在组件内部，默认配置输出 0 节点）
+import SiteVerification from './third-party/site-verification.astro'
+import Pwa from './third-party/pwa.astro'
+import GoogleAdsense from './third-party/google-adsense.astro'
+import Analytics from './third-party/analytics.astro'
 
 interface Props {
   /** 站点级元数据（title/description/author/url/language…）。 */
@@ -230,11 +235,11 @@ if (
 /* 5. site_verification（上游 head/site_verification.pug）              */
 /* ------------------------------------------------------------------ */
 
-const verificationMetas = Array.isArray(theme.site_verification)
-  ? (theme.site_verification as Array<{ name?: unknown; content?: unknown }>).filter(
-      (item) => typeof item?.name === 'string' && typeof item?.content === 'string',
-    )
-  : []
+/**
+ * 原先在这里内联实现的 `verificationMetas` 已删除，改由
+ * `<SiteVerification />`（third-party/site-verification.astro）统一渲染，
+ * 避免两处等价逻辑各自演进。门控仍是 `theme.site_verification` 数组非空。
+ */
 
 /* ------------------------------------------------------------------ */
 /* 6. 资源层（上游 head.pug:53-90 的 link 序列）                        */
@@ -351,9 +356,11 @@ const injectHeadJs = buildInjectHeadJs(theme, site)
   <link rel="preconnect" href={href} />
 ))}
 
-{verificationMetas.map((item) => (
-  <meta name={item.name as string} content={item.content as string} />
-))}
+{/* 上游 head.pug:48-49 —— head/site_verification.pug（3 条验证 meta） */}
+<SiteVerification />
+
+{/* 上游 head.pug:51-53 —— `if theme.pwa.enable` → head/pwa.pug（默认关闭） */}
+<Pwa />
 
 {/*
   上游 head.pug:53-90 的顺序：
@@ -383,6 +390,13 @@ const injectHeadJs = buildInjectHeadJs(theme, site)
     onload="this.media='all'"
   />
 )}
+
+{/* 上游 head.pug:74-75 —— head/google_adsense.pug（enable + auto_ads 二级门控） */}
+<GoogleAdsense />
+
+{/* 上游 head.pug:77-78 —— head/analytics.pug（百度/GA/CNZZ/Cloudflare/Clarity） */}
+<Analytics />
+
 {blogTitleFontLink && (
   <link rel="stylesheet" href={urlFor(blogTitleFontLink)} media="print" onload="this.media='all'" />
 )}
