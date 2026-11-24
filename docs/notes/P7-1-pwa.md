@@ -237,6 +237,92 @@ skip 口径：根配置扫到 `pwa.spec.ts` 时，`beforeEach` 先 `request.get(
 在 PWA 配置下真实执行。更干净的做法是给根 `playwright.config.ts` 加一行
 `testIgnore: '**/pwa.spec.ts'`，但那超出本任务写作用域（Lead 可决定后续收口）。
 
+（W5-A 之后：测试 2 的**首次导航**也改成「先隔离外部 CDN + `domcontentloaded`」，
+运行层断言不变；失败原因与修复过程见下一节 §6.1。）
+
+### 6.1 CI 首次真实执行：离线用例失败根因与修复（W5-A，task-15）
+
+**失败事实**（CI run 45395473424，`.ci-logs/e2e-run4.log`）：
+
+```
+674: ✓ 1 … 构建产物：sw.js 覆盖 sw-rules 规则，manifest 含图标 (62ms)
+675: ✘ 2 … SW ready → 断网重载首页仍可见（标题 + #body-wrap） (1.0m)
+683: Error: page.goto: Test timeout of 60000ms exceeded.
+684: Call log:
+685:   - navigating to "http://127.0.0.1:4322/", waiting until "load"
+690: > 73 |     await page.goto('/')          ← 失败在首次导航，不是 setOffline 之后的 reload
+```
+
+**根因不是 SW / navigateFallback，而是「首次 `page.goto('/')` 等 `load` 被外部 CDN 挂住」**：
+
+1. `pwa.spec.ts` 只 `import { test } from '@playwright/test'`，**没走**主 e2e 的
+   `tests/e2e/helpers.ts` 基座；首访用的是 `page.goto('/')` 默认 `waitUntil: 'load'`。
+   主 e2e 早在 P4-10 就踩过同一个坑并写下结论（`helpers.ts` 文件头第 1 条）：
+   「demo 站 head/body 里引了 cdn.cbd.int / npm.elemecdn / bu.dusays 等外部资源，
+   CI 上偶发挂起会让 `page.goto()` 默认的 `waitUntil: "load"` 一直等不到」。
+2. PWA 构建的首页实测有 **22 个外部子资源**：11 个 `<script>`（cdn.cbd.int ×10、
+   npm.elemecdn.com ×1）、5 个外部样式表、6 张外部图（npm.elemecdn ×3、
+   bu.dusays ×2、image.anheyu ×1）。`load` 要等它们全部结束，CI runner 上这些
+   中国 CDN 偶发不可达 → 整条用例 60s 超时。
+3. 同一次 run 里默认 e2e 29 passed（`.ci-logs/e2e-run4.log:544`），因为它们走了
+   `gotoReady()`（domcontentloaded + 外部请求隔离）；产物用例用 APIRequestContext
+   62ms 通过，说明 preview server 和 PWA 产物本身正常。
+4. SW 侧本来就是对的（所以「加 navigateFallback」并不是修法）：`ANZHIYU_PWA=1`
+   产物的 `dist/sw.js` 里，
+   - precache 84 条包含首页 `{url:`/`,revision:`7da2a1d0…`}`；
+   - generateSW 生成了
+     `registerRoute(new NavigationRoute(createHandlerBoundToURL('/')))`
+     （minified 形态 `…{directoryIndex:`index.html`,cleanURLs:!0,…}),e(),t(new n(a(`/`)))`）。
+   来源：`@vite-pwa/astro` 2.0.4 在 `generateSW.navigateFallback` 未显式配置时自动填
+   `base ?? vite.base ?? "/"`（`node_modules/@vite-pwa/astro/dist/prepare-build-context-*.mjs:16`），
+   并把 precache 里的 `index.html` 改写成站点 scope（同文件 `createManifestTransform`：
+   `index.html` → `/`）；`@vite-pwa/workbox-build` 再按
+   `createHandlerBoundToURL(navigateFallback)` 生成 NavigationRoute
+   （`dist/internal-generate-sw-*.mjs:94-102`）。
+
+**修法**（3 个文件，浏览器级行为零未知项）：
+
+| 文件 | 改动 |
+| --- | --- |
+| `tests/e2e/pwa.spec.ts` | 测试 2 首访前调用主 e2e 的 `isolateExternalRequests(page)`（外部脚本打桩 / 外链样式空体 / 其余 abort），`page.goto('/', { waitUntil: 'domcontentloaded' })`；SW 注册脚本挂在 `load` 上，所以 `waitForFunction(controller)` 仍隐含等 load 完成。断网 reload 保持 `domcontentloaded`。测试 1 追加「首页以 `/` 进 precache」的产物断言（`{url:`/`,revision:`），防止 future 改动静默破坏离线导航前提。 |
+| `playwright.pwa.config.ts` | 显式 `serviceWorkers: 'allow'` + 注释：SW 是验收对象；Playwright 的 route 不拦截 SW 接管的请求，所以「隔离外部 CDN」和「允许 SW」可以共存，改成 `block` 会让离线断言永久失败。 |
+| `examples/blog/astro.config.mjs` | **只加注释、不改配置**：说明 `navigateFallback` 不能写死 `'/'`（它是 base-aware 的，写死会破坏 `DEPLOY_SITE_ROOT` 子路径部署），自动默认值 + manifest transform 才能让离线 `/` 命中预缓存；证据指向本节。 |
+
+**产物级证据**（本机 `ANZHIYU_PWA=1` 构建，`.build.lock` 内执行，
+`CODEBUDDY_SAFE_DELETE_ENABLED=0`；日志 `.tmp-pwa-fix/build-pwa2.log`、
+sw.js 副本 `.tmp-pwa-fix/sw.pwa2.js`）：
+
+```
+Vite PWA v8.0.15 [Vite 8.3.8]
+strategy  generateSW
+precache  84 entries (3465.71 KiB)
+  dist/sw.js                6.62 kB
+  dist/workbox-2abd5d8f.js 27.53 kB
+[anzhiyu-pwa-extras] [P7-1 PWA] sw.js=8279B manifest.webmanifest=592B
+                     precache=84 条 cacheName=AnZhiYuThemeCache 注入 manifest/注册脚本 62/62 个 HTML
+```
+
+- `dist/sw.js` 最终 **8279 B**，SHA-256 `37BA394C7EB9B9C3C098094E129DDD2258D4A85B76811828E972987796B3B4D1`
+  —— 与「只加注释」改动前**完全一致**（配置语义零变化，改的是测试与注释）。
+- `navigateFallbackDenylist` 不需要：demo 站没有 `/go.html` 之类需要绕开的导航页
+  （`go.html` 只出现在 `packages/astro-theme-anzhiyu/assets/js/utils.js` 指向的
+  外部 travellings.cn 链接里）。
+
+**默认构建零影响**（同一把 `.build.lock` 内紧接着重建）：
+
+- `pnpm --filter blog build`（不设 env）→ exit 0、62 页；`dist/sw.js` /
+  `manifest.webmanifest` / `workbox-*.js` 全部不存在；
+- `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all --json`
+  → exit 0、`{ pages: 48, pass: 48, fail: 0, diffCount: 0 }`（`.tmp-pwa-fix/diff-default.json`）。
+
+**本机可做的浏览器级替代验证**：`npx playwright test -c playwright.pwa.config.ts --list`
+→ `Total: 2 tests`（`pwa.spec.ts:35` / `:77`）。真实执行仍只能 CI：
+本机 Playwright 自身 launch 是 `spawn EPERM`（PLAN R12）；本次还试了绕道——
+直接拉起系统 Edge headless + `--remote-debugging-port` 再用 `connectOverCDP` 驱动，
+Edge 在 DSH 沙箱里启动数秒即退出（`crashpad … OpenProcess: 拒绝访问 (0x5)`），
+**无法在本机复现离线流程**。故 CI 复跑的 2/2 PASS 是最终验收口径；
+若仍失败，最可能的位置是 `waitForFunction(controller)`（30s）而不是导航。
+
 ## 7. 迁移兼容实验（缺 @vite-pwa/astro 时安静降级）
 
 用 Node 24 module customization hook 模拟「包不存在」：

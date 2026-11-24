@@ -8,12 +8,17 @@
  *     环境原因，不是掩盖失败；同一批断言在 CI 的 PWA 步骤里真实执行。
  *
  * 断言目标（PLAN P7-1 验收：离线可访问首页 + CDN 备用 URL 逻辑生效）：
- *   1. 产物层：sw.js 里有上游 cacheName / CDN 规则 / getSpareUrls 补丁；
- *      manifest.webmanifest 有图标与主题色；
+ *   1. 产物层：sw.js 里有上游 cacheName / CDN 规则 / getSpareUrls 补丁，
+ *      首页以 `/` 进 precache（离线导航兜底的前提）；manifest 有图标与主题色；
  *   2. 运行层：SW 安装并接管页面 → 断网重载首页仍渲染（标题 + #body-wrap）；
  *   3. 注册层：首页 <head> 里有 manifest link 与注册脚本（构建后注入）。
+ *
+ * 导航基座：与主 e2e（tests/e2e/helpers.ts）一致 —— 首次导航前隔离外部 CDN、
+ * 用 `domcontentloaded` 而不是默认的 `load`。原因见文件内测试 2 的注释与
+ * docs/notes/P7-1-pwa.md §6.1（CI run 45395473424 的真实失败点）。
  */
 import { expect, test } from '@playwright/test'
+import { isolateExternalRequests } from './helpers'
 
 const HOME_TITLE = /AnZhiYu Baseline/
 
@@ -47,6 +52,13 @@ test.describe('P7-1 PWA · 离线可访问首页', () => {
     expect(swText).toContain('TIMEOUT_MS = 3000')
     // Workbox 预缓存清单（62 个页面 + 资源）；清单条目形如 {url:`…`,revision:…}
     expect((swText.match(/\{url:/g) ?? []).length).toBeGreaterThanOrEqual(48)
+    // 离线导航的前提（run 45395473424 的排查结论，见 P7-1-pwa.md §6.1）：
+    // @vite-pwa/astro 的 manifest transform 把 index.html 的 precache URL 改写成
+    // 站点 scope（这里是 `/`），generateSW 再据此生成
+    // `registerRoute(new NavigationRoute(createHandlerBoundToURL('/')))`（默认
+    // navigateFallback=base，见 astro.config.mjs 的 PWA 段）。两者缺一，断网
+    // 重载 `/` 都拿不到响应。这里只锁「首页以 `/` 进 precache」这个较稳的产物事实。
+    expect(swText).toContain('{url:`/`,revision:')
 
     const manifestResponse = await request.get('/manifest.webmanifest')
     expect(manifestResponse.ok()).toBe(true)
@@ -70,7 +82,19 @@ test.describe('P7-1 PWA · 离线可访问首页', () => {
     // 只有 Chromium 的「离线模拟 + Service Worker」组合是官方支持的验证路径
     test.skip(browserName !== 'chromium', 'offline + Service Worker 断言仅在 Chromium 上验证')
 
-    await page.goto('/')
+    // 首次导航前把外部 CDN 请求钉死（复用主 e2e 基座 tests/e2e/helpers.ts §1）：
+    // 首页引了 11 个外部 <script> + 5 个外部样式表 + 6 张外部图（cdn.cbd.int /
+    // npm.elemecdn.com / bu.dusays.com 等）。CI runner 上这些 host 偶发不可达，
+    // `page.goto` 默认 `waitUntil: 'load'` 要等全部子资源，会一直挂到整条用例
+    // 60s 超时 —— CI run 45395473424 的失败点就是这里（call log 明确写着
+    // navigating to "http://127.0.0.1:4322/" waiting until "load"），不是 SW
+    // 离线导航失败。主 e2e 早就在 P4-10 踩过同一个坑并以此隔离修好。
+    await isolateExternalRequests(page)
+
+    // 导航本身不等 load（外部资源已在上面隔离，这里与主 e2e 基座保持一致）；
+    // SW 注册脚本挂在 window 的 load 事件上，所以下面 waitForFunction(controller)
+    // 隐含「load 已触发 → 注册已发出 → 安装+激活完成」。
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     const swSupported = await page.evaluate(() => 'serviceWorker' in navigator)
     test.skip(!swSupported, '当前浏览器不支持 Service Worker')
 
@@ -93,7 +117,11 @@ test.describe('P7-1 PWA · 离线可访问首页', () => {
     })
     expect(swState).toBe('activated')
 
-    // 断网 → 重载：首页必须由预缓存直出，不能靠网络
+    // 断网 → 重载：首页必须由预缓存直出，不能靠网络。
+    // 链路：浏览器的 `/` 导航请求 → SW 的 NavigationRoute（generateSW 按
+    // navigateFallback=`/` 生成）→ createHandlerBoundToURL('/') → precache 命中
+    // `/`（见测试 1 的断言）。若 future 版本丢了 navigateFallback 或首页不进
+    // precache，这里会以「reload 后拿不到响应/页面空白」暴露。
     await context.setOffline(true)
     try {
       await page.reload({ waitUntil: 'domcontentloaded' })

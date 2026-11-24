@@ -573,6 +573,16 @@ if (PWA_ENABLED) {
           // 离线可直出任意已生成页面；上游 simple 规则只列了这两个路径，这里按
           // 「离线可访问首页」的验收目标扩到全部静态页面（逐条映射见 P7-1-pwa.md §3）
           globPatterns: ['**/*.{html,js,css}'],
+          // 离线导航兜底（navigateFallback）**不要**在这里写死 '/'——它是 base-aware 的：
+          // @vite-pwa/astro 2.0.4 在没显式配置时自动填 `base ?? vite.base ?? "/"`
+          //（node_modules/@vite-pwa/astro/dist/prepare-build-context-*.mjs:16），
+          // 同时它的 manifest transform 把 index.html 的 precache URL 改写成站点
+          // scope（`/index.html` → `/`，见同文件 createManifestTransform）。
+          // generateSW 再据此生成
+          // `registerRoute(new NavigationRoute(createHandlerBoundToURL('/')))`，
+          // 断网 reload `/` 才能命中预缓存。写死 '/' 会破坏 DEPLOY_SITE_ROOT 子路径
+          // 部署；真实构建产物证据（sw.js 的 `/` precache 条目 + NavigationRoute 接线）
+          // 见 docs/notes/P7-1-pwa.md §6.1。
           cleanupOutdatedCaches: true,
           skipWaiting: true,
           clientsClaim: true,

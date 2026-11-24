@@ -38,6 +38,12 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // SW 是验收对象，必须是 allow（也是 Playwright 的默认值，这里显式写出来防误改）。
+    // 注意：离线用例首访用 page.route 隔离外部 CDN（tests/e2e/helpers.ts 的
+    // isolateExternalRequests），Playwright 的 route 不拦截 SW 接管的请求，
+    // 所以「隔离外部请求」和「允许 SW」在本配置里可以共存；设成 'block' 会让
+    // pwa.spec.ts 的离线断言永久失败（原因见 P7-1-pwa.md §6.1）。
+    serviceWorkers: 'allow',
   },
   projects: [
     {
