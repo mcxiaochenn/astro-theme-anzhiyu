@@ -17,6 +17,7 @@
     "baseline:extract": "node scripts/extract-baseline-html.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.1",
     "playwright": "^1.65.1"
   }
 }
