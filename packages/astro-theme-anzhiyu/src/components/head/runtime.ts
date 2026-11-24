@@ -8,7 +8,8 @@
  *      `window.refreshFn()` 等）。
  *
  * Astro 侧由 `<ClientRouter />` 接管第 1 件事，本模块只负责第 2 件事的**等价映射**：
- *   astro:before-swap  → 补发 `pjax:send`
+ *   astro:before-swap  → 记录当前 `<html data-theme>` + 补发 `pjax:send`
+ *   astro:after-swap   → 重放 `<html data-theme>`（ClientRouter 换页会覆写 html 属性）
  *   astro:page-load    → 先 `window.refreshFn()`，再补发 `pjax:complete`
  *
  * 三个关键点：
@@ -20,6 +21,23 @@
  *   - **`pjax.loadUrl` 保持**：模板（`onclick="pjax.loadUrl(...)"`、`banner-button`、
  *     `toRandomPost()`）直接调全局 `pjax`，这里映射到 `navigate()`；
  *     `{ history: false }` → `replace`，其余 → `auto`。
+ *
+ * 额外的第四个副作用（P4-4 修）：**换页后重放 `<html data-theme>`**。
+ *
+ * 上游 Pjax 只换 `#body-wrap` 等子树，`<html>` 上的运行时属性天然保留；而
+ * ClientRouter 的 `swap()`（`@astrojs/runtime/internal/transitions/swap-functions.js`）
+ * 会调用 `swapRootAttributes(newDocument)`：**删掉当前 `<html>` 的全部属性**，
+ * 再挂上**新文档**（fetch 回来的静态 HTML）的 html 属性。静态 HTML 里
+ * `<html data-theme={display_mode}>` 是构建期就写死的兜底值（BaseLayout.astro:280），
+ * 用户手选的 dark 只存在于首屏内联 bootstrap 的运行时结果里 —— 于是换页后
+ * data-theme 被打回 display_mode（examples/blog 是 light）。
+ *
+ * 首屏 bootstrap（inject-head-js）**不会**在换页时重新执行来兜住：它和其他
+ * 站点级内联脚本的 textContent 逐字相同，首次加载即被 ClientRouter 记入
+ * `scriptsAlreadyRan` 并打上 `data-astro-exec`，`runScripts()` 会跳过它
+ * （`router.js` 的 `if (script.dataset.astroExec === "") continue;`）。
+ * 因此只能在 `astro:after-swap`（swap 之后、page-load/refreshFn 之前）显式重放。
+ * 详见 docs/notes/P4-4-darkmode-nav-fix.md。
  */
 import { navigate } from 'astro:transitions/client'
 
@@ -32,9 +50,47 @@ type RuntimeWindow = Window & {
   aplayers?: Array<{ options?: { fixed?: boolean }; destroy?: () => void }>
   __anzhiyuPjaxRuntime?: boolean
   __anzhiyuPjaxNavigated?: boolean
+  /** 首屏 `inject-head-js` bootstrap 定义（`darkmode.enable` 为真时存在）。 */
+  activateDarkMode?: () => void
+  activateLightMode?: () => void
 }
 
 const w = window as RuntimeWindow
+
+type ThemeMode = 'dark' | 'light'
+
+/**
+ * 换页前 `<html data-theme>` 的快照（P4-4）。
+ *
+ * 必须是「换页前 DOM 上的实际值」而不是 localStorage：首访跟随系统/时段时
+ * localStorage 里没有显式记录，但用户看到的主题同样是 dark，导航后也不该被
+ * 打回静态 light。上游 Pjax 不碰 `<html>` 属性，这里用重放等效复刻。
+ */
+let themeBeforeSwap: ThemeMode | null = null
+
+function readTheme(): ThemeMode | null {
+  const value = document.documentElement.getAttribute('data-theme')
+  return value === 'dark' || value === 'light' ? value : null
+}
+
+/**
+ * 重放换页前的主题（`astro:after-swap` 时机）。
+ *
+ * 优先调 inject-head-js 定义的 `activateDarkMode` / `activateLightMode`：它们除了
+ * `data-theme` 还会把 `<meta name="theme-color">` 改成与主题匹配的颜色 —— head swap
+ * 同样会把这条 meta 换成新文档的静态 light 值。bootstrap 未定义时（`darkmode.enable`
+ * 关闭，主题本就不允许切）退化为直接写属性，保证不会把已生效的 dark 打回 light。
+ */
+function restoreTheme(theme: ThemeMode): void {
+  if (theme === 'dark') {
+    if (typeof w.activateDarkMode === 'function') w.activateDarkMode()
+    else document.documentElement.setAttribute('data-theme', 'dark')
+  } else if (typeof w.activateLightMode === 'function') {
+    w.activateLightMode()
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+}
 
 /**
  * `utils.js` 顶部是 `const anzhiyu = {...}`（全局**词法**绑定，不是 window 属性），
@@ -118,6 +174,12 @@ function install(): void {
 
   document.addEventListener('astro:before-swap', (event) => {
     /*
+     * P4-4：先记下换页前的主题。swap() 里 swapRootAttributes 会整组替换 <html>
+     * 属性，不记就只剩新文档静态的 display_mode。
+     */
+    themeBeforeSwap = readTheme()
+
+    /*
      * `#nav-music` 是 transition:persist，但 Astro 仍会把新文档里的同名节点插入后
      * 再替换掉。新插入的 `<meting-js>` 会被 Meting2 立刻 upgrade，随后又被移除，
      * 触发 `disconnectedCallback` 里未初始化的 `this.player.destroy()`（第三方库
@@ -130,6 +192,17 @@ function install(): void {
     w.__anzhiyuPjaxNavigated = true
     onPjaxSend()
     dispatch('pjax:send')
+  })
+
+  /*
+   * P4-4：`astro:after-swap` 在 swapRootAttributes / head / body 换完之后、
+   * runScripts + astro:page-load（refreshFn）之前同步派发，所以在新的 view-transition
+   * 快照生成前把主题放回去就不会闪。这里只重放「换页前是什么」，不重新做决策：
+   * 首访的系统/时段判断仍只由首屏 bootstrap 负责，手动切换仍只由 rightSideFn.darkmode
+   * 负责，本监听不写 localStorage、不调 handleThemeChange。
+   */
+  document.addEventListener('astro:after-swap', () => {
+    if (themeBeforeSwap) restoreTheme(themeBeforeSwap)
   })
 
   document.addEventListener('astro:page-load', () => {
