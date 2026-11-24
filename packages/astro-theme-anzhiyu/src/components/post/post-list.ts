@@ -24,7 +24,7 @@
 import { stripHtml, sortAttrPost } from '../../utils/helpers.ts'
 import { createSiteDateFormatter, type SiteDateConfig } from '../../utils/date.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
 
 /* ------------------------------------------------------------------ */
 /* 常量                                                                */
@@ -128,6 +128,14 @@ export interface CategoryBarItem {
 export interface PrepareOptions extends SiteDateConfig {
   /** 站点时区，缺省 `Asia/Shanghai`（基准站 `_config.yml`）。 */
   timezone?: string
+  /**
+   * 文章 permalink 解析器（站点配置提供，见 `layouts/site.ts`）。
+   *
+   * 不传时沿用基准站 Hexo 默认 permalink `/:year/:month/:day/:id/`（fixture 站点）；
+   * 迁移站传入 `src/data/post-permalink.ts` 的 `postHref`，使卡片 / 上下篇 / 侧栏
+   * 「最近文章」等所有从集合条目派生的链接与真实文章路由同源（P7-4）。
+   */
+  resolvePostHref?: PostHrefResolver
 }
 
 /* ------------------------------------------------------------------ */
@@ -313,15 +321,29 @@ export function preparePosts(entries: PostEntryLike[], options: PrepareOptions =
   const formatter = createSiteDateFormatter({ ...options, timezone })
   const themeList = readThemeListConfig()
 
+  /**
+   * `article.path`：不带前导 `/` 的站内路径。
+   *
+   * 有站点 permalink 解析器时完全交给它（迁移站：`posts/p:abbrlink/` 等）；
+   * 否则回退基准站的 Hexo 默认 permalink `:year/:month/:day/:title/`
+   * （年月日取站点时区下的日历字段并补零）。
+   */
+  const resolvePath = (entry: PostEntryLike): string => {
+    const resolved = options.resolvePostHref?.(entry)
+    if (typeof resolved === 'string' && resolved) return resolved.replace(/^\/+/, '')
+    const dateValue = entry.data.date
+    const date = dateValue instanceof Date ? dateValue : new Date(0)
+    const parts = formatter.parts(date)
+    const pad = (value: number): string => String(value).padStart(2, '0')
+    return encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${entry.id}/`).slice(1)
+  }
+
   const posts = entries
     .filter((entry) => entry.data.layout !== 'page')
     .map((entry) => {
       const dateValue = entry.data.date
       const date = dateValue instanceof Date ? dateValue : new Date(0)
-      const parts = formatter.parts(date)
-      // Hexo permalink `:year/:month/:day/:title/`：年月日取站点时区下的日历字段并补零
-      const pad = (value: number): string => String(value).padStart(2, '0')
-      const path = encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${entry.id}/`).slice(1)
+      const path = resolvePath(entry)
       const href = urlFor(path)
       const tags = (Array.isArray(entry.data.tags) ? entry.data.tags : [])
         .filter((tag): tag is string => typeof tag === 'string' && tag !== '')
@@ -421,17 +443,22 @@ export function resolveImageLazyload(): {
  * 分类导航条（includes/categoryGroup.pug → `catalog_list("categories")`）的数据：
  * 站点全部分类按 name 码点升序（基准站 reproducible.js 的固定顺序）。
  *
- * `path` 是 Hexo Category.path 的形状：`categories/<slug 链>/`，未 percent-encode
+ * `path` 是 Hexo `Category.path` 的形状：`categories/<逐段 slug 化的分类链>/`，未 percent-encode
  * （上游 helper 直接 `!={` 拼进 HTML，所以 baseline 里是中文原文）。
+ *
+ * 注意 slug 化：Hexo 生成 Category.path 时会逐段跑 `slugize()`（`Arch Linux` → `Arch-Linux`），
+ * 真实站 golden 的目录与链接都是 `/categories/教程/Arch-Linux/`。原始分类名（未 slug 化）另有
+ * 用途（展示文本 / 排序键），所以只在拼 path 时转换（P7-4）。
  */
 export function collectCategoryBarItems(posts: PreparedPost[]): CategoryBarItem[] {
   const seen = new Map<string, CategoryBarItem>()
   for (const post of posts) {
     for (const category of post.categories) {
       if (seen.has(category.path)) continue
+      const slugPath = category.path.split('/').map((segment) => slugize(segment)).join('/')
       seen.set(category.path, {
         name: category.name,
-        path: `categories/${category.path}/`,
+        path: `categories/${slugPath}/`,
       })
     }
   }

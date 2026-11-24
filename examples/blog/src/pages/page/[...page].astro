@@ -22,6 +22,7 @@ import {
   paginatePosts,
   preparePosts,
 } from '../../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
+import { postHrefOf } from '../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
 import '../../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
@@ -48,7 +49,7 @@ const site = SITE_IDENTITY
 
 const { current } = Astro.props as Props
 const entries = await getCollection('posts')
-const posts = preparePosts(entries)
+const posts = preparePosts(entries, { resolvePostHref: postHrefOf(site) })
 const { total, pages } = paginatePosts(posts)
 const pagePosts = pages[current - 1] ?? []
 const categoryBarItems = collectCategoryBarItems(posts)

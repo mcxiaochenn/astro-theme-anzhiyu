@@ -812,6 +812,15 @@ const looseTopLevel = {
   pangu: looseObject,
   lazyload: looseObject,
   friends_vue: looseObject,
+  /**
+   * 1.6.14 遗留的「Lite 朋友圈」配置（1.7.1 已从上游模板与默认配置里移除）。
+   *
+   * 为了「1.6.14 站点迁移到 1.7.1 后页面不丢内容」，主题包保留这个顶层键并移植了
+   * 对应的 lite 分支（见 `components/page/FcirclePage.astro`，P7-4）。标注 deprecated：
+   * defaults 不注入它（未配置时 theme.friends_lite 为 undefined，渲染不产出任何 DOM），
+   * 新站点应使用 `friends_vue`。
+   */
+  friends_lite: looseObject.optional(),
   universe: looseObject,
   bubble: looseObject,
   console: looseObject,

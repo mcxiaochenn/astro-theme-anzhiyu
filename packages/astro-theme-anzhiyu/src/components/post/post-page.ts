@@ -21,10 +21,11 @@
  */
 import {
   preparePosts,
+  slugize,
   type PostEntryLike,
   type PreparedPost,
 } from './post-list.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { rewriteHeadings, SWALLOWED_HEADING_RE, type HeadingInfo } from '../../utils/slugger.ts'
 
@@ -98,6 +99,14 @@ export interface PreparePostPageOptions {
    * 主题包没有站点配置层，先由文章页把这项站点配置传进来（只作用于正文）。
    */
   externalLink?: { enable?: boolean; exclude?: string | string[] }
+  /**
+   * 文章 permalink 解析器（站点配置提供，见 `layouts/site.ts`）。
+   *
+   * 传入时：`current.path / prev / next / related / permalink` 全部按它算，
+   * 不再套 `applyAbbrlink()`（解析器已经包含 abbrlink 语义）。
+   * 不传时：沿用基准站的 `:year/:month/:day/:id/` + abbrlink 覆盖最后一段。
+   */
+  resolvePostHref?: PostHrefResolver
 }
 
 /** 上游 `post_lazyload.js` 的默认占位图。 */
@@ -172,9 +181,13 @@ function str(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
 }
 
-/** `url_for('/categories/<path>/')`；CJK 段落按 baseline 做 percent-encode。 */
+/**
+ * `url_for('/categories/<path>/')`；分类路径逐段 slug 化（Hexo `Category.slug`：
+ * `Arch Linux` → `Arch-Linux`），CJK 段落按 baseline 做 percent-encode。
+ */
 export function categoryHref(path: string): string {
-  return urlFor(encodeURI(`/categories/${path}/`))
+  const slugPath = path.split('/').map((segment) => slugize(segment)).join('/')
+  return urlFor(encodeURI(`/categories/${slugPath}/`))
 }
 
 /**
@@ -295,10 +308,17 @@ export function preparePostPage(
   options: PreparePostPageOptions = {},
 ): PostPageData {
   const theme = getThemeConfig()
-  const prepared = preparePosts(entries, { timezone: options.timezone })
+  const prepared = preparePosts(entries, {
+    timezone: options.timezone,
+    resolvePostHref: options.resolvePostHref,
+  })
 
   const entryById = new Map(entries.map((entry) => [entry.id, entry]))
-  const posts = prepared.map((post) => applyAbbrlink(post, entryById.get(post.id)?.data ?? {}))
+  // 有站点 permalink 解析器时 path 已是最终形态（解析器包含 abbrlink 语义），
+  // 不能再套一次 applyAbbrlink（它只处理基准站的日期 permalink）。
+  const posts = options.resolvePostHref
+    ? prepared
+    : prepared.map((post) => applyAbbrlink(post, entryById.get(post.id)?.data ?? {}))
 
   const found = posts.find((post) => post.id === current.id)
   if (!found) throw new Error(`[post-page] 内容集合里找不到文章：${current.id}`)

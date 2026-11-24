@@ -29,7 +29,7 @@
  *   - 搜索框本体（三套搜索的弹层）→ P4-8；本组件只出 `#search-button` 入口。
  */
 import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { createUrlFor, postHrefOf, type SiteConfig } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
 import MenuItems from './MenuItems.astro'
 import { lazyImageAttrs } from './lazyload.ts'
@@ -248,7 +248,11 @@ const socialEntries: SocialEntry[] =
              #nav-right 的直接子元素、紧跟 input#center-console + label.widget，
              CSS 依赖它们的兄弟关系。 */
         }
-        <Console lang={site.language} pageType={pageType} />
+        <Console
+          lang={site.language}
+          pageType={pageType}
+          resolvePostHref={postHrefOf(site)}
+        />
         <div class="nav-button" id="nav-totop">
           <a class="totopbtn" href="javascript:void(0);">
             <i class="anzhiyufont anzhiyu-icon-arrow-up" />

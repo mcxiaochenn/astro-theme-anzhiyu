@@ -33,9 +33,11 @@ import AlbumPage from '../../../../packages/astro-theme-anzhiyu/src/components/p
 import AlbumDetailPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/AlbumDetailPage.astro'
 import RoomPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/RoomPage.astro'
 import EquipmentPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EquipmentPage.astro'
+import TodolistPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/TodolistPage.astro'
 import AboutPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/about/AboutPage.astro'
 import CommentsIndex from '../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
 import { getSiteData } from '../data/site-data.ts'
+import { loadArchiveSite } from './archives/_data.ts'
 import '../styles/upstream/index.styl'
 import { getCollection, render } from 'astro:content'
 import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
@@ -45,6 +47,7 @@ import type {
   EquipmentGroup,
   FlinkGroup,
   TaxonomyItem,
+  TodoGroup,
 } from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
 import { hexoFullDate } from '../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
 
@@ -81,52 +84,32 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>
 
-/** `posts` 集合里除独立页面外的文章（上游 `site.posts`）。 */
+/** `posts` 集合（含独立页面）：按 id 反查当前页条目。 */
 const allEntries = await getCollection('posts')
-const articleEntries = allEntries.filter((entry) => entry.data.layout !== 'page')
 
 /* ------------------------------------------------------------------ */
 /* 标签 / 分类页的数据（上游 `hexo.locals.get('tags'|'categories')`）    */
 /* ------------------------------------------------------------------ */
 
-const tagCounts = new Map<string, number>()
-const categoryCounts = new Map<string, number>()
-
-/** 递归摊平 `categories: string | string[] | (string | string[])[]`。 */
-function collectCategoryNames(value: unknown, out: Set<string>): void {
-  if (typeof value === 'string') {
-    if (value) out.add(value)
-    return
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) collectCategoryNames(item, out)
-  }
-}
-
-for (const entry of articleEntries) {
-  const tags = entry.data.tags
-  if (Array.isArray(tags)) {
-    for (const tag of tags) {
-      if (typeof tag !== 'string' || !tag) continue
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1)
-    }
-  }
-  // 一篇文章对同一分类只计一次（上游 category.length 是文章数；嵌套分类的每一级都算一个节点）
-  const categoryNames = new Set<string>()
-  collectCategoryNames(entry.data.categories, categoryNames)
-  for (const name of categoryNames) categoryCounts.set(name, (categoryCounts.get(name) ?? 0) + 1)
-}
-
-/** `tagsPageList()` 需要的 `{ name, path, length }`；路径不加 `url_for`（与上游一致，中文不编码）。 */
-const tagItems: TaxonomyItem[] = [...tagCounts.entries()].map(([name, length]) => ({
-  name,
-  path: `tags/${name}/`,
-  length,
+/**
+ * 上游 `tags_page_list()` 的入参是 `hexo.locals.get('tags'|'categories')`：
+ * 每个节点自带 `path`（Hexo 的 `Tag.path` / `Category.path`，分类是**完整父级链**且逐段
+ * slug 化，如 `categories/教程/Arch-Linux/`）与 `length`（分类包含子分类下的文章数）。
+ *
+ * 这里直接复用归档/分类/标签路由的同一份数据层（`loadArchiveSite()`），
+ * 保证「列表页链接」与「真实路由」由同一个 `taxonomySlug()` 生成（P7-4：
+ * 真实站曾把 `Arch Linux` 输出成 `/categories/Arch Linux/`、且丢失父级）。
+ */
+const archiveSiteData = await loadArchiveSite()
+const tagItems: TaxonomyItem[] = archiveSiteData.tags.map((term) => ({
+  name: term.name,
+  path: term.path,
+  length: term.posts.length,
 }))
-const categoryItems: TaxonomyItem[] = [...categoryCounts.entries()].map(([name, length]) => ({
-  name,
-  path: `categories/${name}/`,
-  length,
+const categoryItems: TaxonomyItem[] = archiveSiteData.categories.map((term) => ({
+  name: term.name,
+  path: term.path,
+  length: term.posts.length,
 }))
 
 /* ------------------------------------------------------------------ */
@@ -185,6 +168,8 @@ const albumData = getSiteData<AlbumGroup[]>('album') ?? []
 const linkData = getSiteData<FlinkGroup[]>('link') ?? []
 const equipmentData = getSiteData<EquipmentGroup[]>('equipment') ?? []
 const aboutData = getSiteData<unknown[]>('about') ?? []
+// 1.6.14 的 todolist 页（1.7.1 已移除模板）：数据来自 `source/_data/todolist.yml`（P7-4）。
+const todoData = getSiteData<TodoGroup[]>('todolist') ?? []
 ---
 
 <BaseLayout
@@ -225,6 +210,9 @@ const aboutData = getSiteData<unknown[]>('about') ?? []
       <MusicPage />
     ) : type === 'equipment' ? (
       <EquipmentPage data={equipmentData} />
+    ) : type === 'todolist' ? (
+      // 1.6.14 `layout/includes/page/todolist.pug`：1.7.1 删掉了模板，这里按原结构移植（P7-4）。
+      <TodolistPage data={todoData} topBackground={topBackground} />
     ) : (
       <DefaultPage html={renderedHtml} Content={Content} />
     )}

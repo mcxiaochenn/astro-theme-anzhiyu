@@ -23,7 +23,7 @@ import {
   type PreparedPost,
 } from '../components/post/post-list.ts'
 import { flattenCategories } from '../components/post/post-list.ts'
-import { createUrlFor } from '../layouts/site.ts'
+import { createUrlFor, type PostHrefResolver } from '../layouts/site.ts'
 import { stripHtml } from '../utils/helpers.ts'
 import { DEFAULT_SITE_TIMEZONE } from '../utils/date.ts'
 
@@ -71,7 +71,17 @@ export interface SiteStats {
   totalWordCount: number
 }
 
-let cached: Promise<SiteStats> | null = null
+/** 站点统计的入参：文章 permalink 解析器（见 `layouts/site.ts`，可缺省）。 */
+export interface SiteStatsOptions {
+  resolvePostHref?: PostHrefResolver
+}
+
+/**
+ * 按解析器分别缓存：不同解析器算出的文章 URL 不同，不能共用一份结论文档。
+ * fixture 站点（无解析器）与迁移站（有解析器）不会出现在同一次构建里，
+ * 这里按 key 建表只是为了避免「先算了一份不带解析器的结果」污染后续页面。
+ */
+const cached = new Map<PostHrefResolver | null, Promise<SiteStats>>()
 
 /**
  * 读取并缓存站点统计。
@@ -79,15 +89,20 @@ let cached: Promise<SiteStats> | null = null
  * 缓存的是 Promise，并发页面同时请求也只会算一次；模块作用域的生命周期
  * 与一次 Astro 构建进程一致。dev 模式下内容集合变更会重建模块，缓存随之失效。
  */
-export function getSiteStats(): Promise<SiteStats> {
-  if (!cached) cached = computeSiteStats()
-  return cached
+export function getSiteStats(options: SiteStatsOptions = {}): Promise<SiteStats> {
+  const resolver = options.resolvePostHref ?? null
+  let pending = cached.get(resolver)
+  if (!pending) {
+    pending = computeSiteStats(resolver)
+    cached.set(resolver, pending)
+  }
+  return pending
 }
 
-async function computeSiteStats(): Promise<SiteStats> {
+async function computeSiteStats(resolvePostHref: PostHrefResolver | null): Promise<SiteStats> {
   const entries = (await getCollection('posts')) as unknown as PostEntryLike[]
   const postEntries = entries.filter((entry) => entry.data.layout !== 'page')
-  const prepared = preparePosts(entries)
+  const prepared = preparePosts(entries, { resolvePostHref: resolvePostHref ?? undefined })
 
   /* ------------------------------------------------------------------ */
   /* 1. 最近文章（date 降序；同日期 path 码点升序）                        */
@@ -147,10 +162,12 @@ async function computeSiteStats(): Promise<SiteStats> {
   const categories: SiteCategoryItem[] = [...categoryCounts.entries()]
     .map(([categoryPath, info]) => {
       const segments = categoryPath.split('/')
+      // Hexo `Category.path`：`categories/<逐段 slugize 后的分类链>/`（P7-4）。
+      const slugPath = segments.map((segment) => slugize(segment)).join('/')
       return {
         _id: categoryPath,
         name: info.name,
-        path: `categories/${categoryPath}/`,
+        path: `categories/${slugPath}/`,
         length: info.length,
         parent: segments.length > 1 ? segments.slice(0, -1).join('/') : null,
       }

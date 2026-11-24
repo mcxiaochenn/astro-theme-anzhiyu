@@ -18,7 +18,7 @@
  * 不实现的分支：top.pug:98-135 的 `initBlogSlider()` 脚本（P4 客户端脚本阶段）。
  */
 import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import { postHrefOf, type SiteConfig } from '../../layouts/site.ts'
 import { preparePosts, selectTopGroupPosts } from '../post/post-list.ts'
 import { selectSwiperPosts } from './home-top-data.ts'
 import BannerGroup from './BannerGroup.astro'
@@ -48,7 +48,10 @@ const peoplecanvasEnabled = readFlag(theme.peoplecanvas, 'enable')
 
 // `sort_attr_post("top_group_list")` / `sort_attr_post("swiper_list")` 的数据来源：
 // Hexo `hexo.locals.get('posts').data`，即 posts 集合按 date 降序（与首页 sticky 排序无关）。
-const preparedPosts = enabled ? preparePosts(posts) : []
+// 文章 URL 用站点 permalink 解析器（迁移站与真实文章路由同源，见 P7-4）。
+const preparedPosts = enabled
+  ? preparePosts(posts, { resolvePostHref: postHrefOf(site) })
+  : []
 const topGroupPosts = enabled ? selectTopGroupPosts(preparedPosts, swiperEnabled) : []
 const swiperPosts = enabled && swiperEnabled ? selectSwiperPosts(preparedPosts) : []
 ---

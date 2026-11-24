@@ -23,7 +23,15 @@
 import { parse } from 'yaml'
 
 /** 与 `data/*.yml` 一一对应的逻辑名（上游 `site.data.<name>`）。 */
-export type SiteDataName = 'about' | 'essay' | 'album' | 'link' | 'equipment' | 'creativity'
+export type SiteDataName =
+  | 'about'
+  | 'essay'
+  | 'album'
+  | 'link'
+  | 'equipment'
+  | 'creativity'
+  /** 1.6.14 兼容页（todolist / fcircle lite）用到的站点数据（P7-4）。 */
+  | 'todolist'
 
 const modules = import.meta.glob('../../data/*.yml', {
   query: '?raw',

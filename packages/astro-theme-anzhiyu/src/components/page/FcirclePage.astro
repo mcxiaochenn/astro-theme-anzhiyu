@@ -1,26 +1,45 @@
 ---
 /**
- * FcirclePage.astro — 友链朋友圈页（`page.type === 'fcircle'`，P3-2）。
+ * FcirclePage.astro — 友链朋友圈页（`page.type === 'fcircle'`，P3-2 / P7-4）。
  *
- * 上游 `layout/includes/page/fcircle.pug:1-25`。整块由 `theme.friends_vue.enable`
- * 门控（基准站为 false，所以不产出任何 DOM）：
+ * 上游有两个世代（真实站升级到 1.7.1 后仍用 1.6.14 的 lite 朋友圈）：
  *
- *   .fcircle_page
- *     .author-content.author-content-item.fcirclePage.single   ← 顶部卡片
- *     .title-h2-a                                               ← 「🎣 钓鱼 / 全部友链」
- *     #random-post
- *     #hexo-circle-of-friends-root                              ← vue 应用挂载点
- *   script[defer][data-pjax] × 2                                ← 朋友圈脚本
+ *   1. **1.6.14 lite 分支**（`theme.friends_lite.enable`）：
+ *      `layout/includes/page/fcircle.pug:1-53`，产出 `.fcircle_page` +
+ *      `#friend-circle-lite-root`，脚本是 `fclite.js` + 内联 `UserConfig`
+ *      （`private_api_url` / `page_turning_number` / `error_img`）。
+ *      1.7.1 删除了 `friends_lite` 配置与这个分支，迁移站需要它才能不丢页面内容。
  *
- * 文案在上游走 `_p()`（languages/zh-CN.yml 的 `flink.*`），这里固定 zh-CN。
- * 脚本只做静态输出，真正的请求/渲染由 Phase 5 的第三方集成接管。
+ *   2. **1.7.1 vue 分支**（`theme.friends_vue.enable`）：
+ *      `.fcircle_page` + `#hexo-circle-of-friends-root`，脚本是 friends vue 应用 +
+ *      `random_friends_post_js`。
+ *
+ * 两个分支互斥：`friends_vue.enable` 优先（与 1.7.1 模板顺序一致），否则走 lite。
+ * 文案在上游 1.6.14 里是硬编码中文，1.7.1 改走 `_p('flink.*')`（这里固定 zh-CN）。
  */
-import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
+import {
+  getThemeConfig,
+  readFlag,
+  readNumber,
+  readString,
+} from '../../layouts/theme-context.ts'
 
 const theme = getThemeConfig()
-const friendsVue = theme.friends_vue
 
-const enabled = readFlag(friendsVue, 'enable')
+/* ------------------------------------------------------------------ */
+/* 分支开关                                                            */
+/* ------------------------------------------------------------------ */
+
+const friendsVue = theme.friends_vue
+const friendsLite = theme.friends_lite
+
+const vueEnabled = readFlag(friendsVue, 'enable')
+const liteEnabled = readFlag(friendsLite, 'enable')
+
+/* ------------------------------------------------------------------ */
+/* 1.7.1 vue 分支                                                      */
+/* ------------------------------------------------------------------ */
+
 const topBackground = readString(friendsVue, 'top_background')
 const topTips = readString(friendsVue, 'top_tips')
 const vueJs = readString(friendsVue, 'vue_js')
@@ -35,10 +54,57 @@ const t = {
   fishing: '🎣 钓鱼',
   allLinks: '全部友链',
 }
+
+/* ------------------------------------------------------------------ */
+/* 1.6.14 lite 分支                                                    */
+/* ------------------------------------------------------------------ */
+
+const liteCssUrl = readString(friendsLite, 'fclite_css_url')
+const liteJsUrl = readString(friendsLite, 'fclite_js_url')
+const litePrivateApiUrl = readString(friendsLite, 'private_api_url')
+const litePageTurningNumber = readNumber(friendsLite, 'page_turning_number', 20)
+const liteErrorImg = readString(friendsLite, 'error_img')
+const liteTopBackground = readString(friendsLite, 'top_background')
+const liteTopTips = readString(friendsLite, 'top_tips')
+
+/** 1.6.14 fcircle.pug 的 `style.` 块（逐条照抄，注释保持原样）。 */
+const liteStyle = `#random-article {
+  display: none!important;
+}
+.card:hover,
+#random-article:hover {
+  border: var(--style-border-hover)!important;
+}
+#modal-author-name-link,
+.modal-article .modal-article-title:hover,
+.card-title:hover{
+  color: var(--anzhiyu-theme)!important;
+}
+.modal-article,
+#modal-articles-container {
+  border-top-color: var(--anzhiyu-theme)!important;
+  border-bottom-color: var(--anzhiyu-theme)!important;
+}
+#load-more-btn:hover {
+  background: var(--anzhiyu-theme)!important;
+}`
+
+/** JS 字符串字面量转义（只用于内联脚本里的配置值）。 */
+const jsString = (value: string): string =>
+  `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+
+/** 1.6.14 fcircle.pug 的 `script.` 块：`fclite.js` 读取的全局 `UserConfig`。 */
+const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
+  var UserConfig = {
+    private_api_url: ${jsString(litePrivateApiUrl)},
+    page_turning_number: ${litePageTurningNumber},
+    error_img: ${jsString(liteErrorImg)}
+  }
+}`
 ---
 
 {
-  enabled && (
+  vueEnabled && (
     <>
       <div class="fcircle_page">
         <div
@@ -78,6 +144,59 @@ const t = {
       </div>
       {apiurl && <script is:inline defer data-pjax src={randomFriendsPostJs} />}
       <script is:inline defer data-pjax src={vueJs} />
+    </>
+  )
+}
+
+{
+  !vueEnabled && liteEnabled && (
+    <>
+      {liteCssUrl && <link rel="stylesheet" href={liteCssUrl} />}
+      <style is:inline set:html={liteStyle} />
+      <div class="fcircle_page">
+        <div
+          class="author-content author-content-item fcirclePage single"
+          style={`background: url(${liteTopBackground}) center / cover no-repeat !important;`}
+        >
+          <div class="card-content">
+            <div class="author-content-item-tips">朋友圈</div>
+            <span class="author-content-item-title">最新文章订阅</span>
+            <div class="content-bottom">
+              <div class="tips">{liteTopTips}</div>
+            </div>
+            <div class="banner-button-group">
+              <a class="banner-button" onclick='pjax.loadUrl("/about")'>
+                <i
+                  class="anzhiyufont anzhiyu-icon-arrow-circle-right"
+                  style="font-size: 22px; margin-right: 0.25rem"
+                />
+                <span class="banner-button-text">关于本人</span>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="title-h2-a">
+          <div class="title-h2-a-left">
+            <h2 style="padding-top:0;margin:.6rem 0 .6rem">🎣 钓鱼</h2>
+            <a class="random-post-start" href="javascript:fetchRandomPost();">
+              <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+            </a>
+          </div>
+          <div class="title-h2-a-right">
+            <a class="random-post-all" href="/link/">全部友链</a>
+          </div>
+        </div>
+        <div id="random-post" />
+        <div class="title-h2-a">
+          <div class="title-h2-a-left">
+            <h2>🐟 鱼塘</h2>
+          </div>
+        </div>
+        <div id="friend-circle-lite-root" />
+      </div>
+      <script is:inline set:html={liteUserConfigScript} />
+      <script is:inline src={liteJsUrl} />
+      <script is:inline defer data-pjax src={randomFriendsPostJs} />
     </>
   )
 }

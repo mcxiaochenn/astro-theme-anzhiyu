@@ -23,6 +23,7 @@ import PostAiDescription from '../../../../../../../packages/astro-theme-anzhiyu
 import CommentsIndex from '../../../../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
 import { preparePostPage } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-page.ts'
 import { preparePosts } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
+import { postHrefOf } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
 import { getThemeConfig } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/theme-context.ts'
 import '../../../../styles/upstream/index.styl'
 import { getCollection, getEntry } from 'astro:content'
@@ -70,6 +71,8 @@ const page = preparePostPage(entries, entry, {
   url: site.url,
   // 基准站 .baseline-work/_config.yml: external_link.enable = true
   externalLink: { enable: true, exclude: '' },
+  // 文章自身的 path / permalink、上下篇、相关推荐统一走站点 permalink 解析器（P7-4）。
+  resolvePostHref: postHrefOf(site),
 })
 
 /** `page.copyright_url || page.permalink`。 */

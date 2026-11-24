@@ -17,7 +17,7 @@
  *     与 aside 同名卡片共用 `getSiteStats()` 缓存）。
  */
 import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
 import { getSiteStats } from '../../data/site-stats.ts'
 import { lazyImageAttrs } from '../layout/lazyload.ts'
@@ -29,9 +29,11 @@ interface Props {
   lang?: string
   /** 页面类型；文章页的 reward 图在基线里**不**走 lazyload（`src` 直出）。 */
   pageType?: 'post' | 'page'
+  /** 文章 permalink 解析器（来自站点配置；CardConsoleArchives/Tags 不需要，但共用同一份统计缓存）。 */
+  resolvePostHref?: PostHrefResolver
 }
 
-const { lang, pageType = 'page' } = Astro.props
+const { lang, pageType = 'page', resolvePostHref } = Astro.props
 const theme = getThemeConfig()
 const urlFor = createUrlFor('/')
 const _p = (key: string) => tp(key, lang)
@@ -44,7 +46,7 @@ function flag(section: unknown, key: string, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback
 }
 
-const stats = await getSiteStats()
+const stats = await getSiteStats({ resolvePostHref })
 
 interface RewardItem {
   img: string

@@ -132,3 +132,22 @@ export interface EquipmentGroup {
   top_background?: string
   good_things?: EquipmentThing[]
 }
+
+/* ------------------------------------------------------------------ */
+/* site.data.todolist（1.6.14 兼容页，1.7.1 已移除模板）                */
+/* ------------------------------------------------------------------ */
+
+/** `source/_data/todolist.yml` 的一条待办。 */
+export interface TodoItem {
+  content?: string
+  /** 是否已完成（决定 `todolist-li-done` class 与圆形图标）。 */
+  completed?: boolean
+}
+
+/** `todolist.yml` 的一个分组（`seat` 决定渲染在左栏还是右栏）。 */
+export interface TodoGroup {
+  class_name?: string
+  /** `left` / `right`；其它值上游不渲染。 */
+  seat?: 'left' | 'right' | string
+  todo_list?: TodoItem[]
+}

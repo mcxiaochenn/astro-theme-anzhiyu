@@ -28,6 +28,7 @@ import {
   paginatePosts,
   preparePosts,
 } from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
+import { postHrefOf } from '../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
 import '../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 
@@ -37,7 +38,9 @@ import { SITE_IDENTITY } from '../data/site-identity.ts'
 const site = SITE_IDENTITY
 
 const entries = await getCollection('posts')
-const posts = preparePosts(entries)
+// 文章 URL 统一走站点 permalink 解析器（fixture 未配置 → 默认日期形态；迁移站由
+// site.config.ts 注入源站 permalink，见 P7-4）。
+const posts = preparePosts(entries, { resolvePostHref: postHrefOf(site) })
 const { total, pages } = paginatePosts(posts)
 const pagePosts = pages[0] ?? []
 const categoryBarItems = collectCategoryBarItems(posts)
