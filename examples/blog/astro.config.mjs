@@ -6,7 +6,7 @@ import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 // Phase 6：Hexo `{% tag %}` 语法。P6-1 交付行内 12 + 块级 12（含 hideInline）。
 // 放在 packages/ 里按源码相对导入：插件是纯 ESM `.mjs`，没有构建步骤，
 // Astro 配置在 Node 侧直接 import 即可（见 docs/notes/P6-1-hexo-tags.md）。
-import remarkHexoTag from '../../packages/remark-hexo-tag/src/index.mjs'
+import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag/src/index.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -274,7 +274,12 @@ const hexoMarkdownProcessor = {
       // `noteStyle` 对齐 theme.config.yml 的 `note.style`（当前为 flat）。
       remarkPlugins: [[remarkHexoTag, { noteStyle: 'flat' }]],
       // M1：`<pre><code class="language-x">` → 上游 `figure.highlight`
-      rehypePlugins: [rehypeHexoHighlight],
+      //
+      // `rehypeHexoInlineP`：把句中的 `{% p %}` 从外层段落里拆成兄弟节点。
+      // 用户 rehype 插件在 `rehype-raw`（parse5）**之前**执行，此时 tag 的 HTML
+      // 还是 raw 节点；不拆的话 parse5 会在末尾凭空补一个空 `<p></p>`，
+      // 与基准归一化结果对不上（见 packages/remark-hexo-tag/src/rehype-inline-p.mjs）。
+      rehypePlugins: [rehypeHexoHighlight, rehypeHexoInlineP],
     })
     return {
       async render(content, opts) {

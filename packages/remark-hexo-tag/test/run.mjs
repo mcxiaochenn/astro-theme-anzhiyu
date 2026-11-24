@@ -20,7 +20,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import remarkHexoTag from '../src/index.mjs'
+import remarkHexoTag, { rehypeHexoInlineP } from '../src/index.mjs'
 import { parseArgs } from '../src/parser.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -44,7 +44,9 @@ const processor = await createMarkdownProcessor({
       },
     ],
   ],
-  rehypePlugins: [],
+  // 与 astro.config.mjs 保持一致：`{% p %}` 的外层段落由 rehype 插件拆开，
+  // 否则 parse5 会在末尾补空 `<p></p>`（见 src/rehype-inline-p.mjs）。
+  rehypePlugins: [rehypeHexoInlineP],
 })
 
 /** 渲染 Markdown → HTML。 */
@@ -86,15 +88,6 @@ function canon(html) {
     .trim()
 }
 
-/** 纯文本（用于 `<p>` 这种 HTML5 会重排结构的 tag）。 */
-function textOf(html) {
-  return html
-    .replace(/>\s+</g, '><')
-    .replace(/<[^>]+>/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
 /** 断言。 */
 function assertEqual(name, actual, expected) {
   if (actual === expected) return true
@@ -104,7 +97,7 @@ function assertEqual(name, actual, expected) {
   return false
 }
 
-/** @type {Array<{ name: string, input: string, expected: string, mode?: 'html' | 'text' }>} */
+/** @type {Array<{ name: string, input: string, expected: string }>} */
 const cases = [
   // ── 行内语义 12 个 ────────────────────────────────────────────────────────
   {
@@ -166,10 +159,20 @@ const cases = [
       '<p>按钮：<a class="btn-anzhiyu larger" href="/about/" title="前往关于页"><i class="anzhiyu-icon-paper-plane"></i><span>前往关于页</span></a>。</p>',
   },
   {
-    name: 'p（HTML5 会把嵌套 <p> 拆成兄弟节点，只比文本）',
-    mode: 'text',
+    // 上游是非法嵌套 `<p>段落标签：<p class='p h2'>…</p>。</p>`（基准产物逐字节如此）。
+    // hast 序列化输出不了不平衡标签，所以这里对齐的是**归一化后**的结构：
+    // 外层段落 / tag 自己 / tag 之后的裸文本，三者同级（也就是浏览器解析基准页
+    // 得到、且 scripts/diff-html.mjs 对基准归一化得到的树）。
+    name: 'p（句中：拆成段落 + 独立 <p> + 裸文本，不带空 <p>）',
     input: '段落标签：{% p h2, 这是一个 h2 级别的段落标签 %}。',
-    expected: '段落标签：这是一个 h2 级别的段落标签。',
+    expected:
+      '<p>段落标签：</p><p class="p h2">这是一个 h2 级别的段落标签</p>。',
+  },
+  {
+    name: 'p（同段多个，保留 tag 之后的 Markdown 内联格式）',
+    input: '包括：{% p red, 红色 %}、{% p blue, 蓝色 %}，**后面加粗**。',
+    expected:
+      '<p>包括：</p><p class="p red">红色</p>、<p class="p blue">蓝色</p>，<strong>后面加粗</strong>。',
   },
   {
     name: 'span',
@@ -625,8 +628,8 @@ for (const testCase of cases) {
     continue
   }
 
-  const actual = testCase.mode === 'text' ? textOf(html) : canon(html)
-  const expected = testCase.mode === 'text' ? testCase.expected : canon(testCase.expected)
+  const actual = canon(html)
+  const expected = canon(testCase.expected)
   if (assertEqual(testCase.name, actual, expected)) passed += 1
   else failed += 1
 }

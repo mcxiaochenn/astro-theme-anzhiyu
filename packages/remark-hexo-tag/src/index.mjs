@@ -36,6 +36,12 @@
 
 import { scanTags } from './parser.mjs'
 import { trimBlockBody } from './runtime.mjs'
+
+/**
+ * 配套的 rehype 插件（拆 `{% p %}` 的外层段落），见 rehype-inline-p.mjs。
+ * 挂在 `rehypePlugins` 里，必须与 remark 插件成对使用。
+ */
+export { default as rehypeHexoInlineP } from './rehype-inline-p.mjs'
 import { inlineTags } from './tags/inline/index.mjs'
 import { blockTags } from './tags/block/index.mjs'
 import { mediaTags, mediaBlockTags } from './tags/media/index.mjs'

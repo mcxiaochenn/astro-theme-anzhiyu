@@ -4,6 +4,7 @@
 `@astrojs/markdown-remark` 管线使用。
 
 - 纯 ESM + JSDoc，**无构建步骤**；附录 B 的 **42 个 tag 全部实现**；
+- 另带配套 rehype 插件 `rehypeHexoInlineP`，修正句中 `{% p %}` 的段落结构；
 - 支持行内 tag、容器 tag、嵌套 tag、`key=value` 与引号参数；
 - 未知 tag / 未闭合容器 / 错配 end tag 会抛错，并带 `文件:行:列`。
 
@@ -11,7 +12,7 @@
 
 ```js
 // astro.config.mjs
-import remarkHexoTag from '../../packages/remark-hexo-tag/src/index.mjs'
+import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag/src/index.mjs'
 
 const processor = {
   async createRenderer(shared) {
@@ -19,10 +20,15 @@ const processor = {
       ...shared,
       smartypants: false,
       remarkPlugins: [[remarkHexoTag, { noteStyle: 'flat' }]],
+      rehypePlugins: [rehypeHexoInlineP],
     })
   },
 }
 ```
+
+> `rehypeHexoInlineP` 必须一起挂：`{% p %}` 输出的是块级 `<p>`，句中用法会被
+> parse5 补一个空 `<p></p>`，这个 rehype 插件在 `rehype-raw` 之前把外层段落
+> 拆开（详见 `src/rehype-inline-p.mjs` 的文件头）。
 
 > 插件工厂通过 `this` 拿到 unified `Processor`，用 `processor.parse()` 递归解析
 > 容器正文，因此**必须**以 unified 插件方式注册，不能当作普通函数直接调用。
@@ -64,20 +70,21 @@ const processor = {
 
 ```
 src/index.mjs              remark 插件入口（扫描 → 占位 → 递归解析 → 替换）
+src/rehype-inline-p.mjs    配套 rehype 插件（拆 `{% p %}` 的外层段落）
 src/parser.mjs             tag 词法/语法扫描 + 参数解析
 src/runtime.mjs            stripIndent / trimBody / url_for / commaArgs / escapeHtml
 src/tags/inline/index.mjs  行内 tag（13，含 hideInline）
 src/tags/block/index.mjs   块级容器 tag（11）
 src/tags/media/index.mjs   媒体与卡片（11）
 src/tags/thirdparty/index.mjs 第三方嵌入（7）
-test/run.mjs               59 条 oracle 对拍
+test/run.mjs               60 条 oracle 对拍
 test/render-fixtures.mjs   4 篇 fixture 与 `.baseline-html` 做正文文本对比
 ```
 
 ## 测试
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs              # 59/59
+node packages/remark-hexo-tag/test/run.mjs              # 60/60
 node packages/remark-hexo-tag/test/render-fixtures.mjs  # 4 篇 fixture 文本 diff
 ```
 
@@ -92,6 +99,8 @@ import `examples/blog/astro.config.mjs` 并用它导出的真实 processor。
    字面量。本插件正常渲染成标题，验收时按白名单处理（见 P6-2 报告）。
 2. **`{%` 出现在代码块/行内代码里**也会被当作 tag 处理——与 Hexo 一致。
 3. **`url_for`** 只实现基准站 `root: /` 的语义；子路径部署需替换实现。
-4. **嵌套 `<p>`**：`{% p %}` 输出的 `<p>` 嵌在段落里是非法 HTML，parse5 会按
-   浏览器规则拆开，文本不变。
+4. **嵌套 `<p>`**：`{% p %}` 输出的 `<p>` 嵌在段落里是非法 HTML。hast 序列化
+   输出不了不平衡标签，所以**逐字节复刻基准做不到**；`rehypeHexoInlineP` 让
+   归一化后的结构与基准一致（外层段落 / `<p class="p x">` / 裸文本三者同级，
+   且不多出空 `<p>`）。
 5. **源码位置**：整段重解析后节点 `position` 相对片段而非原文件，当前无消费方。
