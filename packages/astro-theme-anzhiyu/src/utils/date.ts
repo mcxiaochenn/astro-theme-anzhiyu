@@ -249,6 +249,16 @@ const ISO_DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
 const BARE_DATE_TIME =
   /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/
 
+/**
+ * 美式月/日/年 写法：`M/D/YYYY`（可带 ` HH:mm[:ss[.SSS]]`）。
+ * moment 对斜杠分隔的「首段 ≤ 2 位数字」按 M/D/Y 解析（US 顺序），上游
+ * `theme.runtimeshow.publish_date` 的默认值 `4/1/2021 00:00:00` 就是这种格式。
+ * 它不是 ISO 写法，`new Date()` 会把它落进**宿主本地时区**，构建产物随机器时区漂移
+ * （CI 的 UTC 与本地 +08 差 8 小时）；所以这里显式认出它并按站点时区锚定。
+ */
+const US_SLASH_DATE_TIME =
+  /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: (\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/
+
 function invalidDate(value: unknown): TypeError {
   return new TypeError(`Invalid date: ${JSON.stringify(value)}`)
 }
@@ -299,6 +309,26 @@ export function parseHexoDate(value: DateLike, timezone: string = DEFAULT_SITE_T
         minute: Number(bare[5] ?? '0'),
         second: Number(bare[6] ?? '0'),
         millisecond,
+      },
+      timezone,
+    )
+    const date = new Date(utcMs)
+    if (Number.isNaN(date.getTime())) throw invalidDate(value)
+    return date
+  }
+
+  // 美式 M/D/YYYY（上游 runtimeshow.publish_date 默认值就是这种），同样按站点时区锚定
+  const usSlash = US_SLASH_DATE_TIME.exec(text)
+  if (usSlash) {
+    const utcMs = zonedWallClockToMs(
+      {
+        year: Number(usSlash[3]),
+        month: Number(usSlash[1]),
+        day: Number(usSlash[2]),
+        hour: Number(usSlash[4] ?? '0'),
+        minute: Number(usSlash[5] ?? '0'),
+        second: Number(usSlash[6] ?? '0'),
+        millisecond: Number((usSlash[7] ?? '0').padEnd(3, '0')),
       },
       timezone,
     )

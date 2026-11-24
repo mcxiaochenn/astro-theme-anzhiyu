@@ -19,6 +19,7 @@
  */
 import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
 import { tp } from '../../i18n/index.ts'
+import { parseHexoDate } from '../../utils/date.ts'
 
 interface Props {
   /** `site.posts.length`。 */
@@ -44,14 +45,20 @@ const totalWordEnabled = theme.wordcount.enable && theme.wordcount.total_wordcou
 /**
  * `date_xml(theme.runtimeshow.publish_date)`。
  *
- * 上游 pug 把配置里的 `4/1/2021 00:00:00` 直接交给 `date_xml`，最终是
- * `new Date(str).toISOString()`（宿主时区解释非 ISO 字面量）。这里保持一致，
- * 并给无效值兜底成当前时刻，避免 `toISOString()` 抛 RangeError。
+ * 上游把配置里的 `4/1/2021 00:00:00` 交给 `date_xml`；moment 按站点时区解释
+ * （基准构建固定 Asia/Shanghai），得到 `2021-03-31T16:00:00.000Z`。这里必须走
+ * `parseHexoDate`（美式 M/D/YYYY 分支按站点时区锚定）——直接 `new Date(str)` 会按
+ * **进程时区**解析，CI（UTC）与本机（+08）会产出相差 8 小时的属性值。
+ * 无效值兜底成当前时刻，避免 `toISOString()` 抛 RangeError。
  */
 function parsePublishDate(value: string): string {
   if (!value) return new Date().toISOString()
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+  try {
+    const parsed = parseHexoDate(value)
+    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+  } catch {
+    return new Date().toISOString()
+  }
 }
 ---
 

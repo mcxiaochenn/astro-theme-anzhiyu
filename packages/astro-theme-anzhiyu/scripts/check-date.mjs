@@ -119,6 +119,24 @@ checkEq(
   D.parseHexoDate('2025-04-20 11:15:30.250').toISOString(),
   '2025-04-20T03:15:30.250Z',
 )
+checkEq(
+  'A7a 美式 M/D/YYYY 斜杠写法按站点时区锚定（runtimeshow.publish_date 默认值）',
+  D.parseHexoDate('4/1/2021 00:00:00').toISOString(),
+  '2021-03-31T16:00:00.000Z',
+)
+checkEq(
+  'A7b 美式写法在显式 UTC 时区下按 UTC 墙上时间锚定',
+  D.parseHexoDate('12/31/2021', 'UTC').toISOString(),
+  '2021-12-31T00:00:00.000Z',
+)
+checkEq(
+  'A7c 美式写法含时间',
+  D.parseHexoDate('12/31/2021 23:59:59').toISOString(),
+  '2021-12-31T15:59:59.000Z',
+)
+// 进程时区无关性无法在单一进程里断言，但 A7a 的期望值（16:00Z）
+// 只在「按 Asia/Shanghai 解释墙上时间」时成立——本机 TZ=+08 与 CI TZ=UTC
+// 都必须产出它（CI 实证过：修复前 CI 是 00:00Z、本机是 16:00Z）。
 {
   const source = new Date('2024-11-01T01:30:00Z')
   const copy = D.parseHexoDate(source)
