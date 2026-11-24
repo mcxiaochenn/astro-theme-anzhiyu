@@ -125,12 +125,17 @@
 | 目录 | 计数 | 说明 |
 | --- | ---: | --- |
 | `_tags` | 141 | tag 自己的样式，主力 |
-| `_extra` | 77 | `_extra/tag/link.css`、`site.css` 等 |
+| `_extra` | 72 | `_extra/tag/link.css`、`site.css` 等 |
 | `_layout` | 38 | 文章正文、导航等复用规则 |
 | `_page` | 37 | `_page/flink.styl` 等 |
 | `_mode` | 28 | 深色 / 阅读模式下的同名规则 |
 | `_global` | 7 | `.anzhiyufont` 等全局类 |
 | `_highlight` | 2 | 代码高亮容器内的通用类 |
+
+按更严格的目录口径：147 个精确命中 class 里，**105 个能在 `_tags/` 找到规则**，
+**113 个能在任务点名的 `_tags/ + _global/ + _layout/` 找到**；其余 34 个只出现在
+`_extra` / `_page` / `_mode` / `_highlight`（典型是 `link`、`site`、`flink` 复用页面与
+第三方样式）。若只看 `_tags/`，这 34 个会被误判为未命中，故本脚本按整树统计并在此单独披露。
 
 ## 3. 未命中清单
 
@@ -150,9 +155,9 @@
 | audio | `audio` | `scripts/tag/media.js` 的包裹 div | 上游只样式化 `audio` 元素（`audio,video`） |
 | link | `anzhiyu-tag-link` | `scripts/tag/link.js` 的外层 div | 上游只样式化内层 `.tag-Link` |
 
-另有 4 个 class 也不在上游任何选择器里，但它们所在的元素还有别的 class 能命中规则，
-按任务口径归入「仅语境命中」而非白名单：`checkbox/radio` 的 `checked`（靠同元素 `.checkbox`）、
-`cell` 的 `button`（靠 `.no-text-decoration`）、`bilibili` 的 `no-lazyload`（靠 `.play_icon`）。
+另有 4 处 class（3 种名字）也不在上游任何选择器里，但它们所在的元素还有别的 class 能命中规则，
+按任务口径归入「仅语境命中」而非白名单：`checked`（checkbox 与 radio 各一处，靠同元素 `.checkbox`）、
+`button`（cell，靠 `.no-text-decoration`）、`no-lazyload`（bilibili，靠 `.play_icon`）。
 其中 `checked` 是勾选态标记、`no-lazyload` 是懒加载行为标记，上游都没有为它们单独写视觉规则
 （勾选态由 `input[type="checkbox"]:checked` 承担），换样式时不要指望这两个 class 本身有样式。
 
@@ -182,6 +187,7 @@
 ```bash
 node scripts/check-tag-styles.mjs            # 期望退出码 0，覆盖 186/186，未命中 0
 node scripts/check-tag-styles.mjs --strict   # 期望退出码 1：5 个「上游无规则」判失败（收紧用）
+node scripts/check-tag-styles.mjs --verbose  # 逐 tag 打印精确命中的 class 清单
 node scripts/check-tag-styles.mjs --json     # 末尾追加机器可读结果（生成本文表格用）
 ```
 
@@ -191,7 +197,8 @@ node scripts/check-tag-styles.mjs --json     # 末尾追加机器可读结果（
 ## 8. 结论
 
 - 42 个 tag 全部可在产物中定位并切出片段；class 覆盖率 186/186。
-- 真·未命中 0；5 个「上游无规则」已逐条对照上游模板与全树 grep 确认，不是我们的 class 写错。
+- 真·未命中 0；5 个白名单「上游无规则」与 4 处「无独立规则但父级/同元素有样式」的 class
+  均已逐条对照上游模板与全树 grep 确认，不是我们的 class 写错。
 - 未发现需要回报给 A 批次的 tag 输出 class 错误。
 - 后续若上游补充 `.img-wrap`、`.audio`、`.anzhiyu-tag-link` 等规则，可把白名单条目删掉并用
   `--strict` 常驻；若我们改动 tag 模板的 class，本脚本会直接以未命中报错。

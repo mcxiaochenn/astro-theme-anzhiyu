@@ -25,6 +25,7 @@
  * 用法：
  *   node scripts/check-tag-styles.mjs            # 常规检查
  *   node scripts/check-tag-styles.mjs --strict   # 把「上游无规则」的 class 也判失败
+ *   node scripts/check-tag-styles.mjs --verbose  # 逐 tag 打印精确命中的 class 清单
  *   node scripts/check-tag-styles.mjs --json     # 末尾追加机器可读结果（写报告用）
  *   DIST_DIR=... STYLE_ROOT=... node scripts/check-tag-styles.mjs
  */
@@ -103,7 +104,7 @@ const TAG_SPECS = [
   { name: 'folding', page: 'block', section: 'folding', root: /<details class="folding-tag"/i },
   { name: 'checkbox', page: 'block', section: 'checkbox-radio', root: /<div class=['"]checkbox\b/i, pick: [0, 1] },
   { name: 'radio', page: 'block', section: 'checkbox-radio', root: /<div class=['"]checkbox\b/i, pick: [2, 3] },
-  { name: 'timeline', page: 'block', section: 'timeline', root: /<div class="timeline\b/i },
+  { name: 'timeline', page: 'block', section: 'timeline', root: /<div class="timeline(?:\s|")/i },
 
   /* —— 媒体与卡片（11） —— */
   { name: 'image', page: 'media', section: 'image', root: /<div class="img-wrap"/i },
@@ -152,6 +153,7 @@ const UPSTREAM_UNSTYLED = new Map([
   ['link:anzhiyu-tag-link', "link.js 输出 <div class='anzhiyu-tag-link'>，上游无规则"],
 ])
 const STRICT = process.argv.includes('--strict')
+const VERBOSE = process.argv.includes('--verbose')
 
 /* ------------------------------------------------------------------ */
 /* 2. 样式源：选择器里的 class / 元素 token                              */
@@ -188,11 +190,14 @@ function isSelectorLine(line) {
 
 /** 从选择器文本里抽出 class token（`.foo`）与元素 token（`div`、`u`）。 */
 function selectorTokens(text) {
+  // `:not(...)` 里的 class 是否定条件，不能算「这个 class 有样式」
+  const positive = text.replace(/:not\([^()]*\)/gi, '')
+
   const classes = new Set()
-  for (const m of text.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) classes.add(m[1])
+  for (const m of positive.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) classes.add(m[1])
 
   const elements = new Set()
-  for (const part of text.split(',')) {
+  for (const part of positive.split(',')) {
     // 只取每个复合选择器的起始元素名（`div.btns` → div；`.note` → 无）
     const m = /^[\s>+~]*([a-zA-Z][a-zA-Z0-9-]*)/.exec(part)
     if (!m) continue
@@ -300,7 +305,7 @@ function collectElements(fragment) {
       for (const cm of body.matchAll(/class\s*=\s*["']([^"']+)["']/g)) {
         const classes = cm[1].split(/\s+/).filter(Boolean)
         for (const cls of classes) {
-          elements.push({ classes: [cls], companions: classes, ancestors, runtime: true })
+          elements.push({ classes: [cls], companions: classes, ancestors })
         }
       }
       tagRe.lastIndex = close + `</${tag}>`.length
@@ -308,7 +313,7 @@ function collectElements(fragment) {
     }
 
     const classes = parseClassAttr(attrs)
-    elements.push({ classes, companions: classes, ancestors, runtime: false })
+    elements.push({ classes, companions: classes, ancestors })
     if (!VOID_TAGS.has(tag) && !attrs.trim().endsWith('/')) stack.push({ tag, classes })
   }
 
@@ -395,17 +400,13 @@ for (const spec of TAG_SPECS) {
     continue
   }
 
-  /** class → { ancestors:Set, companions:Set, runtime:boolean }（多处出现时合并上下文） */
+  /** class → { ancestors:Set, companions:Set }（多处出现时合并上下文） */
   const classContext = new Map()
   for (const fragment of fragments) {
     for (const element of collectElements(fragment)) {
       for (const cls of element.classes) {
         if (!classContext.has(cls)) {
-          classContext.set(cls, {
-            ancestors: new Set(),
-            companions: new Set(),
-            runtime: element.runtime,
-          })
+          classContext.set(cls, { ancestors: new Set(), companions: new Set() })
         }
         const entry = classContext.get(cls)
         for (const ancestor of element.ancestors) entry.ancestors.add(ancestor)
@@ -424,11 +425,11 @@ for (const spec of TAG_SPECS) {
 
   for (const [cls, entry] of classContext) {
     if (classIndex.has(cls)) {
-      exact.push({ cls, files: [...classIndex.get(cls)], runtime: entry.runtime })
+      exact.push({ cls, files: [...classIndex.get(cls)] })
       continue
     }
     if (compiledIndex.has(cls)) {
-      compiledOnly.push({ cls, files: [...compiledIndex.get(cls)], runtime: entry.runtime })
+      compiledOnly.push({ cls, files: [...compiledIndex.get(cls)] })
       continue
     }
     // 仅语境命中：同一元素上的其它 class、或祖先元素的 class 有规则
@@ -436,14 +437,14 @@ for (const spec of TAG_SPECS) {
       (name) => classIndex.has(name) || compiledIndex.has(name),
     )
     if (related.length > 0) {
-      contextOnly.push({ cls, via: related.slice(0, 4), runtime: entry.runtime })
+      contextOnly.push({ cls, via: related.slice(0, 4) })
       continue
     }
     if (UPSTREAM_UNSTYLED.has(`${spec.name}:${cls}`)) {
       unstyled.push({ cls, reason: UPSTREAM_UNSTYLED.get(`${spec.name}:${cls}`) })
       continue
     }
-    miss.push({ cls, runtime: entry.runtime })
+    miss.push({ cls })
   }
 
   results.push({
@@ -526,6 +527,9 @@ for (const result of results) {
       `仅语境 ${result.contextOnly.length} / 上游无规则 ${result.unstyled.length} / ` +
       `未命中 ${result.miss.length}`,
   )
+  if (VERBOSE) {
+    console.log(`       精确: ${result.exact.map((item) => '.' + item.cls).join(' ')}`)
+  }
   if (result.miss.length > 0) {
     console.log(`       未命中: ${result.miss.map((item) => '.' + item.cls).join(' ')}`)
   }
@@ -546,11 +550,19 @@ for (const result of results) {
 
 /* 精确命中的来源目录分布：回答「有多少是 _tags 自己的规则」。 */
 const hitDirs = new Map()
+/** 直接命中 `_tags/` 的 class 数（按 tag 去重，供报告里给出更严格的口径）。 */
+const directTagHits = new Set()
+/** 命中 `_tags/` + `_global/` + `_layout/` 的 class 数（任务里点名的三个目录）。 */
+const coreDirHits = new Set()
 for (const result of results) {
   for (const item of result.exact) {
     for (const file of item.files) {
       const top = file.split('/')[0]
       hitDirs.set(top, (hitDirs.get(top) ?? 0) + 1)
+      if (top === '_tags') directTagHits.add(`${result.spec.name}:${item.cls}`)
+      if (top === '_tags' || top === '_global' || top === '_layout') {
+        coreDirHits.add(`${result.spec.name}:${item.cls}`)
+      }
     }
   }
 }
@@ -570,6 +582,10 @@ log(
     .sort((a, b) => b[1] - a[1])
     .map(([dir, count]) => `${dir} ${count}`)
     .join(' / ')}`,
+)
+log(
+  `其中直接命中 _tags/ 的 class: ${directTagHits.size} 个；` +
+    `命中 _tags/ + _global/ + _layout/ 的 class: ${coreDirHits.size} 个`,
 )
 
 if (structuralErrors.length > 0) {
@@ -608,6 +624,8 @@ if (process.argv.includes('--json')) {
           contextOnly: result.contextOnly.length,
           unstyled: result.unstyled.length,
           miss: result.miss.length,
+          exactClasses: result.exact.map((item) => item.cls),
+          contextClasses: result.contextOnly.map((item) => item.cls),
           unstyledClasses: result.unstyled.map((item) => item.cls),
           missClasses: result.miss.map((item) => item.cls),
         })),
