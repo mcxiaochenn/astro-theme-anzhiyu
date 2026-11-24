@@ -18,7 +18,7 @@
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `9a06346` feat(P5-2): additional-js 区 10 个第三方组件按上游行号接线 |
+| 提交 | `edae31c` test(P4): e2e 行为验收用例初版 |
 | 提交数 | 56 |
 | 工作区 | 干净；未收尾的剩余项：Phase 4 行为验收（e2e 用例编写中）、Phase 7 真实站路由补齐、PWA/性能/发布 |
 | CI | diff 步骤已改**硬门禁**（`|| true` 已删，upload 加 `if: always()`）；verify-css / compare-vars 已修「把 CDN 样式表当构建产物」的判定漏洞 |
@@ -696,19 +696,19 @@ jobs:
 - **Phase 4 约 70%**：head 运行时全部落地；剩行为验收（e2e 用例编写中）
 - **Phase 5 ✅（组件接线完成）**：head 4 + additional-js 10 组件按上游行号挂载；share/ai-info 委托 third-party；文章/独立页挂评论区；check-third-party 110/0；`prismjs` 不挂载（站点配置无等价键，已知边界）
 - **Phase 6 ✅（渲染与样式验收完成）**：42 tag 全实现 62/62 单测；tags-media TOC 对齐；`{% p %}` 行内拆段；样式命中 186/186（P6-7）
-- **Phase 7 约 45%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置**构建通过（43 页，`{%` 残留 0）；剩归档/标签/分类/404 路由补齐（97 → 43 页差距）与 PWA/性能/发布
+- **Phase 7 约 75%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置 + permalink 对齐**构建 94 页（源站 97，缺 bangumis/comments/go.html 三个插件生成页，已登记 hexo-plugin unsupported）；URL 结构与源站逐条一致（`posts/p:abbrlink/`、`categories/教程/Arch-Linux/`）；剩 PWA/性能/发布
 - 关键度量：构建 62 页；全量 diff **48/48 PASS / 0 条**；CSS 684087 B（+0.13%）；verify-css / compare-vars / upstream-delta / check-tag-styles / check-third-party 全 PASS
 
 ### 8.2 剩余未完成（按优先级）
 
 | # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | **Phase 7 真实站路由补齐**：把 examples/blog 的 archives / tags / categories / 404 / 分页路由迁到 `.migration-out/xcAnzhiyu`（含 `BASELINE_SITE` → 真实站身份改造），页面数对齐源站 97 页 | 待续 | ⬜ |
-| 2 | **Phase 7 charts/todolist/sitetime**：非标准 `page.type` 分发缺失（落 DefaultPage）、`layout: sitetime` 不产出 URL；需加分支或专用路由 | 待续 | ⬜ |
-| 3 | **Phase 4 行为验收**：`tests/e2e/` Playwright 用例（暗色/右键/中控台/搜索/导航/12 page.type 冒烟）写好后在 CI 加 job 实跑（本机沙箱跑不了，R12） | 用例编写中 | ◐ |
-| 4 | Phase 7 PWA（P7-1）、性能预算（P7-2）、发布（P7-6：npm 包 / demo 站）、上游同步（P7-5） | 待续 | ⬜ |
-| 5 | Phase 3 收尾：像素 diff 走查（三档视口 ≤1%，随 e2e/浏览器补测） | 待续 | ⬜ |
-| 6 | 文档同步：MIGRATION.md 的「media/thirdparty 仍透传」段已过时（42 tag 全实现）；P6-1 笔记单测数 59 → 62 | 待续 | ⬜ |
+| 1 | **P7-1 PWA**：`@vite-pwa/astro` + sw-rules 翻译，离线首页可用 | 待续 | ⬜ |
+| 2 | **P7-2 性能预算**：Lighthouse 四项不低于上游（真实站 94 页产物可直接测） | 待续 | ⬜ |
+| 3 | **Phase 4 行为验收执行**：e2e 17 条已就绪（暗色/右键/中控台/音乐），CI 加 job 实跑；再补搜索 / 导航无刷新 / 12 page.type 冒烟 | ◐ | ⬜ |
+| 4 | **P7-6 发布**：主题包 npm 首版、demo 站更新、`npm i` 可用 | 待续 | ⬜ |
+| 5 | P7-5 上游同步机制（季度 diff 流程已登记，跑一轮验证） | 待续 | ⬜ |
+| 6 | 文档同步：MIGRATION.md 的「media/thirdparty 仍透传」段已过时（42 tag 全实现）；P6-1 笔记单测数 59 → 62；MIGRATION 补 permalink/路由补齐说明 | 待续 | ⬜ |
 
 ### 8.3 已知边界与已关闭项
 
