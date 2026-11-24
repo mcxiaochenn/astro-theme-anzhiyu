@@ -48,6 +48,8 @@ import Rightside from '../components/layout/Rightside.astro'
 import HomeTop from '../components/home/HomeTop.astro'
 import AsideContent from '../components/widget/AsideContent.astro'
 import AdditionalJs from '../components/head/AdditionalJs.astro'
+/* P5-2：body 区 third-party 集成（组件各自按主题配置门控，默认关闭时输出 0 节点） */
+import Search from '../components/third-party/search/index.astro'
 import { resolveAssets } from '../config/assets.ts'
 import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
 import { createUrlFor, resolveSite, type SiteConfig } from './site.ts'
@@ -406,6 +408,9 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
       )
     }
 
+    {/* layout.pug:86 — third-party/search（三套搜索弹层，algolia > local_search > docsearch） */}
+    <Search page={{ root: site.root }} />
+
     {/* layout.pug:87 — anzhiyu/rightmenu.pug（静态结构，交互由 P4-5 接管） */}
     <div id="rightMenu" transition:persist="right_menu">
       <div class="rightMenu-group rightMenu-small">
@@ -524,7 +529,10 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
     </div>
     <div id="rightmenu-mask" transition:persist="rightmenu_mask"></div>
 
-    {/* layout.pug:88 — additional-js.pug 的整棵子树（本组件自带外层 div） */}
+    {/* layout.pug:88 — additional-js.pug 的整棵子树（本组件自带外层 div）。
+        P5-2：additional-js 里的第三方集成段（runtime / card-post-count / subtitle /
+        math / comments-js / newest-comments / effect / chat / aplayer / pangu）
+        由 AdditionalJs.astro 按上游行号挂载，不在这里重复。 */}
     <AdditionalJs site={site} isHome={isHome} pageType={pageType} pageTypeValue={pageTypeValue} />
 
     {/* layout.pug:91 — popup/index.pug（静态结构） */}

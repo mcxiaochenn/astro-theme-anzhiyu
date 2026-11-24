@@ -32,6 +32,7 @@ import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
 import { externalLinkAttrs } from '../../utils/external-link.ts'
 import { lazyImageAttrs } from './lazyload.ts'
+import FooterBarSubtitle from '../third-party/footerBarSubtitle.astro'
 
 interface Props {
   site: SiteConfig
@@ -53,6 +54,8 @@ const linkAttrs = (path: string) => {
 
 const footer = theme.footer
 const footerBar = footer.footerBar
+/** 上游 footer.pug:82-84：`footerBar.subTitle.enable`（且 footerBar 本身启用）。 */
+const footerBarSubTitleEnabled = footerBar.enable && footerBar.subTitle?.enable === true
 const nowYear = new Date().getFullYear()
 
 /* ------------------------------------------------------------------ */
@@ -247,8 +250,13 @@ const socialCenterImg = socialBar.centerImg || (theme.avatar as { img?: string }
             </div>
             <div id="footer-type-tips" />
             {
-              /* footerBar.subTitle 打字机（footerBarSubtitle.pug）→ P4-1 资源层 + 交互；
-                 开启后这里应出 `.js-pjax` 包住一段 Typed.js 初始化脚本 */
+              /* footer.pug:82-84 — footerBar 副标题打字机（footerBarSubtitle.pug），
+                 开启时用 .js-pjax 包住一段 Typed.js 初始化脚本 */
+              footerBarSubTitleEnabled && (
+                <div class="js-pjax">
+                  <FooterBarSubtitle siteSubtitle={site.subtitle} />
+                </div>
+              )
             }
           </div>
           <div class="footer-bar-right">

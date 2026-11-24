@@ -8,9 +8,21 @@
  *
  * 顺序与上游逐行一致（当前配置命中的分支）：
  *   utils → main → tw_cn → fancybox → instantpage → lazyload → snackbar →
- *   canvas#universe + dark.js → log-js → random.js → `.js-pjax`
- *   (people 内联 + input#page-type) → visitorMail → waterfall → qrcode →
- *   ali_iconfont_css → aplayer(css/js/meting) → [pjax 由 ClientRouter 取代] → accesskey
+ *   pangu → canvas#universe + dark.js → log-js → random.js → #runtime → `.js-pjax`
+ *   (people 内联 + card-post-count + subtitle + math + comments/js + input#page-type) →
+ *   newest-comments → visitorMail → waterfall → qrcode → right-menu → iconfont →
+ *   effect → chat → aplayer → [pjax 由 ClientRouter 取代] → accesskey
+ *
+ * P5-2 说明：
+ *   - 上游 additional-js.pug 的第三方集成段（pangu / runtime / card-post-count /
+ *     subtitle / math / comments-js / newest-comments / effect / chat / aplayer）
+ *     全部改为挂载 third-party 组件，位置与上游行号一一对应；
+ *   - `prismjs`（additional-js.pug:83）**不挂载**：它的门控来自站点 `_config.yml`
+ *     的 `prismjs` 键，本主题的站点配置模型没有这个键（迁移脚本列为 hexo-only），
+ *     基线配置用的是 highlight.js，分支恒为关。挂一个恒 0 输出的空壳没有意义。
+ *     迁移 prismjs 站点时需单独处理（见 docs/PLAN.md 已知边界）。
+ *   - `page.mathjax` / `page.katex` / `page.aplayer` 三个 page 级开关未从路由透传
+ *     （默认 `per_page: true` 时由主题配置门控，行为一致）；登记为已知边界。
  *
  * 关键取舍：
  *   - **不再加载上游 Pjax**：`pjax@0.2.8` + 它的初始化内联块由 `head/runtime.ts`
@@ -25,6 +37,18 @@ import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { resolveAssets } from '../../config/assets.ts'
 import { buildLogJs } from './log-js.ts'
+/* P5-2：additional-js.pug 里「第三方集成」段落的组件化挂载（P5-2）。
+ * 位置全部对齐上游 additional-js.pug 的行号，见各 JSX 处的注释。 */
+import Pangu from '../third-party/pangu.astro'
+import Runtime from '../third-party/runtime.astro'
+import CardPostCount from '../third-party/card-post-count/index.astro'
+import Subtitle from '../third-party/subtitle.astro'
+import MathIndex from '../third-party/math/index.astro'
+import CommentsJs from '../third-party/comments/js.astro'
+import NewestComments from '../third-party/newest-comments/index.astro'
+import Effect from '../third-party/effect.astro'
+import Chat from '../third-party/chat/index.astro'
+import Aplayer from '../third-party/aplayer.astro'
 
 interface Props {
   site: SiteConfig
@@ -60,13 +84,10 @@ const mediumZoomEnabled = theme.medium_zoom === true
 const instantpageEnabled = theme.instantpage === true
 const lazyloadEnabled = flag(theme.lazyload, 'enable')
 const snackbarEnabled = flag(theme.snackbar, 'enable')
-const panguEnabled = flag(theme.pangu, 'enable')
 const universeEnabled = flag(theme.universe, 'enable')
 const consoleEnabled = flag(theme.console, 'enable')
 const visitorMailEnabled = flag(theme.visitorMail, 'enable')
 const rightClickMenuEnabled = flag(theme.rightClickMenu, 'enable')
-const aplayerEnabled = flag(theme.aplayerInject, 'enable')
-const aplayerPerPage = flag(theme.aplayerInject, 'per_page')
 const accesskeyEnabled = flag(theme.accesskey, 'enable')
 const peoplecanvasEnabled = flag(theme.peoplecanvas, 'enable')
 const aliIcons = obj(theme.icons)
@@ -118,9 +139,9 @@ const peopleScript = `if (typeof gsap === "object") {
   {lazyloadEnabled && <script is:inline src={assetUrl('lazyload')}></script>}
   {snackbarEnabled && <script is:inline src={assetUrl('snackbar')}></script>}
 
-  {panguEnabled && (
-    <script is:inline set:html={`pangu.spacingElementByClassName('post-content')`}></script>
-  )}
+  {/* additional-js.pug:22-23 —— pangu（pangu.field === 'post' 时由脚本内
+      GLOBAL_CONFIG_SITE.isPost 判断，组件内部已实现，无需 page prop） */}
+  <Pangu />
 
   {metingApi && <script is:inline set:html={`var meting_api = "${metingApi}";`}></script>}
 
@@ -135,10 +156,27 @@ const peopleScript = `if (typeof gsap === "object") {
 
   <script is:inline async src="/anzhiyu/random.js"></script>
 
+  {/* additional-js.pug:40-42 —— 页脚计时器 #runtime（footer.runtime.enable） */}
+  <Runtime />
+
   <div class="js-pjax">
     {peoplecanvasEnabled && isHome && <script is:inline set:html={peopleScript}></script>}
+    {/* additional-js.pug:66-67 —— 评论计数脚本（needLoadCountJs，组件内按
+        theme.comments.card_post_count + comments.use 门控） */}
+    <CardPostCount />
+    {/* additional-js.pug:69-70 —— 首页副标题打字机（loadSubJs） */}
+    <Subtitle page={{ siteSubtitle: site.subtitle ?? '' }} />
+    {/* additional-js.pug:72 —— mathjax / katex / mermaid（page 级 mathjax/katex 开关
+        当前未从路由透传，默认 per_page=true 时由主题配置门控，登记为已知边界） */}
+    <MathIndex />
+    {/* additional-js.pug:74-75 —— 评论后端初始化脚本（commentsJsLoad） */}
+    <CommentsJs />
     <input type="hidden" name="page-type" id="page-type" value={resolvedPageType} />
   </div>
+
+  {/* additional-js.pug:85-89 —— 侧栏最新评论（aside + newest_comments +
+      pjax || 非文章页；非文章页判定用 pageType） */}
+  <NewestComments page={{ pageType }} />
 
   {visitorMailEnabled && (
     <script is:inline set:html={`var visitorMail = "${str(theme.visitorMail, 'mail')}";`}></script>
@@ -152,13 +190,16 @@ const peopleScript = `if (typeof gsap === "object") {
   <link rel="stylesheet" href={assetUrl('ali_iconfont_css')} />
   {aliIconfontJs && <script is:inline async src={aliIconfontJs}></script>}
 
-  {aplayerEnabled && (Boolean(theme.pjax.enable) || aplayerPerPage) && (
-    <>
-      <link rel="stylesheet" href={assetUrl('aplayer_css')} media="print" onload="this.media='all'" />
-      <script is:inline src={assetUrl('aplayer_js')}></script>
-      <script is:inline src={assetUrl('meting_js')}></script>
-    </>
-  )}
+  {/* additional-js.pug:113 —— 气泡 / 彩带 / canvas 动效（bubble 分支含 data-pjax 脚本） */}
+  <Effect />
+
+  {/* additional-js.pug:115 —— 在线聊天（chatra > tidio > daovoice > crisp） */}
+  <Chat />
+
+  {/* additional-js.pug:117-121 —— aplayer（组件内部实现
+      pjax || per_page || page.aplayer 的完整分支；此前是本文件的简化内联实现。
+      page 级 aplayer 开关未从路由透传，见文件头已知边界） */}
+  <Aplayer />
 
   {accesskeyEnabled && <script is:inline charset="UTF-8" src={assetUrl('accesskey_js')}></script>}
 </div>

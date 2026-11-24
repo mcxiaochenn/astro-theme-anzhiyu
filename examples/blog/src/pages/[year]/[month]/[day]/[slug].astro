@@ -20,6 +20,7 @@ import PostCopyright from '../../../../../../../packages/astro-theme-anzhiyu/src
 import PostPagination from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/PostPagination.astro'
 import RelatedPosts from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/RelatedPosts.astro'
 import PostAiDescription from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro'
+import CommentsIndex from '../../../../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
 import { preparePostPage } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-page.ts'
 import { preparePosts } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
 import { getThemeConfig } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/theme-context.ts'
@@ -87,6 +88,11 @@ const next = swapNeighbours ? page.prev : page.next
 const tagNames = page.current.tags.map((tag) => tag.name)
 const cover = typeof page.current.cover === 'string' ? page.current.cover : undefined
 const description = typeof page.data.description === 'string' ? page.data.description : undefined
+/**
+ * 上游 `get_page_fill_description()` 的等价：优先页面描述，回退渲染后的正文。
+ * `ai-info.pug:1` 用它做门控，为空时整块 AI 摘要不输出。
+ */
+const pageFillDescription = description || page.bodyHtml
 const keywords = page.data.keywords as string | string[] | undefined
 ---
 
@@ -122,7 +128,8 @@ const keywords = page.data.keywords as string | string[] | undefined
   </Fragment>
 
   <div id="post">
-    <PostAiDescription ai={page.data.ai} />
+    {/* post.pug:7-8 — 文章顶部 AI 摘要（third-party/ai-info.pug） */}
+    <PostAiDescription ai={page.data.ai} pageFillDescription={pageFillDescription} />
     <PostContent
       post={page.current}
       data={page.data}
@@ -145,5 +152,7 @@ const keywords = page.data.keywords as string | string[] | undefined
       <PostPagination prev={prev} next={next} language={site.language} />
     )}
     <RelatedPosts items={page.related} language={site.language} />
+    {/* post.pug:42-44 — 评论区（#post-comment）：page.comments !== false 且主题启用评论系统 */}
+    {page.data.comments !== false && <CommentsIndex page={{ root: site.root }} />}
   </div>
 </BaseLayout>

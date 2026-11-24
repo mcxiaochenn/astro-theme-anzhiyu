@@ -34,6 +34,7 @@ import AlbumDetailPage from '../../../../packages/astro-theme-anzhiyu/src/compon
 import RoomPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/RoomPage.astro'
 import EquipmentPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EquipmentPage.astro'
 import AboutPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/about/AboutPage.astro'
+import CommentsIndex from '../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
 import { getSiteData } from '../data/site-data.ts'
 import '../styles/upstream/index.styl'
 import { getCollection, render } from 'astro:content'
@@ -227,5 +228,8 @@ const aboutData = getSiteData<unknown[]>('about') ?? []
     ) : (
       <DefaultPage html={renderedHtml} Content={Content} />
     )}
+
+    {/* page.pug:33-35 — 评论区（#post-comment）：page.comments !== false 且主题启用评论系统 */}
+    {data.comments !== false && <CommentsIndex page={{ root: site.root }} />}
   </div>
 </BaseLayout>
