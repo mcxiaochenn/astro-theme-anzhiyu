@@ -184,6 +184,9 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
   const source = Number(cfg.source ?? 0)
   const sub = Array.isArray(cfg.sub) ? cfg.sub : []
   const selId = selector.replace(/^#/, '')
+  // 上游 subtitle.pug:19 / footerBarSubtitle.pug:19 等 source 分支用单引号字面量
+  // `new Typed('#subtitle', …)`；这里保持同一引号风格（jsval 会输出双引号）。
+  const selQuoted = `'${String(selector).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
   const typedOptions = `{
                 strings: sub,
                 startDelay: ${startDelay},
@@ -204,7 +207,7 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
               const from = '出自 ' + data.from
               const sub = ${subJson}
               sub.unshift(data.hitokoto, from)
-              window.typed = new Typed(${jsval(selector)}, ${typedOptions})
+              window.typed = new Typed(${selQuoted}, ${typedOptions})
             } else {
               document.getElementById('${selId}').innerHTML = data.hitokoto
             }
@@ -218,7 +221,7 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
             const from = '出自 ' + str[1]
             const sub = ${subJson}
             sub.unshift(con, from)
-            window.typed = new Typed(${jsval(selector)}, ${typedOptions})
+            window.typed = new Typed(${selQuoted}, ${typedOptions})
           } else {
             document.getElementById('${selId}').innerHTML = con
           }
@@ -232,7 +235,7 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
               const sub = ${subJson}
               const content = result.data.content
               sub.unshift(content)
-              window.typed = new Typed(${jsval(selector)}, ${typedOptions})
+              window.typed = new Typed(${selQuoted}, ${typedOptions})
             } else {
               document.getElementById('${selId}').innerHTML = result.data.content
             }

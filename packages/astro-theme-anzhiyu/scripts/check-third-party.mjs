@@ -375,7 +375,10 @@ checkOn('subtitle 产出 #subtitle 打字脚本', misc.renderSubtitle(allOn, { s
 checkOn('footerBarSubtitle 产出 #footer-type-tips', misc.renderFooterBarSubtitle(allOn, {}), ["'#footer-type-tips'", 'jinrishici'])
 checkOn('pangu 产出 panguFn / panguInit', misc.renderPangu(allOn), ['panguFn', 'panguInit', 'autoSpacingPage'])
 checkOn('runtime 产出 #runtime 计时脚本', misc.renderRuntime(allOn), ["id='runtime'", 'launch_time' in allOn.footer.runtime ? allOn.footer.runtime.launch_time : '04/01/2021 00:00:00'])
-checkOn('aplayer 产出 aplayer/meting 资源', misc.renderAplayer(allOn), ['aplayer', 'meting'])
+// 上游 aplayer.pug:1-3 三个资源来自 theme.asset（plugins.yml:153-166）：
+// aplayer_css=APlayer.min.css / aplayer_js=js/APlayer.min.js / meting_js=assets/js/Meting2.min.js。
+// 注意 Meting 首字母大写，不能小写成 'meting'。
+checkOn('aplayer 产出 aplayer/meting 资源', misc.renderAplayer(allOn), ['APlayer.min.css', 'APlayer.min.js', 'Meting2.min.js'])
 checkOn(
   'prismjs 由站点 config 门控并产出 line-numbers',
   misc.renderPrismjs(allOn, { siteConfig: { prismjs: { enable: true, line_number: true } } }),
@@ -425,8 +428,11 @@ function walk(dir) {
   return out
 }
 
+// 计数口径：46 = src/components/third-party 下 55 个文件中的 .astro 组件数
+// （其余 9 个为各目录的 render.mjs 与共享 _kit.mjs）。每个 .astro 一一对应
+// 一个渲染函数（见上方「渲染函数总数 = 46」），无重复组件。
 const astroFiles = walk(THIRD_PARTY_DIR)
-check('.astro 组件数量 = 45', astroFiles.length === 45, `实际 ${astroFiles.length}`)
+check('.astro 组件数量 = 46', astroFiles.length === 46, `实际 ${astroFiles.length}`)
 
 let boundaryOk = true
 const boundaryBad = []
