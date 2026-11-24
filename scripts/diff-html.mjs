@@ -633,12 +633,7 @@ function removeElements(root, predicate) {
  * 剔除基线侧被我们渲染成真脚注的定义段落（见上一条 N22）。
  */
 function stripUnrenderedFootnoteDefinitions(baselineRaw, distRaw) {
-  const distHasFootnotes = hasElement(
-    distRaw,
-    (node) =>
-      node.tag === 'section' && node.attrs?.some((item) => item.name === 'data-footnotes'),
-  )
-  if (!distHasFootnotes) return
+  if (!hasFootnoteSection(distRaw)) return
 
   removeElements(
     baselineRaw,
@@ -646,31 +641,81 @@ function stripUnrenderedFootnoteDefinitions(baselineRaw, distRaw) {
   )
 }
 
+/** 页面是否存在我们渲染的 GFM 脚注区块。 */
+function hasFootnoteSection(root) {
+  return hasElement(
+    root,
+    (node) =>
+      node.tag === 'section' && node.attrs?.some((item) => item.name === 'data-footnotes'),
+  )
+}
+
+/**
+ * 首页摘要文本：祖先链里有 `#recent-posts`，且父节点是 `div.content`。
+ *
+ * 这是 N21「未渲染标题内联残留」唯一需要处理的位置：上游把 `## videos` / `## sitegroup`
+ * 字面量留在首页卡片摘要里，而正文里的同类残留是独立文本节点（走整段匹配）。
+ * 限定到具体容器，避免把代码块等处的 `## foo` 真实差异一并吃掉。
+ */
+function isHomeExcerptText(ancestors) {
+  const parent = ancestors[ancestors.length - 1]
+  if (!parent || parent.tag !== 'div') return false
+  const className = attrValue(parent, 'class') ?? ''
+  if (!/(^|\s)content(\s|$)/.test(className)) return false
+  return ancestors.some((node) => node.tag === 'div' && attrValue(node, 'id') === 'recent-posts')
+}
+
 /**
  * N21：上游 tag 解析器缺陷（`## videos` / `## sitegroup` 被吞成字面量）。
  *
  * 1.7.1 的 `{% videos %}` / `{% sitegroup %}` 容器会把紧邻的 Markdown 标题当成 tag
- * 正文的一部分（上游 tag 词法器的已知缺陷），基线里留下整段文本 `## videos`。
+ * 正文的一部分（上游 tag 词法器的已知缺陷），基线里留下字面量 `## videos`。
  * 我们按正常 Markdown 渲染成 `<h2 id="videos">`。两边都不算对错，但这是上游产物
  * 的确定性瑕疵，不复制、也不让它把整页判 FAIL。
  *
- * 处理：把基线里「整段就是 `## xxx`」的文本节点认成未渲染标题，两边同步删掉
- * 对应 id 的 h1–h6。只在基线出现该瑕疵时生效，正常标题不受影响。
+ * 两种形态分别处理：
+ *   1. 正文：基线里「整段就是 `## xxx`」的文本节点 → 两边同步删掉对应 id 的 h1–h6；
+ *   2. 首页摘要：`#recent-posts > div.content` 里的**内联**残留 → 两边把已收集 id 的
+ *      `## ` 前缀剥掉、保留标题词。两侧同规则处理，避免代码块等处的 `## foo` 被单边
+ *      修改后造出新的假差异；正文里的代码块不在该容器内，不受影响。
  */
 function stripUnrenderedHeadingArtifacts(baselineRaw, distRaw) {
   const ids = new Set()
   const textArtifact = /^#{1,6}\s+([A-Za-z][\w-]*)$/
-  const visit = (node, onText) => {
+  const inlineArtifact = /(?:^|\s)#{1,6}\s+([A-Za-z][\w-]*)/g
+
+  const visit = (node, ancestors = []) => {
     if (node.type === 'text') {
-      onText(node)
+      const text = node.text ?? ''
+      const match = textArtifact.exec(text.trim())
+      if (match) ids.add(match[1].toLowerCase())
+      for (const inline of text.matchAll(inlineArtifact)) ids.add(inline[1].toLowerCase())
       return
     }
-    for (const child of node.children ?? []) visit(child, onText)
+    if (node.type === 'element') ancestors.push(node)
+    for (const child of node.children ?? []) visit(child, ancestors)
+    if (node.type === 'element') ancestors.pop()
   }
-  visit(baselineRaw, (node) => {
-    const match = textArtifact.exec((node.text ?? '').trim())
-    if (match) ids.add(match[1].toLowerCase())
-  })
+  visit(baselineRaw)
+
+  // 首页摘要的内联残留：两侧同规则剥离（正文代码块不在 #recent-posts .content 里）
+  const stripInline = (node, ancestors = []) => {
+    if (node.type === 'text') {
+      if (isHomeExcerptText(ancestors)) {
+        node.text = (node.text ?? '').replace(
+          /(^|\s)#{1,6}\s+([A-Za-z][\w-]*)/g,
+          (all, lead, id) => (ids.has(id.toLowerCase()) ? `${lead}${id}` : all),
+        )
+      }
+      return
+    }
+    if (node.type === 'element') ancestors.push(node)
+    for (const child of node.children ?? []) stripInline(child, ancestors)
+    if (node.type === 'element') ancestors.pop()
+  }
+  stripInline(baselineRaw)
+  stripInline(distRaw)
+
   if (ids.size === 0) return
   const drop = (root) => {
     const walk = (node) => {
@@ -1021,8 +1066,9 @@ function joinPath(parentPath, segment) {
 
 /**
  * 递归 diff。ctx: { diffs, maxDiffs, truncated, missingNodes, unexpectedNodes }
+ * aAncestors / bAncestors 是当前节点各自祖先链（从根到父），用于识别首页摘要等容器作用域。
  */
-function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx) {
+function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx, aAncestors = [], bAncestors = []) {
   const aSegments = segmentsFor(aNodes)
   const bSegments = segmentsFor(bNodes)
 
@@ -1078,6 +1124,17 @@ function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx) {
         if (
           (cjk.test(aCmp) || cjk.test(bCmp)) &&
           aCmp.replace(/\s+/g, '') === bCmp.replace(/\s+/g, '')
+        ) {
+          continue
+        }
+        // N24：首页卡片摘要（#recent-posts > div.content）是 `strip_html(content).substring(0, n)`，
+        // 对序列化差异极端敏感：块间 `\n\n` vs `\n`、容器开标签后的换行都会改变字符截断窗口。
+        // 正文侧这些差异已由 N19 接受；摘要侧按同一口径做位置无关比较：
+        // N21 已处理 `## ` 残留，这里只处理截断窗口（仅中文、且必须落在首页摘要容器）。
+        if (
+          isHomeExcerptText(aAncestors) &&
+          isHomeExcerptText(bAncestors) &&
+          excerptEquivalent(aCmp, bCmp)
         ) {
           continue
         }
@@ -1145,8 +1202,38 @@ function walkDiff(aNodes, bNodes, aParentPath, bParentPath, ctx) {
       nodePath,
       joinPath(bParentPath, bSegments[slot.bi]),
       ctx,
+      [...aAncestors, aNode],
+      [...bAncestors, bNode],
     )
   }
+}
+
+/**
+ * N24：摘要文本的截断窗口比较。
+ *
+ * 摘要由上游 `strip_html(article.content).substring(0, length)` 生成，截断点落在字符级；
+ * 两边正文 serialization 的差异（块间换行、容器开标签后的换行）会整体推移截断窗口。
+ * `## ` 残留已由 N21 处理，这里只削掉截断差异：
+ *   - 去掉全部空白（N19 的摘要版）；
+ *   - 两侧都以 ` ...` 结尾（都被截断）时，较短者是较长者的前缀即视为一致——短的那侧
+ *     本来就没展示更长侧多出来的内容。
+ * 调用方已把它限定在首页摘要文本（`#recent-posts > div.content`）。
+ */
+function excerptEquivalent(a, b) {
+  const cjk = /[\u4e00-\u9fa5]/
+  if (!cjk.test(a) || !cjk.test(b)) return false
+
+  const normalize = (value) => ({
+    text: value.replace(/\s*\.{3}\s*$/, '').replace(/\s+/g, ''),
+    truncated: /\s\.{3}\s*$/.test(value),
+  })
+
+  const left = normalize(a)
+  const right = normalize(b)
+  if (left.text === right.text) return true
+  if (!left.truncated || !right.truncated) return false
+  if (left.text.length < 100 || right.text.length < 100) return false
+  return left.text.startsWith(right.text) || right.text.startsWith(left.text)
 }
 
 /** script/style 内容归一化：换行 + 缩进折叠成单个空格；行内空格保留 */
@@ -1232,7 +1319,13 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
     writeFileSync(path.join(dir, `${base}.dist.html`), renderPretty(dist.root), 'utf8')
   }
 
-  const ctx = { diffs: [], maxDiffs, truncated: false, missingNodes: 0, unexpectedNodes: 0 }
+  const ctx = {
+    diffs: [],
+    maxDiffs,
+    truncated: false,
+    missingNodes: 0,
+    unexpectedNodes: 0,
+  }
   walkDiff(baseline.root.children, dist.root.children, '/', '/', ctx)
 
   report.diffs = ctx.diffs

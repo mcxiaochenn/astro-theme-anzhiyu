@@ -292,6 +292,21 @@ stylus.render('@css {b,\n  strong {\n    font-weight: bolder;\n  }\n}\n')
 **验证**：P1-6 报告原始记录；Phase 2 HTML diff 时按白名单核对；`longform-hexo-astro` 页的
 `p[13]` node-missing 在启用 N22 后归零。
 
+### U9 · 上游 tag 解析器吞掉容器前的 Markdown 标题（对照差异）
+
+**事实**：1.7.1 的 `{% videos %}` / `{% sitegroup %}` 容器会把紧邻其前的 Markdown 标题当作 tag
+正文的一部分，基线里留下字面量 `## videos` / `## sitegroup`（不是 `<h2>`，也不进 TOC）。
+
+**diff 口径（N21）**：正文里「整段就是 `## xxx`」的文本节点与对应 h 标签两侧同步删除；首页
+摘要文本里的**内联残留**同样处理（把 `## ` 前缀剥掉、保留标题词），且仅作用于
+`#recent-posts > div.content` 的文本节点——正文代码块等位置不受影响，避免抹平真实差异。
+
+**关联（N24）**：摘要由 `strip_html(content).substring(0, n)` 截断，上面两类差异会把字符
+截断窗口整体推移。`#recent-posts > div.content` 的文本比对因此做「去空白 + 被截断时前缀
+等价」处理（仅中文、两侧都被截断、长度 >100）；反向验证证明摘要正文被篡改时仍会 FAIL。
+
+**验证**：`/2025/04/01/tags-media/` 正文与 TOC 对齐；首页媒体卡片摘要的 `## videos` 差异归零。
+
 ---
 
 ## 3. D9 定位实验（原始输入 / 原始输出）
