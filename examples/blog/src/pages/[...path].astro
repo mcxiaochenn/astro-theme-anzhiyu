@@ -171,8 +171,8 @@ const contentForDescription = renderedHtml.replace(/(<\/h[1-6]>)\n/g, '$1')
 /** 上游 `full_date(page.updated)`：`updated_option: date` 下缺省回退 `page.date`。 */
 const postUpdate = hexoFullDate((data.updated ?? data.date) as Date | undefined)
 
-/** `page.ai` / `page.main_color` 原样注入 GLOBAL_CONFIG_SITE，缺省输出空串。 */
-const postAI = data.ai === undefined ? undefined : String(data.ai)
+/** 上游 `escapeQuote(page.ai)`：falsy（含 false / 空串）一律输出空串。 */
+const postAI = data.ai ? String(data.ai) : undefined
 const postMainColor = typeof data.main_color === 'string' ? data.main_color : undefined
 
 /* ------------------------------------------------------------------ */

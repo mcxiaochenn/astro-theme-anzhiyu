@@ -107,7 +107,7 @@ const keywords = page.data.keywords as string | string[] | undefined
   headings={page.headings}
   aside={page.data.aside !== false}
   postUpdate={page.current.updated.full}
-  postAI={page.data.ai === undefined ? undefined : String(page.data.ai)}
+  postAI={page.data.ai ? String(page.data.ai) : undefined}
   postMainColor={typeof page.data.main_color === 'string' ? page.data.main_color : undefined}
 >
   <Fragment slot="post-info">

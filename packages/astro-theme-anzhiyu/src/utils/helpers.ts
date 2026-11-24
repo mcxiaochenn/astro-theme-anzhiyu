@@ -961,9 +961,17 @@ export function getPageFillDescription(input: PageDescriptionInput): string | un
 
   const contents = headings.map((heading) => {
     // 去掉 a 标签及其内容
-    const text = heading.replace(/<a[^>]*>.*?<\/a>/g, '')
+    const withoutAnchor = heading.replace(/<a[^>]*>.*?<\/a>/g, '')
+    // 上游链路：marked 的 text token 先经 hexo-util `escapeHTML()`（`/` → `&#x2F;`、
+    // `>` → `&gt;`…），随后下面的字符剔除会去掉 `&` `#` `;`，留下 `x2F` 之类的残片
+    // （基线 tags-block：`checkbox x2F radio`）。我们的渲染器输出未转义文本，
+    // 这里只在标签之间的文本上补一次同样的转义，避免把标签的 `<`/`>` 也转义掉。
+    const escaped = withoutAnchor.replace(
+      /(<[^>]+>)|([^<]+)/g,
+      (_all: string, tag?: string, text?: string) => (tag === undefined ? escapeHtml(text as string) : tag),
+    )
     // 去除特殊符号 &,:,; 等
-    return text.replace(/<\/?[^>]+>|&|:|;|quot;|，|,|“|”|"|'|#/g, '')
+    return escaped.replace(/<\/?[^>]+>|&|:|;|quot;|，|,|“|”|"|'|#/g, '')
   })
 
   // 排除 div.post-ai-description 元素中的内容

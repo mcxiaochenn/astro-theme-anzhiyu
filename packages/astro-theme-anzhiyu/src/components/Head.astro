@@ -18,7 +18,8 @@
  */
 import { getThemeConfig } from '../layouts/theme-context.ts'
 import { createUrlFor, fullUrlFor, type SiteConfig } from '../layouts/site.ts'
-import { pageDescription, urlNoIndex } from '../utils/helpers.ts'
+import { getPageFillDescription, pageDescription, urlNoIndex } from '../utils/helpers.ts'
+import { normalizeFootnoteSectionForDescription, stripSwallowedHeadings } from '../utils/slugger.ts'
 import { resolveAssets } from '../config/assets.ts'
 import { buildGlobalConfigScript, buildGlobalConfigSiteScript } from './head/global-config.ts'
 import { buildInjectHeadJs } from './head/inject-head-js.ts'
@@ -135,8 +136,17 @@ const routePath = (pathname: string): string => {
   return rest.startsWith('/') ? rest : `/${rest}`
 }
 
-const resolvedPageUrl =
-  pageUrl ?? `${siteOrigin}${urlFor(routePath(Astro.url.pathname))}`
+/**
+ * 上游 `full_url_for(page.path)` 对目录路径会保留结尾的 `index.html`
+ * （`/` → `<SITE>/index.html`，`/about/` → `<SITE>/about/index.html`），
+ * 只有已经以 `.html` 结尾的路径（如 /404.html）才原样返回。
+ * canonical 由 `urlNoIndex` 再剥掉这段 `index.html`，两者互不影响。
+ */
+const withIndexHtml = (url: string): string => (url.endsWith('/') ? `${url}index.html` : url)
+
+const resolvedPageUrl = withIndexHtml(
+  pageUrl ?? `${siteOrigin}${urlFor(routePath(Astro.url.pathname))}`,
+)
 
 /** 上游 `urlNoIndex()`：canonical 去掉结尾 `index.html`。 */
 const canonical = urlNoIndex(resolvedPageUrl)
@@ -151,7 +161,8 @@ const metaDescription = pageDescription({
 const avatarImage = (theme.avatar as { img?: string } | undefined)?.img
 const metaImage = fullUrlFor(ogImage || avatarImage, site, origin)
 
-const resolvedOgType = ogType ?? (isHome ? 'website' : 'article')
+/** 上游 `Open_Graph.pug:5`：`is_post() ? 'article' : 'website'`。 */
+const resolvedOgType = ogType ?? (pageType === 'post' ? 'article' : 'website')
 const ogTitle = pageTitle
 const ogSiteName = site.title
 const ogLocale = site.language
@@ -266,7 +277,23 @@ const globalConfigScript = buildGlobalConfigScript(theme, site, assets)
 const highlightShrink: boolean | string = theme.highlight_shrink
 const isHighlightShrink = highlightShrink === 'none' ? undefined : (highlightShrink as boolean)
 
-const pageFillDescription = content || description || title || site.description || ''
+/**
+ * 上游 `config_site.pug:6`：`escapeQuote(get_page_fill_description())`。
+ * 取值顺序是 content > description > title > config.description（与 pageDescription 相反），
+ * 且会剥掉所有非中文字符，所以正文 HTML / `</script>` 不会漏进内联脚本。
+ *
+ * 抽取前先对齐两处「上游不可见内容」：
+ *   1. `videos` / `site-card-group` 容器吞掉的标题（上游是字面文本，不是 h1–h6）；
+ *   2. GFM 脚注区块（U8：上游 marked 不渲染脚注，没有 `Footnotes` 标题与定义段）。
+ */
+const fillDescriptionContent = content
+  ? stripSwallowedHeadings(normalizeFootnoteSectionForDescription(content))
+  : content
+
+const pageFillDescription = getPageFillDescription({
+  page: { title, description, content: fillDescriptionContent },
+  config: { description: site.description },
+})
 
 const globalConfigSiteScript = buildGlobalConfigSiteScript({
   configTitle: site.title,

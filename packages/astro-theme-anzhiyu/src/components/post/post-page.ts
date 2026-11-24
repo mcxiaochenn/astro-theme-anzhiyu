@@ -26,7 +26,7 @@ import {
 } from './post-list.ts'
 import { createUrlFor } from '../../layouts/site.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { rewriteHeadings, type HeadingInfo } from '../../utils/slugger.ts'
+import { rewriteHeadings, SWALLOWED_HEADING_RE, type HeadingInfo } from '../../utils/slugger.ts'
 
 const urlFor = createUrlFor('/')
 
@@ -238,11 +238,9 @@ function buildRelated(
  * 不含这两项。我们的 tag 插件按正常 Markdown 渲染成 `h2`，TOC 就会多出两项。
  *
  * 这里在**渲染后的正文 HTML** 上识别「紧跟 videos / site-card-group 容器」的标题，
- * 只把它们从 TOC 数据里剔除；规则只认这两种容器，其它标题与正文都不动。
+ * 只把它们从 TOC 数据里剔除；规则与描述抽取共用 slugger.ts 里的
+ * {@link SWALLOWED_HEADING_RE}，避免两份正则漂移。
  */
-const SWALLOWED_HEADING_RE =
-  /<h([1-6])\b([^>]*)>((?:(?!<h[1-6]\b)[\s\S])*?)<\/h\1>\s*<div class="(?:videos|site-card-group)["'\s>]/g
-
 function filterUpstreamSwallowedHeadings(html: string, headings: HeadingInfo[]): HeadingInfo[] {
   const swallowed = new Set<string>()
   for (const match of html.matchAll(SWALLOWED_HEADING_RE)) {

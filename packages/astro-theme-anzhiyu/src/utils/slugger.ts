@@ -169,7 +169,13 @@ export function createHeadingSlugger(
 /* 3. 正文标题重写                                                     */
 /* ------------------------------------------------------------------ */
 
-const HEADING_RE = /<h([1-6])((?:\s[^>]*)?)>([\s\S]*?)<\/h\1>/g;
+/**
+ * `rewriteHeadings` 的匹配规则：连同标题后面的**一个换行**一起吃掉。
+ * 上游 hexo-renderer-marked 覆写的 heading 渲染器不在 `</hN>` 后补换行，
+ * 而 remark-rehype 会在块级元素之间插 `\n`；这里去掉标题后的那个换行，
+ * 保证 `<hN>` 后紧跟下一个块级标签（`<hN>` 之前的换行保持不动）。
+ */
+const HEADING_RE = /<h([1-6])((?:\s[^>]*)?)>([\s\S]*?)<\/h\1>\n?/g;
 const EXISTING_HEADERLINK_RE = /^<a\b[^>]*class="[^"]*\bheaderlink\b[^"]*"[^>]*><\/a>/;
 
 export interface RewriteHeadingsOptions {
@@ -228,4 +234,62 @@ export function rewriteHeadings(
  */
 export function extractHeadings(html: string): HeadingInfo[] {
   return rewriteHeadings(html, { headerlink: false }).headings;
+}
+
+/* ------------------------------------------------------------------ */
+/* 4. 上游渲染缺陷 / 差异在「标题集合」上的投影                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上游 `hexo-renderer-marked` 的标题吞噬缺陷（基线可见）：`{% videos %}` /
+ * `{% sitegroup %}` 容器会把紧邻其前的 Markdown 标题吞掉，1.7.1 基线里
+ * `## videos`、`## sitegroup` 以字面文本留在正文，因此既不是标题、也不进 TOC。
+ * 我们的 tag 插件按正常 Markdown 渲染成 `h2`，描述抽取（`get_page_fill_description`
+ * 只认 h1–h6）与 TOC 都会多出这两项。
+ *
+ * 规则只认这两种容器，其它标题与正文都不动。
+ */
+export const SWALLOWED_HEADING_RE =
+  /<h([1-6])\b([^>]*)>((?:(?!<h[1-6]\b)[\s\S])*?)<\/h\1>\s*<div class="(?:videos|site-card-group)["'\s>]/g;
+
+/** 从正文里剔除「被 videos / site-card-group 容器吞噬」的标题（上游这些标题不是标题）。 */
+export function stripSwallowedHeadings(html: string): string {
+  return html.replace(SWALLOWED_HEADING_RE, '');
+}
+
+/**
+ * M2/U8：上游 `hexo-renderer-marked` 不渲染 GFM 脚注（`docs/upstream-delta.md` U8），
+ * 定义行被当成普通段落留在**书写位置**（本基准里紧挨引用所在段）；Astro 侧启用的
+ * GFM 会把定义统一挪到文末的 `section[data-footnotes]`。
+ *
+ * 描述抽取（`get_page_fill_description`）在上游能看到那段定义文本，所以这里：
+ *   1. 抽出脚注区块里每个定义（去掉回跳链接）；
+ *   2. 删掉整个脚注区块（连同 `Footnotes` 标题，上游没有它）；
+ *   3. 把定义段落插回其引用所在段的后面，还原上游的文本顺序。
+ * 只影响描述抽取用的副本，正文渲染不受影响。
+ */
+export function normalizeFootnoteSectionForDescription(html: string): string {
+  const sectionRe = /<section\b[^>]*\bdata-footnotes\b[^>]*>[\s\S]*?<\/section>/g;
+  const section = sectionRe.exec(html)?.[0];
+  if (!section) return html;
+
+  const definitions: Array<{ id: string; html: string }> = [];
+  const listItemRe = /<li id="([^"]+)">([\s\S]*?)<\/li>/g;
+  for (const match of section.matchAll(listItemRe)) {
+    const defHtml = match[2]
+      .replace(/<a\b[^>]*\bdata-footnote-backref\b[^>]*>[\s\S]*?<\/a>/g, '')
+      .trim();
+    if (defHtml) definitions.push({ id: match[1], html: defHtml });
+  }
+
+  let output = html.replace(sectionRe, '');
+  for (const def of definitions) {
+    const refIndex = output.indexOf(`href="#${def.id}"`);
+    if (refIndex === -1) continue;
+    const paragraphEnd = output.indexOf('</p>', refIndex);
+    if (paragraphEnd === -1) continue;
+    const insertAt = paragraphEnd + '</p>'.length;
+    output = `${output.slice(0, insertAt)}\n${def.html}${output.slice(insertAt)}`;
+  }
+  return output;
 }

@@ -257,7 +257,7 @@ function buildExcerpt(
   if (method === 1) return description ?? ''
   if (method === 2 && description) return description
 
-  const markedLikeHtml = html.replace(/(<\/h[1-6]>)\n/g, '$1')
+  const markedLikeHtml = html.replace(/(<\/h[1-6]>)\n+/g, '$1')
   const content = stripHtml(markedLikeHtml)
   let excerpt = content.substring(0, length)
   if (content.length > length) excerpt += ' ...'
