@@ -5,19 +5,26 @@
  * 上游 `layout/includes/post.pug:7-8` 在 `theme.post_head_ai_description` 开启且
  * `page.ai` 为真时，把 `includes/anzhiyu/ai-info.pug` 插在 `#post` 最前面。
  * P5-2 把整块交给 `third-party/ai-info.astro`（含 `switchBtn` / `data-pjax` 脚本），
- * 本组件只做参数归一：把 `page.ai` 收窄成布尔，并把上游 `get_page_fill_description()`
+ * 本组件只做参数归一，并把上游 `get_page_fill_description()`
  * 的等价文本（描述 / 正文）传进去——ai-info 的门控要求 fill 非空。
+ *
+ * B1：`ai` 放宽为布尔 | 字符串后，门控改**真值判断**（对齐上游 `pageFillDescription && page.ai`）：
+ * ai 为真即出 AI 摘要块；**原值透传**给 render 层——字符串即摘要候选（经 postAI 通道给
+ * ai_abstract.js 的 local 模式），布尔 true 只当开关（postAI 不得落成 `"true"`，见 slug.astro）。
+ * ai-info 的 Props 类型暂收窄为 boolean，此处过界断言，运行时按原值走。
  */
 import AiInfo from '../third-party/ai-info.astro'
 
 interface Props {
-  /** `page.ai`（上游只在真值时渲染）。 */
+  /** `page.ai`（上游只在真值时渲染；B1 起可为字符串摘要）。 */
   ai?: unknown
   /** 上游 `get_page_fill_description()`：页面描述或正文。 */
   pageFillDescription?: string
 }
 
 const { ai, pageFillDescription } = Astro.props
+/** 真值门控 + 原值透传（falsy → undefined，真值原样给 renderAiInfo）。 */
+const aiGate = ai ? (ai as boolean) : undefined
 ---
 
-<AiInfo ai={ai === true} pageFillDescription={pageFillDescription} />
+<AiInfo ai={aiGate} pageFillDescription={pageFillDescription} />

@@ -29,6 +29,7 @@ import {
   type Translate,
 } from '../../../../../packages/astro-theme-anzhiyu/src/utils/helpers.ts'
 import { createSiteDateFormatter } from '../../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
+import { postSlugOf } from '../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
 import { t } from '../../../../../packages/astro-theme-anzhiyu/src/i18n/index.ts'
 import type { ArticleSortPost } from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/types.ts'
 import { SITE_IDENTITY } from '../../data/site-identity.ts'
@@ -190,7 +191,8 @@ function toArchivePost(entry: Awaited<ReturnType<typeof getCollection<'posts'>>>
 
   return {
     title: typeof data.title === 'string' ? data.title : entry.id,
-    href: urlFor(`/${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${entry.id}/`),
+    // B4：末段走 postSlugOf()（abbrlink ?? id），与文章路由 / post-list.ts 共用。
+    href: urlFor(`/${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${postSlugOf(entry)}/`),
     cover: typeof coverValue === 'string' && coverValue ? coverValue : false,
     date,
     yearLabel: String(year),

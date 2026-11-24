@@ -23,7 +23,7 @@ import PostAiDescription from '../../../../../../../packages/astro-theme-anzhiyu
 import CommentsIndex from '../../../../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
 import { preparePostPage } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-page.ts'
 import { preparePosts } from '../../../../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
-import { postHrefOf } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
+import { postHrefOf, postSlugOf } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
 import { getThemeConfig } from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/theme-context.ts'
 import '../../../../styles/upstream/index.styl'
 import { getCollection, getEntry } from 'astro:content'
@@ -46,10 +46,8 @@ export const getStaticPaths: GetStaticPaths = async () => {
     .map((post) => {
       const [, year, month, day] = /^(\d{4})\/(\d{2})\/(\d{2})\//.exec(post.path) ?? []
       const entry = entryById.get(post.id)!
-      const slug =
-        entry.data.abbrlink !== undefined && entry.data.abbrlink !== null && entry.data.abbrlink !== ''
-          ? String(entry.data.abbrlink)
-          : post.id
+      // B4：末段 = `abbrlink ?? id`，收口到 site.ts 的 postSlugOf()（与 post-list.ts / _data.ts 共用）。
+      const slug = postSlugOf(entry)
       return {
         params: { year, month, day, slug },
         props: { id: post.id },
@@ -97,6 +95,8 @@ const description = typeof page.data.description === 'string' ? page.data.descri
  */
 const pageFillDescription = description || page.bodyHtml
 const keywords = page.data.keywords as string | string[] | undefined
+/** B2：page 级开关透传（front-matter 原值；缺省 undefined，见 BaseLayout 的 props 注释）。 */
+const pageSwitch = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
 ---
 
 <BaseLayout
@@ -116,8 +116,12 @@ const keywords = page.data.keywords as string | string[] | undefined
   headings={page.headings}
   aside={page.data.aside !== false}
   postUpdate={page.current.updated.full}
-  postAI={page.data.ai ? String(page.data.ai) : undefined}
+  postAI={typeof page.data.ai === 'string' ? page.data.ai : undefined}
   postMainColor={typeof page.data.main_color === 'string' ? page.data.main_color : undefined}
+  pageComments={pageSwitch(page.data.comments)}
+  pageMathjax={pageSwitch(page.data.mathjax)}
+  pageKatex={pageSwitch(page.data.katex)}
+  pageAplayer={pageSwitch(page.data.aplayer)}
 >
   <Fragment slot="post-info">
     <PostInfo

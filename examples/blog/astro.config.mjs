@@ -22,6 +22,14 @@ import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
+// B5（M14）：HTML 与 CSS 必须读同一份主题配置，消灭静默双通道。
+//   - CSS 通道：下方 vite.plugins 的 stylusHexoConfig({ configPath: theme.config.yml })；
+//   - HTML 通道：组件经 layouts/theme-context.ts 的 getThemeConfig() → config/loader.ts，
+//     显式 configPath 由 ANZHIYU_THEME_CONFIG 提供（theme-context.ts:28-29）。
+// 构建时显式传 configPath = theme.config.yml（严禁重命名 theme.config.yml / 新建同内容
+// 副本），两条通道收口到同一文件；此前 HTML 侧按文件名搜索找不到配置、静默走 defaults。
+process.env.ANZHIYU_THEME_CONFIG = path.join(root, 'theme.config.yml')
+
 /* ================================================================== */
 /* M1 · 代码块 DOM 对齐（P2-7）                                        */
 /* ================================================================== */
@@ -685,7 +693,8 @@ export default defineConfig({
     },
     plugins: [
       stylusHexoConfig({
-        // 直接复用上游 Hexo 主题的 _config.yml，不做任何改写
+        // 直接复用上游 Hexo 主题的 _config.yml，不做任何改写。
+        // B5：与 HTML 通道（ANZHIYU_THEME_CONFIG，见文件头）指向同一文件 theme.config.yml。
         configPath: path.join(root, 'theme.config.yml'),
         debug: true,
       }),

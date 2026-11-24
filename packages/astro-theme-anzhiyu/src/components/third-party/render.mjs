@@ -470,6 +470,8 @@ export function renderPrismjs(theme, props = {}) {
 /**
  * anzhiyu/ai-info.pug:1-27 —— 门控 theme.post_head_ai_description.enable
  * + pageFillDescription + page.ai（上游 get_page_fill_description()）。
+ * B1：page.ai 可为布尔 | 字符串，门控按上游 `pageFillDescription && page.ai` 真值判断
+ * （postAI 传原值：字符串即摘要候选；布尔 true 只当开关，由 postAI 通道保证不落成 "true"）。
  * 读 gptName / mode / switchBtn；脚本带 data-pjax。
  */
 export function renderAiInfo(theme, props = {}) {
@@ -477,7 +479,7 @@ export function renderAiInfo(theme, props = {}) {
   if (!flag(cfg, 'enable')) return ''
   const page = pageOf(props)
   const fill = page.pageFillDescription || page.description || page.content || ''
-  if (!fill || page.ai !== true) return ''
+  if (!fill || !page.ai) return ''
   const gptName = String(cfg.gptName ?? '')
   const tag = cfg.mode === 'tianli' ? 'Tianli GPT' : `${gptName} GPT`
   const toggle = cfg.switchBtn ? '<div id="ai-Toggle">切换</div>' : ''

@@ -6,21 +6,21 @@
 
 ## 内容约定（写死，生成器和解压脚本都依赖）
 
-- 只含 `.html`（48 个文件 / 2,198,761 字节），**不含图片 / CSS / JS**；
+- 只含 `.html`（49 个文件 / 2,254,657 字节），**不含图片 / CSS / JS**；
 - 归档内路径 = 相对 `.baseline-work/public` 的路径，POSIX `/` 分隔；
 - 解压根目录就是 baseline HTML 根目录（即 `BASELINE_HTML_DIR`）：
   `index.html`、`404.html`、`about/index.html`、`categories/前端/index.html`；
-- 48 个文件与 `docs/baseline.json` 的 `pages` 一一对应；逐文件字节数 / SHA256
+- 49 个文件与 `docs/baseline.json` 的 `pages` 一一对应；逐文件字节数 / SHA256
   记在 `baseline-html.manifest.json`，整包 SHA256 也在里面。
 
 当前归档：
 
 | 项 | 值 |
 | --- | --- |
-| 文件 | 48 |
-| 原始 HTML | 2,198,761 字节 |
-| 归档 | 488,029 字节（476.6 KiB，gzip 9） |
-| SHA256 | `b17a4f23bc02bc2129352b1140db01c8d153a1d301f9862e1b5c3f02b2e979c0` |
+| 文件 | 49 |
+| 原始 HTML | 2,254,657 字节 |
+| 归档 | 501,268 字节（489.5 KiB，gzip 9） |
+| SHA256 | `7e1449d2e2df328cf028b8014e32cfdffe15fff3655dfce7d36d0348bd5908aa` |
 
 ## 生成（需要本机有 `.baseline-work/public`，即 hexo g 产物）
 
@@ -31,6 +31,9 @@ node tests/baseline-html/make-baseline-html-archive.mjs
 归档是确定性的（条目按 UTF-8 字节序、固定 mtime/uid/gid/mode、gzip 不写 mtime），
 同一份源目录重复生成 SHA256 不变。生成后把 `baseline-html.tar.gz` +
 `baseline-html.manifest.json` 一起提交。
+
+流程备注：增量构建若遇 FATAL（`reproducible.js` 排序 null date——旧 `db.json`
+缓存 + 新增文章的过渡态竞态），先删 `.baseline-work/db.json` 再 generate。
 
 ## 解压（CI 与本地同一条命令）
 

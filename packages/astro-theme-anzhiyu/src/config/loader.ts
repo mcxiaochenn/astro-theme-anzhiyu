@@ -15,6 +15,10 @@
  *   - `anzhiyu.config.yml`      新名，推荐
  *   - `_config.anzhiyu.yml`     旧名，兼容；命中时向 stderr 打 deprecation
  *
+ * B5：examples/blog 不走文件名搜索——它的构建在 astro.config.mjs 显式传
+ * `configPath = theme.config.yml`（经 ANZHIYU_THEME_CONFIG → theme-context.ts），
+ * 与 stylus CSS 通道共用同一文件，避免「CSS 读一份、HTML 走 defaults」的双通道。
+ *
  * 未找到任何配置文件时返回一份完整的默认配置（defaults 本身即合法配置），
  * 显式传入的 `configPath` 不存在则直接报错，避免路径写错时静默用默认值。
  */

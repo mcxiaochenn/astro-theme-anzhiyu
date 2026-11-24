@@ -109,6 +109,9 @@ const posts = defineCollection({
       // —— 单篇覆盖项 ——
       main_color: z.string().optional(),
       mathjax: z.boolean().optional(),
+      // B2：上游 front-matter 的页面级开关（math/index.pug 读 page.mathjax/page.katex，
+      // additional-js.pug:117-121 读 page.aplayer）；katex 此前漏声明，随透传补齐。
+      katex: z.boolean().optional(),
       comments: z.boolean().optional(),
       aside: z.boolean().optional(),
       toc: z.boolean().optional(),
@@ -116,7 +119,9 @@ const posts = defineCollection({
       copyright_author: z.string().optional(),
       copyright_url: z.string().optional(),
       aplayer: z.boolean().optional(),
-      ai: z.boolean().optional(),
+      // B1：上游 `page.ai` 可为布尔或字符串（ai-info.pug:5 真值门控；字符串即摘要，
+      // 见 ai_abstract.js 的 local 模式 postAI.split(',')）。模式同 hexoDate 的 z.union。
+      ai: z.union([z.boolean(), z.string()]).optional(),
 
       // —— 页面类型（about 页：layout: page + type: about）——
       layout: z.string().optional(),

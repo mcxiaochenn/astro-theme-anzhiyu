@@ -15,12 +15,14 @@
  */
 import { asset, flag, inlineScript, obj, pageOf, srcScript, styleLink } from '../_kit.mjs'
 
-/** index.pug:2-7 / 10-15 的 per_page / 页面 front-matter 门控。 */
+/** index.pug:2-7 / 10-15 的 per_page / 页面 front-matter 门控。
+ *  B2：page.mathjax / page.katex 已从路由透传（缺省 undefined），per_page=false 分支
+ *  按上游 `if page.mathjax` 的真值语义判定。 */
 function perPageGate(theme, key, page) {
   if (!flag(theme[key], 'enable')) return false
   const perPage = flag(theme[key], 'per_page')
   if (perPage) return true // 上游 is_post() || is_page()，布局页恒真
-  return page[key] === true
+  return Boolean(page[key])
 }
 
 /** katex.pug:1-9 */

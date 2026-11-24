@@ -40,12 +40,12 @@ const nullableString = z.string().nullable();
 
 /* ===== nav（Phase 2 P2-4 Header；导航分组 / 菜单项结构来自 nav.pug） ===== */
 
-/** nav.menu 的菜单项（nav.pug：item.name / item.link / item.icon）。 */
+/** nav.menu 的菜单项（nav.pug：item.name / item.link / item.icon；B3：icon 渲染容缺 → optional）。 */
 const navMenuItemSchema = z
   .object({
     name: z.string(),
     link: z.string(),
-    icon: z.string(),
+    icon: z.string().optional(),
   })
   .passthrough();
 
@@ -217,8 +217,10 @@ const homeTopCategorySchema = z
   .object({
     name: z.string(),
     path: z.string(),
-    shadow: z.string(),
-    class: z.string(),
+    /** B3：shadow/class 渲染容缺（BannerGroup.astro:65-66 缺省只是样式不生效）→ optional。 */
+    shadow: z.string().optional(),
+    class: z.string().optional(),
+    /** 保持必填：BannerGroup.astro:68 无条件 `item.icon.startsWith(...)` 消费，缺了会 TypeError。 */
     icon: z.string(),
   })
   .passthrough();
@@ -280,7 +282,8 @@ const footerBadgeItemSchema = z
   .object({
     link: z.string(),
     shields: z.string(),
-    message: z.string(),
+    /** B3：渲染容缺 → optional。 */
+    message: z.string().optional(),
   })
   .passthrough();
 
@@ -291,11 +294,11 @@ const footerBadgeSchema = z
   })
   .passthrough();
 
-/** socialBar.left / right 的元素（footer.pug：item.link / item.title / item.icon）。 */
+/** socialBar.left / right 的元素（footer.pug：item.link / item.title / item.icon；B3：title 渲染容缺 → optional）。 */
 const footerSocialLinkSchema = z
   .object({
     link: z.string(),
-    title: z.string(),
+    title: z.string().optional(),
     icon: z.string(),
   })
   .passthrough();
@@ -492,7 +495,8 @@ const giscusSchema = z
 const rewardQrCodeSchema = z
   .object({
     img: z.string(),
-    link: nullableString,
+    /** B3：渲染走 `item.link || item.img` 兜底（PostReward.astro:46 / Console.astro:91）→ optional（保留 nullable 语义）。 */
+    link: nullableString.optional(),
     text: z.string(),
   })
   .passthrough();
@@ -819,6 +823,9 @@ const looseTopLevel = {
    * 对应的 lite 分支（见 `components/page/FcirclePage.astro`，P7-4）。标注 deprecated：
    * defaults 不注入它（未配置时 theme.friends_lite 为 undefined，渲染不产出任何 DOM），
    * 新站点应使用 `friends_vue`。
+   *
+   * B6（L2）顶层键口径：**133 上游键 + friends_lite 兼容键 = 134**
+   * （check-schema.mjs 实测：yaml 133 / schema 134，唯一 declared-not-in-yaml 即本键）。
    */
   friends_lite: looseObject.optional(),
   universe: looseObject,
@@ -932,7 +939,7 @@ export const themeConfigSchema = z
 export type ThemeConfig = z.infer<typeof themeConfigSchema>;
 export type ThemeConfigInput = z.input<typeof themeConfigSchema>;
 
-/** schema 已声明的顶层 key（= 上游全部 133 个顶层 key）。 */
+/** schema 已声明的顶层 key（= 133 上游键 + friends_lite 兼容键，共 134；check-schema.mjs 实测 yaml 133 / schema 134）。 */
 export const KNOWN_TOP_LEVEL_KEYS: readonly string[] = Object.keys(
   themeConfigSchema.shape,
 );

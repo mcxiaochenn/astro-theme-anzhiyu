@@ -24,7 +24,7 @@
 import { stripHtml, sortAttrPost } from '../../utils/helpers.ts'
 import { createSiteDateFormatter, type SiteDateConfig } from '../../utils/date.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
+import { createUrlFor, postSlugOf, type PostHrefResolver } from '../../layouts/site.ts'
 
 /* ------------------------------------------------------------------ */
 /* 常量                                                                */
@@ -327,6 +327,7 @@ export function preparePosts(entries: PostEntryLike[], options: PrepareOptions =
    * 有站点 permalink 解析器时完全交给它（迁移站：`posts/p:abbrlink/` 等）；
    * 否则回退基准站的 Hexo 默认 permalink `:year/:month/:day/:title/`
    * （年月日取站点时区下的日历字段并补零）。
+   * 末段走 `postSlugOf()`（B4：`abbrlink ?? id`，与文章路由共用）。
    */
   const resolvePath = (entry: PostEntryLike): string => {
     const resolved = options.resolvePostHref?.(entry)
@@ -335,7 +336,7 @@ export function preparePosts(entries: PostEntryLike[], options: PrepareOptions =
     const date = dateValue instanceof Date ? dateValue : new Date(0)
     const parts = formatter.parts(date)
     const pad = (value: number): string => String(value).padStart(2, '0')
-    return encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${entry.id}/`).slice(1)
+    return encodeUrl(`/${parts.year}/${pad(parts.month)}/${pad(parts.day)}/${postSlugOf(entry)}/`).slice(1)
   }
 
   const posts = entries

@@ -24,8 +24,10 @@
  *     的 `prismjs` 键，本主题的站点配置模型没有这个键（迁移脚本列为 hexo-only），
  *     基线配置用的是 highlight.js，分支恒为关。挂一个恒 0 输出的空壳没有意义。
  *     迁移 prismjs 站点时需单独处理（见 docs/PLAN.md 已知边界）。
- *   - `page.mathjax` / `page.katex` / `page.aplayer` 三个 page 级开关未从路由透传
- *     （默认 `per_page: true` 时由主题配置门控，行为一致）；登记为已知边界。
+ *   - `page.mathjax` / `page.katex` / `page.aplayer` 三个 page 级开关由路由层透传
+ *     （B2：front-matter → BaseLayout 的 pageMathjax/pageKatex/pageAplayer → 本组件 →
+ *     `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；per_page=false 时按上游
+ *     math/index.pug 语义读 page.mathjax / page.katex）。
  *   - 评论弹幕（:79-81）的 `page.comments` 用 `pageComments` prop 表达（严格真值，
  *     缺省 undefined = 不输出）；路由层接线在 Batch B。
  *
@@ -63,6 +65,12 @@ interface Props {
   isCurrentRoot?: boolean
   /** 上游 `page.comments`（:80 评论弹幕门控之一）。严格真值：缺省 undefined = 不输出。 */
   pageComments?: boolean
+  /** 上游 `page.mathjax`（B2：路由透传，math/index.pug per_page=false 分支）。 */
+  pageMathjax?: boolean
+  /** 上游 `page.katex`（B2：路由透传，math/index.pug per_page=false 分支）。 */
+  pageKatex?: boolean
+  /** 上游 `page.aplayer`（B2：路由透传，additional-js.pug:117-121 的 page 分支）。 */
+  pageAplayer?: boolean
   pageType?: 'post' | 'page'
   /** 上游 `page.type || (is_post ? 'post' : (is_category ? 'categories' : 'anzhiyu'))`。 */
   pageTypeValue?: string
@@ -73,6 +81,9 @@ const {
   isHome = false,
   isCurrentRoot = false,
   pageComments,
+  pageMathjax,
+  pageKatex,
+  pageAplayer,
   pageType = 'page',
   pageTypeValue,
 } = Astro.props
@@ -217,9 +228,10 @@ const peopleScript = `if (typeof gsap === "object") {
     <CardPostCount />
     {/* additional-js.pug:69-70 —— 首页副标题打字机（loadSubJs） */}
     <Subtitle page={{ siteSubtitle: site.subtitle ?? '' }} />
-    {/* additional-js.pug:72 —— mathjax / katex / mermaid（page 级 mathjax/katex 开关
-        当前未从路由透传，默认 per_page=true 时由主题配置门控，登记为已知边界） */}
-    <MathIndex />
+    {/* additional-js.pug:72 —— mathjax / katex / mermaid（B2：page 级 mathjax/katex 开关
+        已从路由透传进来，per_page=false 时 render.mjs 的 perPageGate 按上游 math/index.pug
+        语义读 page.mathjax / page.katex） */}
+    <MathIndex page={{ mathjax: pageMathjax, katex: pageKatex }} />
     {/* additional-js.pug:74-75 —— 评论后端初始化脚本（commentsJsLoad） */}
     <CommentsJs />
     <input type="hidden" name="page-type" id="page-type" value={resolvedPageType} />
@@ -255,9 +267,9 @@ const peopleScript = `if (typeof gsap === "object") {
   <Chat />
 
   {/* additional-js.pug:117-121 —— aplayer（组件内部实现
-      pjax || per_page || page.aplayer 的完整分支；此前是本文件的简化内联实现。
-      page 级 aplayer 开关未从路由透传，见文件头已知边界） */}
-  <Aplayer />
+      pjax || per_page || page.aplayer 的完整分支；B2：page 级 aplayer 开关已从路由
+      透传进来，按上游语义接 page.aplayer） */}
+  <Aplayer page={{ aplayer: pageAplayer }} />
 
   {/* additional-js.pug:126-127 —— busuanzi 访问统计（async data-pjax；src 不套 url_for，与上游一致） */}
   {busuanziEnabled && <script is:inline async data-pjax src={busuanziSrc}></script>}

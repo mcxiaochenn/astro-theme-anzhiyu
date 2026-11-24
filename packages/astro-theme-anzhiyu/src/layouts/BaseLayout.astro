@@ -115,6 +115,12 @@ interface Props {
    * 严格真值：缺省 undefined = 不输出。路由层接线在 Batch B。
    */
   pageComments?: boolean
+  /** 页面级 `mathjax` 开关（上游 `page.mathjax`，math/index.pug per_page=false 分支；B2 路由透传）。 */
+  pageMathjax?: boolean
+  /** 页面级 `katex` 开关（上游 `page.katex`，math/index.pug per_page=false 分支；B2 路由透传）。 */
+  pageKatex?: boolean
+  /** 页面级 `aplayer` 开关（上游 `page.aplayer`，additional-js.pug:117-121；B2 路由透传）。 */
+  pageAplayer?: boolean
   /** `site.data.essay` 等价物（BbTimeList 数据源，A6；home_essay 组门控见组件）。 */
   essay?: unknown
 }
@@ -143,6 +149,9 @@ const {
   postAI,
   postMainColor,
   pageComments,
+  pageMathjax,
+  pageKatex,
+  pageAplayer,
   essay,
 } = Astro.props
 
@@ -559,6 +568,9 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
       pageType={pageType}
       pageTypeValue={pageTypeValue}
       pageComments={pageComments}
+      pageMathjax={pageMathjax}
+      pageKatex={pageKatex}
+      pageAplayer={pageAplayer}
     />
 
     {/* layout.pug:91 — popup/index.pug（静态结构） */}

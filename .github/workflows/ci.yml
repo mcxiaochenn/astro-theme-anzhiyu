@@ -52,7 +52,7 @@ jobs:
         run: pnpm check:upstream-delta
 
       # CI 上没有 gitignore 的 .baseline-work/，baseline HTML 以归档形式进仓库
-      # （tests/baseline-html/baseline-html.tar.gz，48 页 / 477 KB）。解压出来的
+      # （tests/baseline-html/baseline-html.tar.gz，49 页 / 490 KB）。解压出来的
       # .baseline-html/ 就是 diff-html 的 baseline 根目录（约定见 P-baseline-html-ci）。
       - name: Extract baseline HTML
         run: node scripts/extract-baseline-html.mjs

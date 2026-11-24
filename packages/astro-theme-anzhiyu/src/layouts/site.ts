@@ -63,6 +63,20 @@ export function postHrefOf(site: unknown): PostHrefResolver | undefined {
 }
 
 /**
+ * 文章 URL 末段解析（B4 收口）：`abbrlink ?? id`。
+ *
+ * 上游 abbrlink 插件覆盖 permalink 的最后一段（路由规则 `YYYY/MM/DD/(abbrlink ?? id)/`，
+ * 见 post-page.ts:14）。此前三处各算一套：文章路由、post-list.ts 的默认 path、
+ * archives/_data.ts 的归档链接——收口成这一个函数后，归档/分类/标签/404 的链接
+ * 解析与实际路由共用同一段规则。判空语义与原 slug.astro 一致（0 是合法 abbrlink）。
+ */
+export function postSlugOf(entry: { id: string; data: Record<string, unknown> }): string {
+  const abbrlink = entry.data.abbrlink;
+  if (abbrlink !== undefined && abbrlink !== null && abbrlink !== '') return String(abbrlink);
+  return entry.id;
+}
+
+/**
  * 缺省站点：一个「还没配置」的最小站点。
  *
  * 刻意不继承上游基准站（AnZhiYu Baseline）的标题/url —— 那是验收基准站的身份，
