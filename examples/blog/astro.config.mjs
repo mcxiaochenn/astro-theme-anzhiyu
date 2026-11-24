@@ -7,6 +7,17 @@ import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 // 放在 packages/ 里按源码相对导入：插件是纯 ESM `.mjs`，没有构建步骤，
 // Astro 配置在 Node 侧直接 import 即可（见 docs/notes/P6-1-hexo-tags.md）。
 import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag/src/index.mjs'
+// P7-6：主题自有静态资源（/js/main.js、/js/utils.js、/js/tw_cn.js、/js/anzhiyu/*、
+// /js/search/*、/css/index.css 占位）过去是手工放在 examples/blog/public/ 里的，
+// 迁移站拿不到 → 全站 JS 404。现在资源收进主题包 assets/，由 integration 在
+// build 时复制进 dist、dev 时用 connect 中间件直出，站点不再需要 public/js。
+//
+// 这里用**相对路径**而不是 `astro-theme-anzhiyu/integration`：examples/blog 没有
+// 声明 astro-theme-anzhiyu 依赖（它一直都是按源码相对导入主题包的），根 node_modules
+// 里也没有这个包，裸包名会 ERR_MODULE_NOT_FOUND。迁移产物 package.json 里有
+// `"astro-theme-anzhiyu": "file:../../packages/astro-theme-anzhiyu"`，所以
+// migrate-hexo 把这一行改写成相对路径后两种站都能解析（见 docs/notes/P7-6-theme-assets.md §5）。
+import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
@@ -303,6 +314,10 @@ export default defineConfig({
     const base = raw.startsWith('/') ? raw : `/${raw}`
     return { base }
   })(),
+  // P7-6 / W1-D：主题静态资源接线。build 时把 packages/astro-theme-anzhiyu/assets/
+  // 复制进 dist（/js/**、/css/index.css），dev 时由中间件直出；目标已存在则 warn 并
+  // 保留站点侧文件。迁移站同一行即可拿到同一批资源（不需要手工拷 public/）。
+  integrations: [anzhiyuAssets()],
   // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
   // 原因：Phase 6 的 42 个 Hexo tag 需要在 Markdown 解析阶段做语法替换，
   // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。

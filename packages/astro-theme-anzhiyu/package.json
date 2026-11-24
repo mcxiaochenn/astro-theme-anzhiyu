@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./integration": "./integration.mjs",
     "./schema": "./src/config/schema.ts",
     "./defaults": "./src/config/defaults.ts",
     "./components/Head.astro": "./src/components/Head.astro",
@@ -13,7 +14,9 @@
     "./layouts/*": "./src/layouts/*"
   },
   "files": [
-    "src"
+    "src",
+    "assets",
+    "integration.mjs"
   ],
   "scripts": {
     "gen:defaults": "node scripts/gen-defaults.mjs",
