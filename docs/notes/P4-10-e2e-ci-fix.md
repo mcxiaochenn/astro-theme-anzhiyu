@@ -277,3 +277,153 @@ fcircle→fcircle                       room→room         page-default→anzhi
   `right-menu.spec.ts`、`search.spec.ts`
 - `playwright.config.ts`：viewport 1280×900、timeout 45s、expect 15s、`E2E_CHANNEL`
 - 本文件
+
+---
+
+## 9. 第二轮 CI（run `45388338435`）：24 passed / 5 failed / 9 skipped —— `internalLink` 定位到首页链接
+
+### 9.1 结果与失败清单
+
+`.ci-logs/e2e-fail2.log`：
+
+```
+Running 38 tests using 2 workers            (line 114)
+  5 failed                                  (line 511)
+  9 skipped                                 (line 517)
+  24 passed (2.7m)                          (line 518)
+```
+
+上一轮的 26 条失败收敛到 **5 条**，全部是同一个错误（initial + `retry #1` 各挂一次，`点击站内链接后 URL 没有变化`
+在日志中出现 30 次 = 10 个失败块 × 3 处打印）：
+
+| # | 用例 | 失败摘要行 | 报错 |
+| --- | --- | --- | --- |
+| 1 | `dark-mode.spec.ts:88` 站内导航（ClientRouter）后主题不被重置 | 127 / 130 | `Error: 点击站内链接后 URL 没有变化`；`Expected: not "http://127.0.0.1:4321/"`；`Timeout 20000ms exceeded while waiting on the predicate`，`at helpers.ts:185` → `dark-mode.spec.ts:92` |
+| 2 | `music.spec.ts:21` 播放器容器跨站内导航保持同一个 DOM 节点 | 126 / 128 | 同上（`at helpers.ts:185` → `music.spec.ts:31`） |
+| 3 | `navigation.spec.ts:49` 点击站内链接不产生 document 请求（无整页刷新） | 131 / 133 | 同上（→ `navigation.spec.ts:60`） |
+| 4 | `navigation.spec.ts:72` 浏览器前进/后退后页面可用，且 console 无运行时错误 | 132 / 134 | 同上（→ `navigation.spec.ts:80`） |
+| 5 | `navigation.spec.ts:104` 连续两次站内导航后 document 请求仍为 0 | 157 / 158 | 同上（→ `navigation.spec.ts:114`） |
+
+5 条都死在 `helpers.clickAndWaitForClientRoute()` 的 URL poll（`helpers.ts:184`）这一跳：
+「点击站内链接后 URL 没有变化」不是 ClientRouter 坏了，而是**点到的链接本来就是当前页**。
+
+### 9.2 根因：`#recent-posts` 里第一个站内链接是分类条上的 `<a href="/">首页</a>`
+
+上一版 `internalLink()` 是 `page.locator('#recent-posts a[href^="/"]').first()`。而首页 DOM 的
+`#recent-posts` **第一块是分类条，不是文章卡片**（`examples/blog/src/pages/index.astro:49-58`：
+`<div id="recent-posts">` → `<CategoryBar />` → `PostCard ×N` → `<Pagination />`）。
+
+构建产物 `examples/blog/dist/index.html`（59949 bytes）原始片段（categoryBar 第一个条目 → 第一张卡片标题）：
+
+```html
+<div id="recent-posts" class="recent-posts">
+  <div id="categoryBar"><div id="category-bar" class="category-bar"><div id="catalog-bar"><div id="catalog-list">
+    <div class="catalog-list-item" id="首页"><a href="/">首页</a></div>
+    <div class="catalog-list-item" id="/categories/前端/Astro/"><a href="/categories/前端/Astro/">Astro</a></div>
+    …
+  </div></div></div>
+  <div class="recent-post-item lastestpost-item" onclick="pjax.loadUrl('/2025/02/02/sticky-top/')">
+    <div class="post_cover left"><a href="/2025/02/02/sticky-top/" title="置顶与推荐位样本" …><img …></a></div>
+    <div class="recent-post-info"><div class="recent-post-info-top"><div class="recent-post-info-top-tips">
+      …<a class="unvisited-post" href="/2025/02/02/sticky-top/" …>未读</a>
+    </div><a class="article-title" href="/2025/02/02/sticky-top/" title="置顶与推荐位样本">置顶与推荐位样本</a></div>
+    …
+  </div>
+  <div class="recent-post-item" onclick="pjax.loadUrl('/2025/04/20/tags-thirdparty/')">…</div>
+```
+
+于是旧选择器的 `.first()` 命中 `<a href="/">首页</a>`；当前页就是 `/`，点击后 Astro ClientRouter 走
+`navigate(href)` → `transition()` 的 `samePage(from, to)` 分支早退（无 hash 变化），**不 pushState、URL 不变、
+也不发 `astro:page-load`** → `clickAndWaitForClientRoute()` 的 `expect.poll(page.url()).not.toBe(previousUrl)`
+空等 20s 超时。5 条用例的失败形态完全一致，日志里的 `Expected: not "http://127.0.0.1:4321/"` 就是当前页 URL。
+
+### 9.3 修法：`internalLink()` 锚定「文章卡片的标题链接」
+
+`tests/e2e/helpers.ts` 只改这一个函数（spec 无需改动，5 条用例的调用点不变）：
+
+```ts
+export function internalLink(page: Page) {
+  return page.locator('#recent-posts .recent-post-item a.article-title[href^="/"]').first()
+}
+```
+
+选择依据：
+
+- `.recent-post-item` 是卡片容器（`PostCard.astro:111`）；`a.article-title` 是卡片标题的唯一锚点
+  （`PostCard.astro:163`），**纯结构类名、与站点语言/标题文案无关**；
+- 分类条、分页、推荐位都不在 `.recent-post-item` 内：`#categoryBar` 是 `#recent-posts` 的兄弟块，
+  推荐位 `#home_top .topGroup`（`TopGroup.astro:66` 同样渲染 `.recent-post-item`）在 `#recent-posts` 之外，
+  因此不会被误命中；
+- 置顶卡片只多一个 `lastestpost-item` 类（`PostCard.astro:111`），仍是真实文章卡片，标题链接照常命中 ——
+  「置顶/推荐区」不影响选择器；
+- 点击标题链接是标准站内 `<a>`：ClientRouter 文档级 click 监听 `preventDefault()` + `navigate()`
+  （卡片外层 `onclick="pjax.loadUrl(...)"` 也映射到同一个 `navigate()`，同目标），仍是客户端导航，
+  不产生 `document` 请求。
+
+### 9.4 静态验证（本机无浏览器自动化，PLAN R12）
+
+用 `parse5` 解析 `examples/blog/dist/index.html`，按选择器语义遍历命中：
+
+```
+=== dist/index.html: examples/blog/dist/index.html bytes=59949 ===
+recent-post-item elements: 6
+article-title(#recent-posts 内、.recent-post-item 外): 0   ← 选择器语义无歧义
+
+## OLD  #recent-posts a[href^="/"]                                    hits=39
+  [0] href="/"                        text="首页"              ← 当前页链接（旧 bug 命中点）
+  [1] href="/categories/前端/Astro/"  text="Astro"
+  …
+## ALT  #recent-posts .recent-post-item a[href^="/"]                  hits=28
+  [0] href="/2025/02/02/sticky-top/"  text=""      class=""              ← 卡片封面链接
+  [2] href="/2025/02/02/sticky-top/"  text="置顶与推荐位样本" class="article-title"
+## NEW  #recent-posts .recent-post-item a.article-title[href^="/"]    hits=6
+  [0] href="/2025/02/02/sticky-top/"       text="置顶与推荐位样本"
+  [1] href="/2025/04/20/tags-thirdparty/"  text="第三方嵌入与卡片标签样本"
+  [2] href="/2025/04/01/tags-media/"       text="媒体与卡片标签全量样本"
+  [3] href="/2025/03/18/tags-block/"       text="块级容器标签全量样本"
+  [4] href="/2025/03/05/tags-inline/"      text="行内标签全量样本"
+  [5] href="/2025/02/20/cover-variants/"   text="无封面与自定义顶部图"
+## cat  #recent-posts #categoryBar a[href^="/"]                        hits=9（全部被新选择器排除）
+```
+
+- 每个 `.recent-post-item` 内 `a.article-title` 恰好 **1 个**（6/6 卡片），`.first()` 命中稳定；
+- 新选择器首个 href = `/2025/02/02/sticky-top/`，**不是 `/`**，点击后 URL 必然变化；
+- 6 个命中 href 对应的 dist 文件**全部存在**（不存在即 404，会连带打挂 navigation 的 document 请求/内容断言）：
+
+```
+OK /2025/02/02/sticky-top/      -> examples/blog/dist/2025/02/02/sticky-top/index.html      (49066 bytes)
+OK /2025/04/20/tags-thirdparty/ -> examples/blog/dist/2025/04/20/tags-thirdparty/index.html (60171 bytes)
+OK /2025/04/01/tags-media/      -> examples/blog/dist/2025/04/01/tags-media/index.html      (55278 bytes)
+OK /2025/03/18/tags-block/      -> examples/blog/dist/2025/03/18/tags-block/index.html      (54351 bytes)
+OK /2025/03/05/tags-inline/     -> examples/blog/dist/2025/03/05/tags-inline/index.html     (50211 bytes)
+OK /2025/02/20/cover-variants/  -> examples/blog/dist/2025/02/20/cover-variants/index.html  (48444 bytes)
+ALL_EXIST: true
+```
+
+- 5 条用例断言依赖的目标页 DOM 契约（第一个目标文章页实测）：
+  `#content-inner`=1（navigation:72 前进后断言）、`#article-container`=1、`#nav-music`=1（music:21 的
+  `transition:persist="nav_music"` 承载节点，`BaseLayout.astro:391`）、`#site-name href="/"`=1
+  （navigation:104 第二跳回首页）、`astro-view-transitions-*` meta 各 1（文章页同样启用 ClientRouter）；
+  `document` 请求数不变（客户端导航），主题 `data-theme`/localStorage 也不随 swap 重置（dark-mode:88）。
+- `npx playwright test --list`（修后）：
+
+```
+Total: 38 tests in 8 files
+   console.spec.ts 5 · dark-mode.spec.ts 6 · music.spec.ts 2 · navigation.spec.ts 3
+   page-types.spec.ts 14 · pwa.spec.ts 2 · right-menu.spec.ts 4 · search.spec.ts 2
+```
+
+用例总数与 5 条用例的行号（`dark-mode.spec.ts:88` / `music.spec.ts:21` / `navigation.spec.ts:49/72/104`）
+均未变；改动仅为 `internalLink()` 内的 locator 字符串 + 注释，spec 文件零改动，Playwright 收集
+（`--list` 经 TS 加载器编译全部 spec/helpers）通过。
+
+### 9.5 剩余不确定性与下一轮 CI 观察点
+
+1. 本机仍无法真跑浏览器（PLAN R12），JS 行为最终以 CI 第三轮为准；本轮若仍有失败，先看 poll 报错里的
+   `Expected: not "…"` 是否为当前页（同页链接复发）还是切换到了新问题。
+2. 一次点击会触发两次 `navigate()`（卡片外层 `pjax.loadUrl` + ClientRouter 文档级监听），Astro 内部
+   按「最新导航优先」abort 前一次、被 abort 的 fetch 返回 null 且不 rethrow（已核对 `astro/dist/transitions/router.js`
+   的 `abortAndRecreateMostRecentNavigation` / `fetchHTML` catch），预期不产生 pageerror/console.error；
+   navigation:72 的「console 无运行时错误」断言会兜住这条路径。
+3. 首个目标是**置顶卡片**（`lastestpost-item`）文章页；若未来首页把置顶/推荐改成非 `.article-title` 结构，
+   需同步调整 `internalLink()`（选择器语义写在 helpers 注释里）。

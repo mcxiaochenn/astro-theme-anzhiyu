@@ -211,9 +211,24 @@ export async function goForwardAndWait(page: Page, previousUrl: string): Promise
 /* 3. 选择器与小工具                                                    */
 /* ------------------------------------------------------------------ */
 
-/** 首页上第一个站内文章链接（用于站内导航相关用例）。 */
+/**
+ * 首页第一张真实文章卡片的标题链接（站内导航类用例的稳定入口）。
+ *
+ * 为什么不用 `#recent-posts a[href^="/"]`：`#recent-posts` 里文章卡片之前先渲染分类条
+ * `#categoryBar`（examples/blog/src/pages/index.astro:50-57，CategoryBar 在 PostCard 之前），
+ * 它的第一个链接是当前页自己 `<a href="/">首页</a>` —— 点击后 URL 不变，
+ * clickAndWaitForClientRoute 的 URL poll 会 20s 超时（CI 第二轮 5 条导航用例的死因）。
+ *
+ * 为什么选 `a.article-title`：
+ *   - PostCard.astro:163 给每张卡片输出唯一一个 `a.article-title`，是纯结构类名，与站点语言、
+ *     文章标题文案无关（置顶卡片只是多一个 `lastestpost-item` 类，仍是真实文章卡片）；
+ *   - 分类条/分页/推荐位都不在 `.recent-post-item` 内（推荐位 `#home_top` 在 `#recent-posts`
+ *     之外），因此不会被误命中；
+ *   - 构建产物实测：`#recent-posts .recent-post-item a.article-title[href^="/"]` 命中 6 个
+ *     （6 张卡片各 1 个），首个 href=/2025/02/02/sticky-top/，对应 dist 文件存在。
+ */
 export function internalLink(page: Page) {
-  return page.locator('#recent-posts a[href^="/"]').first()
+  return page.locator('#recent-posts .recent-post-item a.article-title[href^="/"]').first()
 }
 
 /** 右击一个元素，打开自定义右键菜单（仅在 rightClickMenu.enable=true 的站点可用）。 */
