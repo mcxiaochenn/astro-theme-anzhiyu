@@ -649,6 +649,36 @@ for (const testCase of cases) {
   }
 }
 
+// ── 行内 `{% p %}` 的段落结构 ────────────────────────────────────────────────
+// parse5 对失衡的 `</p>` 会**凭空补一个空 `<p></p>`**；`rehypeHexoInlineP` 必须
+// 在 rehype-raw 之前把外层段落拆开，产物里才没有这个伪段落。
+{
+  const name = '行内 p 不留空段落'
+  const html = await render('段落标签：{% p h2, 这是一个 h2 级别的段落标签 %}。')
+  const emptyP = html.match(/<p><\/p>/g) || []
+  const ok = emptyP.length === 0 && html.trim().startsWith('<p>段落标签：</p><p class="p h2">')
+  if (ok) passed += 1
+  else {
+    failed += 1
+    console.error(`\n✗ ${name}`)
+    console.error(`  空 <p></p> 个数: ${emptyP.length}；期望 0`)
+    console.error(`  实际: ${html.trim()}`)
+  }
+}
+
+// 拆段规则只认「段落里的块级 `<p>` raw 节点」，不删任何节点：作者手写的空
+// `<p></p>`（句中字面量 HTML）必须原样保留，不能被当成解析器伪节点吃掉。
+{
+  const name = '句中手写空 <p></p> 不被吞掉'
+  const html = await render('前 <p></p> 后')
+  if (html.trim() === '<p>前 </p><p></p> 后') passed += 1
+  else {
+    failed += 1
+    console.error(`\n✗ ${name}`)
+    console.error(`  实际: ${html.trim()}`)
+  }
+}
+
 // ── 报错路径 ────────────────────────────────────────────────────────────────
 async function expectError(name, input, pattern) {
   try {

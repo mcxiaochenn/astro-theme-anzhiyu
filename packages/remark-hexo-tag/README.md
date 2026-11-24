@@ -77,14 +77,14 @@ src/tags/inline/index.mjs  行内 tag（13，含 hideInline）
 src/tags/block/index.mjs   块级容器 tag（11）
 src/tags/media/index.mjs   媒体与卡片（11）
 src/tags/thirdparty/index.mjs 第三方嵌入（7）
-test/run.mjs               60 条 oracle 对拍
+test/run.mjs               62 条 oracle 对拍
 test/render-fixtures.mjs   4 篇 fixture 与 `.baseline-html` 做正文文本对比
 ```
 
 ## 测试
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs              # 60/60
+node packages/remark-hexo-tag/test/run.mjs              # 62/62
 node packages/remark-hexo-tag/test/render-fixtures.mjs  # 4 篇 fixture 文本 diff
 ```
 
