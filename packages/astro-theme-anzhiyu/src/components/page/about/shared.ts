@@ -11,17 +11,25 @@
  */
 import { getThemeConfig, readString } from '../../../layouts/theme-context.ts'
 import { createUrlFor } from '../../../layouts/site.ts'
+import { resolveAssets } from '../../../config/assets.ts'
 import { lazyImageAttrs } from '../../layout/lazyload.ts'
 import { tp } from '../../../i18n/index.ts'
 
 const theme = getThemeConfig()
 const urlFor = createUrlFor('/')
+const assets = resolveAssets(theme)
 
 /** 上游 `_p(key, ...args)`；about 页固定 zh-CN（基准站语言）。 */
 export const _p = (key: string, ...args: unknown[]): string => tp(key, 'zh-CN', ...args)
 
 /** 上游 `url_for(path)`。 */
 export { urlFor }
+
+/**
+ * 上游 `url_for(theme.asset[key])`：走 `config/assets.ts` 的解析层，
+ * 不在模板里硬编码 CDN 地址（`countup_js` / `gsap_js` 都在那张表里）。
+ */
+export const assetUrl = (key: string): string => urlFor(assets[key] ?? '')
 
 /**
  * `<img>` 属性。

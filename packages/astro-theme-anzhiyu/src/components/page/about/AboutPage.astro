@@ -24,10 +24,12 @@
  * 由站点路由 `[...path].astro` 传给本组件；`creativity` 对应
  * `site.data.creativity`（基线站没有该文件，skills 卡片因此不输出图标列表）。
  *
- * 交互（about.pug:289-500 的脚本）不在本阶段：只输出静态 DOM。
+ * 交互脚本（about.pug:289-500）同样在 `#about-page` 之后、每个 item 一份：
+ * CountUp 库 + `initAboutPage()` 内联块（构建逻辑见 `about-script.ts`）。
  */
 import type { AboutItem } from './types.ts'
-import { _p } from './shared.ts'
+import { _p, assetUrl } from './shared.ts'
+import { buildAboutScript } from './about-script.ts'
 import { rewriteHeadings } from '../../../utils/slugger.ts'
 import AboutAuthorBox from './AboutAuthorBox.astro'
 import AboutHello from './AboutHello.astro'
@@ -64,74 +66,81 @@ const contentHtml = html ? rewriteHeadings(html).html : ''
 
 {
   data.map((item) => (
-    <div id="about-page">
-      <AboutAuthorBox item={item} />
+    <>
+      <div id="about-page">
+        <AboutAuthorBox item={item} />
 
-      <div class="author-content">
-        <div class="author-content-item myInfoAndSayHello">
-          <div class="title1">{_p('about.hello')}</div>
-          <div class="title2">
-            {_p('about.im')} <span class="inline-word">{item.name}</span>
-          </div>
-          <div class="title1">{item.description}</div>
-        </div>
-        <div class="aboutsiteTips author-content-item">
-          <div class="author-content-item-tips">{item.aboutsiteTips?.tips}</div>
-          <h2>
-            {item.aboutsiteTips?.title1}
-            <br />
-            {item.aboutsiteTips?.title2}
-            <div class="mask">
-              {(item.aboutsiteTips?.word ?? []).map((wordItem, index, words) =>
-                index < words.length - 2 ? (
-                  <span class={index === 0 ? 'first-tips' : undefined}>{wordItem}</span>
-                ) : null,
-              )}
-              <span data-up>{item.aboutsiteTips?.word?.[(item.aboutsiteTips?.word?.length ?? 0) - 2]}</span>{' '}
-              <span data-show>{item.aboutsiteTips?.word?.[(item.aboutsiteTips?.word?.length ?? 0) - 1]}</span>
-            </div>
-          </h2>
-        </div>
-      </div>
-
-      <AboutHello helloAbout={item.helloAbout} />
-
-      <div class="author-content">
-        <AboutSkills skillsTips={item.skillsTips} creativity={creativity} />
-        <AboutCareers careers={item.careers} />
-      </div>
-
-      <div class="author-content">
-        <AboutStatistic statistic={item.statistic} />
-        <div class="author-content-item-group column mapAndInfo">
-          <AboutMap map={item.map} />
-          <AboutSelfInfo selfInfo={item.selfInfo} />
-        </div>
-      </div>
-
-      <div class="author-content">
-        <AboutPersonality personalities={item.personalities} />
-      </div>
-
-      <div class="author-content">
-        <AboutMaximBuff maxim={item.maxim} buff={item.buff} />
-      </div>
-
-      <div class="author-content">
-        <AboutGameComic game={item.game} comic={item.comic} />
-      </div>
-
-      <div class="author-content">
-        <AboutLikeMusic like={item.like} music={item.music} aboutName={item.name ?? ''} />
-      </div>
-
-      {contentHtml && (
         <div class="author-content">
-          <div class="create-site-post author-content-item single" set:html={contentHtml} />
+          <div class="author-content-item myInfoAndSayHello">
+            <div class="title1">{_p('about.hello')}</div>
+            <div class="title2">
+              {_p('about.im')} <span class="inline-word">{item.name}</span>
+            </div>
+            <div class="title1">{item.description}</div>
+          </div>
+          <div class="aboutsiteTips author-content-item">
+            <div class="author-content-item-tips">{item.aboutsiteTips?.tips}</div>
+            <h2>
+              {item.aboutsiteTips?.title1}
+              <br />
+              {item.aboutsiteTips?.title2}
+              <div class="mask">
+                {(item.aboutsiteTips?.word ?? []).map((wordItem, index, words) =>
+                  index < words.length - 2 ? (
+                    <span class={index === 0 ? 'first-tips' : undefined}>{wordItem}</span>
+                  ) : null,
+                )}
+                <span data-up>{item.aboutsiteTips?.word?.[(item.aboutsiteTips?.word?.length ?? 0) - 2]}</span>{' '}
+                <span data-show>{item.aboutsiteTips?.word?.[(item.aboutsiteTips?.word?.length ?? 0) - 1]}</span>
+              </div>
+            </h2>
+          </div>
         </div>
-      )}
 
-      <AboutReward list={item.reward_list} />
-    </div>
+        <AboutHello helloAbout={item.helloAbout} />
+
+        <div class="author-content">
+          <AboutSkills skillsTips={item.skillsTips} creativity={creativity} />
+          <AboutCareers careers={item.careers} />
+        </div>
+
+        <div class="author-content">
+          <AboutStatistic statistic={item.statistic} />
+          <div class="author-content-item-group column mapAndInfo">
+            <AboutMap map={item.map} />
+            <AboutSelfInfo selfInfo={item.selfInfo} />
+          </div>
+        </div>
+
+        <div class="author-content">
+          <AboutPersonality personalities={item.personalities} />
+        </div>
+
+        <div class="author-content">
+          <AboutMaximBuff maxim={item.maxim} buff={item.buff} />
+        </div>
+
+        <div class="author-content">
+          <AboutGameComic game={item.game} comic={item.comic} />
+        </div>
+
+        <div class="author-content">
+          <AboutLikeMusic like={item.like} music={item.music} aboutName={item.name ?? ''} />
+        </div>
+
+        {contentHtml && (
+          <div class="author-content">
+            <div class="create-site-post author-content-item single" set:html={contentHtml} />
+          </div>
+        )}
+
+        <AboutReward list={item.reward_list} />
+      </div>
+
+      {/* about.pug:289 —— CountUp 库（走 theme.asset.countup_js） */}
+      <script is:inline src={assetUrl('countup_js')}></script>
+      {/* about.pug:306-500 —— 统计拉取 / 数字动画 / 文案轮播 / 鼠标跟随，原样内联不打包 */}
+      <script is:inline defer set:html={buildAboutScript(item)}></script>
+    </>
   ))
 }
