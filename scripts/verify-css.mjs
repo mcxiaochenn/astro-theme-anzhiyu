@@ -23,6 +23,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
+import { selectLocalStylesheets } from './lib/css-stylesheets.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_PATH = process.env.BASELINE_PATH
@@ -84,37 +85,22 @@ if (!existsSync(indexPath)) {
 }
 const html = readFileSync(indexPath, 'utf8')
 
-const stylesheetHrefs = []
-for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
-  if (!/\brel\s*=\s*["'][^"']*\bstylesheet\b/i.test(tag)) continue
-  const href = tag.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2]
-  if (href) stylesheetHrefs.push(href)
+// 选择规则见 lib/css-stylesheets.mjs：跳过 CDN 等绝对 URL，只比对本地构建产物。
+let selection
+try {
+  selection = selectLocalStylesheets({ html, distDir: DIST_DIR, repoRoot: REPO_ROOT })
+} catch (error) {
+  fail(error.message)
 }
-if (stylesheetHrefs.length === 0) {
-  fail('index.html 没有引用外部样式表：P1-5 要求构建产出独立 CSS 文件')
-}
+const { files: cssFiles, externalHrefs } = selection
 
-const cssFiles = []
-for (const href of stylesheetHrefs) {
-  if (/^(?:[a-z]+:)?\/\//i.test(href)) {
-    fail(`index.html 引用了外部样式表 ${href}，无法与本地构建产物比对`)
-  }
-  const clean = href.split(/[?#]/)[0].replace(/^\/+/, '')
-  if (!clean) {
-    fail(`样式表 href 无法解析为文件路径：${href}`)
-  }
-  const file = path.resolve(DIST_DIR, clean)
-  if (file !== DIST_DIR && !file.startsWith(DIST_DIR + path.sep)) {
-    fail(`样式表路径越界：${href}`)
-  }
-  if (!existsSync(file)) {
-    fail(`index.html 引用的样式表不存在：${path.relative(REPO_ROOT, file)}`)
-  }
-  cssFiles.push(file)
+if (externalHrefs.length > 0) {
+  log(`跳过 ${externalHrefs.length} 个外部样式表（CDN，无法与本地构建产物比对）：`)
+  for (const href of externalHrefs) log(`  - ${href}`)
 }
 
 if (cssFiles.length > 1) {
-  log(`index.html 引用 ${cssFiles.length} 个样式表，按文档顺序拼接后比对：`)
+  log(`使用 ${cssFiles.length} 个本地构建样式表，按文档顺序拼接后比对：`)
   for (const file of cssFiles) log(`  - ${path.relative(REPO_ROOT, file)}`)
 } else {
   log(`CSS 源: ${path.relative(REPO_ROOT, cssFiles[0])}`)
