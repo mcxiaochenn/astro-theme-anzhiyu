@@ -4,7 +4,7 @@
 
 [Anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 博客主题的 Astro 移植版。
 
-> **当前状态：迁移进行中。** 验证站 [examples/blog](examples/blog) 已用上游全量样式与配置构建出 **62 个页面**；48 页与上游基线的 HTML 结构 diff 收敛到 **112 条差异**（验收工具 [scripts/diff-html.mjs](scripts/diff-html.mjs)，逐页比对）；42 个 Hexo tag 的 remark 插件完成，**59/59 单测通过**；Hexo → Astro 迁移工具与指南已交付（[docs/MIGRATION.md](docs/MIGRATION.md)）。交互层与第三方集成已落盘但**尚未接线与验收**——进度与验收口径见 [执行计划](docs/PLAN.md)。
+> **当前状态：Phase 7 退出（迁移完成，2026-11-24）。** 真实 Hexo 站点 `xcAnzhiyu`（Hexo 7.3.0 + 主题 1.6.14）经 [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) 迁移后构建 **97 页**，验收脚本 `pnpm accept:migration` **migration gap = 0**（路由 40/40、内部链接/资源缺口 0、搜索索引与 feed/sitemap 与源站 golden 条目数全等）；验证站 [examples/blog](examples/blog) 构建 62 页，与上游基线的 HTML 结构 diff **48/48 PASS / 0 差异**；CI 跑构建 + 结构 diff 硬门禁 + Playwright 行为用例（38 条）+ Lighthouse 预算 + PWA 离线用例；42 个 Hexo tag 全实现。逐项证据见 [真实站终验报告](docs/notes/P7-4-final-acceptance.md)，进度与口径见 [执行计划](docs/PLAN.md)。
 
 ## 背景
 
@@ -22,35 +22,40 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 
 - [ ] 多种代码高亮方案（highlight.js 的 `figure.highlight` DOM 已对齐基线，引擎切换未做）
 - [x] 脚注语法（真脚注渲染，与上游原样输出的差异已在 diff 白名单登记）
-- [ ] LaTeX 数学公式（组件已落盘，未接线）
-- [ ] mermaid 流程图（组件已落盘，未接线）
+- [ ] LaTeX 数学公式（组件已接线，缺真实公式站点点验）
+- [ ] mermaid 流程图（组件已接线，缺真实内容点验）
 - [x] 文章字数统计（12 个 helper 以上游 JS 为 oracle 对拍）
-- [ ] 文章 AI 摘要（组件已落盘，未接线）
+- [ ] 文章 AI 摘要（组件已接线，真实 AI 服务联通待人工）
 - [x] 多语言配置（4 语言字典 83 项通过）
 
 ### 导航与交互
 
-- [ ] 页面组件懒加载（ClientRouter + pjax 兼容 shim 已落盘，整站行为验收未做）
-- [ ] 图片懒加载 / 图片大图查看
-- [ ] 暗色模式（注入逻辑已落盘，行为验收未做）
+- [x] 页面组件懒加载（ClientRouter + pjax 兼容 shim；CI e2e 站内导航 document 请求 0 / 前进后退可用 / 连续导航不重复初始化）
+- [ ] 图片懒加载 / 图片大图查看（lazyload/灯箱接线，真实站走查未逐项点验）
+- [x] 暗色模式（CI e2e 4 场景：首访跟随系统 / 手动切换 / 刷新保持 / 导航保持；P4-4 修了 ClientRouter 换页重置，真实 Edge 走查复验）
 - [ ] 沉浸式状态栏（人工项，移动端截图）
-- [ ] 定制化右键菜单 / 主色调随封面变化 / 全局中控台 / 快捷键（DOM 与脚本已落盘，未验收）
-- [x] 丰富多样化的标签选项（42 个 Hexo tag 全实现，59/59 单测，fixture 渲染零残留）
+- [x] 全局中控台（CI e2e 5 条：开/关面板、隐藏侧栏、面板暗色开关、遮罩关闭）
+- [x] 定制化右键菜单（真实站浏览器走查通过；demo 站配置 `rightClickMenu.enable=false` 时按运行时检测 skip）
+- [ ] 主色调随封面变化（colorthief 接线，真实站走查未单独验证）
+- [ ] 快捷键（与上游一致默认关闭，需中控台开启；未做自动化）
+- [x] 丰富多样化的标签选项（42 个 Hexo tag 全实现 62/62 单测，样式命中 186/186）
 
 ### 评论、统计与第三方集成
 
-- [ ] 评论 × 5、统计 × 5、搜索 × 3、聊天、广告、隐私协议（组件库 55 个文件已落盘，未接线、未自检）
-- [ ] 音乐球
+- [x] 评论后端 Twikoo（迁移站真实站走查加载 v1.6.44 并渲染评论区；其余 4 家组件接线完成，真实联通待人工）
+- [x] 搜索索引（`/search.xml` 249,657B / 22 entry 与源站 golden 一致，与 `local-search.js` 解析口径兼容；搜索框点击走查未做）
+- [ ] 统计 × 5 / 聊天 × 5 / 广告 / 隐私协议（组件接线完成，真实服务联通待人工，密钥走环境变量）
+- [x] 音乐球（CI e2e：跨 ClientRouter 导航同一 DOM 节点、播放中导航进度继续）
 
 ### 视觉与资源
 
-- [ ] 瀑布流即刻说说 / 瀑布流相册集（页面模板 DOM 已对齐，浏览器走查未做）
-- [ ] 阿里图标与 Font Awesome / 自定义 CDN（资源解析层已落盘，未验收）
+- [x] 瀑布流即刻说说 / 瀑布流相册集（13 个 page.type 真实路径 CI 冒烟全 PASS；迁移站 `/essay` 等页面渲染正常）
+- [x] 阿里图标与 Font Awesome（图标字体随主题 assets 提供，迁移站 200；自定义 CDN 多 provider 解析层已实现，切 provider 未做真实部署验证）
 
 ### 构建与文档
 
-- [ ] PWA（上游靠外部 `hexo-swpp` 插件生成 Service Worker，主题本身只提供 manifest 与图标）
-- [x] Hexo → Astro 迁移工具与指南（[scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md)，真实站点演练通过）
+- [x] PWA（`@vite-pwa/astro` 2.0.4 + `sw-rules.js` 翻译：cacheName 简化规则/外部 CDN 白名单/elemecdn→cbd 3s 备用 URL；precache 84 条 / sw.js 8,279B；离线首页用例进 CI；默认构建零影响）
+- [x] Hexo → Astro 迁移工具与指南（[scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md)，真实站点迁移验收 gap=0）
 
 ## 技术选型
 
@@ -146,8 +151,18 @@ node scripts/deploy-demo-pages.mjs
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter blog build                          # 62 页验证站
-node packages/remark-hexo-tag/test/run.mjs        # 59/59 单测
-BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 48 页结构 diff
+node packages/remark-hexo-tag/test/run.mjs        # 62/62 单测
+pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 48 页结构 diff（硬门禁）
+pnpm test:e2e                                     # Playwright 行为用例 38 条（本机沙箱需 CI 环境）
+```
+
+真实 Hexo 站点端到端验收（migrate → install → build → 10 项检查 → JSON+MD 报告）：
+
+```bash
+pnpm accept:migration                             # 默认站点 D:/Git-project/xcAnzhiyu
+pnpm accept:migration --out .migration-out/xxx    # 指定工作目录
+pnpm check:upstream-sync                          # 季度上游同步检查（对照基线 72439d93）
 ```
 
 从 Hexo 站点迁移：
@@ -157,7 +172,7 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --dry-run      # 只读�
 node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<name>
 ```
 
-用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)。
+用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)；真实站终验证据见 [终验报告](docs/notes/P7-4-final-acceptance.md)。
 
 **线上演示**：<https://mcxiaochenn.github.io/blog/>（GitHub Pages 子路径部署，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送；上游 JS 的运行时路径类次要功能——音乐球、搜索——在子路径下降级，页面导航 / 样式 / 视觉不受影响）。
 
@@ -178,16 +193,16 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
 | Phase 0 | 仓库骨架、调研与计划 | ✅ 已完成 |
-| Phase 1 | 构建管线与配置层（Stylus 兼容插件、schema、loader、CI） | ~87% |
+| Phase 1 | 构建管线与配置层（Stylus 兼容插件、schema、loader、CI） | ✅ 已完成 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ 已完成 |
-| Phase 2 | 布局与核心页面（首页、文章、归档、404、diff 工具） | ~95% |
-| Phase 3 | widget 与页面模板（15 aside 卡片、12 模板、about） | ~56% |
-| Phase 4 | 交互层（运行时、暗色、中控台、脚本层） | ~30%（结构落盘，行为验收未开始） |
-| Phase 5 | 第三方集成（组件库已落盘） | ~8%（未接线） |
-| Phase 6 | 42 个 Hexo tag 的 remark 插件 | ~87% |
-| Phase 7 | 迁移工具与指南、PWA、性能、发布 | ~18% |
+| Phase 2 | 布局与核心页面（首页、文章、归档、404、diff 工具） | ✅ 已完成（48 页结构 diff 0） |
+| Phase 3 | widget 与页面模板（15 aside 卡片、13 模板、about、todolist/friends_lite 兼容页） | ◐ 12 种 page.type 全落地并进 CI 冒烟；视觉走查余量 |
+| Phase 4 | 交互层（运行时、暗色、中控台、右键菜单、音乐球、ClientRouter） | ◐ e2e 29 passed / 9 skipped（右键菜单与搜索在 demo 配置下 skip，真实站走查覆盖） |
+| Phase 5 | 第三方集成（组件接线 head 4 + additional-js 10） | ✅ 组件接线完成；真实服务联通待人工 |
+| Phase 6 | 42 个 Hexo tag 的 remark 插件 | ✅ 62/62 单测 + 样式命中 186/186 |
+| Phase 7 | 迁移工具与指南、PWA、性能、发布 | ◐ 真实站迁移验收 gap=0；PWA/性能/发布已落地，待最后一轮 CI 绿灯 |
 
-整体收敛目标是 48 页 HTML 结构 diff 全部 PASS，之后把 CI 的 diff 步骤从 report-only 改为硬门禁。逐任务状态见 [PLAN.md](docs/PLAN.md)。
+整体收敛目标已达成：48 页 HTML 结构 diff 全部 PASS 且 CI 为硬门禁；真实 Hexo 站点迁移验收 **migration gap = 0**。逐任务状态与剩余用户动作见 [PLAN.md](docs/PLAN.md) 与 [终验报告](docs/notes/P7-4-final-acceptance.md)。
 
 ## 关于上游
 
