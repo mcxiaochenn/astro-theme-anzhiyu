@@ -517,3 +517,86 @@ P1-11 修复后（插件真实注入，当前管线）  bytes: 682990  delta_vs_
 3. 如果锚点必须变（例如 P1-11 关闭 D9、Phase 7 开压缩），在提交信息里写清「为什么基准数字变了」，并把 PLAN §1.4 的对应条目状态一起改。
 
 > 上游若发新版本：另起分支重跑 P1-6 基准，出新基线前本表与整个基准体系保持 1.7.1 / `72439d93` 不动。
+
+---
+
+## 8. 上游同步流程（季度）
+
+PLAN §P7-5 要求：迁移完成后每季度对上游做一次 diff，把上游变更分成「必须跟进 / 可选 / 无关」并落地。工具是 `scripts/check-upstream-sync.mjs`（只读 `_research` 副本，唯一写操作是 `git fetch` 更新 remote-tracking ref 与对象库，不动上游工作树、不写本仓库）。
+
+### 8.1 命令
+
+```powershell
+# 0) 前置：上游只读副本存在。若它是 shallow clone（本项目冻结副本曾经是 depth=1），先补全历史：
+git -C D:\Git-project\_research\anzhiyu-upstream fetch --unshallow
+
+# 1) 主判定：基线 72439d93 之后 origin/main 有没有必须跟进的东西
+node scripts/check-upstream-sync.mjs
+
+# 2) 看上游 dev 分支（main 冻结时新改动可能只堆在 dev，本轮就是这种情况）
+node scripts/check-upstream-sync.mjs --ref origin/dev
+
+# 3) 机器可读输出
+node scripts/check-upstream-sync.mjs --json
+
+# 4) 断网/无网络环境（只用本地 refs，输出明确标注「是否最新: 否」）
+node scripts/check-upstream-sync.mjs --offline
+
+# 5) 分类器自检：任意真实历史区间
+node scripts/check-upstream-sync.mjs --baseline 1.6.9 --ref 1.7.1
+```
+
+可选参数：`--upstream <dir>`（默认 `D:/Git-project/_research/anzhiyu-upstream`）、`--baseline <rev>`（默认 `72439d93`，前缀命中即可）、`--ref <ref>`（默认 `origin/main`）、`--remote <name>`（默认 `origin`）。
+
+### 8.2 判据：退出码 + 三档分类
+
+| 退出码 | 含义 | 处理 |
+| --- | --- | --- |
+| `0` | 无变更，或只有可选/无关变更 | 归档结果，本轮结束 |
+| `1` | 存在必须跟进的变更 | 逐条 triage（见 8.3），处理完再归档 |
+| `2` | **无法判定**（不是「上游没变」）：基线解析失败 / 基线不是目标 ref 祖先 / 网络模式 fetch 失败且无必须跟进变更 / git 不可用 | 先修数据源（联网、`fetch --unshallow`、核对 `--baseline/--ref`），**不能**把这轮当「无变更」 |
+
+分类是路径规则驱动（不看 diff 语义，宁可多报）：
+
+| 档 | 命中的路径 | 含义 |
+| --- | --- | --- |
+| **必须跟进** | `_config.yml`、`plugins.yml`、`layout/**`、`source/css/**` 或 `source/**/*.styl`、`source/js/**`、`scripts/**`、`languages/zh-CN.yml` | 迁移要逐字节/逐行为复刻的内容，改了就冲击镜像/基准/布局行为 |
+| **可选** | 其他 `languages/**`、`package.json`、`sw-rules.js`、`docs/**`、`examples?/**`、其他 `*.md` | 看了有好处，但不阻塞迁移 |
+| **无关** | `.github/**`、`README*`、`LICEN[CS]E*`、点文件、图片/字体、锁文件 | 仓库维护面与二进制资源 |
+| **兜底** | 未命中以上任何规则的路径 | **按必须跟进处理**（fail-safe，人工确认） |
+
+### 8.3 处置流程
+
+1. 跑 8.1 的 ①+②，保存 stdout（或 `--json`）到当轮报告 `docs/notes/P7-x-upstream-sync-<日期>.md`；
+2. 对每个「必须跟进」文件做 triage，三选一：
+   - **注释级/无关语义** → 报告里写明「已 triage，忽略」，不动镜像与基准；
+   - **影响镜像内容** → 按本表 §7 变更流程更新镜像（`examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`）、§5 锚点与 `docs/notes/P1-*` 基准数字，并跑 `node scripts/check-upstream-delta.mjs` 直到绿；
+   - **只存在于 `dev`、未合入 `main`** → 记录「上游尚未发布」，下季度复查；不提前同步；
+3. 「可选」项只记录结论（跟/不跟），不改基准；「无关」项直接忽略；
+4. 季度报告里保留**原始 git 输出**（`ls-remote`、`fetch` 退出码、`log`、`diff --name-status`）与脚本退出码，便于复核；
+5. 若上游发了新 tag/版本：先确认与本表 §2 U4/U6 的基准体系是否冲突，再决定是否另起分支重跑 P1-6 基准；**出新基线前本表保持 1.7.1 / `72439d93` 不动**。
+
+### 8.4 判据补充：数据源与「是否最新」
+
+- 默认网络模式：`git fetch origin --quiet` 后比对 `origin/main`；fetch 成功 = `latest: true`（核对时刻记在 `fetchedAt`）。
+- 副本 `remote.origin.fetch` 只覆盖 `main` 时（本副本就是），脚本会对 `dev` 等分支追加显式 refspec fetch，避免拿旧的 tracking ref 比对。
+- `--offline` 或 fetch 失败：`latest: false`。此时若没有必须跟进变更，退出码是 **2**——「本地 ref 没变」不等于「上游没变」。
+- **shallow 副本是静默漏报源**：depth=1 时 `HEAD..origin/main` 恒为 0。脚本会警告并尝试 `fetch --deepen`；仍不连通就退出码 2 并提示 `fetch --unshallow`。
+
+### 8.5 本轮结果摘要（2026-11-24 首跑）
+
+| 数据源 | 基线..目标 | commit | 变更文件 | 必须/可选/无关 | 退出码 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 网络 fetch（`latest: true`） | `72439d93..origin/main` | **0** | 0 | 0 / 0 / 0 | **0** | 远端 main 仍停在基线（最新 tag 仍是 1.7.1），无必须跟进 |
+| 网络 fetch（`latest: true`） | `72439d93..origin/dev` | **2** | 1（`_config.yml`，+1/−1 行） | **1** / 0 / 0 | **1** | `dev` 比 main 多 2 个 commit；该 `_config.yml` 改动是注释行 `# 51a统计配置` → `# 51la统计配置`，仅在 dev、未合入 main → triage 结论：**无需同步镜像**，登记表 §5 锚点不动 |
+| `--offline`（`latest: false`） | `72439d93..origin/main` | 0 | 0 | 0 / 0 / 0 | 0 | 降级路径验证通过；输出明确标注非最新 |
+| 历史自检（真实区间） | `1.6.9..1.7.1` | 91 | 67 | 60 / 4 / 3 | 1 | 三档规则全部打中，分类器可用 |
+
+环境事实：冻结副本最初是 shallow（depth=1，1 个 commit），本轮执行 `git fetch --unshallow` 补全到 847 个 commit（`.git` 7.4 MB），工作树 `git status --porcelain` 仍为 0 行、331 个文件、HEAD 不变。完整原始输出见 `docs/notes/P7-5-upstream-sync.md`。
+
+### 8.6 与 §6 `check-upstream-delta.mjs` 的分工
+
+- `check-upstream-delta.mjs`（CI 常驻）：守「**已登记**的差异/基准数字没被破坏」——镜像被格式化、换行归一化、字节/SHA 漂移都会红；
+- `check-upstream-sync.mjs`（季度）：出「上游**又变了什么**、要不要跟进」的清单，退出码 1 表示待 triage，不是回归失败；
+- 两者都只读；季度 triage 若改了镜像/锚点，最终仍由 `check-upstream-delta.mjs` 守门。
+
