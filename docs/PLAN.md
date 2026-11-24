@@ -12,16 +12,16 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-24 16:40（Phase 2 结构验收达成并退出：48 页全 PASS / 0 差异，CI diff 步骤改硬门禁）**
+**快照时间：2026-11-24 19:20（W1 批次完成：e2e 接入 CI / 真实站验收脚手架 / 上游同步机制 / 主题静态资源打包）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `edae31c` test(P4): e2e 行为验收用例初版 |
-| 提交数 | 56 |
-| 工作区 | 干净；未收尾的剩余项：Phase 4 行为验收（e2e 用例编写中）、Phase 7 真实站路由补齐、PWA/性能/发布 |
-| CI | diff 步骤已改**硬门禁**（`|| true` 已删，upload 加 `if: always()`）；verify-css / compare-vars 已修「把 CDN 样式表当构建产物」的判定漏洞 |
+| 提交 | `4a81d5e` feat(P7-6): 主题静态资源 assets/ + Astro integration（W1 批次 3 个 commit） |
+| 提交数 | 70 |
+| 工作区 | 干净（W1 批次已 push）；未收尾的剩余项：真实站验收缺口修复、PWA/性能/发布 |
+| CI | diff 硬门禁 + **e2e job 已接入**（ubuntu-latest：pnpm install → playwright install chromium → `npx playwright test`，失败上传 playwright-report artifact） |
 | 产物规模 | **62 页**构建成功（基线 48 页 + 9 文章 + about + 11 个 page.type fixture） |
 | 全量 diff | 48 页 / **PASS 48 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/upstream-delta.md） |
 | 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 |
@@ -30,6 +30,10 @@
 
 | 项 | 说明 |
 | --- | --- |
+| **P7-6 主题静态资源打包** | ✅ 迁移站 `/js/*` 全站 404 根因闭合：上游 `source/js` 收进 `packages/astro-theme-anzhiyu/assets/`（11 文件）+ `integration.mjs`（build:done 复制 / dev connect 中间件 / 零依赖 / file: 安装可用）；examples/blog 删掉手抄 public/{js,css}，构建产物 `/js/**` 与 `/css/index.css` 全存在，基线 diff 48/48 PASS / 0 差异 |
+| **P7-4 真实站验收脚手架** | ✅ `scripts/accept-migration.mjs`（2507 行）：migrate→install→build→10 项检查→JSON+MD 报告，退出码 0/1/2；首跑实测 94 页 / 67 项 migration-gap（分类计数与归属见 reports），并对齐源站 golden `public/`（97 页）差集 |
+| **P7-5 上游同步机制** | ✅ `scripts/check-upstream-sync.mjs`：基线 `72439d93` 对比远端 main/dev，三档分类；首轮 main=0 commit、dev 多 2 commit（注释笔误，未合入 main）；1.6.9..1.7.1 历史 91 commit 自检分类器可用；季度流程写入 `docs/upstream-delta.md` §8 |
+| **P4-10 e2e 接入 CI** | ✅ ci.yml 新增 e2e job；用例 17 → **36 条 / 7 文件**（新增站内导航 document 请求 0、12 种 page.type 13 个真实路径冒烟、搜索 UI 检测），`--list` 可收集、preview 实测 13 个 URL 全 200；本机浏览器受 R12 限制，真实执行在 CI |
 | **Phase 2 结构验收达标** | 全量 diff 112 → **0**（48 页全 PASS）；根因逐条闭合：pageFillDescription 走上游 helper、og:url 补 index.html、og:type 按 is_post、BaseLayout 透传 postUpdate/postAI/postMainColor、无封面文章 post-bg 分支、`{% p %}` 行内拆段、TOC 复刻上游吞标题缺陷、脚注定义按引用位置回填、about 页 countup/initAboutPage 脚本 |
 | P5 third-party 接线 | ✅ head 4 组件（site-verification/pwa/adsense/analytics）+ additional-js 区 10 组件（pangu/runtime/card-post-count/subtitle/math/comments-js/newest-comments/effect/chat/aplayer）按上游行号挂载；ShareBox/PostAiDescription 委托 third-party；文章页与独立页挂 `#post-comment`；`prismjs` 因站点配置无等价键**不挂载**（已知边界） |
 | P6-7 tag 样式命中 | ✅ `scripts/check-tag-styles.mjs`：42 tag / 186 class 覆盖 100%（精确 147 + 仅语境 34 + 上游无规则 5），未命中 0；`--strict` 把上游本身无样式的 5 个 class 也判失败 |
@@ -436,7 +440,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 3 — widget 与页面模板 ⬜
+### Phase 3 — widget 与页面模板 ◐（12 种 page.type 全部落地并进 e2e 冒烟；视觉走查余量）
 
 **目标**：所有 `page.type` 都能正确分发并渲染。
 
@@ -456,7 +460,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 4 — 交互层与路由 ⬜
+### Phase 4 — 交互层与路由 ◐（head 运行时全部落地；e2e 36 条已进 CI，等首跑结果回填）
 
 **目标**：站点「活」起来，且行为与上游基线一致。
 
@@ -528,7 +532,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 7 — PWA、性能、迁移文档 ⬜
+### Phase 7 — PWA、性能、迁移文档 ◐（P7-4/P7-5 已交付；真实站缺口 67 项待修，PWA/性能/发布未做）
 
 | ID | 任务 | 产出 | 验收 | 估时 |
 | --- | --- | --- | --- | --- |
@@ -697,18 +701,23 @@ jobs:
 - **Phase 5 ✅（组件接线完成）**：head 4 + additional-js 10 组件按上游行号挂载；share/ai-info 委托 third-party；文章/独立页挂评论区；check-third-party 110/0；`prismjs` 不挂载（站点配置无等价键，已知边界）
 - **Phase 6 ✅（渲染与样式验收完成）**：42 tag 全实现 62/62 单测；tags-media TOC 对齐；`{% p %}` 行内拆段；样式命中 186/186（P6-7）
 - **Phase 7 约 75%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置 + permalink 对齐**构建 94 页（源站 97，缺 bangumis/comments/go.html 三个插件生成页，已登记 hexo-plugin unsupported）；URL 结构与源站逐条一致（`posts/p:abbrlink/`、`categories/教程/Arch-Linux/`）；剩 PWA/性能/发布
-- 关键度量：构建 62 页；全量 diff **48/48 PASS / 0 条**；CSS 684087 B（+0.13%）；verify-css / compare-vars / upstream-delta / check-tag-styles / check-third-party 全 PASS
+- **W1 批次（2026-11-24 19:20）**：P4-10 e2e 接入 CI（36 条）、P7-4 验收脚手架（`accept:migration`）、P7-5 上游同步机制（`check:upstream-sync`）、P7-6 主题静态资源打包（`assets/` + `integration.mjs`，修迁移站 `/js/*` 404）
+- 关键度量：构建 62 页；全量 diff **48/48 PASS / 0 条**；CSS 684087 B（+0.13%）；verify-css / compare-vars / upstream-delta / check-tag-styles / check-third-party 全 PASS；真实站验收首跑 **67 gap**（分类：old-permalink 44 / taxonomy-slug 7 / page-missing 3 / sitemap 3 / feed 2 / identity 2 / page-type 2 / pseudo-scheme 2 / search-index 1 / theme-asset 1）
 
-### 8.2 剩余未完成（按优先级）
+### 8.2 剩余未完成（按优先级，2026-11-24 19:20 重排）
 
 | # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | **P7-1 PWA**：`@vite-pwa/astro` + sw-rules 翻译，离线首页可用 | 待续 | ⬜ |
-| 2 | **P7-2 性能预算**：Lighthouse 四项不低于上游（真实站 94 页产物可直接测） | 待续 | ⬜ |
-| 3 | **Phase 4 行为验收执行**：e2e 17 条已就绪（暗色/右键/中控台/音乐），CI 加 job 实跑；再补搜索 / 导航无刷新 / 12 page.type 冒烟 | ◐ | ⬜ |
-| 4 | **P7-6 发布**：主题包 npm 首版、demo 站更新、`npm i` 可用 | 待续 | ⬜ |
-| 5 | P7-5 上游同步机制（季度 diff 流程已登记，跑一轮验证） | 待续 | ⬜ |
-| 6 | 文档同步：MIGRATION.md 的「media/thirdparty 仍透传」段已过时（42 tag 全实现）；P6-1 笔记单测数 59 → 62；MIGRATION 补 permalink/路由补齐说明 | 待续 | ⬜ |
+| 1 | **真实站缺口 A：URL 归一化**（prev/next + home_top 卡片 + canonical/og:url 仍按 `/YYYY/MM/DD/slug/`）44+2 项 | W2 | ⬜ |
+| 2 | **真实站缺口 B：taxonomy 完整路径**（7 个分类链接缺父级 slug） | W2 | ⬜ |
+| 3 | **真实站缺口 C：Hexo 插件生成物**（`/comments/` envelope、`/bangumis/` 追番、`/go.html` safego、`/anzhiyu/random.js`） | W2 | ⬜ |
+| 4 | **真实站缺口 D：feed/sitemap/search**（`atom.xml` `/rss2.xml` `/sitemap.xml` `/baidusitemap.xml` `/baidu_urls.txt` `/search.xml`） | W2 | ⬜ |
+| 5 | **真实站缺口 E：page.type 剩余**（`todolist` 无模板；`fcircle` 依赖 1.7.1 已移除的 friends_lite，需迁移建议或等价实现） | W2 | ⬜ |
+| 6 | **P4-10 行为验收首跑**：CI e2e job 已落地，等首轮实际结果（pass/fail/skip）回填 P4-10 笔记 | 待续 | ◐ |
+| 7 | **P7-1 PWA**：`@vite-pwa/astro` + sw-rules 翻译，离线首页可用 | W2 | ⬜ |
+| 8 | **P7-2 性能预算**：Lighthouse 四项不低于上游（真实站 94 页产物可直接测） | W3 | ⬜ |
+| 9 | **P7-6 发布**：主题包 npm 首版（`files`/`exports` 已就绪）、`npm pack` 安装冒烟、demo 站更新 | W3 | ⬜ |
+| 10 | 文档同步：MIGRATION.md 迁移边界（插件页/feed/search/random.js）+ README 勾选 + P7-4 报告入口 | W3 | ⬜ |
 
 ### 8.3 已知边界与已关闭项
 

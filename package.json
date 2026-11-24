@@ -15,7 +15,9 @@
     "check:upstream-delta": "node scripts/check-upstream-delta.mjs",
     "diff:html": "node scripts/diff-html.mjs",
     "baseline:extract": "node scripts/extract-baseline-html.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "accept:migration": "node scripts/accept-migration.mjs",
+    "check:upstream-sync": "node scripts/check-upstream-sync.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",
