@@ -11,9 +11,12 @@
  * 下面「打开 → 输入 → 出结果」的分支选择器取自上游 pug（本仓库
  * `_research/anzhiyu-upstream/layout/includes/third-party/search/*.pug`），
  * 等以后有 fixture 打开某套搜索时直接生效；当前 demo 站不可达该分支。
+ *
+ * P4-10：`page.goto` 从默认 `waitUntil: "load"` 改为 `gotoReady`（domcontentloaded +
+ * 主题运行时），避免 CI 上外部 CDN 挂起导致 goto 30s 超时（本文件在 demo 站会 skip，
+ * 但基座保持一致，避免以后打开搜索时重新踩坑）。
  */
-import { expect, test } from '@playwright/test'
-import { detectSearchUi } from './helpers'
+import { detectSearchUi, expect, gotoReady, test } from './helpers'
 
 const SKIP_REASON =
   'demo 站未启用搜索 UI（theme.config.yml 的 local_search/algolia_search/docsearch 均为 false）；' +
@@ -21,14 +24,14 @@ const SKIP_REASON =
 
 test.describe('搜索 UI（P4-8）', () => {
   test('搜索入口检测：未启用时明确 skip，不伪造通过', async ({ page }) => {
-    await page.goto('/')
+    await gotoReady(page, '/')
     const ui = await detectSearchUi(page)
     test.skip(ui === null, SKIP_REASON)
     expect(ui, '检测到搜索入口就应该能说出是哪一套').not.toBeNull()
   })
 
   test('打开搜索框 → 输入关键词 → 出结果', async ({ page }) => {
-    await page.goto('/')
+    await gotoReady(page, '/')
     const ui = await detectSearchUi(page)
     test.skip(ui === null, SKIP_REASON)
 

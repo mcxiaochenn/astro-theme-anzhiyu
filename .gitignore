@@ -51,6 +51,14 @@ examples/blog/tests/artifacts/
 .diff-*.json
 diff-report.json
 .dist-snapshot*/
+findings.md
+progress.md
+task_plan.md
+
+# Playwright e2e（CI 上传 artifact；本地产物不进仓库）
+playwright-report/
+test-results/
+blob-report/
 
 # WorkBuddy 本地数据（工作日志等，不进仓库）
 .workbuddy/
