@@ -203,9 +203,22 @@ function toArchivePost(entry: Awaited<ReturnType<typeof getCollection<'posts'>>>
     // article-sort 模板直接按这个顺序渲染，所以这里先排好。
     tags: [...tagNames]
       .sort((a, b) => compareValues(a, b))
-      .map((name) => ({ name, href: urlFor(`tags/${name}/`) })),
+      .map((name) => ({ name, href: urlFor(`tags/${taxonomySlug(name)}/`) })),
     categoryPaths,
   }
+}
+
+/**
+ * Hexo `Category.slug` / `Tag.slug`：`hexo-util` 的 `slugize(name, { transform: filename_case })`。
+ * 关键行为：连续的空白/特殊符号折叠成 `category_dir` 里的一段连字符——
+ * 分类「Arch Linux」的 path 是 `categories/Arch-Linux/`，不是带空格的原名。
+ * （hexo/dist/models/category.js:12-24；真实站 URL 实证。）
+ */
+export function taxonomySlug(name: string): string {
+  return name
+    .replace(/[\u0000-\u001f]/g, '')
+    .replace(/[\s~`!@#$%^&*(){}[\];:"'<,.>?/\\|_+=-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 /* ==================================================================== */
@@ -265,7 +278,7 @@ function buildCategories(posts: ArchivePost[]): CategoryTerm[] {
         term = {
           id,
           name: segments[segments.length - 1],
-          path: `categories/${segments.join('/')}/`,
+          path: `categories/${segments.map(taxonomySlug).join('/')}/`,
           parentId: segments.length > 1 ? segments.slice(0, -1).join('/') : null,
           posts: [],
         }
@@ -283,7 +296,7 @@ function buildTags(posts: ArchivePost[]): TagTerm[] {
     for (const tag of post.tags) {
       let term = map.get(tag.name)
       if (!term) {
-        term = { name: tag.name, path: `tags/${tag.name}/`, posts: [] }
+        term = { name: tag.name, path: `tags/${taxonomySlug(tag.name)}/`, posts: [] }
         map.set(tag.name, term)
       }
       // 同一篇文章重复写同名 tag 时只计一次（Hexo 的 tag 关系也是集合语义）

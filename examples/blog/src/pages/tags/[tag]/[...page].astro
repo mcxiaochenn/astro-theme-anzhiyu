@@ -31,6 +31,7 @@ import {
   pageCount,
   slicePage,
   tagsPageListHtml,
+  taxonomySlug,
   toArticleSortPosts,
 } from '../../archives/_data.ts'
 
@@ -42,7 +43,8 @@ export const getStaticPaths: GetStaticPaths = async () => {
     for (let current = 1; current <= total; current++) {
       paths.push({
         params: {
-          tag: term.name,
+          // URL 用 Hexo Tag.slug（slugize：空格→连字符）；数据反查仍按原名。
+          tag: taxonomySlug(term.name),
           page: current === 1 ? undefined : `page/${current}`,
         },
         props: { tagName: term.name, current, total },
