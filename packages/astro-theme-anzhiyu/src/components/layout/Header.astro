@@ -14,8 +14,9 @@
  *                                      nav-totop 百分比 / #toggle-menu）
  *
  * 分支插槽：
- *   - 文章页有 top_img 时的 `#post-info` + 波浪 + `#post-top-cover` 整块属于 P2-8，
- *     通过默认插槽 `post-info` 由 BaseLayout 转发（`<slot name="post-info" slot="post-info" />`）。
+ *   - 文章页的 `#post-info` + 波浪 + `#post-top-cover` 整块属于 P2-8，通过默认插槽
+ *     `post-info` 由 BaseLayout 转发（`<slot name="post-info" slot="post-info" />`）。
+ *     无封面文章（`top_img` 缺省而非 false）同样输出这三块，只是 `#post-top-bg` 的 src 为空。
  *   - 首页有 top_img 时的 `#site-info`（标题/副标题/社交图标/滚动箭头）与其它页面的
  *     `#page-site-info` 在这里实做；基准站 `index_img/default_top_img` 都是 false，
  *     所以这两块在当前配置下不渲染（与 baseline 一致）。
@@ -65,19 +66,27 @@ function asTopImg(value: unknown): string | false {
 }
 
 /**
- * 上游 header/index.pug:1-23：
+ * 上游 header/index.pug:1-23（`!disable_top_img && page.top_img !== false` 时）：
+ *   文章 top_img = `page.top_img || page.cover || page.randomcover`（**不**回退 default_top_img）
  *   首页 top_img = `index_img !== false ? index_img || default_top_img : false`
  *   其它页 top_img = `page.top_img || default_top_img`
- *   `disable_top_img` 或 `page.top_img === false` 时一律 false。
+ * 前两个条件不成立时 top_img = false。
+ *
+ * 文章的关键差别：没有封面时上游拿到的是 undefined 而非 false，`top_img !== false`
+ * 仍然成立 → 照常输出 post-bg / #post-info / 波浪 / #post-top-cover（src 为空）；
+ * 只有显式 `page.top_img: false` 或 `disable_top_img` 才落到 not-top-img。
+ * 因此文章分支要保留 undefined，不能收窄成 string | false。
  */
 const homeTopImg =
   !theme.disable_top_img && theme.index_img !== false
     ? asTopImg(theme.index_img) || asTopImg(theme.default_top_img)
     : false
-const resolvedTopImg: string | false =
-  topImg === false || theme.disable_top_img
+const resolvedTopImg: string | false | undefined =
+  theme.disable_top_img || topImg === false
     ? false
-    : topImg || (isHome ? homeTopImg : asTopImg(theme.default_top_img))
+    : pageType === 'post'
+      ? topImg
+      : topImg || (isHome ? homeTopImg : asTopImg(theme.default_top_img))
 
 /** 上游 header/index.pug:17-23。 */
 const pageHeaderClass =
