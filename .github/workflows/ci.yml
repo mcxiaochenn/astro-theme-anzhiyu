@@ -111,6 +111,12 @@ jobs:
       - name: Run Playwright e2e
         run: npx playwright test
 
+      # P7-1 PWA 离线验收：独立配置用 ANZHIYU_PWA=1 重建站点（默认构建不产出
+      # sw.js/manifest），端口 4322、报告与结果目录独立，不和上面默认 e2e 抢 artifact。
+      # 用例本身会等 SW ready → context.setOffline(true) → reload 断言首页仍可见。
+      - name: Run Playwright PWA offline e2e
+        run: npx playwright test -c playwright.pwa.config.ts
+
       # 首次真实执行结果由 Lead 回填到 docs/notes/P4-10-e2e-ci.md
       - name: Upload Playwright report
         if: always()
@@ -120,4 +126,14 @@ jobs:
           path: |
             playwright-report
             test-results
+          if-no-files-found: ignore
+
+      - name: Upload Playwright PWA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-pwa-report
+          path: |
+            playwright-pwa-report
+            test-results-pwa
           if-no-files-found: ignore

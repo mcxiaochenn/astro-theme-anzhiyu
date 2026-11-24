@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createMarkdownProcessor } from '@astrojs/markdown-remark'
@@ -301,6 +302,297 @@ const hexoMarkdownProcessor = {
   },
 }
 
+/* ================================================================== */
+/* P7-1 · PWA（默认关闭；`ANZHIYU_PWA=1` 才接线）                       */
+/* ================================================================== */
+/*
+ * 上游链路：hexo-theme-anzhiyu 自己**不**生成 Service Worker —— 主题只输出
+ * manifest 相关的 head 标签（layout/includes/head/pwa.pug），SW 由外部 hexo-swpp
+ * 插件按 _research/anzhiyu-upstream/sw-rules.js 生成。这里用官方 @vite-pwa/astro
+ * （2.0.4，peerDependencies 写明 astro ^5 || ^6 || ^7）复刻同一套语义：
+ *
+ *   上游 sw-rules.js                                → 本文件
+ *   ─────────────────────────────────────────────────────────────────────
+ *   serviceWorker.cacheName = AnZhiYuThemeCache     → PWA_CACHE_NAME
+ *   cacheRules.simple（/404.html、/css/index.css）  → generateSW.globPatterns（预缓存）
+ *   cacheRules.cdn（7 个 host + .js/.css/woff…）    → PWA_RUNTIME_CACHING[0]
+ *   external.stable[1][2]（cdn.cbd.int/jsdelivr）   → PWA_RUNTIME_CACHING[1..2]
+ *   external.stable[0]（npm.elemecdn.com）          → PWA_SPARE_URLS_SW（追加进 dist/sw.js）
+ *   getSpareUrls（elemecdn→cdn.cbd.int，timeout 3s）→ PWA_SPARE_URLS_SW
+ *   json.merge / dom.onsuccess / skipRequest        → 未实现（原因见 docs/notes/P7-1-pwa.md §3）
+ *
+ * 门控与降级（硬约束）：
+ *   - 不设 ANZHIYU_PWA 时**不加载** @vite-pwa/astro，也就没有任何产物/HTML 变化
+ *     （Phase 2 基线 diff 48/48 PASS 0 差异不受影响）；
+ *   - 迁移站（migrate-hexo 直接复制本文件）package.json 里没有 @vite-pwa/astro。
+ *     动态 import 失败只 warn、不抛错，迁移站即使设了 ANZHIYU_PWA=1 也能正常构建。
+ */
+const PWA_ENABLED = process.env.ANZHIYU_PWA === '1'
+/** 上游 `serviceWorker.cacheName`，所有运行时缓存共用这一个 Cache Storage 桶。 */
+const PWA_CACHE_NAME = 'AnZhiYuThemeCache'
+/** 上游 `pwa.pwa.theme_color` 在 theme.config.yml 里是 `var(--anzhiyu-main)`，这里取实际值。 */
+const PWA_THEME_COLOR = '#425AEF'
+const PWA_BACKGROUND_COLOR = '#f7f9fe'
+
+/**
+ * 上游 `cacheRules.cdn`：下面 7 个 host 上的静态资源做运行时缓存。
+ * `npm.elemecdn.com` 故意排除 —— 它由 getSpareUrls 补丁接管（先查缓存、
+ * 3s 超时回退 cdn.cbd.int），Workbox 路由和补丁不能抢同一个请求。
+ */
+const PWA_CDN_RUNTIME_PATTERN =
+  /^https:\/\/(?:cdn\.cbd\.int|lf26-cdn-tos\.bytecdntp\.com|lf6-cdn-tos\.bytecdntp\.com|lf3-cdn-tos\.bytecdntp\.com|lf9-cdn-tos\.bytecdntp\.com|cdn\.staticfile\.org)\/[^?#]*\.(?:js|css|woff2|woff|ttf|cur)(?:\?[^#]*)?$/
+
+/** 上游 external.stable 的后两条（elemecdn 那条见 PWA_SPARE_URLS_SW）。 */
+const PWA_EXTERNAL_STABLE_PATTERNS = [
+  /^https:\/\/cdn\.cbd\.int\/[^/@]+\@[^/@]+\/[^/]+\/[^/]+$/,
+  /^https:\/\/cdn\.jsdelivr\.net\/npm\/[^/@]+\@[^/@]+\/[^/]+\/[^/]+$/,
+]
+
+/** 运行时缓存统一用上游 cacheName（与 Workbox 预缓存桶 workbox-precache-v2-* 分开）。 */
+const PWA_RUNTIME_CACHING = [
+  {
+    // cacheRules.cdn
+    urlPattern: PWA_CDN_RUNTIME_PATTERN,
+    handler: 'CacheFirst',
+    options: {
+      cacheName: PWA_CACHE_NAME,
+      expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+      cacheableResponse: { statuses: [0, 200] },
+    },
+  },
+  ...PWA_EXTERNAL_STABLE_PATTERNS.map((urlPattern) => ({
+    // external.stable：带版本号的 URL 内容稳定，CacheFirst 即可
+    urlPattern,
+    handler: 'CacheFirst',
+    options: {
+      cacheName: PWA_CACHE_NAME,
+      expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+      cacheableResponse: { statuses: [0, 200] },
+    },
+  })),
+]
+
+/**
+ * 追加在 Workbox 生成的 dist/sw.js 末尾的补丁（见文件头映射表）：
+ * 上游 `getSpareUrls()` 只对 `https://npm.elemecdn.com/...` 生效，
+ * 返回 `{ timeout: 3000, list: [原始 URL, cdn.cbd.int + 同 pathname] }`。
+ * Workbox generateSW 的 runtimeCaching 表达不了「超时后换 URL 重试」，
+ * 所以用一段独立的 fetch 监听补在生成代码之后：
+ *   1. 只接管 GET + origin 为 npm.elemecdn.com 的请求（别的请求原样交给 Workbox）；
+ *   2. 先查 Cache Storage（桶名 = 上游 cacheName）；
+ *   3. 原始 URL 3s 超时/失败 → 用 cdn.cbd.int 同 path 再取，成功则写回缓存。
+ */
+const PWA_SPARE_URLS_SW = `
+/* ===== P7-1-SPARE-URLS · 上游 sw-rules.js getSpareUrls() 翻译 ===== */
+;(function () {
+  var CACHE_NAME = '${PWA_CACHE_NAME}'
+  var TIMEOUT_MS = 3000
+  var SOURCE_ORIGIN = 'https://npm.elemecdn.com'
+  var SPARE_ORIGIN = 'https://cdn.cbd.int'
+
+  function fetchWithTimeout(request) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () {
+        reject(new Error('P7-1: 原始 URL 超时 ' + TIMEOUT_MS + 'ms'))
+      }, TIMEOUT_MS)
+      fetch(request).then(
+        function (response) {
+          clearTimeout(timer)
+          resolve(response)
+        },
+        function (error) {
+          clearTimeout(timer)
+          reject(error)
+        },
+      )
+    })
+  }
+
+  self.addEventListener('fetch', function (event) {
+    if (event.request.method !== 'GET') return
+    var url = new URL(event.request.url)
+    if (url.origin !== SOURCE_ORIGIN) return
+    event.respondWith(
+      (async function () {
+        var cache = await caches.open(CACHE_NAME)
+        var cached = await cache.match(event.request)
+        if (cached) return cached
+        var response
+        try {
+          response = await fetchWithTimeout(event.request)
+        } catch (error) {
+          response = await fetch(SPARE_ORIGIN + url.pathname + url.search)
+        }
+        if (response && (response.ok || response.type === 'opaque')) {
+          cache.put(event.request, response.clone()).catch(function () {})
+        }
+        return response
+      })(),
+    )
+  })
+})()
+`
+
+/** 上游 theme.config.yml 的 pwa.manifest 指向的图标（都在 examples/blog/public/img/siteicon/）。 */
+const PWA_MANIFEST = {
+  // 站点身份暂时与 src/data/site-identity.ts 的默认值保持一致（Phase 7 之前没有站点配置层）
+  name: 'AnZhiYu Baseline',
+  short_name: 'AnZhiYu',
+  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
+  lang: 'zh-CN',
+  start_url: '/',
+  scope: '/',
+  display: 'standalone',
+  theme_color: PWA_THEME_COLOR,
+  background_color: PWA_BACKGROUND_COLOR,
+  icons: [
+    {
+      src: '/img/siteicon/manifest-icon-192.maskable.png',
+      sizes: '192x192',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
+    {
+      src: '/img/siteicon/manifest-icon-512.maskable.png',
+      sizes: '512x512',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
+    {
+      src: '/img/siteicon/apple-icon-180.png',
+      sizes: '180x180',
+      type: 'image/png',
+      purpose: 'any',
+    },
+  ],
+}
+
+/**
+ * @vite-pwa/astro 的构建后補丁 integration：
+ *   1. 把 PWA_SPARE_URLS_SW 追加进 Workbox 生成的 dist/sw.js；
+ *   2. 给每个 dist/*.html 注入 `<link rel="manifest">`、theme-color meta 和 SW 注册脚本。
+ *
+ * 为什么用构建后处理而不是 `injectRegister`：Astro 的 SSG 页面不经过 Vite 的
+ * index.html 管道（`transformIndexHtml` 不执行），@vite-pwa/astro 的自动注入对
+ * Astro 路由无效，实测见 docs/notes/P7-1-pwa.md §4。
+ */
+function anzhiyuPwaExtras() {
+  let baseUrl = '/'
+  return {
+    name: 'anzhiyu-pwa-extras',
+    hooks: {
+      'astro:config:done': ({ config }) => {
+        const base = config.base || '/'
+        baseUrl = base.endsWith('/') ? base : `${base}/`
+      },
+      'astro:build:done': ({ dir, logger }) => {
+        const outDir = fileURLToPath(dir)
+        const swPath = path.join(outDir, 'sw.js')
+        const manifestPath = path.join(outDir, 'manifest.webmanifest')
+
+        // [1/2] getSpareUrls：追加进生成的 SW（放在 Workbox 代码之后，注册顺序不重要）
+        if (!existsSync(swPath)) {
+          logger.warn(`[P7-1 PWA] 没找到 ${swPath}，跳过 sw-rules 补丁`)
+          return
+        }
+        const generatedSw = readFileSync(swPath, 'utf8')
+        if (!generatedSw.includes('P7-1-SPARE-URLS')) {
+          writeFileSync(swPath, `${generatedSw}\n${PWA_SPARE_URLS_SW}`, 'utf8')
+        }
+
+        // [2/2] manifest link + 注册脚本：Astro 静态页面逐个注入。
+        // 只注入 <link rel="manifest">：默认 head 里已有主题色 meta（P2-3 移植的
+        // meta_theme_color），再注入一条 theme-color 会重复；manifest 里的
+        // theme_color 才是 PWA 安装态用的值（上游 pwa.pug 的 msapplication-TileColor
+        // 依赖 theme.pwa 配置层，见 docs/notes/P7-1-pwa.md §3 #10）。
+        const manifestHref = `${baseUrl}manifest.webmanifest`
+        const swUrl = `${baseUrl}sw.js`
+        const headTags = `<link rel="manifest" href="${manifestHref}">`
+        const registerScript =
+          `<script>/* P7-1 PWA：注册 Service Worker（上游 pwa.pug 里被注释掉的那段） */` +
+          `if('serviceWorker' in navigator){window.addEventListener('load',function(){` +
+          `navigator.serviceWorker.register('${swUrl}').catch(function(error){` +
+          `console.warn('[AnZhiYu PWA] Service Worker 注册失败',error)})})}</script>`
+
+        const htmlFiles = []
+        const walk = (directory) => {
+          for (const entry of readdirSync(directory, { withFileTypes: true })) {
+            const fullPath = path.join(directory, entry.name)
+            if (entry.isDirectory()) walk(fullPath)
+            else if (entry.name.endsWith('.html')) htmlFiles.push(fullPath)
+          }
+        }
+        walk(outDir)
+        let injected = 0
+        for (const file of htmlFiles) {
+          let html = readFileSync(file, 'utf8')
+          if (html.includes('rel="manifest"')) continue
+          if (!html.includes('</head>') || !html.includes('</body>')) continue
+          html = html
+            .replace('</head>', `${headTags}</head>`)
+            .replace('</body>', `${registerScript}</body>`)
+          writeFileSync(file, html, 'utf8')
+          injected++
+        }
+
+        const swBytes = statSync(swPath).size
+        const manifestBytes = existsSync(manifestPath) ? statSync(manifestPath).size : 0
+        // Workbox v8 生成的 SW 里预缓存清单形如 [{url:`…`,revision:null}, …]
+        const precacheEntries = (readFileSync(swPath, 'utf8').match(/\{url:/g) || []).length
+        logger.info(
+          `[P7-1 PWA] sw.js=${swBytes}B manifest.webmanifest=${manifestBytes}B ` +
+            `precache=${precacheEntries} 条 cacheName=${PWA_CACHE_NAME} ` +
+            `注入 manifest/注册脚本 ${injected}/${htmlFiles.length} 个 HTML`,
+        )
+      },
+    },
+  }
+}
+
+/**
+ * PWA integration 列表：默认空（产物与 Phase 2 基线一致）。ANZHIYU_PWA=1 时动态
+ * 加载 @vite-pwa/astro；缺包（迁移站）或加载失败只 warn，不中断构建。
+ * 用顶层 await：Astro/Vite 的配置加载器支持 ESM 配置的 TLA。
+ */
+let pwaIntegrations = []
+if (PWA_ENABLED) {
+  try {
+    const { AstroPWAIntegration } = await import('@vite-pwa/astro')
+    pwaIntegrations = [
+      AstroPWAIntegration({
+        strategies: 'generateSW',
+        // autoUpdate = skipWaiting + clientsClaim：首访 SW 装好即接管页面，离线用例免二次刷新
+        registerType: 'autoUpdate',
+        // 注册脚本由上面的 anzhiyuPwaExtras() 注入（Astro SSG 不走 Vite 的 index.html 管道）
+        injectRegister: false,
+        manifest: PWA_MANIFEST,
+        includeManifest: true,
+        includeManifestIcons: true,
+        generateSW: {
+          // cacheRules.simple：本地 HTML/JS/CSS 全量预缓存（含 /404.html、/css/index.css），
+          // 离线可直出任意已生成页面；上游 simple 规则只列了这两个路径，这里按
+          // 「离线可访问首页」的验收目标扩到全部静态页面（逐条映射见 P7-1-pwa.md §3）
+          globPatterns: ['**/*.{html,js,css}'],
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
+          runtimeCaching: PWA_RUNTIME_CACHING,
+        },
+      }),
+      anzhiyuPwaExtras(),
+    ]
+    console.log(
+      `[P7-1 PWA] 已启用 @vite-pwa/astro（cacheName=${PWA_CACHE_NAME}，` +
+        `runtimeCaching=${PWA_RUNTIME_CACHING.length} 条 + getSpareUrls 补丁）`,
+    )
+  } catch (error) {
+    console.warn(
+      `[P7-1 PWA] 设置了 ANZHIYU_PWA=1，但加载 @vite-pwa/astro 失败，` +
+        `本次构建降级为无 PWA（迁移站没装这个包时属预期）：${error?.message ?? error}`,
+    )
+  }
+}
+
 export default defineConfig({
   // GitHub Pages demo 构建的子路径（`DEPLOY_SITE_ROOT`，约定不带前导斜杠传值，
   // 如 blog —— Git Bash 会把以 / 开头的 env 值做 MSYS 路径转换，这里统一归一化）。
@@ -317,7 +609,7 @@ export default defineConfig({
   // P7-6 / W1-D：主题静态资源接线。build 时把 packages/astro-theme-anzhiyu/assets/
   // 复制进 dist（/js/**、/css/index.css），dev 时由中间件直出；目标已存在则 warn 并
   // 保留站点侧文件。迁移站同一行即可拿到同一批资源（不需要手工拷 public/）。
-  integrations: [anzhiyuAssets()],
+  integrations: [anzhiyuAssets(), ...pwaIntegrations],
   // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
   // 原因：Phase 6 的 42 个 Hexo tag 需要在 Markdown 解析阶段做语法替换，
   // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。
