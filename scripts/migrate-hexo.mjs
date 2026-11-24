@@ -1173,6 +1173,1024 @@ function injectPageFrontmatter(text, permalink) {
 }
 
 /* ------------------------------------------------------------------ */
+/* 站点级生成物（W2-B2）：search / feed / sitemap / 百度提交             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Hexo 生成器/插件在 `hexo generate` 阶段产出的根级文件：
+ *
+ *   search.xml        hexo-generator-search 2.4.3        lib/xml_generator.js + templates/search.xml
+ *   atom.xml          hexo-pretty-feed 1.1.0             atom.xml
+ *   rss2.xml          hexo-pretty-feed 1.1.0             rss2.xml
+ *   sitemap.xml/txt   hexo-generator-sitemap 3.0.1       lib/generator.js + sitemap.xml / sitemap.txt
+ *   baidusitemap.xml  hexo-generator-baidu-sitemap 0.1.9 baidusitemap.ejs
+ *   baidu_urls.txt    hexo-baidu-url-submit 0.0.6        lib/generator.js
+ *
+ * 实现取舍（详见 docs/notes/P7-4-fix-feeds-search.md）：
+ *   - search/atom/rss2 的正文是**构建期渲染后的 HTML**，迁移期拿不到 → 统一生成
+ *     Astro endpoint（`src/pages/<产物路径>.ts`），构建期 `getCollection` 取条目，
+ *     正文直接用 Astro 7 glob loader 的 eager 渲染产物 `entry.rendered.html`
+ *     （实测 22/22 篇文章非空），不需要 astro/container 二次渲染。
+ *   - sitemap/baidusitemap/baidu_urls 也走 endpoint：URL 清单依赖源站 permalink 解析器
+ *     与分类/标签 slug 规则，放在构建期能复用主题/路由同一套函数（post-permalink.ts /
+ *     archives/_data.ts 的 taxonomySlug），迁移脚本里不再复刻一套 slugize。
+ *   - 迁移脚本只做「Hexo 插件配置 → 归一化快照 + endpoint 路由文件」的生成；
+ *     XML 序列化全部写在生成的 src/data/site-feeds.ts 里（零新增依赖）。
+ */
+
+/** hexo-generator-search 2.4.3 配置归一化（默认 path=search.xml / field=post / content=true）。 */
+function normalizeSearchGeneratorConfig(siteConfig) {
+  if (!Object.prototype.hasOwnProperty.call(siteConfig, 'search')) return null
+  const raw =
+    siteConfig.search && typeof siteConfig.search === 'object' && !Array.isArray(siteConfig.search)
+      ? siteConfig.search
+      : {}
+  let outputPath = typeof raw.path === 'string' && raw.path.trim() ? raw.path.trim() : 'search.xml'
+  if (!path.extname(outputPath)) outputPath += '.xml'
+  outputPath = outputPath.replace(/^\/+/, '')
+  const ext = path.extname(outputPath).toLowerCase()
+  // hexo-generator-search 的 .json 分支是另一套结构（json_generator.js），本轮只支持 .xml；
+  // 站点配置成 .json 时登记为 unsupported，不生成半成品。
+  return {
+    supported: ext === '.xml',
+    path: outputPath,
+    ext,
+    field: typeof raw.field === 'string' && raw.field.trim() ? raw.field.trim() : 'post',
+    content: raw.content !== false,
+  }
+}
+
+/**
+ * hexo-pretty-feed 1.1.0 配置归一化（复刻 index.js 的 type/path 配对规则与默认值）。
+ * 注意：hub/limit 等是公开配置；token 之类的凭据不在这里（baidu_url_submit 只保留 path/count）。
+ */
+function normalizeFeedGeneratorConfig(siteConfig) {
+  if (!Object.prototype.hasOwnProperty.call(siteConfig, 'feed')) return null
+  const raw =
+    siteConfig.feed && typeof siteConfig.feed === 'object' && !Array.isArray(siteConfig.feed)
+      ? siteConfig.feed
+      : {}
+  const config = {
+    enable: true,
+    type: 'atom',
+    limit: 20,
+    hub: '',
+    content: true,
+    content_limit: 140,
+    content_limit_delim: '',
+    pretty_rss2_file: '',
+    pretty_atom_file: '',
+    order_by: '-date',
+    ...raw,
+  }
+  if (config.enable === false || config.enable === 'false') return null
+
+  let type = config.type
+  if (!type || (typeof type !== 'string' && !Array.isArray(type))) type = 'atom'
+  if (Array.isArray(type)) {
+    type = [...new Set(type.filter((item) => item === 'atom' || item === 'rss2'))]
+    if (type.length === 0) type = 'atom'
+  }
+  if (typeof type === 'string' && type !== 'atom' && type !== 'rss2') type = 'atom'
+  const types = typeof type === 'string' ? [type] : type
+
+  let outputPath = config.path
+  if (!outputPath || typeof outputPath !== typeof type) {
+    outputPath = typeof type === 'string' ? `${type}.xml` : types.map((item) => `${item}.xml`)
+  }
+  if (Array.isArray(outputPath)) {
+    outputPath = [...outputPath]
+    if (outputPath.length !== types.length) {
+      if (outputPath.length > types.length) outputPath = outputPath.slice(0, types.length)
+      else if (outputPath.length === 0) outputPath = types.map((item) => `${item}.xml`)
+      else outputPath.push(`${types[1]}.xml`)
+    }
+    outputPath = outputPath.map((item) => (path.extname(String(item)) ? String(item) : `${item}.xml`))
+  } else if (typeof outputPath === 'string' && !path.extname(outputPath)) {
+    outputPath += '.xml'
+  }
+  const text = (value) => (typeof value === 'string' && value ? value : null)
+  return {
+    outputs: types.map((item, index) => ({
+      type: item,
+      path: String(typeof outputPath === 'string' ? outputPath : outputPath[index]).replace(/^\/+/, ''),
+    })),
+    limit: typeof config.limit === 'number' && config.limit > 0 ? config.limit : null,
+    content: config.content !== false,
+    contentLimit: typeof config.content_limit === 'number' ? config.content_limit : 140,
+    contentLimitDelim: typeof config.content_limit_delim === 'string' ? config.content_limit_delim : '',
+    orderBy: typeof config.order_by === 'string' && config.order_by ? config.order_by : '-date',
+    icon: text(config.icon),
+    prettyAtomFile: text(config.pretty_atom_file),
+    prettyRss2File: text(config.pretty_rss2_file),
+    hub: text(config.hub),
+  }
+}
+
+/** hexo-generator-sitemap 3.0.1 配置归一化（默认 path=['sitemap.xml','sitemap.txt'] / tags=categories=true）。 */
+function normalizeSitemapGeneratorConfig(siteConfig) {
+  if (!Object.prototype.hasOwnProperty.call(siteConfig, 'sitemap')) return null
+  const raw =
+    siteConfig.sitemap && typeof siteConfig.sitemap === 'object' && !Array.isArray(siteConfig.sitemap)
+      ? siteConfig.sitemap
+      : {}
+  const configured = raw.path === undefined ? ['sitemap.xml', 'sitemap.txt'] : raw.path
+  const outputs = []
+  for (const item of Array.isArray(configured) ? configured : [configured]) {
+    let outputPath = String(item ?? '').replace(/^\/+/, '')
+    if (!outputPath) continue
+    if (!path.extname(outputPath)) outputPath += '.xml'
+    const ext = path.extname(outputPath).toLowerCase()
+    if (ext !== '.xml' && ext !== '.txt') continue
+    outputs.push({ path: outputPath, kind: ext === '.txt' ? 'txt' : 'xml' })
+  }
+  if (outputs.length === 0) return null
+  return {
+    outputs,
+    tags: raw.tags !== false,
+    categories: raw.categories !== false,
+  }
+}
+
+/**
+ * hexo-generator-baidu-sitemap 0.1.9 配置归一化。
+ * 源站 `_config.yml` 的 `baidusitemap.path` 缩进丢了（YAML 把 path 解析成顶层键），
+ * 这里做与 accept-migration.mjs 同口径的兼容回退。
+ */
+function normalizeBaiduSitemapGeneratorConfig(siteConfig) {
+  if (!Object.prototype.hasOwnProperty.call(siteConfig, 'baidusitemap')) return null
+  const raw =
+    siteConfig.baidusitemap &&
+    typeof siteConfig.baidusitemap === 'object' &&
+    !Array.isArray(siteConfig.baidusitemap)
+      ? siteConfig.baidusitemap
+      : {}
+  const topLevelPath = typeof siteConfig.path === 'string' ? siteConfig.path.trim() : ''
+  let outputPath = typeof raw.path === 'string' && raw.path.trim() ? raw.path.trim() : ''
+  if (!outputPath && topLevelPath.toLowerCase().endsWith('.xml')) outputPath = topLevelPath
+  if (!outputPath) outputPath = 'baidusitemap.xml'
+  if (!path.extname(outputPath)) outputPath += '.xml'
+  return {
+    path: outputPath.replace(/^\/+/, ''),
+    url: typeof raw.url === 'string' && raw.url ? raw.url : null,
+  }
+}
+
+/**
+ * hexo-baidu-url-submit 0.0.6 配置归一化。
+ * 只保留生成文件需要的 path/count；host/token 是凭据，**不**写进迁移站产物/报告。
+ */
+function normalizeBaiduUrlSubmitGeneratorConfig(siteConfig) {
+  if (!Object.prototype.hasOwnProperty.call(siteConfig, 'baidu_url_submit')) return null
+  const raw =
+    siteConfig.baidu_url_submit &&
+    typeof siteConfig.baidu_url_submit === 'object' &&
+    !Array.isArray(siteConfig.baidu_url_submit)
+      ? siteConfig.baidu_url_submit
+      : {}
+  const outputPath =
+    typeof raw.path === 'string' && raw.path.trim() ? raw.path.trim().replace(/^\/+/, '') : null
+  if (!outputPath) return null
+  const count = Number(raw.count)
+  return { path: outputPath, count: Number.isFinite(count) && count >= 0 ? count : null }
+}
+
+/**
+ * 收集「会被 Hexo 当成 Page 参与 hexo-generator-sitemap 的 source 静态文件」。
+ *
+ * hexo 7 的内置 renderer 表（hexo/dist/plugins/renderer/index.js）：
+ *   htm→html、html→html、css→css、js→js、json→json、yml/yaml→json、njk/j2→html
+ * 其中 js/css 被 hexo-generator-sitemap 硬编码进 skipRenderList，不进 sitemap；
+ * 其余（图片/favicon/robots.txt/LICENSE/xsl…）没有 renderer，是 Asset，也不进。
+ * 本站命中 5 个 .json（golden sitemap 里能逐条对上）。
+ *
+ * @param {string} sourceDir 源站 source 目录
+ * @param {unknown} skipRender 源站 `_config.yml` 的 skip_render（string | string[]）
+ */
+const HEXO_STATIC_PAGE_OUTPUT_EXT = {
+  '.htm': '.html',
+  '.html': '.html',
+  '.css': '.css',
+  '.js': '.js',
+  '.json': '.json',
+  '.yml': '.json',
+  '.yaml': '.json',
+  '.njk': '.html',
+  '.j2': '.html',
+}
+
+function globToRegExp(glob) {
+  const escaped = String(glob)
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '\u0000')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '[^/]')
+    .replace(/\u0000\//g, '(?:.*/)?')
+    .replace(/\u0000/g, '.*')
+  return new RegExp(`^${escaped}$`)
+}
+
+function collectHexoStaticPageInputs(sourceDir, skipRender) {
+  const patterns = (Array.isArray(skipRender) ? skipRender : skipRender ? [skipRender] : [])
+    .map((item) => String(item ?? '').trim())
+    .filter(Boolean)
+    .map(globToRegExp)
+  const pages = []
+  for (const rel of walkFiles(sourceDir)) {
+    const segments = rel.split('/')
+    if (segments.some((segment) => segment.startsWith('_') || segment.startsWith('.'))) continue
+    const ext = path.extname(rel).toLowerCase()
+    const outputExt = HEXO_STATIC_PAGE_OUTPUT_EXT[ext]
+    if (!outputExt) continue
+    // 与 hexo-generator-sitemap 的 skipRenderList 对齐：js/css 永远不进 sitemap，
+    // 另有源站 skip_render 命中的也不进。
+    if (outputExt === '.js' || outputExt === '.css') continue
+    if (patterns.some((re) => re.test(rel))) continue
+    const outputPath = `${rel.slice(0, rel.length - ext.length)}${outputExt}`
+    pages.push({
+      path: outputPath,
+      updated: statSync(path.join(sourceDir, rel)).mtime.toISOString(),
+    })
+  }
+  pages.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
+  return pages
+}
+
+/**
+ * 生成 `src/data/site-feeds.ts`：6 个站点级生成物的共用实现（构建期执行）。
+ *
+ * 只插入 import 说明符与配置快照；所有站点身份从 `site.config.ts` 读，
+ * 不硬编码源站信息。生成的 TS 刻意不用模板字符串（避免与本模板的 `${}` 冲突），
+ * 也不引入任何 npm 依赖。
+ */
+function renderSiteFeedsModule({
+  siteConfigSpecifier,
+  permalinkSpecifier,
+  packagesPrefix,
+  taxonomySpecifier,
+  generators,
+  staticPages,
+  pageUpdatedByPermalink,
+}) {
+  const template = String.raw`/**
+ * AUTO-GENERATED by scripts/migrate-hexo.mjs — 站点级生成物（W2-B2）。
+ *
+ * 覆盖 6 个 Hexo 生成器/插件在 hexo generate 阶段产出的根级文件：
+ *   search.xml        hexo-generator-search 2.4.3        lib/xml_generator.js + templates/search.xml
+ *   atom.xml          hexo-pretty-feed 1.1.0             atom.xml
+ *   rss2.xml          hexo-pretty-feed 1.1.0             rss2.xml
+ *   sitemap.xml/txt   hexo-generator-sitemap 3.0.1       lib/generator.js + sitemap.xml / sitemap.txt
+ *   baidusitemap.xml  hexo-generator-baidu-sitemap 0.1.9 baidusitemap.ejs
+ *   baidu_urls.txt    hexo-baidu-url-submit 0.0.6        lib/generator.js
+ *
+ * 为什么在构建期（Astro endpoint）生成而不是迁移期：
+ *   - search/atom/rss2 的正文是**渲染后的正文 HTML**，迁移期还没有 Markdown 渲染结果；
+ *   - sitemap 的帖子/分类/标签 URL 必须和主题路由用同一套规则（postHref / taxonomySlug），
+ *     否则 sitemap 里会出现 404 链接。
+ *
+ * 正文来源：Astro 7 glob loader 在 content sync 阶段 eager 渲染，entry.rendered.html 直接可用
+ * （本迁移站 22/22 篇文章非空），与文章页正文同源。这里只额外跑主题的 rewriteHeadings()
+ * （补 Hexo marked 的标题 id 与 headerlink），**不**套 lazyload / hexo_safego 外链改写——
+ * 源站 feed/search 用的是 after_render 过滤器之前的 post.content（golden 里也没有 data-lazy-src）。
+ *
+ * XML 全部手写序列化（零新增依赖）：文本转义 & < > " '；CDATA 内容按 hexo 模板的
+ * noControlChars 口径剥控制字符（含换行），CDATA 结束标记按 XML 规则拆开。
+ *
+ * 站点身份（title/subtitle/description/author/url/root）全部来自 site.config.ts；
+ * 生成器配置快照 GENERATORS 由迁移脚本从源站 _config.yml 归一化后写入。换一个 Hexo 站
+ * 迁移会自动生效，不硬编码源站身份。
+ */
+import { getCollection } from 'astro:content'
+import { site } from '__SITE_CONFIG__'
+import { postHref } from '__PERMALINK__'
+import { rewriteHeadings } from '__PACKAGES__astro-theme-anzhiyu/src/utils/slugger.ts'
+import { taxonomySlug } from '__TAXONOMY__'
+
+type AnyRecord = Record<string, any>
+
+export interface FeedOutputConfig {
+  type: 'atom' | 'rss2'
+  path: string
+}
+
+export interface SitemapOutputConfig {
+  path: string
+  kind: 'xml' | 'txt'
+}
+
+export interface SearchGeneratorConfig {
+  path: string
+  field: string
+  content: boolean
+}
+
+export interface FeedGeneratorConfig {
+  outputs: FeedOutputConfig[]
+  limit: number | null
+  content: boolean
+  contentLimit: number
+  contentLimitDelim: string
+  orderBy: string
+  icon: string | null
+  prettyAtomFile: string | null
+  prettyRss2File: string | null
+  hub: string | null
+}
+
+export interface SitemapGeneratorConfig {
+  outputs: SitemapOutputConfig[]
+  tags: boolean
+  categories: boolean
+}
+
+export interface BaiduSitemapConfig {
+  path: string
+  url: string | null
+}
+
+export interface BaiduUrlSubmitConfig {
+  path: string
+  count: number | null
+}
+
+export interface GeneratorConfigs {
+  search: SearchGeneratorConfig | null
+  feed: FeedGeneratorConfig | null
+  sitemap: SitemapGeneratorConfig | null
+  baidusitemap: BaiduSitemapConfig | null
+  baiduUrlSubmit: BaiduUrlSubmitConfig | null
+}
+
+/** 迁移脚本从源站 _config.yml 归一化出的生成器配置快照。 */
+export const GENERATORS: GeneratorConfigs = __GENERATORS__
+
+/** Hexo 把 source 下这些文件当 Page 参与 sitemap：迁移期快照（构建期拿不到源站文件）。 */
+const STATIC_PAGES: Array<{ path: string; updated: string }> = __STATIC_PAGES__
+
+/** Hexo updated_option=mtime：没有 frontmatter updated 的独立页面用源文件 mtime。 */
+const PAGE_UPDATED_BY_PERMALINK: Record<string, string> = __PAGE_UPDATED__
+
+const siteInfo = site as AnyRecord
+const CONFIG_URL = String(siteInfo.url || '')
+const ORIGIN = CONFIG_URL.replace(/\/+$/, '')
+
+function normalizeRoot(value: unknown): string {
+  const text = typeof value === 'string' && value ? value : '/'
+  const trimmed = text.replace(/^\/+/, '').replace(/\/+$/, '')
+  return trimmed ? '/' + trimmed + '/' : '/'
+}
+
+const ROOT = normalizeRoot(siteInfo.root)
+/** 站内 URL 公共前缀（ORIGIN + root，root 首尾都有 /）。 */
+const FEED_BASE = ORIGIN + ROOT
+const SITE_TITLE = String(siteInfo.title || '')
+const SITE_SUBTITLE = String(siteInfo.subtitle || '')
+const SITE_DESCRIPTION = String(siteInfo.description || '')
+const SITE_AUTHOR = String(siteInfo.author || '')
+const SITE_EMAIL = String(siteInfo.email || '')
+
+/* ------------------------------------------------------------------ */
+/* 通用工具                                                            */
+/* ------------------------------------------------------------------ */
+
+function sitePath(value: string): string {
+  return ROOT + String(value || '').replace(/^\/+/, '')
+}
+
+function fullUrl(value: string): string {
+  return ORIGIN + sitePath(value)
+}
+
+function encodeUrl(value: string): string {
+  try {
+    return encodeURI(value)
+  } catch {
+    return value
+  }
+}
+
+function escapeXml(value: unknown): string {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+const CONTROL_CHARS = /[\u0000-\u001F\u007F]/g
+
+/** Hexo 模板 noControlChars：剥控制字符（含换行），CDATA 字节数与 golden 同量级。 */
+function stripControlChars(value: unknown): string {
+  return String(value == null ? '' : value).replace(CONTROL_CHARS, '')
+}
+
+function cdata(value: unknown): string {
+  const body = String(value == null ? '' : value).replace(/]]>/g, ']]]]><![CDATA[>')
+  return '<![CDATA[' + body + ']]>'
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  if (typeof value === 'string' && value) {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  return null
+}
+
+function isoInstant(value: Date): string {
+  return value.toISOString()
+}
+
+function utcString(value: Date): string {
+  return value.toUTCString()
+}
+
+function dayStamp(value: Date): string {
+  return value.toISOString().slice(0, 10)
+}
+
+const BUILD_DAY = dayStamp(new Date())
+
+function xmlResponse(body: string): Response {
+  return new Response(body, {
+    headers: { 'content-type': 'application/xml; charset=utf-8' },
+  })
+}
+
+function textResponse(body: string): Response {
+  return new Response(body, {
+    headers: { 'content-type': 'text/plain; charset=utf-8' },
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* 文章 / 独立页面视图                                                  */
+/* ------------------------------------------------------------------ */
+
+interface TaxonomyTerm {
+  name: string
+  /** 站内相对路径（无前导 /，如 tags/生活/、categories/教程/博客/）。 */
+  path: string
+}
+
+export interface PostView {
+  id: string
+  title: string
+  /** 站内相对路径（含 root，已由 sitePath 处理，如 /posts/pXXX/）。 */
+  href: string
+  date: Date
+  updated: Date
+  /** rewriteHeadings 之后、未剥控制字符的正文 HTML（summary/description 截断用）。 */
+  content: string
+  /** noControlChars 口径的正文 HTML（CDATA 用）。 */
+  cdataContent: string
+  categories: TaxonomyTerm[]
+  tags: TaxonomyTerm[]
+  data: AnyRecord
+}
+
+function normalizeCategoryPaths(raw: readonly unknown[]): string[][] {
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  const entries = raw.filter(
+    (item) => typeof item === 'string' || Array.isArray(item),
+  )
+  if (entries.length === 0) return []
+  const hasHierarchy = entries.some((item) => Array.isArray(item))
+  if (hasHierarchy) {
+    return entries
+      .map((item) => (Array.isArray(item) ? strings(item) : [String(item)]))
+      .filter((segments) => segments.length > 0)
+  }
+  const flat = entries.filter((item): item is string => typeof item === 'string')
+  return flat.length > 0 ? [flat] : []
+}
+
+function tagTerm(name: string): TaxonomyTerm {
+  return { name, path: 'tags/' + taxonomySlug(name) + '/' }
+}
+
+function categoryTerm(segments: string[]): TaxonomyTerm {
+  return {
+    name: segments[segments.length - 1],
+    path: 'categories/' + segments.map((segment) => taxonomySlug(segment)).join('/') + '/',
+  }
+}
+
+let postViewsPromise: Promise<PostView[]> | null = null
+
+/** 文章视图：date 降序（Hexo post generator 的排序），正文取 eager 渲染结果 + rewriteHeadings。 */
+export function loadPostViews(): Promise<PostView[]> {
+  if (!postViewsPromise) {
+    postViewsPromise = (async () => {
+      const entries = await getCollection('posts')
+      const views = entries
+        .filter((entry) => (entry.data as AnyRecord).layout !== 'page')
+        .map((entry) => {
+          const data = entry.data as AnyRecord
+          const date = asDate(data.date) || new Date(0)
+          const updated = asDate(data.updated) || date
+          const rawHtml = entry.rendered && typeof entry.rendered.html === 'string' ? entry.rendered.html : ''
+          const content = rewriteHeadings(rawHtml).html
+          const tagNames = Array.isArray(data.tags)
+            ? data.tags.filter((item): item is string => typeof item === 'string')
+            : []
+          const categoryPaths = normalizeCategoryPaths(
+            Array.isArray(data.categories) ? data.categories : [],
+          )
+          const categories: TaxonomyTerm[] = []
+          const seenCategory = new Set<string>()
+          for (const segments of categoryPaths) {
+            for (let depth = 1; depth <= segments.length; depth++) {
+              const term = categoryTerm(segments.slice(0, depth))
+              if (seenCategory.has(term.path)) continue
+              seenCategory.add(term.path)
+              categories.push(term)
+            }
+          }
+          return {
+            id: entry.id,
+            title: typeof data.title === 'string' ? data.title : entry.id,
+            href: sitePath(postHref(entry)),
+            date,
+            updated,
+            content,
+            cdataContent: stripControlChars(content),
+            categories,
+            tags: tagNames.map((name) => tagTerm(name)),
+            data,
+          }
+        })
+      views.sort((left, right) => right.date.getTime() - left.date.getTime())
+      return views
+    })()
+  }
+  return postViewsPromise
+}
+
+/** Hexo page.path 语义：permalink 尾部 / → index；无扩展名 → .html。 */
+function hexoPagePath(permalink: string): string {
+  let value = String(permalink || '')
+  if (!value) return '/index.html'
+  if (value.endsWith('/')) value += 'index'
+  const last = value.slice(value.lastIndexOf('/') + 1)
+  if (!/\.[A-Za-z0-9]+$/.test(last)) value += '.html'
+  return '/' + value.replace(/^\/+/, '')
+}
+
+export interface PageView {
+  href: string
+  updated: Date
+  permalink: string
+}
+
+let pageViewsPromise: Promise<PageView[]> | null = null
+
+/** 独立页面视图（layout: page）；updated 缺失时回退到迁移期快照的源文件 mtime。 */
+export function loadPageViews(): Promise<PageView[]> {
+  if (!pageViewsPromise) {
+    pageViewsPromise = (async () => {
+      const entries = await getCollection('posts')
+      return entries
+        .filter((entry) => (entry.data as AnyRecord).layout === 'page')
+        .map((entry) => {
+          const data = entry.data as AnyRecord
+          const permalink =
+            typeof data.permalink === 'string' && data.permalink
+              ? data.permalink
+              : '/' + entry.id.replace(/-page$/, '') + '/'
+          const fallback = PAGE_UPDATED_BY_PERMALINK[permalink]
+          const updated =
+            asDate(data.updated) ||
+            asDate(fallback) ||
+            asDate(data.date) ||
+            new Date(0)
+          return { href: hexoPagePath(permalink), updated, permalink }
+        })
+    })()
+  }
+  return pageViewsPromise
+}
+
+/* ------------------------------------------------------------------ */
+/* sitemap 公共数据                                                     */
+/* ------------------------------------------------------------------ */
+
+interface DatedUrl {
+  loc: string
+  date: Date
+}
+
+function collectTagTerms(posts: PostView[]): TaxonomyTerm[] {
+  const seen = new Set<string>()
+  const terms: TaxonomyTerm[] = []
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      if (seen.has(tag.path)) continue
+      seen.add(tag.path)
+      terms.push(tag)
+    }
+  }
+  return terms
+}
+
+function collectCategoryTerms(posts: PostView[]): TaxonomyTerm[] {
+  const seen = new Set<string>()
+  const terms: TaxonomyTerm[] = []
+  for (const post of posts) {
+    for (const category of post.categories) {
+      if (seen.has(category.path)) continue
+      seen.add(category.path)
+      terms.push(category)
+    }
+  }
+  return terms
+}
+
+/* ------------------------------------------------------------------ */
+/* search.xml（hexo-generator-search 2.4.3）                            */
+/* ------------------------------------------------------------------ */
+
+export async function renderSearchIndex(): Promise<Response> {
+  const config = GENERATORS.search
+  if (!config) return xmlResponse('')
+  const posts = await loadPostViews()
+  const lines: string[] = ['<?xml version="1.0" encoding="utf-8"?>', '<search>']
+  for (const post of posts) {
+    if (post.data.indexing === false) continue
+    const href = escapeXml(encodeUrl(post.href))
+    lines.push('  <entry>')
+    lines.push('    <title>' + escapeXml(post.title) + '</title>')
+    lines.push('    <link href="' + href + '"/>')
+    lines.push('    <url>' + href + '</url>')
+    if (config.content) {
+      lines.push('    <content type="html">' + cdata(post.cdataContent) + '</content>')
+    }
+    if (post.categories.length > 0) {
+      lines.push('    <categories>')
+      for (const category of post.categories) {
+        lines.push('      <category>' + escapeXml(category.name) + '</category>')
+      }
+      lines.push('    </categories>')
+    }
+    if (post.tags.length > 0) {
+      lines.push('    <tags>')
+      for (const tag of post.tags) {
+        lines.push('      <tag>' + escapeXml(tag.name) + '</tag>')
+      }
+      lines.push('    </tags>')
+    }
+    lines.push('  </entry>')
+  }
+  lines.push('</search>')
+  return xmlResponse(lines.join('\n') + '\n')
+}
+
+/* ------------------------------------------------------------------ */
+/* feed（hexo-pretty-feed 1.1.0）                                       */
+/* ------------------------------------------------------------------ */
+
+function sortPostsByOrder(posts: PostView[], orderBy: string): PostView[] {
+  const descending = orderBy.startsWith('-')
+  const field = orderBy.replace(/^-/, '') === 'updated' ? 'updated' : 'date'
+  return [...posts].sort((left, right) => {
+    const delta = right[field].getTime() - left[field].getTime()
+    return descending ? delta : -delta
+  })
+}
+
+async function selectFeedPosts(config: FeedGeneratorConfig): Promise<PostView[]> {
+  let posts = sortPostsByOrder(await loadPostViews(), config.orderBy)
+  if (typeof config.limit === 'number' && config.limit > 0) posts = posts.slice(0, config.limit)
+  return posts
+}
+
+function firstDate(posts: PostView[]): Date {
+  return posts.length > 0 ? posts[0].updated : new Date(0)
+}
+
+function truncateContent(content: string, limit: number, delim: string): string {
+  let short = content.substring(0, limit)
+  if (delim) {
+    const position = short.lastIndexOf(delim)
+    if (position > -1) short = short.substring(0, position)
+  }
+  return short
+}
+
+/** 模板里 description → intro → excerpt → content 截断 的分支顺序。 */
+function summaryOf(post: PostView, config: FeedGeneratorConfig): string {
+  const candidates = [post.data.description, post.data.intro, post.data.excerpt]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate) return candidate
+  }
+  return truncateContent(post.content, config.contentLimit, config.contentLimitDelim)
+}
+
+function feedIconUrl(config: FeedGeneratorConfig): string {
+  return config.icon ? encodeUrl(fullUrl(config.icon)) : ''
+}
+
+function categoryScheme(term: TaxonomyTerm): string {
+  return encodeUrl(fullUrl(term.path))
+}
+
+function rssCategoryDomain(term: TaxonomyTerm): string {
+  return encodeUrl(FEED_BASE + term.path)
+}
+
+function atomBody(config: FeedGeneratorConfig, outputPath: string, posts: PostView[]): string {
+  const lines: string[] = ['<?xml version="1.0" encoding="utf-8"?>']
+  if (config.prettyAtomFile) {
+    lines[0] += '<?xml-stylesheet type="text/xsl" href="' + escapeXml(config.prettyAtomFile) + '" ?>'
+  }
+  lines.push('<feed xmlns="http://www.w3.org/2005/Atom">')
+  lines.push('  <title>' + escapeXml(SITE_TITLE) + '</title>')
+  const icon = feedIconUrl(config)
+  if (icon) lines.push('  <icon>' + escapeXml(icon) + '</icon>')
+  if (SITE_SUBTITLE) lines.push('  <subtitle>' + escapeXml(SITE_SUBTITLE) + '</subtitle>')
+  lines.push('  <link href="' + escapeXml(encodeUrl(fullUrl(outputPath))) + '" rel="self"/>')
+  if (config.hub) lines.push('  <link href="' + escapeXml(encodeUrl(config.hub)) + '" rel="hub"/>')
+  lines.push('  <link href="' + escapeXml(encodeUrl(FEED_BASE)) + '"/>')
+  lines.push('  <updated>' + isoInstant(firstDate(posts)) + '</updated>')
+  lines.push('  <id>' + escapeXml(encodeUrl(FEED_BASE)) + '</id>')
+  if (SITE_AUTHOR) {
+    lines.push('  <author>')
+    lines.push('    <name>' + escapeXml(SITE_AUTHOR) + '</name>')
+    if (SITE_EMAIL) lines.push('    <email>' + escapeXml(SITE_EMAIL) + '</email>')
+    lines.push('  </author>')
+  }
+  lines.push('  <generator uri="https://hexo.io/">Hexo</generator>')
+  for (const post of posts) {
+    const url = escapeXml(encodeUrl(ORIGIN + post.href))
+    lines.push('  <entry>')
+    lines.push('    <title>' + escapeXml(post.title) + '</title>')
+    lines.push('    <link href="' + url + '"/>')
+    lines.push('    <id>' + url + '</id>')
+    lines.push('    <published>' + isoInstant(post.date) + '</published>')
+    lines.push('    <updated>' + isoInstant(post.updated) + '</updated>')
+    if (config.content && post.content) {
+      lines.push('    <content type="html">' + cdata(post.cdataContent) + '</content>')
+    }
+    if (post.content) {
+      lines.push('    <summary type="html">' + escapeXml(summaryOf(post, config)) + '</summary>')
+    }
+    const image = typeof post.data.image === 'string' && post.data.image ? post.data.image : ''
+    if (image) {
+      lines.push('    <content src="' + escapeXml(encodeUrl(fullUrl(image))) + '" type="image"/>')
+    }
+    for (const category of post.categories) {
+      lines.push(
+        '    <category term="' +
+          escapeXml(category.name) +
+          '" scheme="' +
+          escapeXml(categoryScheme(category)) +
+          '"/>',
+      )
+    }
+    for (const tag of post.tags) {
+      lines.push(
+        '    <category term="' + escapeXml(tag.name) + '" scheme="' + escapeXml(categoryScheme(tag)) + '"/>',
+      )
+    }
+    lines.push('  </entry>')
+  }
+  lines.push('</feed>')
+  return lines.join('\n') + '\n'
+}
+
+function rss2Body(config: FeedGeneratorConfig, outputPath: string, posts: PostView[]): string {
+  const lines: string[] = ['<?xml version="1.0" encoding="utf-8"?>']
+  if (config.prettyRss2File) {
+    lines[0] += '<?xml-stylesheet type="text/xsl" href="' + escapeXml(config.prettyRss2File) + '" ?>'
+  }
+  lines.push('<rss version="2.0"')
+  lines.push('  xmlns:atom="http://www.w3.org/2005/Atom"')
+  lines.push('  xmlns:content="http://purl.org/rss/1.0/modules/content/">')
+  lines.push('  <channel>')
+  lines.push('    <title>' + escapeXml(SITE_TITLE) + '</title>')
+  lines.push('    <link>' + escapeXml(FEED_BASE) + '</link>')
+  const icon = feedIconUrl(config)
+  if (icon) {
+    lines.push('    <image>')
+    lines.push('      <url>' + escapeXml(icon) + '</url>')
+    lines.push('      <title>' + escapeXml(SITE_TITLE) + '</title>')
+    lines.push('      <link>' + escapeXml(FEED_BASE) + '</link>')
+    lines.push('    </image>')
+  }
+  lines.push(
+    '    <atom:link href="' + escapeXml(encodeUrl(fullUrl(outputPath))) + '" rel="self" type="application/rss+xml"/>',
+  )
+  if (config.hub) lines.push('    <atom:link href="' + escapeXml(encodeUrl(config.hub)) + '" rel="hub"/>')
+  lines.push('    <description>' + escapeXml(SITE_DESCRIPTION) + '</description>')
+  lines.push('    <pubDate>' + utcString(firstDate(posts)) + '</pubDate>')
+  lines.push('    <generator>http://hexo.io/</generator>')
+  for (const post of posts) {
+    const url = escapeXml(encodeUrl(ORIGIN + post.href))
+    lines.push('    <item>')
+    lines.push('      <title>' + escapeXml(post.title) + '</title>')
+    lines.push('      <link>' + url + '</link>')
+    lines.push('      <guid>' + url + '</guid>')
+    lines.push('      <pubDate>' + utcString(post.date) + '</pubDate>')
+    if (post.content) {
+      lines.push('      <description>' + escapeXml(summaryOf(post, config)) + '</description>')
+    }
+    const image = typeof post.data.image === 'string' && post.data.image ? post.data.image : ''
+    if (image) {
+      lines.push('      <enclosure url="' + escapeXml(encodeUrl(fullUrl(image))) + '" type="image"/>')
+    }
+    if (config.content && post.content) {
+      lines.push('      <content:encoded>' + cdata(post.cdataContent) + '</content:encoded>')
+    }
+    for (const category of post.categories) {
+      lines.push(
+        '      <category domain="' +
+          escapeXml(rssCategoryDomain(category)) +
+          '">' +
+          escapeXml(category.name) +
+          '</category>',
+      )
+    }
+    for (const tag of post.tags) {
+      lines.push(
+        '      <category domain="' + escapeXml(rssCategoryDomain(tag)) + '">' + escapeXml(tag.name) + '</category>',
+      )
+    }
+    if (post.data.comments) {
+      lines.push('      <comments>' + url + '#disqus_thread</comments>')
+    }
+    lines.push('    </item>')
+  }
+  lines.push('  </channel>')
+  lines.push('</rss>')
+  return lines.join('\n') + '\n'
+}
+
+export async function renderFeed(type: 'atom' | 'rss2', outputPath: string): Promise<Response> {
+  const config = GENERATORS.feed
+  if (!config) return xmlResponse('')
+  const posts = await selectFeedPosts(config)
+  if (type === 'rss2') return xmlResponse(rss2Body(config, outputPath, posts))
+  return xmlResponse(atomBody(config, outputPath, posts))
+}
+
+/* ------------------------------------------------------------------ */
+/* sitemap（hexo-generator-sitemap 3.0.1）                              */
+/* ------------------------------------------------------------------ */
+
+function sitemapXmlBody(config: SitemapGeneratorConfig, posts: PostView[], pages: PageView[]): string {
+  const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>']
+  lines.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+  const rows: Array<{ loc: string; lastmod: string; changefreq: string; priority: string }> = []
+  for (const item of posts) {
+    rows.push({ loc: encodeUrl(ORIGIN + item.href), lastmod: dayStamp(item.updated), changefreq: 'monthly', priority: '0.6' })
+  }
+  for (const item of pages) {
+    rows.push({ loc: encodeUrl(ORIGIN + item.href), lastmod: dayStamp(item.updated), changefreq: 'monthly', priority: '0.6' })
+  }
+  for (const item of STATIC_PAGES) {
+    rows.push({
+      loc: encodeUrl(ORIGIN + sitePath(item.path)),
+      lastmod: dayStamp(asDate(item.updated) || new Date(0)),
+      changefreq: 'monthly',
+      priority: '0.6',
+    })
+  }
+  rows.sort((left, right) => {
+    if (left.lastmod === right.lastmod) return 0
+    return left.lastmod < right.lastmod ? 1 : -1
+  })
+  for (const row of rows) {
+    lines.push('  <url>')
+    lines.push('    <loc>' + escapeXml(row.loc) + '</loc>')
+    lines.push('    <lastmod>' + row.lastmod + '</lastmod>')
+    lines.push('    <changefreq>' + row.changefreq + '</changefreq>')
+    lines.push('    <priority>' + row.priority + '</priority>')
+    lines.push('  </url>')
+  }
+  lines.push('  <url>')
+  lines.push('    <loc>' + escapeXml(encodeUrl(FEED_BASE)) + '</loc>')
+  lines.push('    <lastmod>' + BUILD_DAY + '</lastmod>')
+  lines.push('    <changefreq>daily</changefreq>')
+  lines.push('    <priority>1.0</priority>')
+  lines.push('  </url>')
+  if (config.tags) {
+    for (const term of collectTagTerms(posts)) {
+      lines.push('  <url>')
+      lines.push('    <loc>' + escapeXml(encodeUrl(FEED_BASE + term.path)) + '</loc>')
+      lines.push('    <lastmod>' + BUILD_DAY + '</lastmod>')
+      lines.push('    <changefreq>weekly</changefreq>')
+      lines.push('    <priority>0.2</priority>')
+      lines.push('  </url>')
+    }
+  }
+  if (config.categories) {
+    for (const term of collectCategoryTerms(posts)) {
+      lines.push('  <url>')
+      lines.push('    <loc>' + escapeXml(encodeUrl(FEED_BASE + term.path)) + '</loc>')
+      lines.push('    <lastmod>' + BUILD_DAY + '</lastmod>')
+      lines.push('    <changefreq>weekly</changefreq>')
+      lines.push('    <priority>0.2</priority>')
+      lines.push('  </url>')
+    }
+  }
+  lines.push('</urlset>')
+  return lines.join('\n') + '\n'
+}
+
+function sitemapTxtBody(config: SitemapGeneratorConfig, posts: PostView[], pages: PageView[]): string {
+  const lines: string[] = []
+  const dated: DatedUrl[] = []
+  for (const item of posts) dated.push({ loc: encodeUrl(ORIGIN + item.href), date: item.updated })
+  for (const item of pages) dated.push({ loc: encodeUrl(ORIGIN + item.href), date: item.updated })
+  for (const item of STATIC_PAGES) {
+    dated.push({ loc: encodeUrl(ORIGIN + sitePath(item.path)), date: asDate(item.updated) || new Date(0) })
+  }
+  dated.sort((left, right) => right.date.getTime() - left.date.getTime())
+  for (const item of dated) lines.push(item.loc)
+  lines.push(encodeUrl(FEED_BASE))
+  if (config.tags) for (const term of collectTagTerms(posts)) lines.push(encodeUrl(FEED_BASE + term.path))
+  if (config.categories) for (const term of collectCategoryTerms(posts)) lines.push(encodeUrl(FEED_BASE + term.path))
+  return lines.join('\n') + '\n'
+}
+
+export async function renderSitemap(kind: 'xml' | 'txt', outputPath: string): Promise<Response> {
+  const config = GENERATORS.sitemap
+  if (!config) return xmlResponse('')
+  const output = config.outputs.find((item) => item.path === outputPath) || config.outputs.find((item) => item.kind === kind)
+  const actualKind = output ? output.kind : kind
+  const posts = await loadPostViews()
+  const pages = await loadPageViews()
+  if (actualKind === 'txt') return textResponse(sitemapTxtBody(config, posts, pages))
+  return xmlResponse(sitemapXmlBody(config, posts, pages))
+}
+
+/* ------------------------------------------------------------------ */
+/* 百度（hexo-generator-baidu-sitemap / hexo-baidu-url-submit）          */
+/* ------------------------------------------------------------------ */
+
+export async function renderBaiduSitemap(): Promise<Response> {
+  const config = GENERATORS.baidusitemap
+  if (!config) return xmlResponse('')
+  const origin = config.url ? config.url.replace(/\/+$/, '') : ORIGIN
+  // hexo-generator-baidu-sitemap 的 ejs 里 if (post.categories) 对 Hexo 的 Query 对象恒为真，
+  // 实际效果是「所有非 baidusitemap:false 的文章」都进 baidusitemap（无分类文章也不例外），
+  // 这里按实际产物语义对齐（golden 里无分类的 /posts/p3eeb/ 也在）。
+  const posts = (await loadPostViews())
+    .filter((post) => post.data.baidusitemap !== false)
+    .sort((left, right) => right.updated.getTime() - left.updated.getTime())
+  const lines: string[] = ['<?xml version="1.0" encoding="UTF-8"?>']
+  lines.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+  for (const post of posts) {
+    lines.push('  <url>')
+    lines.push('    <loc>' + escapeXml(encodeUrl(origin + post.href)) + '</loc>')
+    lines.push('    <lastmod>' + dayStamp(post.updated) + '</lastmod>')
+    lines.push('  </url>')
+  }
+  lines.push('</urlset>')
+  return xmlResponse(lines.join('\n') + ' ')
+}
+
+export async function renderBaiduUrls(): Promise<Response> {
+  const config = GENERATORS.baiduUrlSubmit
+  if (!config) return textResponse('')
+  // hexo-baidu-url-submit：按 date 倒序，count 缺失/<=0 时不给上限。
+  const posts = await loadPostViews()
+  const limited =
+    typeof config.count === 'number' && config.count > 0 ? posts.slice(0, config.count) : posts
+  return textResponse(limited.map((post) => encodeUrl(ORIGIN + post.href)).join('\n'))
+}
+`
+
+  return template
+    .replaceAll('__SITE_CONFIG__', siteConfigSpecifier)
+    .replaceAll('__PERMALINK__', permalinkSpecifier)
+    .replaceAll('__PACKAGES__', packagesPrefix)
+    .replaceAll('__TAXONOMY__', taxonomySpecifier)
+    .replaceAll('__GENERATORS__', JSON.stringify(generators, null, 2))
+    .replaceAll('__STATIC_PAGES__', JSON.stringify(staticPages, null, 2))
+    .replaceAll('__PAGE_UPDATED__', JSON.stringify(pageUpdatedByPermalink, null, 2))
+}
+
+/** 生成单个站点级生成物的 Astro endpoint 路由文件内容。 */
+function renderGeneratorEndpoint({ specifier, importName, call }) {
+  return `/**
+ * AUTO-GENERATED by scripts/migrate-hexo.mjs — 构建期生成站点级文件（W2-B2）。
+ *
+ * 配置来源：源站 _config.yml 的 search / feed / sitemap / baidusitemap / baidu_url_submit。
+ * 实现（XML 序列化 / 正文取法）全部在 src/data/site-feeds.ts，这里只是路由壳。
+ */
+import { ${importName} } from '${specifier}'
+
+export const prerender = true
+
+export const GET = ${call}
+`
+}
+
+/* ------------------------------------------------------------------ */
 /* 主流程                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -1443,6 +2461,9 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
       dir: dirName,
       type,
       permalink: hadPermalink ? (data.permalink ?? permalink) : permalink,
+      // Hexo updated_option=mtime：页面没有 frontmatter updated 时 updated=源文件 mtime，
+      // sitemap 的 lastmod 与排序都要用它（构建期拿不到源站文件，迁移期先快照）。
+      updated: statSync(srcAbs).mtime.toISOString(),
       injectedLayout: !declaredLayout,
       declaredLayout,
     })
@@ -1482,6 +2503,20 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
     console.log(`  ✓ 静态资源 ${assetCount} 个 → public/`)
   } else {
     console.log('  · --no-assets：跳过静态资源')
+  }
+
+  // Hexo 会把「有内置 renderer 的 source 静态文件」（json/html/yml…）当 Page 参与 sitemap；
+  // 这些文件的更新时间和 URL 清单在构建期拿不到，迁移期先快照（--no-assets 时不复制，
+  // sitemap 里也就不列，避免生成 404 链接）。
+  const staticPageInputs = opts.assets
+    ? collectHexoStaticPageInputs(sourceDir, siteCfg.data.skip_render)
+    : []
+  if (staticPageInputs.length > 0) {
+    console.log(
+      `  ✓ sitemap 静态页面 ${staticPageInputs.length} 个（Hexo Page 语义）：${staticPageInputs
+        .map((item) => item.path)
+        .join(', ')}`,
+    )
   }
 
   /* ---- [7/8] Astro 骨架 ---- */
@@ -2213,6 +3248,201 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
     }
   }
 
+  /* ---- [7.y/8] 站点级生成物（search / feed / sitemap / 百度） ----
+   * 6 个产物都需要构建期数据（渲染后的正文 HTML / 文章 URL / taxonomy），Astro 静态构建下
+   * 没有「渲染后文件」钩子可用，只能做成 endpoint：迁移脚本写「配置快照 + 实现模块 + 路由壳」。
+   * 所有路径/身份都从源站 _config.yml 读取，不硬编码源站。
+   */
+  console.log('\n[7.y/8] 站点级生成物（search.xml / atom.xml / rss2.xml / sitemap.xml / baidusitemap.xml / baidu_urls.txt）')
+  const searchGenerator = normalizeSearchGeneratorConfig(siteCfg.data)
+  const feedGenerator = normalizeFeedGeneratorConfig(siteCfg.data)
+  const sitemapGenerator = normalizeSitemapGeneratorConfig(siteCfg.data)
+  const baiduSitemapGenerator = normalizeBaiduSitemapGeneratorConfig(siteCfg.data)
+  const baiduUrlSubmitGenerator = normalizeBaiduUrlSubmitGeneratorConfig(siteCfg.data)
+
+  const generatorsConfig = {
+    search:
+      searchGenerator && searchGenerator.supported
+        ? {
+            path: searchGenerator.path,
+            field: searchGenerator.field,
+            content: searchGenerator.content,
+          }
+        : null,
+    feed: feedGenerator,
+    sitemap: sitemapGenerator,
+    baidusitemap: baiduSitemapGenerator,
+    baiduUrlSubmit: baiduUrlSubmitGenerator,
+  }
+  const generatorArtifacts = {
+    search: null,
+    feed: null,
+    sitemap: null,
+    baidusitemap: null,
+    baiduUrlSubmit: null,
+  }
+  const generatorEndpoints = []
+  const plannedGeneratorOutputs = []
+  const planGeneratorOutput = (owner, outputPath) => {
+    const rel = String(outputPath || '').replace(/^\/+/, '')
+    const duplicate = plannedGeneratorOutputs.find((item) => item.path === rel)
+    if (duplicate) {
+      fail(
+        `站点级生成物路径重复：/${rel}（${duplicate.owner} 与 ${owner}）——请检查源站 ` +
+          '_config.yml 的 search.path / feed.path / sitemap.path / baidusitemap.path / baidu_url_submit.path',
+      )
+    }
+    plannedGeneratorOutputs.push({ owner, path: rel })
+    return rel
+  }
+  const writeGeneratorEndpoint = (outputPath, importName, call) => {
+    const rel = `src/pages/${outputPath}.ts`
+    writeOut(
+      rel,
+      renderGeneratorEndpoint({
+        specifier: relativeSpecifier(rel, path.join(OUT, 'src', 'data', 'site-feeds.ts')),
+        importName,
+        call,
+      }),
+    )
+    generatorEndpoints.push({ output: outputPath, routeFile: rel })
+    return rel
+  }
+
+  const hasGeneratorConfig = Object.values(generatorsConfig).some(Boolean)
+  if (!hasGeneratorConfig) {
+    console.log('  · 源站未配置 search / feed / sitemap / baidusitemap / baidu_url_submit，跳过')
+  } else {
+    const feedsRel = 'src/data/site-feeds.ts'
+    const pageUpdatedByPermalink = {}
+    for (const record of pageRecords) {
+      if (record.updated) pageUpdatedByPermalink[record.permalink] = record.updated
+    }
+    writeOut(
+      feedsRel,
+      renderSiteFeedsModule({
+        siteConfigSpecifier: siteConfigSpecifier(feedsRel),
+        permalinkSpecifier: relativeSpecifier(feedsRel, path.join(OUT, 'src', 'data', 'post-permalink.ts')),
+        packagesPrefix: packagesSpecifier(feedsRel),
+        taxonomySpecifier: relativeSpecifier(feedsRel, path.join(OUT, 'src', 'pages', 'archives', '_data.ts')),
+        generators: generatorsConfig,
+        staticPages: staticPageInputs,
+        pageUpdatedByPermalink,
+      }),
+    )
+
+    /* search.xml */
+    if (searchGenerator) {
+      if (!searchGenerator.supported) {
+        console.log(`  · search.path「${searchGenerator.path}」：hexo-generator-search 的 .json 分支未支持，跳过`)
+        unsupported.push({
+          category: 'hexo-generator',
+          item: `search.path = ${searchGenerator.path}`,
+          location: '_config.yml',
+          reason:
+            'hexo-generator-search 的 .json 分支（json_generator.js）是另一套 JSON 结构，本轮只实现 .xml 分支。',
+          action: '把 search.path 改回 search.xml（本站默认），或按 json_generator.js 的输出结构自行接搜索组件。',
+        })
+      } else {
+        const rel = planGeneratorOutput('search', searchGenerator.path)
+        writeGeneratorEndpoint(rel, 'renderSearchIndex', 'renderSearchIndex')
+        generatorArtifacts.search = {
+          path: `/${rel}`,
+          routeFile: `src/pages/${rel}.ts`,
+          field: searchGenerator.field,
+          content: searchGenerator.content,
+          sourceConfig: 'search.path / search.field / search.content',
+        }
+        console.log(
+          `    · /${rel}：field=${searchGenerator.field}，content=${searchGenerator.content ? 'CDATA 全文' : '关闭'}`,
+        )
+        if (searchGenerator.field !== 'post') {
+          warnings.push(
+            `search.field=${searchGenerator.field}：本轮 search.xml 只生成文章条目（post 分支）；` +
+              'page/自定义 field 需要额外实现，见 docs/MIGRATION.md「搜索」章节。',
+          )
+        }
+      }
+    }
+
+    /* atom.xml / rss2.xml */
+    if (feedGenerator) {
+      const outputs = []
+      for (const output of feedGenerator.outputs) {
+        const rel = planGeneratorOutput(`feed.${output.type}`, output.path)
+        writeGeneratorEndpoint(rel, 'renderFeed', `() => renderFeed('${output.type}', '${output.path}')`)
+        outputs.push({ type: output.type, path: `/${rel}`, routeFile: `src/pages/${rel}.ts` })
+      }
+      generatorArtifacts.feed = {
+        outputs,
+        limit: feedGenerator.limit,
+        content: feedGenerator.content,
+        orderBy: feedGenerator.orderBy,
+        icon: feedGenerator.icon,
+        prettyAtomFile: feedGenerator.prettyAtomFile,
+        prettyRss2File: feedGenerator.prettyRss2File,
+        hub: feedGenerator.hub,
+        sourceConfig: 'feed.type / feed.path / feed.limit / feed.content',
+      }
+      console.log(
+        `    · ${outputs.map((item) => item.path).join(' / ')}：limit=${feedGenerator.limit ?? '不限制'}，` +
+          `content=${feedGenerator.content ? 'CDATA 全文' : '关闭'}，order_by=${feedGenerator.orderBy}`,
+      )
+    }
+
+    /* sitemap.xml / sitemap.txt */
+    if (sitemapGenerator) {
+      const outputs = []
+      for (const output of sitemapGenerator.outputs) {
+        const rel = planGeneratorOutput('sitemap', output.path)
+        writeGeneratorEndpoint(rel, 'renderSitemap', `() => renderSitemap('${output.kind}', '${output.path}')`)
+        outputs.push({ path: `/${rel}`, kind: output.kind, routeFile: `src/pages/${rel}.ts` })
+      }
+      generatorArtifacts.sitemap = {
+        outputs,
+        tags: sitemapGenerator.tags,
+        categories: sitemapGenerator.categories,
+        sourceConfig: 'sitemap.path（tags/categories 默认 true）',
+      }
+      console.log(
+        `    · ${outputs.map((item) => item.path).join(' / ')}：posts + pages + 静态页面，` +
+          `tags=${sitemapGenerator.tags}，categories=${sitemapGenerator.categories}`,
+      )
+    }
+
+    /* baidusitemap.xml */
+    if (baiduSitemapGenerator) {
+      const rel = planGeneratorOutput('baidusitemap', baiduSitemapGenerator.path)
+      writeGeneratorEndpoint(rel, 'renderBaiduSitemap', 'renderBaiduSitemap')
+      generatorArtifacts.baidusitemap = {
+        path: `/${rel}`,
+        routeFile: `src/pages/${rel}.ts`,
+        urlOverride: baiduSitemapGenerator.url,
+        sourceConfig: 'baidusitemap.path',
+      }
+      console.log(`    · /${rel}：全部文章（baidusitemap:false 除外，与插件实际产物对齐）`)
+    }
+
+    /* baidu_urls.txt */
+    if (baiduUrlSubmitGenerator) {
+      const rel = planGeneratorOutput('baiduUrlSubmit', baiduUrlSubmitGenerator.path)
+      writeGeneratorEndpoint(rel, 'renderBaiduUrls', 'renderBaiduUrls')
+      generatorArtifacts.baiduUrlSubmit = {
+        path: `/${rel}`,
+        routeFile: `src/pages/${rel}.ts`,
+        count: baiduUrlSubmitGenerator.count,
+        // host/token 是提交凭据：本产物只生成 URL 清单，不读也不写凭据。
+        secretsOmitted: ['host', 'token'],
+        sourceConfig: 'baidu_url_submit.path / baidu_url_submit.count',
+      }
+      console.log(
+        `    · /${rel}：${baiduUrlSubmitGenerator.count == null ? '全部文章' : `最新 ${baiduUrlSubmitGenerator.count} 篇`}（不提交，只生成清单）`,
+      )
+    }
+
+    console.log(`  ✓ 站点级生成物 ${generatorEndpoints.length} 个，路由壳 ${generatorEndpoints.length} 个（构建期执行）`)
+  }
+
   /* ---- 插件产物已生成，但插件「渲染期行为」里的全站后处理仍无法等价迁移 ---- */
   if (safegoEnabled) {
     unsupported.push({
@@ -2314,9 +3544,12 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
   // 其中 bangumi / envelope_comment / hexo_safego 的**页面产物**已由本脚本的 [7.x]
   // 阶段按插件语义生成（见 report.plugins / docs/notes/P7-4-fix-plugin-pages.md），
   // 不再列入「无等价物」清单；它们残留的渲染期行为单独归类为 hexo-plugin-page。
+  // search / feed / sitemap / baidusitemap / baidu_url_submit 已由 [7.y] 阶段按插件语义生成
+  // 等价产物（见 report.generators / docs/MIGRATION.md §7.2），不再列为「无等价物」；
+  // 这里的清单只剩真正需要人工接的 Hexo 插件。
   const HEXO_PLUGINS = [
-    'abbrlink', 'baidu_url_submit',
-    'aisummary', 'feed', 'sitemap', 'baidusitemap', 'search', 'all_minifier',
+    'abbrlink',
+    'aisummary', 'all_minifier',
     'aplayer', 'nofollow', 'auto_spacing', 'highlight', 'prismjs', 'deploy',
   ]
   const presentPlugins = HEXO_PLUGINS.filter((key) => key in siteCfg.data)
@@ -2325,8 +3558,8 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
       category: 'hexo-plugin',
       item: presentPlugins.join(', '),
       location: '_config.yml',
-      reason: '这些是 Hexo 生成器/渲染器插件配置，Astro 没有等价插件机制；RSS、sitemap、abbrlink、AI 摘要、图床/压缩等需换实现。',
-      action: 'abbrlink 已作为 frontmatter 字段被文章路由读取（无需插件）；其余按 MIGRATION.md「部署 / 验证」章节改用 @astrojs/rss、@astrojs/sitemap 或 CI 脚本。',
+      reason: '这些是 Hexo 生成器/渲染器插件配置，Astro 没有等价插件机制；abbrlink、AI 摘要、压缩、图床等需换实现。',
+      action: 'abbrlink 已作为 frontmatter 字段被文章路由读取（无需插件）；其余按 MIGRATION.md「部署 / 验证」章节改用 CI 脚本或主题层插件。',
     })
   }
   if (postsWithAbbrlink < postRecords.length) {
@@ -2378,6 +3611,10 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
     /** [7.x] Hexo 插件产物：envelope / bangumi / safego / random.js（null = 源站未启用）。 */
     plugins: pluginArtifacts,
     pluginArtifactCount: Object.values(pluginArtifacts).filter(Boolean).length,
+    /** [7.y] 站点级生成物（构建期 endpoint）：search / feed / sitemap / 百度（null = 源站未配置）。 */
+    generators: generatorArtifacts,
+    generatorEndpoints,
+    generatorArtifactCount: generatorEndpoints.length,
     configKeyDelta: {
       baseline: target.source,
       targetKeyCount: target.keys.length,
@@ -2424,6 +3661,9 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
       .filter(([, value]) => Boolean(value))
       .map(([key]) => key)
       .join(', ') || '源站未启用任何插件页'}）`,
+  )
+  console.log(
+    `  站点级生成物    : ${generatorEndpoints.length}（${generatorEndpoints.map((item) => `/${item.output}`).join(', ') || '源站未配置'}）`,
   )
   console.log(`  主题配置覆盖    : ${matchedThemeKeys.length}/${themeKeys.length} = ${(coverageRate * 100).toFixed(2)}%`)
   console.log(`  1.7.1 新增/缺失 : ${addedIn171.length} / ${missingIn171.length}`)

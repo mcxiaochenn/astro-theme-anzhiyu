@@ -128,11 +128,21 @@ CLI 参数：
     ├── content.config.ts          # posts 集合，glob loader base = ./src/content/posts
     ├── content/posts/             # 文章（保留子目录）+ 独立页面（<目录名>-page.md）
     ├── data/site-data.ts          # getSiteData()，对应上游 site.data.*
+    ├── data/site-feeds.ts         # 6 个站点级生成物的构建期实现（search/feed/sitemap/百度，见 §7.2）
     ├── pages/                     # 最小路由：index / page/[...page] / [...path] / [year]/[month]/[day]/[slug]
     │   ├── comments/index.astro   # Hexo 插件产物 A：envelope 留言板（路径由 envelope_comment.path 决定）
-    │   └── bangumis/index.astro   # Hexo 插件产物 B：追番页（路径由 bangumi.path 决定）
+    │   ├── bangumis/index.astro   # Hexo 插件产物 B：追番页（路径由 bangumi.path 决定）
+    │   ├── search.xml.ts          # 站点级生成物：本地搜索索引（路径由 search.path 决定）
+    │   ├── atom.xml.ts            # 站点级生成物：feed（类型/路径由 feed.type / feed.path 决定）
+    │   ├── rss2.xml.ts            # 站点级生成物：feed（同上）
+    │   ├── sitemap.xml.ts         # 站点级生成物：sitemap（路径由 sitemap.path 决定）
+    │   ├── baidusitemap.xml.ts    # 站点级生成物：百度 sitemap（路径由 baidusitemap.path 决定）
+    │   └── baidu_urls.txt.ts      # 站点级生成物：百度 URL 清单（路径由 baidu_url_submit.path 决定）
     └── styles/                    # 从 examples/blog 复制的上游 stylus + css 样式入口
 ```
+
+> 上面 6 个站点级生成物（以及 `sitemap.txt` 之类的可选产物）**不在迁移期写文件**：
+> 它们是构建期 Astro endpoint，`pnpm build` 时才把文件落到 `dist/` 根目录。配置/语义见 §7.2。
 
 设计约定：
 
@@ -298,7 +308,8 @@ aisummary.token、baidu_url_submit.token
 1. 密钥**不要**写进 `anzhiyu.config.yml`（会进前端产物），改成部署平台的环境变量；
 2. 前端组件显式读取 `import.meta.env.PUBLIC_*`，只在客户端初始化评论 SDK；
 3. 确认后端服务（Twikoo/Waline/Umami/AI 摘要 API）仍可访问，CORS 允许新域名；
-4. 本地搜索 `local_search` / Algolia / Docsearch 目前只有样式，没有检索逻辑，需要接 Astro 侧的搜索方案；
+4. 本地搜索 `local_search`：`search.xml` 索引已由迁移脚本生成为构建期产物（见 §7.2），主题自带的
+   `js/search/local-search.js` 弹层可直接用它检索；Algolia / Docsearch 仍是第三方服务，需要自己接；
 5. 统计（百度/Google/CNZZ/Cloudflare/Clarity/51LA/Umami）换成 `<script>` 或 `@astrojs/partytown` 之类注入。
 
 ```bash
@@ -345,6 +356,97 @@ Astro 没有插件机制，`migrate-hexo.mjs` 的 `[7.x/8]` 阶段按插件源�
 
 > 改了 `packages/astro-theme-anzhiyu/**` 之后重跑迁移站：pnpm 把 `file:` 依赖快照进
 > `node_modules/.pnpm/`，旧产物仍指向旧主题代码。必须先清掉再装（见 §9.1）。
+
+---
+
+### 7.2 站点级生成物（search.xml / atom.xml / rss2.xml / sitemap.xml / baidusitemap.xml / baidu_urls.txt）
+
+这 6 个文件在 Hexo 侧由**生成器插件在 `hexo generate` 阶段**写入 `public/` 根目录，不是 `source/`
+里的 Markdown。Astro 没有等价插件机制，`migrate-hexo.mjs` 的 `[7.y/8]` 阶段按插件源码逐份移植，
+**全部由源站 `_config.yml` 配置驱动**（路径、条目上限、是否带正文、feed 类型……都不写死）：
+
+| 产物 | 源站配置驱动 | 迁移后生成方式 | 生成逻辑来源 |
+| --- | --- | --- | --- |
+| `search.xml` | `search.path` / `search.field` / `search.content` | `src/pages/<search.path>.ts`（构建期 endpoint） | `hexo-generator-search@2.4.3` 的 `lib/xml_generator.js` + `templates/search.xml` |
+| `atom.xml` / `rss2.xml` | `feed.type` / `feed.path` / `feed.limit` / `feed.content` / `content_limit` / `content_limit_delim` / `order_by` / `icon` / `hub` / `pretty_atom_file` / `pretty_rss2_file` | `src/pages/<feed.path[i]>.ts` | `hexo-pretty-feed@1.1.0` 的 `atom.xml` / `rss2.xml` 模板 + `lib/generator.js` |
+| `sitemap.xml`（可选 `sitemap.txt`） | `sitemap.path`（缺省为 `['sitemap.xml','sitemap.txt']`；`tags` / `categories` 默认 true） | `src/pages/<sitemap.path[i]>.ts` | `hexo-generator-sitemap@3.0.1` 的 `lib/generator.js` + `sitemap.xml` / `sitemap.txt` |
+| `baidusitemap.xml` | `baidusitemap.path`（可选 `baidusitemap.url` 覆盖域名） | `src/pages/<baidusitemap.path>.ts` | `hexo-generator-baidu-sitemap@0.1.9` 的 `baidusitemap.ejs` |
+| `baidu_urls.txt` | `baidu_url_submit.path` / `baidu_url_submit.count` | `src/pages/<baidu_url_submit.path>.ts` | `hexo-baidu-url-submit@0.0.6` 的 `lib/generator.js` |
+
+公共实现写进 `src/data/site-feeds.ts`（迁移脚本生成，换站点时重新生成），**不新增任何 npm 依赖**：
+
+- **正文 HTML 的取法**：用 Astro 7 glob loader 在 content sync 阶段 **eager 渲染**出的
+  `entry.rendered.html`（本迁移站实测 22/22 篇文章非空，见 `docs/notes/P7-4-fix-feeds-search.md`
+  §3 的探针证据），再跑主题的 `rewriteHeadings()` 补 Hexo marked 的标题 id / `a.headerlink`。
+  不套页面渲染层的 lazyload（`data-lazy-src`）与 `hexo_safego` 外链改写——源站 feed/search 用的是
+  `after_render` 过滤器**之前**的 `post.content`，golden 里这两样也都没有。
+- **URL 的取法**：文章 URL 走 `src/data/post-permalink.ts` 的 `postHref()`（与文章路由同一套 permalink
+  规则），分类/标签 URL 走 `src/pages/archives/_data.ts` 的 `taxonomySlug`（与分类/标签路由的
+  `getStaticPaths` 同一套 slug 规则），所以 sitemap 里的链接不会 404。
+- **XML 序列化手写**：文本转义 `& < > " '`；CDATA 内容按模板的 `noControlChars` 口径剥控制字符
+  （含换行，源站代码块用 `<br>` 分行），CDATA 结束标记按 XML 规则拆开；`]]>` 不会截断文档。
+- **源站身份零硬编码**：`title/subtitle/description/author/url/root` 从 `site.config.ts` 读，
+  生成器配置快照从 `_config.yml` 归一化后写进 `src/data/site-feeds.ts` 的 `GENERATORS` 常量。
+- **百度提交只生成清单、不提交**：`baidu_url_submit.host/token` 是凭据，迁移脚本/产物**不读取、
+  不写入**（`migration-report.json` 里只登记 `secretsOmitted: ['host','token']`）；真正提交需在部署
+  CI 里用环境变量单独实现。
+
+本站（`D:/Git-project/xcAnzhiyu`）构建结果与 golden（`D:/Git-project/xcAnzhiyu/public/`）对照：
+
+| 产物 | dist 字节 | golden 字节 | dist 条目 | golden 条目 |
+| --- | --- | --- | --- | --- |
+| `search.xml` | 249657 | 254208 | 22 entry | 22 entry |
+| `atom.xml` | 219910 | 222667 | 20 entry | 20 entry |
+| `rss2.xml` | 219880 | 225431 | 20 item | 20 item |
+| `sitemap.xml` | 15393 | 16104 | 84 url | 84 url |
+| `baidusitemap.xml` | 2513 | 2513 | 22 url | 22 url |
+| `baidu_urls.txt` | 950 | 950 | 22 行 | 22 行 |
+
+- `sitemap.xml` 的 84 条与 golden **URL 集合完全一致**（22 文章 + 18 独立页面 + 5 个 source 静态
+  JSON 页面 + 首页 + 28 标签 + 10 分类），`baidu_urls.txt` 与 golden **逐字节一致**。
+- `atom.xml` / `rss2.xml` / `search.xml` 条目数与顺序一致；字节差 1–3% 来自正文 HTML 差异（见下）。
+
+已知差异（都属于「渲染层已有差异」，不是生成器逻辑差异；正文与文章页正文**同源**）：
+
+1. **正文 HTML 与 Hexo marked 输出不完全相同**：例如 Hexo 侧 `hexo-pangu` 会在中英文之间加空格，
+   Astro 侧没有等价插件；个别 Hexo tag（如源站把 `{% tabs %}` 写在 `>` 引用块里的文章）在
+   Markdown 渲染层就落成空容器——**文章页正文同样为空**，不是 feed/search 生成器的问题。
+   这类差异在 `search.xml` 里的表现是 CDATA 长度 ±（本站多数文章 ±500 字符内，个别源站内容在
+   golden 快照之后又被编辑过）。
+2. **`lastmod` 的时间口径**：文章/页面用内容 frontmatter 的 `updated`；独立页面缺 `updated` 时用
+   迁移期快照的**源文件 mtime**（Hexo `updated_option: mtime` 语义）；首页/标签/分类用**构建日**。
+   golden 是历史快照，本站部分源文件在 golden 之后被改过，所以 `lastmod` 值会不同（条目集合一致）。
+3. **分类/标签在 sitemap 里的排列顺序**：Hexo 用 DB 插入序（`locals.tags`），迁移站按「文章 date 倒序
+   首次出现」去重，二者顺序可能不同；URL 集合一致，且顺序不是 sitemap 的语义契约。
+4. **`search.field` 只实现了 `post` 分支**：`page`/自定义 field 需要额外实现（脚本会 warning 并在
+   `unsupported` 登记）；`search.path` 指向 `.json` 时 `hexo-generator-search` 走另一套 JSON 结构，
+   本轮只支持 `.xml`，同样登记 `unsupported`。
+5. **feed/search 正文不含 lazyload（`data-lazy-src`）与 safego 外链改写**：与源站一致（源站这两项是
+   `after_render` 过滤器，发生在生成器取 `post.content` 之后），但也不包含站点自定义的客户端增强。
+6. **主题搜索 UI 的索引路径**：主题 `global-config.ts` 把 `local_search` 的索引路径写成
+   `${root}search.xml`（或以 `local_search.CDN` 覆盖）。若源站把 `search.path` 改成别的文件名，
+   需要同时设置 `anzhiyu.config.yml: local_search.CDN`，否则弹层仍去取 `/search.xml`。
+
+验证（不需要浏览器，本机即可跑）：
+
+```bash
+cd .migration-out/xcAnzhiyu
+pnpm build
+ls -l dist/search.xml dist/atom.xml dist/rss2.xml dist/sitemap.xml dist/baidusitemap.xml dist/baidu_urls.txt
+# 条目数 + XML well-formed（PowerShell，Windows 自带）
+powershell -NoProfile -Command "
+  foreach (\$f in 'search.xml','atom.xml','rss2.xml','sitemap.xml','baidusitemap.xml') {
+    \$x = New-Object System.Xml.XmlDocument; \$x.Load(\"dist/\$f\"); Write-Output \"\$f OK\"
+  }"
+# local-search.js 解析口径（entry/title/url/content）
+node -e "const t=require('fs').readFileSync('dist/search.xml','utf8');
+  console.log('entries', (t.match(/<entry>/g)||[]).length,
+              'cdata', (t.match(/<content type=\"html\"><!\[CDATA\[/g)||[]).length)"
+```
+
+浏览器级验证（搜索弹层交互、RSS 阅读器渲染）留到 CI：本机无浏览器（PLAN R12），本轮只验证了
+索引文件可被 `assets/js/search/local-search.js` 的解析逻辑（`entry > title/url/content`）完整读取。
+完整设计/对拍/差异记录见 `docs/notes/P7-4-fix-feeds-search.md`。
 
 ---
 
@@ -483,6 +585,20 @@ node -e "const fs=require('fs');const r=fs.readFileSync('dist/anzhiyu/random.js'
 #    ✓ random.js 的 posts 数 = 文章数（排除 frontmatter random:false）
 #    ✓ /go.html?u=<base64> 能正确解码并倒计时跳转；/comments/ 有 #envelope/#form-wrap/#beforeimg/#afterimg
 
+# D3. 站点级生成物（见 §7.2；路径由源站配置决定，下面以本站为例）
+ls -l dist/search.xml dist/atom.xml dist/rss2.xml dist/sitemap.xml dist/baidusitemap.xml dist/baidu_urls.txt
+#    ✓ 6 个文件都存在且非空（本站 249657 / 219910 / 219880 / 15393 / 2513 / 950 字节）
+node -e "const fs=require('fs');const c=f=>fs.readFileSync('dist/'+f,'utf8');
+  console.log('search entries', (c('search.xml').match(/<entry>/g)||[]).length,
+              'atom entries', (c('atom.xml').match(/<entry>/g)||[]).length,
+              'rss2 items', (c('rss2.xml').match(/<item>/g)||[]).length,
+              'sitemap urls', (c('sitemap.xml').match(/<url>/g)||[]).length,
+              'baidusitemap urls', (c('baidusitemap.xml').match(/<url>/g)||[]).length,
+              'baidu_urls lines', c('baidu_urls.txt').split('\\n').filter(Boolean).length)"
+#    ✓ 22 / 20 / 20 / 84 / 22 / 22（与 golden 条目数一致）
+powershell -NoProfile -Command "foreach (\$f in 'search.xml','atom.xml','rss2.xml','sitemap.xml','baidusitemap.xml') { \$x=New-Object System.Xml.XmlDocument; \$x.Load(\"dist/\$f\"); Write-Output \"\$f OK\" }"
+#    ✓ 5 个 XML 全部 well-formed
+
 # E. 上线后
 #    ✓ 老 URL（posts/p:abbrlink/）有 301 映射或自定义 404 引导
 #    ✓ sitemap / RSS / 统计 / 评论后端可用
@@ -571,6 +687,10 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 - **插件页产物**：`/comments/`（envelope）、`/bangumis/`（追番）、`/go.html`（safego）、
   `/anzhiyu/random.js`（随机文章）由 `migrate-hexo.mjs` 的 `[7.x/8]` 阶段按源站配置生成，
   不需要手写；产物路径与行为差异见 §7.1 与 `docs/notes/P7-4-fix-plugin-pages.md`。
+- **站点级生成物**：`/search.xml`、`/atom.xml`、`/rss2.xml`、`/sitemap.xml`、`/baidusitemap.xml`、
+  `/baidu_urls.txt` 由 `migrate-hexo.mjs` 的 `[7.y/8]` 阶段写成**构建期 endpoint**
+  （`src/data/site-feeds.ts` + `src/pages/*.xml.ts` / `*.txt.ts`），`pnpm build` 时才落到 `dist/`
+  根目录；配置来源、正文取法与已知差异见 §7.2 与 `docs/notes/P7-4-fix-feeds-search.md`。
 - **YAML 解析失败**：源站 frontmatter 里混入了不换行空格（本站 `log/index.md` 的 `date`），
   脚本读取时对坏 YAML 有降级（只提取 `type`/`layout`/`permalink`），但 Astro 构建时仍可能报错，需人工修源内容。
 - **`data/*.json` 不生效**：见 §5.3。
@@ -584,11 +704,13 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 
 完整演练记录见 `docs/notes/P7-3-migration.md`。当前脚本产出的是**可继续开发的骨架**，不是「一键可上线」：
 
-### 13.1 `migration-report.json` → `unsupported` 21 项：分类与处理建议
+### 13.1 `migration-report.json` → `unsupported`（P7-3 快照 21 项 → 当前 18 项）：分类与处理建议
 
 > 注：本表是 **P7-3 首次演练**的 21 项快照。P7-4 系列修复后（主题层 URL/taxonomy/page.type +
-> 本任务的插件产物生成），真实站当前为 **18 项**：`page.type` 与 `layout` 已修（`charts` / `todolist` /
-> `sitetime` 归一）、`friends_lite` 已由主题包兼容键支持，新增 `hexo-plugin-page` 1 项
+> 插件产物生成 + **W2-B2 的 search/feed/sitemap/百度生成器**），真实站当前为 **18 项**：
+> `page.type` 与 `layout` 已修（`charts` / `todolist` / `sitetime` 归一）、`friends_lite` 已由主题包
+> 兼容键支持，`hexo-plugin` 一项的条目已从 17 个插件键缩到 9 个（`search/feed/sitemap/baidusitemap/
+> baidu_url_submit` 已由 §7.2 生成等价产物，不再列待办），新增 `hexo-plugin-page` 1 项
 > （safego 全站外链后处理）。以 `.migration-out/<out>/migration-report.json` 的 `unsupported` 为准。
 
 脚本不会静默吞掉无法迁移的东西，全部逐条写进报告（含 `category / item / location / reason / action`）。
@@ -603,7 +725,7 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 | `cdn` | 2 | `CDN.custom_format / option`、`internal_provider / third_party_provider` | 改 `build.assetsPrefix` 或部署层 CDN 回源（见 §8） |
 | `inject` | 2 | `inject.head` 8 项、`inject.bottom` 5 项 | 搬到布局 / `BaseLayout` 插槽 |
 | `hexo-only` | 1 | `pjax.enable` | 删除，或评估 Astro View Transitions |
-| `hexo-plugin` | 1 | 17 个 Hexo 插件键 | RSS/sitemap 换 `@astrojs/*`，其余换 CI 脚本或自定义插件（见 §9、§11） |
+| `hexo-plugin` | 1 | 9 个剩余 Hexo 插件键（`abbrlink` / `aisummary` / `all_minifier` / `aplayer` / `nofollow` / `auto_spacing` / `highlight` / `prismjs` / `deploy`） | `abbrlink` 已由文章路由读取 frontmatter；`search/feed/sitemap/baidusitemap/baidu_url_submit` 已由 §7.2 生成；其余换 CI 脚本或主题层插件 |
 
 逐条明细（含每个 item 的 `reason` / `action`）在 `docs/notes/P7-3-migration.md` §6.1，
 机器可读原文在 `.migration-out/xcAnzhiyu/migration-report.json` 的 `unsupported` 数组。
@@ -617,8 +739,8 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 4. 归档 / 标签 / 分类 / 404 路由未生成（最小路由只含首页、分页、独立页、文章页）；
 5. 评论 / 搜索 / 统计 / CDN / inject / pjax 仍是要人工接的项；Hexo 插件产物里
    **envelope 留言板 / bangumi 追番 / safego go.html / random.js 已由 §7.1 生成**，
-   剩余 `hexo_safego` 全站外链后处理、RSS/sitemap/search 索引仍在 `unsupported`（feed/sitemap/search
-   属 W2-B2 的生成器任务）；
+   **search.xml / atom.xml / rss2.xml / sitemap.xml / baidusitemap.xml / baidu_urls.txt
+   已由 §7.2 生成**，剩余 `hexo_safego` 全站外链后处理仍在 `unsupported`（`hexo-plugin-page`）；
 6. 主题包目前是 `private: true` 的 workspace 源码包，只能靠 `file:` 引用，尚未发布到 npm。
 
 以上都不属于脚本 bug，属于「Hexo 生态 → Astro 生态」需要逐项做语义迁移的部分。
