@@ -397,3 +397,6 @@ exit code: 0        # dist/sw.js 不存在、HTML 无 manifest link 注入（62/
   (b) 本文方案：追加 50 行独立 fetch 监听（本文选 b，产物已验证）。
 - 结论：**@vite-pwa/astro 作为生成/预缓存底座成立，sw-rules 的备用 URL 语义需一段
   自定义 SW 代码承载**；附录 C #7 可标「◐ 部分通过（需补丁，已实现）」。
+
+- **CI 实测（run 45398204980）**：PWA 专用 step **2/2 passed（7.3s）**，其中「SW ready → 断网 reload 首页」
+  868ms PASS；默认 e2e 中 pwa.spec.ts 两条按环境 skip（非 PWA 构建无 sw.js）。

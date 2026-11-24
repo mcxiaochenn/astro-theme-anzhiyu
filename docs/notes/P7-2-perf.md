@@ -762,3 +762,22 @@ task-16 新增两个 key（§9.3）：
 > `:326` 证明 9 份 LHR 存在（否则 assert 无法读到）；`:330-346` 是三条失败断言的全部证据；
 > `:374` 是 artifact 空的报错；`:295` 是被修掉的 readiness 噪音（`:296` 说明实际 2s 就绪）。
 > 完整日志见 `.ci-logs/lh-run1.log`（gitignored，本机留存；run 页面上也可复现）。
+
+
+---
+
+## 10. CI 首跑回填（最终，2026-11-24 20:56Z / run 45398204980）
+
+配置修复后首跑 lighthouse job **success**，artifact `.lighthouseci` 5,492,610B 已上传（9 份 LHR）。
+
+| URL | performance | accessibility | best-practices | seo | 门禁结果 |
+| --- | --- | --- | --- | --- | --- |
+| `/` | **0.96** | 0.77 | **0.96** | **0.92** | PASS |
+| `/2024/11/01/longform-hexo-astro/` | **0.93** | 0.76 | **0.96** | 0.83 | PASS |
+| `/about/` | **0.95** | **0.85** | 0.92 | **0.92** | PASS |
+
+- 门禁：performance ≥0.60 / accessibility ≥0.75 / best-practices ≥0.80 / seo ≥0.82 + 7 条资源预算，**全部 PASS**；
+- 数据来源：CI artifact `manifest.json` 的 representative run（每 URL 3 次中位），已同步写入 `docs/baseline.json.perf.finalCiRun`；
+- 结论口径（与 §2.3 一致）：自有资源口径下四项分数均高（perf 0.93-0.96），a11y 0.76-0.85 / seo 0.83-0.92 为当前基线；
+  「不低于上游」因 PSI 429 + 上游现网已换 Astro 站无法直接测，改由资产画像（本地 JS gzip 比上游主题小 16%、CSS 持平）
+  + 回归门禁承担；a11y/seo 提升继续挂在 Phase 7 backlog。

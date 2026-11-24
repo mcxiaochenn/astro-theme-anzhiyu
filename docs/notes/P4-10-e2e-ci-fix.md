@@ -427,3 +427,15 @@ Total: 38 tests in 8 files
    navigation:72 的「console 无运行时错误」断言会兜住这条路径。
 3. 首个目标是**置顶卡片**（`lastestpost-item`）文章页；若未来首页把置顶/推荐改成非 `.article-title` 结构，
    需同步调整 `internalLink()`（选择器语义写在 helpers 注释里）。
+
+
+---
+
+## 10. CI 首跑回填（最终，2026-11-24 run 45398204980）
+
+- 默认 e2e（38 条收集）：**29 passed / 9 skipped / 0 failed（26.3s）**；PWA 专用 step：**2/2 passed（7.3s）**；
+- job 级：build ✅ / e2e ✅ / lighthouse ✅（三 job 全绿，详见 docs/notes/P7-4-final-acceptance.md §6）；
+- 修复传导链：7/36 → 24/38 → 28/38 → 29/38 + PWA 2/2；最后一条真实 bug（暗色跨 ClientRouter 导航重置）
+  由 P4-4 修复（runtime.ts 的 before/after-swap 重放）后转 PASS；
+- 9 条 skip 的依据：右键菜单 4（demo 配置 rightClickMenu.enable=false，真实站走查覆盖）、搜索 2
+  （demo 站未启用搜索，真实站数据层验收覆盖）、音乐播放 1（外部 Meting 服务）、PWA 2（在专用配置下真实执行）。

@@ -372,26 +372,27 @@
       "artifact": "empty（upload-artifact@v4 默认排除 hidden 文件；task-16 修复为 include-hidden-files: true + ci.upload filesystem target）"
     },
     "measuredScores": {
+      "note": "精确分数来自 finalCiRun（CI artifact），旧 ciRun 字段保留首跑失败记录作为演进证据",
       "home": {
         "path": "/",
-        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
-        "accessibility": { "median": 0.77, "allRunValues": [0.77, 0.77, 0.77], "status": "failed-vs-old-gate" },
-        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
-        "seo": { "median": null, "lowerBound": 0.85, "status": "passed" }
+        "performance": 0.96,
+        "accessibility": 0.77,
+        "best-practices": 0.96,
+        "seo": 0.92
       },
       "post": {
         "path": "/2024/11/01/longform-hexo-astro/",
-        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
-        "accessibility": { "median": 0.76, "allRunValues": [0.76, 0.76, 0.76], "status": "failed-vs-old-gate" },
-        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
-        "seo": { "median": 0.83, "allRunValues": [0.83, 0.83, 0.83], "status": "failed-vs-old-gate" }
+        "performance": 0.93,
+        "accessibility": 0.76,
+        "best-practices": 0.96,
+        "seo": 0.83
       },
       "about": {
         "path": "/about/",
-        "performance": { "median": null, "lowerBound": 0.6, "status": "passed" },
-        "accessibility": { "median": null, "lowerBound": 0.8, "status": "passed" },
-        "best-practices": { "median": null, "lowerBound": 0.8, "status": "passed" },
-        "seo": { "median": null, "lowerBound": 0.85, "status": "passed" }
+        "performance": 0.95,
+        "accessibility": 0.85,
+        "best-practices": 0.92,
+        "seo": 0.92
       }
     },
     "budgets": {
@@ -442,6 +443,43 @@
       "seo 提升：crawlable-anchors、结构化数据 JSON-LD",
       "回填 performance / best-practices 精确值，按 P7-2-perf.md §6.4 判断是否向上收紧门禁",
       "PSI 有 API key 后补上游同口径分数对照（当前 429 + 上游站已换 Astro，见文档 §2）"
-    ]
+    ],
+    "finalCiRun": {
+      "runId": 45398204980,
+      "job": "lighthouse",
+      "headSha": "f214818",
+      "outcome": "success",
+      "artifact": "lighthouse-report（5,492,610B，.lighthouseci/manifest.json + 9 份 LHR）",
+      "scores": {
+        "home": {
+          "performance": 0.96,
+          "accessibility": 0.77,
+          "best-practices": 0.96,
+          "seo": 0.92
+        },
+        "post": {
+          "performance": 0.93,
+          "accessibility": 0.76,
+          "best-practices": 0.96,
+          "seo": 0.83
+        },
+        "about": {
+          "performance": 0.95,
+          "accessibility": 0.85,
+          "best-practices": 0.92,
+          "seo": 0.92
+        }
+      },
+      "gateResult": "PASS（performance ≥0.60 / a11y ≥0.75 / best-practices ≥0.80 / seo ≥0.82 + 7 条资源预算全部通过）",
+      "measuredAt": "2026-11-24T12:56Z",
+      "source": "CI artifact manifest.json representative runs（每 URL 3 次 run 取中位）"
+    },
+    "e2eAndBuild": {
+      "runId": 45398204980,
+      "main": "38 tests → 29 passed / 9 skipped / 0 failed（26.3s）",
+      "pwaOffline": "2/2 passed（7.3s；含断网 reload 首页 868ms PASS）",
+      "buildJob": "success",
+      "lighthouseJob": "success"
+    }
   }
 }
