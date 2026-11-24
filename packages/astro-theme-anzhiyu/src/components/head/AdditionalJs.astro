@@ -8,10 +8,13 @@
  *
  * 顺序与上游逐行一致（当前配置命中的分支）：
  *   utils → main → tw_cn → fancybox → instantpage → lazyload → snackbar →
- *   pangu → canvas#universe + dark.js → log-js → random.js → #runtime → `.js-pjax`
- *   (people 内联 + card-post-count + subtitle + math + comments/js + input#page-type) →
+ *   pangu → canvas#universe + dark.js → log-js → random.js → #runtime →
+ *   search（:44-50，algolia 三件套 / local_search）→ colorthief（:52-54）→
+ *   `.js-pjax` (people 内联 + card-post-count + subtitle + math + comments/js +
+ *   input#page-type + comment_barrage(:79-81)) →
  *   newest-comments → visitorMail → waterfall → qrcode → right-menu → iconfont →
- *   effect → chat → aplayer → [pjax 由 ClientRouter 取代] → accesskey
+ *   effect → chat → aplayer → [pjax 由 ClientRouter 取代] → busuanzi(:126-127) →
+ *   accesskey → #greetingBox(:131-132)
  *
  * P5-2 说明：
  *   - 上游 additional-js.pug 的第三方集成段（pangu / runtime / card-post-count /
@@ -23,13 +26,16 @@
  *     迁移 prismjs 站点时需单独处理（见 docs/PLAN.md 已知边界）。
  *   - `page.mathjax` / `page.katex` / `page.aplayer` 三个 page 级开关未从路由透传
  *     （默认 `per_page: true` 时由主题配置门控，行为一致）；登记为已知边界。
+ *   - 评论弹幕（:79-81）的 `page.comments` 用 `pageComments` prop 表达（严格真值，
+ *     缺省 undefined = 不输出）；路由层接线在 Batch B。
  *
  * 关键取舍：
  *   - **不再加载上游 Pjax**：`pjax@0.2.8` + 它的初始化内联块由 `head/runtime.ts`
  *     映射到 `<ClientRouter />`（astro:before-swap → pjax:send，astro:page-load →
  *     pjax:complete + refreshFn）。因此这里少 2 个节点，属登记在案的差异。
- *   - 上游 `script[data-pjax]` 的重执行语义用 `data-astro-rerun` 表达（P1.5 §3.2）；
- *     当前命中的只有 waterfall。
+ *   - `script[data-pjax]` 的重执行语义有两条本地通道（P1.5 §3.2 + head/runtime.ts:136-143）：
+ *     `data-astro-rerun`（Astro 原生换页重执行，waterfall）与裸 `data-pjax`
+ *     （pjax:complete 时由 runtime.ts shim 重建 script 强制重执行，comment_barrage / busuanzi）。
  *   - `theme.asset` 的取值走 `config/assets.ts`：internal=local（`/js/...`），
  *     third_party=cbd（`https://cdn.cbd.int/...`）。
  */
@@ -53,12 +59,23 @@ import Aplayer from '../third-party/aplayer.astro'
 interface Props {
   site: SiteConfig
   isHome?: boolean
+  /** 当前 URL 是否根路径 `'/'`（上游 `is_current("/")`，:131 的 `#greetingBox` 门控之一）。 */
+  isCurrentRoot?: boolean
+  /** 上游 `page.comments`（:80 评论弹幕门控之一）。严格真值：缺省 undefined = 不输出。 */
+  pageComments?: boolean
   pageType?: 'post' | 'page'
   /** 上游 `page.type || (is_post ? 'post' : (is_category ? 'categories' : 'anzhiyu'))`。 */
   pageTypeValue?: string
 }
 
-const { site, isHome = false, pageType = 'page', pageTypeValue } = Astro.props
+const {
+  site,
+  isHome = false,
+  isCurrentRoot = false,
+  pageComments,
+  pageType = 'page',
+  pageTypeValue,
+} = Astro.props
 
 const theme = getThemeConfig()
 const urlFor = createUrlFor(site.root ?? '/')
@@ -93,6 +110,25 @@ const peoplecanvasEnabled = flag(theme.peoplecanvas, 'enable')
 const aliIcons = obj(theme.icons)
 const aliIconfontJs = str(aliIcons, 'ali_iconfont_js')
 const mainTone = obj(theme.mainTone)
+
+/** additional-js.pug:44-50 —— 搜索脚本（algolia 三件套 > local_search；docsearch 无脚本块）。 */
+const algoliaSearchEnabled = flag(theme.algolia_search, 'enable')
+const localSearchEnabled = flag(theme.local_search, 'enable')
+/** additional-js.pug:52-54 —— colorthief（`mainTone.mode === "colorthief"` 严格等值）。 */
+const colorthiefEnabled = str(mainTone, 'mode') === 'colorthief'
+/** additional-js.pug:79-81 —— 评论弹幕（配置双门 + pageComments 严格真值）。 */
+const commentBarrageEnabled = flag(theme.comment_barrage_config, 'enable')
+/** 上游 `theme.comments.use == 'Twikoo'`（pug 宽松等值）。`String()` 的展开对
+ *  string / 单元素数组 / 多元素数组与 pug 抽象相等逐例一致（null/undefined 为假）。 */
+const commentsUseIsTwikoo = String(obj(theme.comments)['use']) === 'Twikoo'
+/** additional-js.pug:126-127 —— busuanzi（三项任一）。`assets.busuanzi` 只可能来自
+ *  `CDN.option` 覆盖（config/assets.ts），缺省用官方默认 URL；上游此 src 不套
+ *  `url_for`，这里保持一致。 */
+const busuanziEnabled =
+  flag(theme.busuanzi, 'site_uv') || flag(theme.busuanzi, 'site_pv') || flag(theme.busuanzi, 'page_pv')
+const busuanziSrc = assets.busuanzi || '//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js'
+/** additional-js.pug:131-132 —— 问候语容器（`is_current("/") && theme.greetingBox.enable`）。 */
+const greetingBoxEnabled = flag(theme.greetingBox, 'enable')
 
 /** 上游 `theme.asset.meting_api`（插件表里没有，默认 undefined）。 */
 const metingApi = typeof assets.meting_api === 'string' ? assets.meting_api : ''
@@ -159,6 +195,21 @@ const peopleScript = `if (typeof gsap === "object") {
   {/* additional-js.pug:40-42 —— 页脚计时器 #runtime（footer.runtime.enable） */}
   <Runtime />
 
+  {/* additional-js.pug:44-50 —— 搜索脚本（algolia_search 三件套 > local_search；
+      docsearch 无脚本块，不加） */}
+  {algoliaSearchEnabled ? (
+    <>
+      <script is:inline src={assetUrl('algolia_search')}></script>
+      <script is:inline src={assetUrl('instantsearch')}></script>
+      <script is:inline src={assetUrl('algolia_js')}></script>
+    </>
+  ) : (
+    localSearchEnabled && <script is:inline src={assetUrl('local_search')}></script>
+  )}
+
+  {/* additional-js.pug:52-54 —— colorthief（mainTone.mode === "colorthief"） */}
+  {colorthiefEnabled && <script is:inline src={assetUrl('colorthief')}></script>}
+
   <div class="js-pjax">
     {peoplecanvasEnabled && isHome && <script is:inline set:html={peopleScript}></script>}
     {/* additional-js.pug:66-67 —— 评论计数脚本（needLoadCountJs，组件内按
@@ -172,6 +223,13 @@ const peopleScript = `if (typeof gsap === "object") {
     {/* additional-js.pug:74-75 —— 评论后端初始化脚本（commentsJsLoad） */}
     <CommentsJs />
     <input type="hidden" name="page-type" id="page-type" value={resolvedPageType} />
+
+    {/* additional-js.pug:79-81 —— 评论弹幕脚本。上游脚本自身无 data-pjax 属性、但位于
+        .js-pjax 内（pjax 换页重执行语义）→ 本地约定用 data-pjax 属性表达：
+        head/runtime.ts:136-143 的 shim 在 pjax:complete 时重建 script[data-pjax] 强制重执行。 */}
+    {commentBarrageEnabled && commentsUseIsTwikoo && pageComments && (
+      <script is:inline async data-pjax src={assetUrl('comment_barrage_js')}></script>
+    )}
   </div>
 
   {/* additional-js.pug:85-89 —— 侧栏最新评论（aside + newest_comments +
@@ -201,5 +259,11 @@ const peopleScript = `if (typeof gsap === "object") {
       page 级 aplayer 开关未从路由透传，见文件头已知边界） */}
   <Aplayer />
 
+  {/* additional-js.pug:126-127 —— busuanzi 访问统计（async data-pjax；src 不套 url_for，与上游一致） */}
+  {busuanziEnabled && <script is:inline async data-pjax src={busuanziSrc}></script>}
+
   {accesskeyEnabled && <script is:inline charset="UTF-8" src={assetUrl('accesskey_js')}></script>}
+
+  {/* additional-js.pug:131-132 —— 问候语容器（is_current('/') && greetingBox.enable） */}
+  {isCurrentRoot && greetingBoxEnabled && <div id="greetingBox"></div>}
 </div>

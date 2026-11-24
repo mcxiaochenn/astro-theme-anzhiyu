@@ -42,6 +42,8 @@ export interface EssayItem {
 }
 
 export interface EssayGroup {
+  /** 上游 bbTimeList.pug:3 的门控：真值组才输出 `#bbTimeList`（首页即刻短文入口）。 */
+  home_essay?: boolean
   title?: string
   subTitle?: string
   tips?: string

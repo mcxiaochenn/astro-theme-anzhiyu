@@ -29,10 +29,12 @@ import {
   preparePosts,
 } from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
 import { postHrefOf } from '../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
+import type { EssayGroup } from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
 import '../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 
 import { SITE_IDENTITY } from '../data/site-identity.ts'
+import { getSiteData } from '../data/site-data.ts'
 
 /** 站点级元数据（基准站身份，对应上游 `config.*`）——集中定义见 src/data/site-identity.ts。 */
 const site = SITE_IDENTITY
@@ -44,9 +46,12 @@ const posts = preparePosts(entries, { resolvePostHref: postHrefOf(site) })
 const { total, pages } = paginatePosts(posts)
 const pagePosts = pages[0] ?? []
 const categoryBarItems = collectCategoryBarItems(posts)
+
+/** `site.data.essay` 等价物（bbTimeList 数据源，A6；home_essay 组门控在组件内）。 */
+const essayData = getSiteData<EssayGroup[]>('essay')
 ---
 
-<BaseLayout site={site} isHome>
+<BaseLayout site={site} isHome essay={essayData}>
   <div id="recent-posts" class="recent-posts">
     <CategoryBar items={categoryBarItems} />
     {

@@ -11,12 +11,14 @@
  *     #body-wrap.page|.post           layout.pug:18（pageType = is_post() ? 'post' : 'page'）
  *       <Header />                    layout.pug:19   header/index.pug（P2-4：header#page-header + nav）
  *       main#blog-container           layout.pug:20
+ *         #bbTimeList                 layout.pug:21-22（is_home()，bbTimeList.pug；Batch A · A6）
  *         #home_top                   layout.pug:23-24（is_current("/")，占位：P2-7）
  *         #content-inner.layout       layout.pug:43   页面内容 slot + widget 侧栏
  *           <slot />                  layout.pug:44-47（block content）
  *           #aside-content            layout.pug:48-49 占位：P3-1 填 widget 卡片
  *       <Footer />                    layout.pug:60   footer.pug（P2-4：footer#footer + footer-wrap + footer-bar）
  *     <Sidebar />                     layout.pug:78   sidebar.pug（P2-5）
+ *     <ShortcutKey />                 layout.pug:80-81 shortcutKey.pug（Batch A · A5，self-gate）
  *     <Rightside />                   layout.pug:82   rightside.pug（P2-5）
  *     #nav-music                      layout.pug:84-85（music.pug 静态结构）
  *     #rightMenu / #rightmenu-mask    layout.pug:87（rightmenu 静态结构）
@@ -25,7 +27,6 @@
  *
  * 明确不做（留给后续阶段）：
  *   - 404 分支（`page.type === '404'` → 404.pug）→ P2-10
- *   - shortcutKey（默认关闭）→ P4-5
  *   - search（三套搜索默认关闭，include 本身输出为空）→ P4-8
  *   - ClientRouter / `transition:persist` / pjax shim → P4-3
  *   - pace 进度条（theme.preloader.source === 3 的第二段）→ P4-1（asset URL）
@@ -45,7 +46,9 @@ import Header from '../components/layout/Header.astro'
 import Footer from '../components/layout/Footer.astro'
 import Sidebar from '../components/layout/Sidebar.astro'
 import Rightside from '../components/layout/Rightside.astro'
+import ShortcutKey from '../components/layout/ShortcutKey.astro'
 import HomeTop from '../components/home/HomeTop.astro'
+import BbTimeList from '../components/home/BbTimeList.astro'
 import AsideContent from '../components/widget/AsideContent.astro'
 import AdditionalJs from '../components/head/AdditionalJs.astro'
 /* P5-2：body 区 third-party 集成（组件各自按主题配置门控，默认关闭时输出 0 节点） */
@@ -107,6 +110,13 @@ interface Props {
   postAI?: string
   /** `page.main_color`（`GLOBAL_CONFIG_SITE.postMainColor`）。 */
   postMainColor?: string
+  /**
+   * 页面级评论开关（上游 `page.comments`，additional-js.pug:80 评论弹幕门控之一）。
+   * 严格真值：缺省 undefined = 不输出。路由层接线在 Batch B。
+   */
+  pageComments?: boolean
+  /** `site.data.essay` 等价物（BbTimeList 数据源，A6；home_essay 组门控见组件）。 */
+  essay?: unknown
 }
 
 const {
@@ -132,6 +142,8 @@ const {
   postUpdate: postUpdateProp,
   postAI,
   postMainColor,
+  pageComments,
+  essay,
 } = Astro.props
 
 const site = resolveSite(siteInput)
@@ -347,6 +359,10 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
 
           {/* layout.pug:20 — 主内容区 */}
           <main id="blog-container">
+            {/* layout.pug:21-22 — bbTimeList.pug，is_home() 时、top/top.pug 之前
+                （数据门控 site.data.essay 的 home_essay 组在组件内，A6） */}
+            {isHome && <BbTimeList site={site} essay={essay} />}
+
             {/* layout.pug:23-24 — top/top.pug，仅首页根路径 */}
             {isHome && isCurrentRoot && <HomeTop site={site} posts={posts} />}
 
@@ -375,6 +391,9 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
       categoryCount={categoryNames.size}
       tags={sidebarTags}
     />
+
+    {/* layout.pug:80-81 — shortcutKey.pug（theme.shortcutKey.enable，组件内 self-gate；A5） */}
+    <ShortcutKey site={site} />
 
     {/* layout.pug:82 — rightside.pug（P2-5） */}
     <Rightside
@@ -533,7 +552,14 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
         P5-2：additional-js 里的第三方集成段（runtime / card-post-count / subtitle /
         math / comments-js / newest-comments / effect / chat / aplayer / pangu）
         由 AdditionalJs.astro 按上游行号挂载，不在这里重复。 */}
-    <AdditionalJs site={site} isHome={isHome} pageType={pageType} pageTypeValue={pageTypeValue} />
+    <AdditionalJs
+      site={site}
+      isHome={isHome}
+      isCurrentRoot={isCurrentRoot}
+      pageType={pageType}
+      pageTypeValue={pageTypeValue}
+      pageComments={pageComments}
+    />
 
     {/* layout.pug:91 — popup/index.pug（静态结构） */}
     <div id="popup-window" transition:persist="popup_window">
