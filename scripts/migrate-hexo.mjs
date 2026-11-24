@@ -40,8 +40,17 @@ const DEFAULTS_TS = path.join(THEME_PKG_DIR, 'src', 'config', 'defaults.ts')
 /** [...path].astro 实际分发的 page.type；default 是无 type 时的兜底。 */
 const STANDARD_PAGE_TYPES = new Set([
   'tags', 'categories', 'link', 'essay', 'room', 'about', 'album',
-  'album_detail', 'music', 'equipment', 'fcircle', 'default',
+  'album_detail', 'music', 'equipment', 'fcircle', 'todolist', 'default',
 ])
+
+/**
+ * 1.6.14 有、1.7.1 上游默认配置里没有，但**主题包保留为兼容键**的顶层配置。
+ *
+ * 与 `--upstream` 对比时它们不算「缺失键」，配置原样写进 `anzhiyu.config.yml`：
+ *   - `friends_lite`：1.6.14 的 Lite 朋友圈；主题包 schema 标 deprecated 并保留了
+ *     `FcirclePage.astro` 的 lite 分支，真实站迁移后 `/fcircle/` 不丢内容（P7-4）。
+ */
+const LEGACY_THEME_KEYS = new Set(['friends_lite'])
 
 /** Hexo 主配置里需要读取的站点字段（其余原样存进 siteExtras.sourceTopLevelKeys 备查）。 */
 const SITE_FIELDS = [
@@ -54,7 +63,6 @@ const KEY_ALIAS_HINTS = {
   Umami: 'umami（1.7.1 已改为小写，且子键变为 apiHost/websiteId/token，需人工重填）',
   ai_summary: 'post_head_ai_description（1.7.1 语义不同，需人工核对）',
   Day_night_toggle_button: 'darkmode.button（1.7.1 已并入 darkmode 区块）',
-  friends_lite: 'friends_vue（1.7.1 无 friends_lite，需人工核对）',
 }
 
 /** 敏感字段名（命中且值非空时列入「评论/后端密钥」待办）。 */
@@ -276,6 +284,856 @@ function scanThemeReferencedKeys(siteRoot) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Hexo 插件产物（generator 等价实现）                                  */
+/* ------------------------------------------------------------------ */
+/*
+ * 上游 Hexo 主题靠**插件**在 `hexo generate` 阶段注入额外产物，Astro 没有插件
+ * 机制。这里在迁移期按插件源码逐份移植「产物生成」，产物写进目标站：
+ *
+ *   hexo-butterfly-envelope   → <envelope_comment.path>/index.html（信笺留言板）
+ *   hexo-bilibili-bangumi     → <bangumi.path>/index.html（想看/在看/已看 三 tab）
+ *   hexo-safego               → <hexo_safego.security.html_file_name>（安全跳转页）
+ *   主题 scripts/helpers/random.js generator → <random.path>（随机文章 / 页脚随机友链）
+ *
+ * 原则：
+ *   1. 内容全部由源站 `_config.yml` 的插件配置与 `source/_data/*` 数据驱动，
+ *      不写死源站身份：author / title / avatar / url / root 都从 site.config.ts
+ *      或插件配置段取；
+ *   2. 配置缺失或 enable=false / 数据文件不存在 → 打印「跳过」日志、不产出文件，
+ *      对没有这些插件的站点安全；
+ *   3. 服务端渲染部分完全静态化。bangumi 的 tab 切换/分页用插件原逻辑的移植版，
+ *      但不再在浏览器里用 axios+pug 二次拉 `bangumis.json` 渲染剩余条目
+ *      （迁移期把数据一次性渲染进 HTML，见 docs/notes/P7-4-fix-plugin-pages.md）；
+ *   4. /comments/ 与 /bangumis/ 走主题 BaseLayout 外壳（#body-wrap / Header /
+ *      Footer / aside），与其它独立页面一致；/go.html 是独立单页（无主题外壳，
+ *      与源站 hexo-safego 产物一致）。
+ */
+
+/** hexo-safego index.js 的默认配置（插件 `Object.assign(defaults, userConfig)` 的 defaults）。 */
+const SAFEGO_DEFAULTS = {
+  general: { enable: false, enable_base64_encode: true, enable_target_blank: true },
+  security: { url_param_name: 'u', html_file_name: 'go.html', ignore_attrs: ['data-fancybox'] },
+  scope: { apply_containers: [], apply_pages: [], exclude_pages: [] },
+  whitelist: { domain_whitelist: [] },
+  appearance: {
+    avatar: 'https://cdn.jsdelivr.net/npm/hexo-safego/lib/avatar.png',
+    title: '请填写网站名称',
+    subtitle: '请填写网站副标题',
+    darkmode: false,
+    countdowntime: -1,
+  },
+  debug: { enable: false },
+}
+
+/** hexo-bilibili-bangumi lib/util.js 的 i18n 词典（逐字移植）。 */
+const BANGUMI_I18N = {
+  en: {
+    wantWatch: 'Wish', watched: 'Watched', watching: 'Watching', prev: 'Prev', next: 'Next',
+    top: 'Top', end: 'End', wantPlay: 'Wish', playing: 'Playing', played: 'Played',
+    type: 'Type', tag: 'Tags', score: 'Score', follow: 'Follow', summary: 'Summary',
+    comment: 'My Comment', noSummary: 'No Summary', unknown: 'Unknown', view: 'Views',
+    coin: 'Coins', danmaku: 'Danmaku', myScore: 'My Score', area: 'Area', year: 'Year',
+  },
+  'zh-TW': {
+    wantWatch: '想看', watched: '看過', watching: '在看', prev: '上一頁', next: '下一頁',
+    top: '首頁', end: '尾頁', wantPlay: '想玩', playing: '在玩', played: '玩過',
+    type: '類型', tag: '標籤', score: '評分', follow: '關注', summary: '簡介',
+    comment: '我的評價', noSummary: '暫無簡介', unknown: '未知', view: '總播放',
+    coin: '硬幣', danmaku: '彈幕', myScore: '我的評分', area: '地區', year: '年份',
+  },
+  'zh-Hans': {
+    wantWatch: '想看', watched: '看过', watching: '在看', prev: '上一页', next: '下一页',
+    top: '首页', end: '尾页', wantPlay: '想玩', playing: '在玩', played: '玩过',
+    type: '类型', tag: '标签', score: '评分', follow: '关注', summary: '简介',
+    comment: '我的评价', noSummary: '暂无简介', unknown: '未知', view: '总播放',
+    coin: '硬币', danmaku: '弹幕', myScore: '我的评分', area: '地区', year: '年份',
+  },
+  'zh-CN': {
+    wantWatch: '想看', watched: '已看', watching: '在看', prev: '上一页', next: '下一页',
+    top: '首页', end: '尾页', wantPlay: '想玩', playing: '在玩', played: '玩过',
+    type: '类型', tag: '标签', score: '评分', follow: '关注', summary: '简介',
+    comment: '我的评价', noSummary: '暂无简介', unknown: '未知', view: '总播放',
+    coin: '硬币', danmaku: '弹幕', myScore: '我的评分', area: '地区', year: '年份',
+  },
+}
+
+/** hexo-bilibili-bangumi 的页面内 CSS（lib/templates/index.css，逐字节移植；golden 同源）。 */
+const BANGUMI_INDEX_CSS = String.raw`.bangumi-tabs{margin-bottom:15px;margin-top:15px}.bangumi-tab{padding:5px}a.bangumi-tab{text-decoration:none}.bangumi-active{background:#657b83;color:#fff}.bangumi-item{position:relative;clear:both;padding:10px 0;border-bottom:1px solid #ddd;min-height:180px}@media screen and (max-width:600px){.bangumi-item{width:100%}}.bangumi-picture{position:absolute;left:0;top:10px;width:110px}.bangumi-picture img{margin:10px 0}.bangumi-info{padding-left:120px;margin-top:10px;min-height:160px}.bangumi-meta{font-size:12px;padding-right:10px;height:45px}.bangumi-summary{font-size:12px;margin-top:10px}.bangumi-summary>p{word-break:break-all;text-overflow:ellipsis;overflow:hidden;height:72px;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3}.bangumi-summary>p.has-bangumi-progress{height:48px;-webkit-line-clamp:2;line-clamp:2}.bangumi-comments{font-size:12px}.bangumi-pagination{margin-top:15px;text-align:center;margin-bottom:10px}.bangumi-button{padding:5px}.bangumi-button:hover{background:#657b83;color:#fff}.bangumi-hide{display:none}.bangumi-show{display:block}.bangumi-title{font-size:18px;font-weight:700}.bangumi-title a{line-height:1;text-decoration:none}.bangumi-info-items{font-size:12px;color:#2fd8d8;padding-top:10px;line-height:1;float:left;width:100%;height:45px}.bangumi-info-item{display:inline-block;width:13%;border-right:1px solid #2fd8d8;text-align:center;height:34px}.bangumi-info-label{display:block;line-height:12px}.bangumi-info-item em{display:block;padding-top:6px;line-height:17px;font-style:normal;font-weight:700}.bangumi-info-total{padding-top:11px;display:block;line-height:12px;font-weight:700}.bangumi-info-item-score{border-right:1px solid #0000;width:50px}.bangumi-info-label-em{color:transparent;opacity:0;visibility:hidden;line-height:6px!important;padding:0!important}@media (max-width:650px){.bangumi-coin,.bangumi-type{display:none}.bangumi-info-item{width:16%}}@media (max-width:590px){.bangumi-danmaku,.bangumi-wish{display:none}.bangumi-info-item{width:19%}}@media (max-width:520px){.bangumi-doing,.bangumi-play{display:none}.bangumi-info-item{width:24%}}@media (max-width:480px){.bangumi-collect,.bangumi-follow,.bangumi-info-item-follow{display:none}.bangumi-info-item{width:30%}}@media (max-width:400px){.bangumi-area,.bangumi-tag{display:none}.bangumi-info-item{width:45%}}@media (max-width:270px){.bangumi-info-item-score{display:none}.bangumi-info-item{width:100%;border-right:none}}.bangumi-my-comments{border:1px dashed #8f8f8f;padding:3px;border-radius:5px}.bangumi-starstop{background:url(https://cdn.jsdelivr.net/npm/hexo-bilibili-bangumi@1.7.9/lib/img/rate_star_2x.png) 100% 100%/10px 19.5px repeat-x;height:10px;width:50px;display:inline-block;float:none}.bangumi-starlight{background:url(https://cdn.jsdelivr.net/npm/hexo-bilibili-bangumi@1.7.9/lib/img/rate_star_2x.png) 0 0/10px 19.5px repeat-x;height:10px;display:block;width:100%}.bangumi-starlight.stars1{width:5px}.bangumi-starlight.stars2{width:10px}.bangumi-starlight.stars3{width:15px}.bangumi-starlight.stars4{width:20px}.bangumi-starlight.stars5{width:25px}.bangumi-starlight.stars6{width:30px}.bangumi-starlight.stars7{width:35px}.bangumi-starlight.stars8{width:40px}.bangumi-starlight.stars9{width:45px}.bangumi-starlight.stars10{width:50px}.bangumi-info .bangumi-progress{width:100%;height:24px;background-color:#f2f2f2;border-radius:5px;overflow:hidden;font-size:16px;text-align:center;position:relative}.bangumi-info .bangumi-progress-text{z-index:100;position:relative;color:#3c4858;line-height:24px}.bangumi-info .bangumi-progress .progress-bar{z-index:50;height:100%;background-color:#007bffad;border-radius:5px;position:absolute;top:0}`
+
+/** hexo-safego 的 go.html 模板（插件自带 Nunjucks 模板，逐字节移植）。 */
+const SAFEGO_TEMPLATE = String.raw`<!DOCTYPE html><html lang="zh"><head><meta http-equiv="X-UA-Compatible"content="IE=edge"><meta name="viewport"content="width=device-width,initial-scale=1,user-scalable=no"><!--添加一个网站图标--><link rel="icon"href="{{avatar}}"type="image/x-icon"><meta http-equiv="Content-Type"content="text/html; charset=UTF-8"><meta name="robots"content="noindex, nofollow"/><title>😃页面加载中，请稍候...</title><style type="text/css">body{overflow:hidden;height:100vh;width:100vw;margin:0;padding:0}.container{display:flex;align-items:center;justify-content:center;height:100%;width:100%;margin:0;flex-direction:column}.avatar-placeholder,.avatar{width:100px;height:100px;border-radius:50%;margin-bottom:15px;display:block}.avatar{display:none}.description{font-size:20px;font-weight:600}.subtitle{font-size:15px;margin-bottom:20px;color:#C4C4C4}.loading{text-align:center;padding:30px;border-radius:25px;animation:fadein 2s;width:450px;max-width:80%;transition:all 0.3s ease-in-out}@keyframes fadein{from{opacity:0}to{opacity:1}}.content{margin-bottom:20px}.url-text{margin-bottom:10px;font-size:16px;letter-spacing:1px}.jump-url{position:relative;font-size:20px;display:block;margin-top:5px;margin-bottom:25px;padding:15px;border-radius:18px;height:25px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.copy-btn-container{position:absolute;display:flex;align-items:center;right:10px;top:50%;transform:translateY(-50%);height:100%;width:63px;flex-direction:row-reverse}.copy-btn{width:40px;height:40px;border-radius:12px;border:1px solid#a4a4a4;transition:all 0.3s ease-in-out}.copy-btn-container svg{width:25px;height:25px;fill:#888}.countdown-text{margin-top:12px;font-size:12px}.button-container{display:flex;justify-content:center;gap:20%;margin-top:20px}.button{padding:10px 20px;border-radius:16px;border:none;cursor:pointer;font-size:16px;width:120px;height:40px}.cancel-button{color:black}.confirm-button{color:white}.progress-bar{width:100%;border-radius:5px;overflow:hidden;height:10px;margin-top:20px}.progress{width:100%;height:100%;transition:width 1s}{%if darkmode==true%}body{background:linear-gradient(135deg,#364f6b,#222831)}.loading{border:1px solid#777;background:#393e46;color:#EFEFEF;box-shadow:0 16px 32px rgba(100,100,100,0.1)}.loading:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.description{color:#F3F3F3}.url-text,.countdown-text{color:#EFEFEF}.jump-url{border:1px solid#777;background-color:#333;color:#EFEFEF}.copy-btn-container{background:linear-gradient(to left,#333 75%,transparent 100%)}.copy-btn{background-color:#222831}.copy-btn:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.cancel-button{background-color:#872C2C;color:#FFF}.confirm-button{background-color:#28566F;color:#FFF}.progress-bar{background-color:#444}.progress{background-color:#888}{%elif darkmode==false%}body{background:linear-gradient(135deg,#E9E9E9,#FFFFFF)}.loading{border:1px solid#ccc;background:rgba(255,255,255,0.7);box-shadow:0 16px 32px rgba(0,0,0,0.1)}.loading:hover{box-shadow:0 16px 32px rgba(0,0,0,0.2)}.url-text{color:#333}.jump-url{border:1px solid#ccc;background-color:#F7F9FE;color:#333}.copy-btn-container{background:linear-gradient(to left,#F7F9FE 75%,transparent 100%)}.copy-btn{background-color:#F7F9FE}.copy-btn:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.countdown-text{color:#515151}.cancel-button{background-color:#a6e3e9}.confirm-button{background-color:#3fc1c9}.progress{background-color:#abedd8}{%elif darkmode=="auto"%}@media(prefers-color-scheme:dark){body{background:linear-gradient(135deg,#364f6b,#222831)}.loading{border:1px solid#777;background:#393e46;color:#EFEFEF;box-shadow:0 16px 32px rgba(100,100,100,0.1)}.loading:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.description{color:#F3F3F3}.url-text,.countdown-text{color:#EFEFEF}.jump-url{border:1px solid#777;background-color:#333;color:#EFEFEF}.copy-btn-container{background:linear-gradient(to left,#333 75%,transparent 100%)}.copy-btn{background-color:#222831}.copy-btn:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.cancel-button{background-color:#872C2C;color:#FFF}.confirm-button{background-color:#28566F;color:#FFF}.progress-bar{background-color:#444}.progress{background-color:#888}}@media(prefers-color-scheme:light){body{background:linear-gradient(135deg,#E9E9E9,#FFFFFF)}.loading{border:1px solid#ccc;background:rgba(255,255,255,0.7);box-shadow:0 16px 32px rgba(0,0,0,0.1)}.loading:hover{box-shadow:0 16px 32px rgba(0,0,0,0.2)}.url-text{color:#333}.jump-url{border:1px solid#ccc;background-color:#F7F9FE;color:#333}.copy-btn-container{background:linear-gradient(to left,#F7F9FE 75%,transparent 100%)}.copy-btn{background-color:#F7F9FE}.copy-btn:hover{box-shadow:0 16px 32px rgba(100,100,100,0.2)}.countdown-text{color:#515151}.cancel-button{background-color:#a6e3e9}.confirm-button{background-color:#3fc1c9}.progress{background-color:#abedd8}}{%endif%}</style><script type="text/javascript">const host=window.location.host;function GetQueryString(name){var reg=new RegExp("(^|&)"+name+"=([^&]*)(&|$)","i");var r=window.location.search.substr(1).match(reg);return r?decodeURI(r[2]):null}function decodeSafeUrlParam(paramStr){const base64=paramStr.replace(/-/g,'+').replace(/_/g,'/');const decoded=decodeURIComponent(atob(base64).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));return decoded}let countdown={{countdown}};let jump_url=GetQueryString('{{url_param_name}}');{%if enable_base64_encode%}jump_url=decodeSafeUrlParam(jump_url);{%endif%}const UrlReg='^((http|https|thunder|qqdl|ed2k|Flashget|qbrowser|ftp|rtsp|mms)://)';if(!jump_url||!jump_url.match(UrlReg)){document.title='参数错误，正在返回首页...';jump_url=location.origin}let progressElement;let countdownElement;let countdownTextElement;let jumpUrlElement;function updateCountdown(){if(countdown<0){countdownTextElement.textContent="💡自行点击跳转，请注意您的账号和财产安全";return}countdownElement.textContent=countdown;progressElement.style.width=(countdown/{{countdown}}*100)+'%';if(countdown===0){jump()}else{countdown--;setTimeout(updateCountdown,1000)}}function jump(){location.href=jump_url}function closeWindow(){function isWeChat(){return/MicroMessenger/i.test(navigator.userAgent)}function isQQ(){return/QQ/i.test(navigator.userAgent)&&!/MicroMessenger/i.test(navigator.userAgent)}if(isWeChat()){if(typeof WeixinJSBridge!=="undefined"){WeixinJSBridge.call('closeWindow')}else{document.addEventListener('WeixinJSBridgeReady',function(){WeixinJSBridge.call('closeWindow')},false)}}else if(isQQ()){if(typeof mqq!=="undefined"&&mqq.ui&&mqq.ui.closeWebView){mqq.ui.closeWebView()}else{window.history.back()}}else{window.opener=null;window.open('','_self');window.close()}}function copyToClipboard(){const urlText=document.getElementById('jump-url-text').textContent;const tempInput=document.createElement('input');tempInput.value=urlText;document.body.appendChild(tempInput);tempInput.select();document.execCommand('copy');document.body.removeChild(tempInput);alert('链接已复制到剪贴板！')}async function loadAvatar(){const avatarImg=document.querySelector('.avatar');const placeholder=document.querySelector('.avatar-placeholder');const img=new Image();img.src='{{avatar}}';img.onload=function(){avatarImg.src=img.src;avatarImg.style.display='block';placeholder.style.display='none'}}window.addEventListener('load',function(){loadAvatar();progressElement=document.getElementById('progress');countdownElement=document.getElementById('countdown');countdownTextElement=document.querySelector('.countdown-text');jumpUrlElement=document.getElementById('jump-url-text');jumpUrlElement.textContent=jump_url;updateCountdown()});</script></head><body><div class="container"><div class="avatar-placeholder"></div><img src=""alt="头像"class="avatar"><div class="description">{{title}}</div><div class="subtitle">{{subtitle}}</div><div class="loading"><div class="content"><div class="url-text">您即将离开本站，跳转到：</div><div class="jump-url"id="jump-url"><span id="jump-url-text"></span><div class="copy-btn-container"><button class="copy-btn"onclick="copyToClipboard()"><svg xmlns="http://www.w3.org/2000/svg"viewBox="0 0 448 512"><path d="M208 0L332.1 0c12.7 0 24.9 5.1 33.9 14.1l67.9 67.9c9 9 14.1 21.2 14.1 33.9L448 336c0 26.5-21.5 48-48 48l-192 0c-26.5 0-48-21.5-48-48l0-288c0-26.5 21.5-48 48-48zM48 128l80 0 0 64-64 0 0 256 192 0 0-32 64 0 0 48c0 26.5-21.5 48-48 48L48 512c-26.5 0-48-21.5-48-48L0 176c0-26.5 21.5-48 48-48z"/></svg></button></div></div></div><div class="countdown-text">⚡将在<span id="countdown"></span>秒后跳转，请自行确认链接安全性</div>{%if countdown>0%}<div class="progress-bar"><div class="progress"id="progress"></div></div>{%endif%}<div class="button-container"><button class="button cancel-button"onclick="closeWindow()">取消跳转</button><button class="button confirm-button"onclick="jump()">立即跳转</button></div></div></div></body></html>`
+
+/** 上游 `scripts/helpers/random.js` 的页脚随机友链块（逐字移植，randomFriends 由配置注入）。 */
+function randomJsFriendBlock(linkList, randomFriends) {
+  return `var friend_link_list=${JSON.stringify(linkList)};
+    var refreshNum = 1;
+    function friendChainRandomTransmission() {
+      const randomIndex = Math.floor(Math.random() * friend_link_list.length);
+      const { name, link } = friend_link_list.splice(randomIndex, 1)[0];
+      Snackbar.show({
+        text:
+          "点击前往按钮进入随机一个友链，不保证跳转网站的安全性和可用性。本次随机到的是本站友链：「" + name + "」",
+        duration: 8000,
+        pos: "top-center",
+        actionText: "前往",
+        onActionClick: function (element) {
+          element.style.opacity = 0;
+          window.open(link, "_blank");
+        },
+      });
+    }
+    function addFriendLinksInFooter() {
+      var footerRandomFriendsBtn = document.getElementById("footer-random-friends-btn");
+      if(!footerRandomFriendsBtn) return;
+      footerRandomFriendsBtn.style.opacity = "0.2";
+      footerRandomFriendsBtn.style.transitionDuration = "0.3s";
+      footerRandomFriendsBtn.style.transform = "rotate(" + 360 * refreshNum++ + "deg)";
+      const finalLinkList = [];
+  
+      let count = 0;
+
+      while (friend_link_list.length && count < ${randomFriends}) {
+        const randomIndex = Math.floor(Math.random() * friend_link_list.length);
+        const { name, link, avatar } = friend_link_list.splice(randomIndex, 1)[0];
+  
+        finalLinkList.push({
+          name,
+          link,
+          avatar,
+        });
+        count++;
+      }
+  
+      let html = finalLinkList
+        .map(({ name, link }) => {
+          const returnInfo = "<a class='footer-item' href='" + link + "' target='_blank' rel='noopener nofollow'>" + name + "</a>"
+          return returnInfo;
+        })
+        .join("");
+  
+      html += "<a class='footer-item' href='/link/'>更多</a>";
+
+      document.getElementById("friend-links-in-footer").innerHTML = html;
+
+      setTimeout(()=>{
+        footerRandomFriendsBtn.style.opacity = "1";
+      }, 300)
+    };`
+}
+
+/** 上游 `scripts/helpers/random.js`：`var posts=[…]; function toRandomPost(){}` + 可选友链块。 */
+function renderRandomJs({ posts, links, pjaxEnabled, footerListEnabled, randomFriends }) {
+  const linkList = []
+  for (const group of links ?? []) {
+    if (!group || !Array.isArray(group.link_list)) continue
+    for (const item of group.link_list) linkList.push(item)
+  }
+  let result = `var posts=${JSON.stringify(posts)};function toRandomPost(){
+    ${
+      pjaxEnabled
+        ? "pjax.loadUrl('/'+posts[Math.floor(Math.random() * posts.length)]);"
+        : "window.location.href='/'+posts[Math.floor(Math.random() * posts.length)];"
+    }
+  };`
+  if (footerListEnabled && randomFriends > 0) result += randomJsFriendBlock(linkList, randomFriends)
+  return result
+}
+
+/** HTML 文本转义（pug `=` / `#{}` 的默认转义等价物）。 */
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** HTML 属性值转义（与 escapeHtml 同口径，单独命名以便阅读）。 */
+function escapeAttr(value) {
+  return escapeHtml(value)
+}
+
+/** Hexo `url_for()` 的最小等价实现（插件模板只用到「绝对 URL 原样 / 站内补 root」两种形态）。 */
+function hexoUrlFor(value, root = '/') {
+  const text = typeof value === 'string' ? value.trim() : ''
+  if (!text) return text
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(text)) return text
+  const base = !root || root === '/' ? '/' : `${String(root).replace(/\/+$/, '')}/`
+  return `${base}${text.replace(/^\/+/, '')}`
+}
+
+/** JS 单引号字符串字面量内的转义（hexo-safego 模板里 url_param_name 的注入点）。 */
+function jsSingleQuoteEscape(value) {
+  return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
+/**
+ * 复刻 hexo-safego 的 URL-safe base64（插件 index.js `encodeSafeUrlParam`）：
+ * `btoa(encodeURIComponent(str).replace(/%XX/g, char))` → `+`/`/` 换成 `-`/`_`、去尾 `=`。
+ */
+function encodeSafeUrlParam(value) {
+  const percentEncoded = encodeURIComponent(String(value)).replace(/%([0-9A-F]{2})/g, (_match, hex) =>
+    String.fromCharCode(Number.parseInt(hex, 16)),
+  )
+  return Buffer.from(percentEncoded, 'binary')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+/** hexo-safego 判定的「可跳转协议」（插件 index.js 的 UrlReg）。 */
+const SAFEGO_URL_RE = /^((http|https|thunder|qqdl|ed2k|Flashget|qbrowser|ftp|rtsp|mms):\/\/)/i
+
+/**
+ * 复刻 hexo-safego 的 after_render 外链改写规则（白名单 / data-fancybox 跳过逻辑）。
+ * 迁移侧只对「插件产物里自己生成的链接」调用（bangumi 卡片标题），不重做全站 HTML 后处理。
+ * 返回 null 表示「不改写」，否则返回 { href, rel, targetBlank }。
+ */
+function safeGoRewrite(href, safego, root = '/') {
+  if (!safego || !safego.general || !safego.general.enable) return null
+  if (typeof href !== 'string' || !href) return null
+  if (!SAFEGO_URL_RE.test(href)) return null
+  const whitelist = Array.isArray(safego.whitelist?.domain_whitelist) ? safego.whitelist.domain_whitelist : []
+  let hostname = ''
+  try {
+    hostname = new URL(href).hostname
+  } catch {
+    return null
+  }
+  if (whitelist.some((domain) => domain && hostname.endsWith(String(domain)))) return null
+  const encoded = safego.general.enable_base64_encode ? encodeSafeUrlParam(href) : href
+  const base = !root || root === '/' ? '/' : `${String(root).replace(/\/+$/, '')}/`
+  const file = String(safego.security?.html_file_name || 'go.html').replace(/^\/+/, '')
+  const param = String(safego.security?.url_param_name || 'u')
+  return {
+    href: `${base}${file}?${param}=${encoded}`,
+    rel: 'external nofollow noopener noreferrer',
+    targetBlank: safego.general.enable_target_blank !== false,
+  }
+}
+
+/** hexo-safego 配置归一化：与插件 `Object.assign(defaults, userConfig)` 同样按区块浅合并。 */
+function normalizeSafeGoConfig(raw) {
+  const merge = (key) => ({
+    ...SAFEGO_DEFAULTS[key],
+    ...(raw && typeof raw === 'object' && raw[key] && typeof raw[key] === 'object' ? raw[key] : {}),
+  })
+  return {
+    general: merge('general'),
+    security: merge('security'),
+    scope: merge('scope'),
+    whitelist: merge('whitelist'),
+    appearance: merge('appearance'),
+    debug: merge('debug'),
+  }
+}
+
+/** Nunjucks 模板里 `{% if cond %}` 的最小求值器（只支持 go.html 用到的几种写法）。 */
+function evaluateTemplateCondition(expression, variables) {
+  const text = String(expression).trim()
+  let match = /^([A-Za-z0-9_]+)\s*==\s*true$/.exec(text)
+  if (match) return variables[match[1]] === true
+  match = /^([A-Za-z0-9_]+)\s*==\s*false$/.exec(text)
+  if (match) return variables[match[1]] === false
+  match = /^([A-Za-z0-9_]+)\s*==\s*"([^"]*)"$/.exec(text)
+  if (match) return String(variables[match[1]]) === match[2]
+  match = /^([A-Za-z0-9_]+)\s*>\s*(-?\d+(?:\.\d+)?)$/.exec(text)
+  if (match) return Number(variables[match[1]]) > Number(match[2])
+  match = /^([A-Za-z0-9_]+)$/.exec(text)
+  if (match) return Boolean(variables[match[1]])
+  fail(`hexo-safego go.html 模板里出现暂不支持的 Nunjucks 条件：{% if ${text} %}（插件模板变更？）`)
+  return false
+}
+
+/**
+ * Nunjucks 子集渲染：`{%if%}/{%elif%}/{% endif %}`（互斥三分支 + 单分支）与 `{{var}}`。
+ * 模板逐字节来自 hexo-safego，语义与插件 nunjucks.render 一致。
+ */
+function renderNunjucksSubset(template, variables) {
+  // ③互斥分支（go.html 的 darkmode 三段）
+  let out = template.replace(
+    /{%\s*if\s+([^%]+?)\s*%}([\s\S]*?){%\s*elif\s+([^%]+?)\s*%}([\s\S]*?){%\s*elif\s+([^%]+?)\s*%}([\s\S]*?){%\s*endif\s*%}/g,
+    (_match, cond1, body1, cond2, body2, cond3, body3) => {
+      if (evaluateTemplateCondition(cond1, variables)) return body1
+      if (evaluateTemplateCondition(cond2, variables)) return body2
+      if (evaluateTemplateCondition(cond3, variables)) return body3
+      return ''
+    },
+  )
+  // ②单分支
+  out = out.replace(/{%\s*if\s+([^%]+?)\s*%}([\s\S]*?){%\s*endif\s*%}/g, (_match, cond, body) =>
+    evaluateTemplateCondition(cond, variables) ? body : '',
+  )
+  if (/{%|%}/.test(out)) {
+    fail('hexo-safego go.html 模板里仍有未处理的 Nunjucks 标记（插件模板变更？）')
+  }
+  // ①变量
+  out = out.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (match, name) =>
+    Object.prototype.hasOwnProperty.call(variables, name) ? String(variables[name]) : match,
+  )
+  if (/\{\{\s*[A-Za-z0-9_]+\s*\}\}/.test(out)) {
+    fail('hexo-safego go.html 模板里有未提供的模板变量（插件模板变更？）')
+  }
+  return out
+}
+
+/**
+ * 生成 hexo-safego 的 go.html（参数化：avatar/title/subtitle/countdown/darkmode/
+ * url_param_name/base64 开关全部来自源站配置）。
+ */
+function renderSafeGoPageHtml(safego) {
+  const appearance = safego.appearance
+  const countdown = appearance.countdowntime || 5
+  const variables = {
+    // 条件变量保持原始类型
+    enable_base64_encode: safego.general.enable_base64_encode !== false,
+    darkmode: appearance.darkmode,
+    countdown,
+    // 展示变量做转义
+    avatar: escapeAttr(appearance.avatar || SAFEGO_DEFAULTS.appearance.avatar),
+    title: escapeHtml(appearance.title || SAFEGO_DEFAULTS.appearance.title),
+    subtitle: escapeHtml(appearance.subtitle || SAFEGO_DEFAULTS.appearance.subtitle),
+    url_param_name: jsSingleQuoteEscape(safego.security.url_param_name || 'u'),
+  }
+  return renderNunjucksSubset(SAFEGO_TEMPLATE, variables)
+}
+
+/** 上游 `_config.yml:bangumi.language` → hexo-i18n 的词典选择（精确 zh-CN / zh-Hans / zh-TW / en，其余回退简中）。 */
+function createBangumiTranslator(language) {
+  const raw = String(language || '').toLowerCase().replace('_', '-')
+  const dictionary = raw.startsWith('zh-tw') || raw.startsWith('zh-hant')
+    ? BANGUMI_I18N['zh-TW']
+    : raw === 'zh-hans'
+      ? BANGUMI_I18N['zh-Hans']
+      : raw.startsWith('en')
+        ? BANGUMI_I18N.en
+        : BANGUMI_I18N['zh-CN']
+  return (key) => dictionary[key] ?? BANGUMI_I18N['zh-CN'][key] ?? String(key)
+}
+
+/** 上游 `templates/bili-template.pug` 的单条卡片渲染（source=bili）。 */
+function renderBangumiItem(item, options) {
+  const { config, safego, root, translate } = options
+  const type = options.type || 'bangumi'
+  const lazyload = config.lazyload !== false
+  const loading =
+    typeof config.loading === 'string' && config.loading
+      ? config.loading
+      : 'https://cdn.jsdelivr.net/npm/hexo-bilibili-bangumi@1.2.0/lib/img/loading.gif'
+  const srcValue = typeof config.srcValue === 'string' && config.srcValue ? config.srcValue : '__image__'
+  const cover = typeof item.cover === 'string' ? item.cover : ''
+  // 插件原文：`'https:' + item.cover.replace(/^https:/, '')`
+  const imageUrl = `https:${cover.replace(/^https:/, '')}`
+  const lazyloadAttrName = typeof config.lazyloadAttrName === 'string' ? config.lazyloadAttrName : ''
+  let lazyloadExtra = ''
+  if (lazyloadAttrName) {
+    const [attrName, rawAttrValue] = lazyloadAttrName.split('=')
+    const attrValue =
+      rawAttrValue === '__loading__'
+        ? loading
+        : rawAttrValue === '__image__'
+          ? imageUrl
+          : rawAttrValue || ''
+    lazyloadExtra = ` ${escapeAttr(attrName)}="${escapeAttr(attrValue)}"`
+  }
+  const imageAttrs = lazyload
+    ? `src="${escapeAttr(loading)}" data-src="${escapeAttr(cover)}"`
+    : srcValue === '__loading__'
+      ? `src="${escapeAttr(loading)}"`
+      : `src="${escapeAttr(imageUrl)}"`
+
+  // 卡片标题链接：插件用 item.link，缺省回退 bilibili 番剧地址；safego 开启时按插件规则改写到 go.html。
+  const rawHref =
+    typeof item.link === 'string' && item.link
+      ? item.link
+      : `https://www.bilibili.com/bangumi/media/md${item.id}/`
+  const rewrite = safeGoRewrite(rawHref, safego, root)
+  const href = rewrite ? rewrite.href : rawHref
+  const relAttr = rewrite ? ` rel="${rewrite.rel}"` : ''
+
+  const meta = []
+  if (item.totalCount) {
+    meta.push(
+      `<span class="bangumi-info-item"><span class="bangumi-info-total">${escapeHtml(item.totalCount)}</span><em class="bangumi-info-label-em">0</em></span>`,
+    )
+  }
+  if (item.type) {
+    meta.push(
+      `<span class="bangumi-info-item bangumi-area"><span class="bangumi-info-label">${escapeHtml(item.type)}</span><em>${escapeHtml(item.area || '-')}</em></span>`,
+    )
+  }
+  const metaItem = (className, label, value) =>
+    `<span class="bangumi-info-item${className ? ` ${className}` : ''}"><span class="bangumi-info-label">${label}</span><em>${escapeHtml(value || '-')}</em></span>`
+  meta.push(metaItem('bangumi-play', translate('view'), item.view))
+  meta.push(metaItem('bangumi-follow', translate('follow'), item.follow))
+  meta.push(metaItem('bangumi-coin', translate('coin'), item.coin))
+  meta.push(metaItem('bangumi-danmaku', translate('danmaku'), item.danmaku))
+  meta.push(metaItem('bangumi-info-item-score', translate('score'), item.score))
+  const metaColor = typeof config.metaColor === 'string' && config.metaColor ? config.metaColor : ''
+  const metaItemsHtml = `<span class="bangumi-info-items"${metaColor ? ` style="color: ${escapeAttr(metaColor)};"` : ''}>${meta.join('')}</span>`
+
+  let progressHtml = ''
+  if (item.progress !== false && config.progressBar !== false) {
+    const progress = Number(item.progress) || 0
+    const width = progress > 100 ? 100 : progress
+    progressHtml =
+      `<div class="bangumi-progress" style="margin-top: 5px;">` +
+      `<div class="bangumi-progress-text">追${type === 'bangumi' ? '番' : '剧'}进度：${escapeHtml(item.ep_status)}/${escapeHtml(item.new_ep)}</div>` +
+      `<div class="progress-bar" style="width: ${width}%;"></div></div>`
+  }
+
+  const color = typeof config.color === 'string' && config.color ? `color:${config.color};` : ''
+  const commentsHtml = `<div class="bangumi-comments" style="margin-top: 10px;${color}"><p>${translate('summary')}：${escapeHtml(item.des || translate('noSummary'))}</p></div>`
+
+  return (
+    `<div class="bangumi-item${options.hidden ? ' bangumi-hide' : ''}">` +
+    `<div class="bangumi-picture"><img ${imageAttrs} referrerpolicy="no-referrer" width="110" style="width:110px;margin:20px auto;"${lazyloadExtra}></div>` +
+    `<div class="bangumi-info">` +
+    `<div class="bangumi-title"><a target="_blank" href="${escapeAttr(href)}"${relAttr}>${escapeHtml(item.title || translate('unknown'))}</a></div>` +
+    `<div class="bangumi-meta">${metaItemsHtml}</div>` +
+    progressHtml +
+    commentsHtml +
+    `</div></div>`
+  )
+}
+
+/** 上游 `templates/pagination.pug`（静态分页条，页码文本由 pagination.js 在浏览器里改写）。 */
+function renderBangumiPagination(translate) {
+  return (
+    '<div class="bangumi-pagination">' +
+    `<a class="bangumi-button bangumi-firstpage" href="javascript:;" target="_self" onclick="return false">${translate('top')}</a>` +
+    `<a class="bangumi-button bangumi-previouspage" href="javascript:;" target="_self" onclick="return false">${translate('prev')}</a>` +
+    '<span class="bangumi-pagenum">2 / 3</span>' +
+    `<a class="bangumi-button bangumi-nextpage" href="javascript:;" target="_self" onclick="return false">${translate('next')}</a>` +
+    `<a class="bangumi-button bangumi-lastpage" href="javascript:;" target="_self" onclick="return false">${translate('end')}</a>` +
+    '</div>'
+  )
+}
+
+/** 上游 index.js（tab 切换 + Element.siblings 补丁）的可读移植版。 */
+const BANGUMI_INDEX_JS = `(function () {
+  // 上游 hexo-bilibili-bangumi lib/templates/index.js：tab 点击 → 激活自身 + 显示对应 #bangumi-itemN。
+  function switchTab() {
+    this.classList.add('bangumi-active')
+    var tabs = this.siblings()
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('bangumi-active')
+    var itemId = this.id.replace('tab', 'item')
+    var current = document.getElementById(itemId)
+    current.classList.remove('bangumi-hide')
+    current.classList.add('bangumi-show')
+    var panels = document.getElementById(itemId).siblings()
+    for (var j = 0; j < panels.length; j++) {
+      panels[j].classList.remove('bangumi-show')
+      panels[j].classList.add('bangumi-hide')
+    }
+  }
+  if (!Element.prototype.siblings) {
+    Element.prototype.siblings = function () {
+      var result = []
+      var children = this.parentNode.children
+      for (var i = 0; i < children.length; i++) if (children[i] !== this) result.push(children[i])
+      return result
+    }
+  }
+  var tabs = document.getElementsByClassName('bangumi-tab')
+  for (var i = 0; i < tabs.length; i++) tabs[i].onclick = switchTab
+  var active = tabs[hexoBilibiliBangumiOptions.show]
+  if (active) active.click()
+})();`
+
+/** 上游 pagination.js（每页 10 条，首页/上一页/下一页/尾页）的可读移植版。 */
+const BANGUMI_PAGINATION_JS = `(function () {
+  // 上游 hexo-bilibili-bangumi lib/templates/pagination.js：
+  // 每页 10 条，切换 #bangumi-itemN 内部 .bangumi-hide；懒加载模式下同时补 img.src。
+  var ceil = Math.ceil
+  function pageLabel(index, items) {
+    return (index + 1) + ' / ' + (ceil(items.length / 10) === 0 ? 1 : ceil(items.length / 10))
+  }
+  function showPage(items, pageIndex) {
+    for (var i = 0; i < items.length; i++) {
+      if (Math.floor(i / 10) === pageIndex) {
+        items[i].classList.remove('bangumi-hide')
+        var img = items[i].getElementsByTagName('img')[0]
+        if (img && hexoBilibiliBangumiOptions.bangumiLazyload) {
+          img.src = img.getAttribute('data-src')
+        }
+      } else {
+        items[i].classList.add('bangumi-hide')
+      }
+    }
+  }
+  function firstPage() {
+    var items = this.parentNode.siblings()
+    showPage(items, 0)
+    this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText = pageLabel(0, items)
+  }
+  function previousPage() {
+    var items = this.parentNode.siblings()
+    var label = this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText
+    var page = parseInt(label.substr(0, label.indexOf('/') - 1), 10) - 1
+    if (page > 0) page--
+    showPage(items, page)
+    this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText = pageLabel(page, items)
+  }
+  function nextPage() {
+    var items = this.parentNode.siblings()
+    var label = this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText
+    var page = parseInt(label.substr(0, label.indexOf('/') - 1), 10) - 1
+    if (page < ceil(items.length / 10) - 1) page++
+    showPage(items, page)
+    this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText = pageLabel(page, items)
+  }
+  function lastPage() {
+    var items = this.parentNode.siblings()
+    var page = ceil(items.length / 10) - 1
+    showPage(items, page)
+    this.parentNode.getElementsByClassName('bangumi-pagenum')[0].innerText = pageLabel(page, items)
+  }
+  var firsts = document.getElementsByClassName('bangumi-firstpage')
+  var prevs = document.getElementsByClassName('bangumi-previouspage')
+  var nexts = document.getElementsByClassName('bangumi-nextpage')
+  var lasts = document.getElementsByClassName('bangumi-lastpage')
+  var pagenums = document.getElementsByClassName('bangumi-pagenum')
+  for (var i = 0; i < firsts.length; i++) {
+    firsts[i].onclick = firstPage
+    prevs[i].onclick = previousPage
+    nexts[i].onclick = nextPage
+    lasts[i].onclick = lastPage
+    var preload =
+      typeof hexoBilibiliBangumiOptions.pagenumsPre === 'undefined'
+        ? pagenums[i].parentNode.siblings().length
+        : hexoBilibiliBangumiOptions.pagenumsPre[i] == null
+          ? pagenums[i].parentNode.siblings().length
+          : hexoBilibiliBangumiOptions.pagenumsPre[i]
+    firsts[i].click()
+    pagenums[i].innerText = '1 / ' + (ceil(preload / 10) === 0 ? 1 : ceil(preload / 10))
+  }
+})();`
+
+/**
+ * 生成追番页 `#article-container` 内的全部 HTML（上游 templates/bangumi.pug +
+ * bili-template.pug + pagination.pug + index.js + pagination.js）。
+ *
+ * @param {object} options
+ * @param {object} options.config     源站 `_config.yml:bangumi`
+ * @param {object} options.siteConfig site.config.ts 的 site（language 决定 i18n 词典）
+ * @param {object} options.data       `source/_data/bangumis.json`（wantWatch/watching/watched）
+ * @param {object|null} options.safego 归一化后的 hexo_safego 配置（决定卡片链接是否走 go.html）
+ * @param {string} options.root       源站 `_config.yml:root`
+ */
+function renderBangumiPageHtml({ config, siteConfig, data, safego, root = '/' }) {
+  const translate = createBangumiTranslator(siteConfig?.language)
+  const type = 'bangumi'
+  const wantWatch = Array.isArray(data.wantWatch) ? data.wantWatch : []
+  const watching = Array.isArray(data.watching) ? data.watching : []
+  const watched = Array.isArray(data.watched) ? data.watched : []
+  const order = typeof config.order === 'string' ? config.order : ''
+  const sortByScore = (list) =>
+    ['score', '-score'].includes(order)
+      ? [...list].sort((a, b) => (order === 'score' ? a.score - b.score : b.score - a.score))
+      : list
+  const lazyload = config.lazyload !== false
+  const pagination = config.pagination === true
+  const show = config.show || 1
+
+  // 每个 tab 的分页条固定在容器末尾（与上游 bangumi.pug 的 include 顺序一致）
+  const renderTabItems = (items) =>
+    sortByScore(items)
+      .map((item, index) =>
+        renderBangumiItem(item, {
+          config,
+          safego,
+          root,
+          translate,
+          type,
+          // pagination 模式：上游模板把第 2 页起的条目异步补进来并直接带 .bangumi-hide；
+          // 迁移侧一次性渲染全部条目，用同一个 class 让 pagination.js 接管显隐。
+          hidden: pagination && index >= 10,
+        }),
+      )
+      .join('') + renderBangumiPagination(translate)
+
+  const quote =
+    typeof config.quote === 'string' && config.quote
+      ? `<blockquote><p>${escapeHtml(config.quote)}</p></blockquote>`
+      : ''
+  const tabs =
+    '<div class="bangumi-tabs">' +
+    `<a class="bangumi-tab" id="bangumi-tab1" href="javascript:;" rel="external" target="_self" onclick="return false">${translate(type === 'game' ? 'wantPlay' : 'wantWatch')} (${wantWatch.length})</a>` +
+    `<a class="bangumi-tab" id="bangumi-tab2" href="javascript:;" rel="external" target="_self" onclick="return false">${translate(type === 'game' ? 'playing' : 'watching')} (${watching.length})</a>` +
+    `<a class="bangumi-tab" id="bangumi-tab3" href="javascript:;" rel="external" target="_self" onclick="return false">${translate(type === 'game' ? 'played' : 'watched')} (${watched.length})</a>` +
+    '</div>'
+
+  const item1 = `<div id="bangumi-item1">${renderTabItems(wantWatch)}</div>`
+  const item2 = `<div id="bangumi-item2">${renderTabItems(watching)}</div>`
+  const item3 = `<div id="bangumi-item3">${renderTabItems(watched)}</div>`
+
+  // 选项脚本：tab 初始激活 + 懒加载开关（不再有 pugTemplate/axios 异步补渲染）；
+  // pagination 模式额外带 pagenumsPre（上游同样字段，用来在分页条首次渲染前就知道总数）。
+  const options = {
+    bangumiLazyload: lazyload,
+    show: Number.isFinite(show) ? show : 1,
+  }
+  if (pagination) options.pagenumsPre = [wantWatch.length, watching.length, watched.length]
+  const optionsScript = `<script>window.hexoBilibiliBangumiOptions = ${JSON.stringify(options)}</script>`
+
+  return (
+    quote +
+    `<style>${BANGUMI_INDEX_CSS}</style>` +
+    tabs +
+    `<div>${item1}${item2}${item3}</div>` +
+    optionsScript +
+    `<script>${BANGUMI_INDEX_JS}\n${BANGUMI_PAGINATION_JS}</script>`
+  )
+}
+
+/** 上游 hexo-butterfly-envelope lib/html.pug 的静态 HTML 渲染（信笺留言板）。 */
+function renderEnvelopePageHtml(config, siteConfig, root = '/') {
+  const customPic = config.custom_pic && typeof config.custom_pic === 'object' ? config.custom_pic : {}
+  const picture = (value, fallback) => hexoUrlFor(typeof value === 'string' && value ? value : fallback, root)
+  const cover = picture(customPic.cover, 'https://unpkg.zhimg.com/hexo-butterfly-envelope/lib/violet.jpg')
+  const line = picture(customPic.line, 'https://unpkg.zhimg.com/hexo-butterfly-envelope/lib/line.png')
+  const beforeimg = picture(customPic.beforeimg, 'https://unpkg.zhimg.com/hexo-butterfly-envelope/lib/before.png')
+  const afterimg = picture(customPic.afterimg, 'https://unpkg.zhimg.com/hexo-butterfly-envelope/lib/after.png')
+  const author = escapeHtml(siteConfig?.author ?? '')
+  const messages =
+    Array.isArray(config.message) && config.message.length
+      ? config.message
+      : ['有什么想问的？', '有什么想说的？', '有什么想吐槽的？', '哪怕是有什么想吃的，都可以告诉我哦~']
+  const bottom = escapeHtml(
+    typeof config.bottom === 'string' && config.bottom ? config.bottom : '自动书记人偶竭诚为您服务',
+  )
+  const height =
+    config.height === undefined || config.height === null || config.height === ''
+      ? '1050px'
+      : String(config.height)
+
+  const style = `@media screen and (max-width: 600px) {
+  #beforeimg,
+  #afterimg {
+    display: none !important;
+  }
+}
+@media screen and (min-width: 600px) {
+  #article-container img {
+    margin: 0 auto 0rem;
+  }
+  #form-wrap {
+    overflow: hidden;
+    height: 447px;
+    position: relative;
+    top: 0px;
+    transition: all 1s ease-in-out .3s;
+    z-index: 0;
+  }
+  #form-wrap:hover {
+    height: ${height};
+    top: -200px;
+  }
+  #beforeimg {
+    position: absolute;
+    bottom: 126px;
+    left: 0px;
+    background-repeat: no-repeat;
+    width: 530px;
+    height: 317px;
+    z-index: -100;
+    pointer-events: none;
+  }
+  #afterimg {
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    background-repeat: no-repeat;
+    width: 530px;
+    height: 259px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  #envelope {
+    position: relative;
+    overflow: visible;
+    width: 500px;
+    margin: 0px auto;
+    transition: all 1s ease-in-out .3s;
+    padding-top: 200px;
+  }
+  #maincontent {
+    width: 530px;
+    margin: 20px auto 0;
+  }
+  .formmain {
+    background: white;
+    width: 95%;
+    max-width: 800px;
+    margin: auto auto;
+    border-radius: 5px;
+    border: 1px solid;
+    overflow: hidden;
+    -webkit-box-shadow: 0px 0px 20px 0px #000000;
+    box-shadow: 0px 0px 20px 0px #000000;
+  }
+}
+[data-theme='dark'] .formmain {
+  background: #323232;
+}
+[data-theme='dark'] .comments {
+  background: #5a5a5a !important;
+}`
+
+  const messageHtml = messages
+    .map((item) => `<div>${escapeHtml(item)}</div>`)
+    .join('')
+
+  return (
+    `<style>${style}</style>` +
+    '<div id="maincontent">' +
+    '<div id="form-wrap">' +
+    `<img class="no-lightbox" id="beforeimg" src="${escapeAttr(beforeimg)}">` +
+    '<div id="envelope">' +
+    '<form>' +
+    '<div class="formmain" style="pointer-events: none;">' +
+    `<img class="headerimg no-lightbox" src="${escapeAttr(cover)}" style="width: 100%;overflow: hidden;pointer-events: none;">` +
+    '<div class="comments-main">' +
+    `<h3 class="title3" style="text-decoration: none;color: $theme-color;text-align: center;">来自${author}的留言:</h3>` +
+    '<div class="comments" style="text-align: center;border-bottom: #ddd 1px solid;border-left: #ddd 1px solid;padding-bottom: 20px;background-color: #eee;margin: 15px 0px;padding-left: 20px;padding-right: 20px;border-top: #ddd 1px solid;border-right: #ddd 1px solid;padding-top: 20px;">' +
+    messageHtml +
+    '</div>' +
+    '<div class="bottomcontent" style="text-align: center;margin-top: 40px;">' +
+    `<img class="bottomimg no-lightbox" src="${escapeAttr(line)}" style="width: 100%;margin: 5px auto 5px auto;display: block;pointer-events: none;">` +
+    '</div>' +
+    `<p class="bottomhr" style="font-size: 12px;text-align: center;color: #999;">${bottom}</p>` +
+    '</div></div></form></div>' +
+    `<img class="no-lightbox" id="afterimg" src="${escapeAttr(afterimg)}">` +
+    '</div></div>'
+  )
+}
+
+/**
+ * 生成「插件产物页」的 Astro 路由源码。
+ *
+ * 外壳复用主题 BaseLayout（#body-wrap / Header / main / Footer / aside），
+ * 正文按上游 `layout/page.pug` 的结构挂载：
+ *   #page → (top_img === false) h1.page-title → #article-container != page.content → comments
+ */
+function renderPluginPageAstro({
+  packages,
+  siteConfig,
+  styles,
+  title,
+  topImg,
+  pageTypeValue,
+  content,
+  showComments,
+  note,
+}) {
+  const titleLiteral = typeof title === 'string' && title ? JSON.stringify(title) : 'undefined'
+  const topImgLiteral =
+    topImg === false ? 'false' : typeof topImg === 'string' && topImg ? JSON.stringify(topImg) : 'undefined'
+  const pageTypeLiteral = JSON.stringify(pageTypeValue || 'page')
+  const contentLiteral = JSON.stringify(content)
+  const commentsImport = showComments
+    ? `import CommentsIndex from '${packages}astro-theme-anzhiyu/src/components/third-party/comments/index.astro'\n`
+    : ''
+  const commentsRender = showComments ? '    <CommentsIndex page={{ root: site.root }} />\n' : ''
+  return `---
+/**
+ * AUTO-GENERATED by scripts/migrate-hexo.mjs — Hexo 插件生成页（唯一真源在迁移脚本里）。
+ *
+ * ${note}
+ *
+ * 结构对齐上游 \`layout/page.pug\`：
+ *   #page
+ *     if top_img === false && !page.top_single → h1.page-title
+ *     #article-container != page.content   ← 插件在 Hexo 构建期渲染的 HTML，已由迁移脚本按插件语义生成
+ *     if page.comments !== false → third-party/comments
+ * 外壳（Header / Footer / aside / #body-wrap）由主题 BaseLayout 提供，与其它独立页面一致。
+ */
+import BaseLayout from '${packages}astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+${commentsImport}import { site } from '${siteConfig}'
+import '${styles}'
+
+/** 上游 \`page.title\`（插件 front_matter.title）。 */
+const pageTitle: string | undefined = ${titleLiteral}
+/** 上游 \`page.type\`（additional-js.pug 的 input#page-type 值）。 */
+const pageTypeValue: string = ${pageTypeLiteral}
+/** 上游 \`page.top_img\`：false = 显式关闭顶部图（此时 page.pug 输出 h1.page-title）。 */
+const topImg: string | false | undefined = ${topImgLiteral}
+/** 上游 \`page.content\`：插件 pug 模板渲染出的静态 HTML（迁移期已生成）。 */
+const pageContent: string = ${contentLiteral}
+---
+
+<BaseLayout
+  site={site}
+  title={pageTitle}
+  content={pageContent}
+  pageType="page"
+  pageTypeValue={pageTypeValue}
+  topImg={topImg}
+>
+  <div id="page">
+    {topImg === false && <h1 class="page-title">{pageTitle}</h1>}
+    <div id="article-container"><Fragment set:html={pageContent} /></div>
+${commentsRender}  </div>
+</BaseLayout>
+`
+}
+
+/** frontmatter/配置里的日期串 → permalink token 需要的年月日时分秒（Hexo 语义：字面量即站点墙上时间）。 */
+function parsePostDateParts(value) {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(String(value ?? ''))
+  if (!match) return { year: 1970, month: 1, day: 1, hour: 8, minute: 0, second: 0 }
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4] ?? 0),
+    minute: Number(match[5] ?? 0),
+    second: Number(match[6] ?? 0),
+  }
+}
+
+/**
+ * 与 `src/data/post-permalink.ts` 的 `postHref()` 同一套规则：
+ * 源站 permalink 模式 + abbrlink/slug + frontmatter 日期 → 文章 URL（无前导 `/`，
+ * 与 Hexo `post.path` 同形，供 random.js 使用）。
+ */
+function createPostPathResolver(permalinkPattern) {
+  const segments = String(permalinkPattern || ':year/:month/:day/:title/')
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')
+    .filter(Boolean)
+  const abbrlinkConfigured = segments.some((segment) => segment.includes(':abbrlink'))
+  return (post) => {
+    const slug = typeof post.slug === 'string' ? post.slug : ''
+    const abbr = post.abbrlink === undefined || post.abbrlink === null || post.abbrlink === '' ? '' : String(post.abbrlink)
+    const effectiveSlug = abbrlinkConfigured && abbr ? abbr : slug
+    const parts = parsePostDateParts(post.date)
+    const pad = (number) => String(number).padStart(2, '0')
+    const values = {
+      year: String(parts.year),
+      short_year: String(parts.year % 100),
+      month: pad(parts.month),
+      i_month: String(parts.month),
+      day: pad(parts.day),
+      i_day: String(parts.day),
+      hour: pad(parts.hour),
+      minute: pad(parts.minute),
+      second: pad(parts.second),
+      title: slug,
+      abbrlink: effectiveSlug,
+    }
+    const rendered = segments
+      .map((segment) => segment.replace(/:([a-z_]+)/gi, (match, token) => (token in values ? values[token] : match)))
+      .join('/')
+    // 目录型 permalink（Astro build.format=directory 的产物）统一带尾斜杠，与 postHref() 一致；
+    // 平文件型（末段 .html）不带。
+    return /\.html?$/i.test(rendered) ? rendered : `${rendered}/`
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* 内容处理                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -396,9 +1254,18 @@ function main() {
 
   const target = loadTargetKeys(opts.upstream)
   const targetKeySet = new Set(target.keys)
-  const matchedThemeKeys = themeKeys.filter((key) => targetKeySet.has(key))
-  const missingIn171 = themeKeys.filter((key) => !targetKeySet.has(key))
+  /** 1.7.1 没有但主题包保留的兼容键：算「命中」，不剔除、不进 unsupported。 */
+  const legacyThemeKeys = themeKeys.filter((key) => LEGACY_THEME_KEYS.has(key))
+  const isAcceptedKey = (key) => targetKeySet.has(key) || LEGACY_THEME_KEYS.has(key)
+  const matchedThemeKeys = themeKeys.filter(isAcceptedKey)
+  const missingIn171 = themeKeys.filter((key) => !isAcceptedKey(key))
   const addedIn171 = target.keys.filter((key) => !themeKeys.includes(key))
+  for (const key of legacyThemeKeys) {
+    warnings.push(
+      `${key} 是 1.6.14 的遗留配置（1.7.1 上游已移除），主题包按兼容键保留并已移植对应页面分支，配置原样保留；新配置建议迁移到 friends_vue。`,
+    )
+    console.log(`  · 保留 1.6.14 兼容键「${key}」（主题包 schema 标 deprecated，见 P7-4）`)
+  }
 
   /* ---- [3/8] site.config.ts ---- */
   console.log('\n[3/8] 站点配置 → site.config.ts')
@@ -440,7 +1307,7 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
 
   const cleaned = {}
   for (const [key, value] of Object.entries(themeCfg.data)) {
-    if (targetKeySet.has(key)) cleaned[key] = value
+    if (isAcceptedKey(key)) cleaned[key] = value
   }
 
   /* ---- 配置值形态归一化（1.6.14 允许、1.7.1 strict schema 拒绝的写法） ---- */
@@ -497,6 +1364,11 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
       hasAbbrlink: data.abbrlink !== undefined && data.abbrlink !== null && data.abbrlink !== '',
       abbrlink: data.abbrlink ?? null,
       date: data.date instanceof Date ? data.date.toISOString() : (typeof data.date === 'string' ? data.date : null),
+      // 以下两项只给插件产物生成用（random.js 的 posts 列表）：
+      // slug = 内容集合 id（= 目标文件名去扩展名，与 post-permalink.ts 的 slugOf 同口径）
+      slug: outRel.replace(/\.md$/i, ''),
+      // 上游 random generator：`random !== false` 才进 posts（注意 false 以外的 falsy 值也算）
+      randomExcluded: data.random === false,
     })
   }
   const postsWithAbbrlink = postRecords.filter((p) => p.hasAbbrlink).length
@@ -532,7 +1404,7 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
     }
     const dest = `src/content/posts/${dirName.replace(/\//g, '-')}-page.md`
     if (!STANDARD_PAGE_TYPES.has(type)) {
-      // 上游 page.pug 的 case 同样没有 charts / todolist 这类自定义 type——一样落
+      // 上游 page.pug 的 case 同样没有 charts 这类自定义 type——一样落
       // default-page.pug（仅渲染正文）。我们的 DefaultPage 行为与上游一致，不是缺口。
       console.log(`  · page.type「${type}」走 default 分支（与上游 page.pug default 一致）：source/${rel}`)
     }
@@ -724,6 +1596,10 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
   // 迁移站没有「基准站」概念，这里让它直接复用 site.config.ts（来源：源站 _config.yml），
   // 保证站点身份只有一个来源；否则页面 import 会直接找不到模块（构建期
   // `Could not resolve '../data/site-identity.ts'`）。
+  //
+  // P7-4：额外把源站 permalink 编译出来的 `postHref()` 挂到 `site.postHref`，
+  // 主题层的 preparePosts / preparePostPage / site-stats 会优先用它生成文章 URL
+  // （render 阶段的 `site` 就是这份对象，见 examples/blog 各页面与 BaseLayout）。
   writeOut(
     'src/data/site-identity.ts',
     `/**
@@ -731,10 +1607,14 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
  *
  * examples/blog 用本文件承载「基准站」身份（archives/_data.ts 再导出成 BASELINE_SITE）。
  * 迁移站的身份来自源站 _config.yml，已由本脚本生成到 site.config.ts；
- * 这里只做一次改名转发，避免身份散落两处、也避免 DEPLOY_SITE_* 演示覆盖语义
- * 与真实站点 URL 打架。
+ * 这里再挂上源站 permalink 编译产物 postHref（文章 URL 单一真源，P7-4），
+ * 避免身份散落两处、也避免 DEPLOY_SITE_* 演示覆盖语义与真实站点 URL 打架。
  */
-export { site as SITE_IDENTITY } from '../../site.config'
+import { site as siteIdentity } from '../../site.config'
+import { postHref } from './post-permalink.ts'
+
+/** 站点身份 + 文章 permalink 解析器（主题组件通过 \`site.postHref\` 取用）。 */
+export const SITE_IDENTITY = { ...siteIdentity, postHref }
 `,
   )
 
@@ -1091,6 +1971,261 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
     console.log(`  ✓ permalink 模块：src/data/post-permalink.ts（动态段 ${patternDynamic.length} 个）`)
   }
 
+  /* ---- [7.x/8] Hexo 插件产物 ----
+   * 上游主题靠插件在 hexo generate 阶段注入额外页面/脚本；Astro 没有插件机制，
+   * 这里按插件源码逐份移植「产物生成」。四个产物全部由源站配置/数据驱动：
+   *   A. envelope_comment  → <path>/index.html（信笺留言板，走主题 page 外壳）
+   *   B. bangumi          → <path>/index.html（想看/在看/已看 三 tab）
+   *   C. hexo_safego      → <security.html_file_name>（base64 参数 + 倒计时跳转页）
+   *   D. random generator → <random.path>（随机文章 + 页脚随机友链）
+   * 配置缺失/enable=false/数据文件不存在 → 打印跳过日志，不产出文件。
+   */
+  console.log('\n[7.x/8] Hexo 插件产物（envelope 留言板 / bangumi 追番 / safego go.html / random.js）')
+  const rootConfig = typeof siteCfg.data.root === 'string' && siteCfg.data.root ? siteCfg.data.root : '/'
+  const safegoCfg = normalizeSafeGoConfig(siteCfg.data.hexo_safego)
+  const safegoEnabled = Boolean(safegoCfg.general.enable)
+  const pluginArtifacts = { envelope: null, bangumi: null, safego: null, random: null }
+
+  /** 插件产物页的公共 import 说明符（packages / site.config / 全局样式入口）。 */
+  const pluginPageDeps = (pageRel) => ({
+    packages: packagesSpecifier(pageRel),
+    siteConfig: siteConfigSpecifier(pageRel),
+    styles: relativeSpecifier(pageRel, path.join(OUT, 'src', 'styles', 'upstream', 'index.styl')),
+  })
+
+  /* A. envelope_comment → 信笺留言板 */
+  {
+    const envelopeCfg = siteCfg.data.envelope_comment
+    const enabled =
+      envelopeCfg && typeof envelopeCfg === 'object' && (envelopeCfg.enable === true || envelopeCfg.enable === 'true')
+    if (!enabled) {
+      console.log('  · 无 envelope_comment 配置（enable=false），跳过留言板页')
+    } else {
+      const frontMatter =
+        envelopeCfg.front_matter && typeof envelopeCfg.front_matter === 'object' ? envelopeCfg.front_matter : {}
+      const pagePath = String(envelopeCfg.path || 'comments').replace(/^\/+|\/+$/g, '')
+      const pageRel = `src/pages/${pagePath}/index.astro`
+      const title = typeof frontMatter.title === 'string' ? frontMatter.title : ''
+      const topImg =
+        frontMatter.top_img === false
+          ? false
+          : typeof frontMatter.top_img === 'string'
+            ? frontMatter.top_img
+            : undefined
+      const pageTypeValue = typeof frontMatter.type === 'string' && frontMatter.type ? frontMatter.type : 'envelope'
+      const showComments = frontMatter.comments !== false
+      const content = renderEnvelopePageHtml(envelopeCfg, siteForRender, rootConfig)
+      writeOut(
+        pageRel,
+        renderPluginPageAstro({
+          ...pluginPageDeps(pageRel),
+          title,
+          topImg,
+          pageTypeValue,
+          content,
+          showComments,
+          note: '来源：hexo-butterfly-envelope（hexo.config.envelope_comment）。正文按插件 lib/html.pug 静态渲染；',
+        }),
+      )
+      pluginArtifacts.envelope = {
+        url: `/${pagePath}/`,
+        routeFile: pageRel,
+        title,
+        pageType: pageTypeValue,
+        comments: showComments,
+        messageCount: Array.isArray(envelopeCfg.message) && envelopeCfg.message.length ? envelopeCfg.message.length : 4,
+        contentBytes: Buffer.byteLength(content),
+      }
+      console.log(`    · /${pagePath}/：title「${title || '（空）'}」，信笺正文 ${pluginArtifacts.envelope.messageCount} 行`)
+    }
+  }
+
+  /* B. bangumi → 追番页 */
+  {
+    const bangumiCfg = siteCfg.data.bangumi
+    const enabled = bangumiCfg && typeof bangumiCfg === 'object' && (bangumiCfg.enable === true || bangumiCfg.enable === 'true')
+    const bangumiDataFile = path.join(SITE, 'source', '_data', 'bangumis.json')
+    if (!enabled) {
+      console.log('  · 无 bangumi 配置（enable=false），跳过追番页')
+    } else if (!existsSync(bangumiDataFile)) {
+      console.log("  · 缺少 source/_data/bangumis.json（先用 `hexo bangumi -u` 抓数据），跳过追番页")
+    } else {
+      const readJson = (file, label) => {
+        try {
+          return JSON.parse(readFileSync(file, 'utf8'))
+        } catch (error) {
+          fail(`解析 ${label} 失败：${posix(path.relative(SITE, file))}\n${error.message}`)
+          return null
+        }
+      }
+      const bangumiData = readJson(bangumiDataFile, 'bangumis.json')
+      const extraFile = path.join(SITE, 'source', '_data', 'extra_bangumis.json')
+      if (existsSync(extraFile)) {
+        // 上游 extra_bangumis.json：按 extraOrder 决定插在前面还是后面
+        const extra = readJson(extraFile, 'extra_bangumis.json')
+        const mergeExtra = (base, added) => {
+          if (!Array.isArray(added)) return base
+          return bangumiCfg.extraOrder === 1 ? [...added, ...base] : [...base, ...added]
+        }
+        bangumiData.wantWatch = mergeExtra(bangumiData.wantWatch ?? [], extra.wantWatchExtra)
+        bangumiData.watching = mergeExtra(bangumiData.watching ?? [], extra.watchingExtra)
+        bangumiData.watched = mergeExtra(bangumiData.watched ?? [], extra.watchedExtra)
+        console.log('    · 合并 extra_bangumis.json（extraOrder=' + String(bangumiCfg.extraOrder ?? '') + '）')
+      }
+      const rawPath = String(bangumiCfg.path || 'bangumis/index.html')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '')
+      let pagePath = rawPath || 'bangumis'
+      if (pagePath.endsWith('/index.html')) pagePath = pagePath.slice(0, -'/index.html'.length)
+      else if (pagePath.endsWith('index.html')) pagePath = pagePath.slice(0, -'index.html'.length).replace(/\/+$/, '')
+      else if (/\.html$/i.test(pagePath)) {
+        pagePath = pagePath.replace(/\.html$/i, '')
+        warnings.push(
+          `bangumi.path「${rawPath}」是平文件形态，迁移侧按目录路由 /${pagePath}/ 输出（Hexo 的 flat .html 产物不适用 Astro 的目录路由；如需保持 URL 请改 bangumi.path）。`,
+        )
+      }
+      const pageRel = `src/pages/${pagePath}/index.astro`
+      const extraOptions =
+        bangumiCfg.extra_options && typeof bangumiCfg.extra_options === 'object' ? bangumiCfg.extra_options : {}
+      const title = typeof bangumiCfg.title === 'string' ? bangumiCfg.title : ''
+      const topImg =
+        extraOptions.top_img === false ? false : typeof extraOptions.top_img === 'string' ? extraOptions.top_img : undefined
+      const showComments = extraOptions.comments !== false
+      const content = renderBangumiPageHtml({
+        config: bangumiCfg,
+        siteConfig: siteForRender,
+        data: bangumiData,
+        safego: safegoCfg,
+        root: rootConfig,
+      })
+      writeOut(
+        pageRel,
+        renderPluginPageAstro({
+          ...pluginPageDeps(pageRel),
+          title,
+          topImg,
+          pageTypeValue: 'page',
+          content,
+          showComments,
+          note: '来源：hexo-bilibili-bangumi（hexo.config.bangumi + source/_data/bangumis.json）。正文按插件 bangumi/bili-template/pagination 模板静态渲染；',
+        }),
+      )
+      const counts = {
+        wantWatch: Array.isArray(bangumiData.wantWatch) ? bangumiData.wantWatch.length : 0,
+        watching: Array.isArray(bangumiData.watching) ? bangumiData.watching.length : 0,
+        watched: Array.isArray(bangumiData.watched) ? bangumiData.watched.length : 0,
+      }
+      pluginArtifacts.bangumi = {
+        url: `/${pagePath}/`,
+        routeFile: pageRel,
+        title,
+        pageType: 'page',
+        comments: showComments,
+        counts,
+        items: counts.wantWatch + counts.watching + counts.watched,
+        sourceData: 'source/_data/bangumis.json',
+        contentBytes: Buffer.byteLength(content),
+      }
+      console.log(
+        `    · /${pagePath}/：${counts.wantWatch} 想看 / ${counts.watching} 在看 / ${counts.watched} 已看（共 ${pluginArtifacts.bangumi.items} 条卡片）`,
+      )
+    }
+  }
+
+  /* C. hexo_safego → 安全跳转页 */
+  if (!safegoEnabled) {
+    console.log('  · 无 hexo_safego 配置（general.enable=false），跳过 go.html')
+  } else {
+    const fileName = String(safegoCfg.security.html_file_name || 'go.html').replace(/^\/+/, '')
+    const pageRel = `public/${fileName}`
+    const content = renderSafeGoPageHtml(safegoCfg)
+    writeOut(pageRel, content)
+    pluginArtifacts.safego = {
+      url: `/${fileName}`,
+      routeFile: pageRel,
+      urlParamName: safegoCfg.security.url_param_name,
+      base64: safegoCfg.general.enable_base64_encode !== false,
+      targetBlank: safegoCfg.general.enable_target_blank !== false,
+      countdown: safegoCfg.appearance.countdowntime || 5,
+      darkmode: safegoCfg.appearance.darkmode,
+      title: safegoCfg.appearance.title,
+      contentBytes: Buffer.byteLength(content),
+    }
+    console.log(
+      `    · /${fileName}：参数名 ${safegoCfg.security.url_param_name}，base64=${safegoCfg.general.enable_base64_encode !== false}，倒计时 ${safegoCfg.appearance.countdowntime || 5}s`,
+    )
+  }
+
+  /* D. random.js（上游 scripts/helpers/random.js 的 generator） */
+  {
+    const randomCfgBlock = siteCfg.data.random && typeof siteCfg.data.random === 'object' ? siteCfg.data.random : {}
+    const randomPath = String(randomCfgBlock.path || 'anzhiyu/random.js').replace(/^\/+/, '')
+    const resolvePostPath = createPostPathResolver(permalinkPattern)
+    const includedPosts = postRecords.filter((record) => !record.randomExcluded)
+    if (includedPosts.length === 0) {
+      console.log('  · 没有任何文章（或全部 random:false），跳过 random.js')
+    } else {
+      // 任务口径：date 倒序（同日期保持源站目录顺序）
+      const timestampOf = (record) => {
+        const parts = parsePostDateParts(record.date)
+        return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
+      }
+      const posts = [...includedPosts]
+        .sort((left, right) => timestampOf(right) - timestampOf(left))
+        .map((record) => resolvePostPath(record))
+      // 友链数据：footer.list.enable && randomFriends > 0 时才带上随机友链块
+      const linkFile = path.join(SITE, 'source', '_data', 'link.yml')
+      let linkGroups = []
+      if (existsSync(linkFile)) {
+        try {
+          const parsed = parseYaml(readFileSync(linkFile, 'utf8'))
+          if (Array.isArray(parsed)) linkGroups = parsed
+          else warnings.push('source/_data/link.yml 顶层不是数组，random.js 的友链随机块已跳过。')
+        } catch (error) {
+          warnings.push(`source/_data/link.yml 解析失败，random.js 友链随机块已跳过：${error.message}`)
+        }
+      }
+      const footerCfg = themeCfg.data.footer && typeof themeCfg.data.footer === 'object' ? themeCfg.data.footer : {}
+      const footerList = footerCfg.list && typeof footerCfg.list === 'object' ? footerCfg.list : {}
+      const footerListEnabled = footerList.enable === true || footerList.enable === 'true'
+      const randomFriends = Number(footerList.randomFriends) || 0
+      const pjaxEnabled = Boolean(themeCfg.data.pjax && themeCfg.data.pjax.enable)
+      const content = renderRandomJs({ posts, links: linkGroups, pjaxEnabled, footerListEnabled, randomFriends })
+      const pageRel = `public/${randomPath}`
+      writeOut(pageRel, content)
+      pluginArtifacts.random = {
+        url: `/${randomPath}`,
+        routeFile: pageRel,
+        posts: posts.length,
+        excludedByRandomFalse: postRecords.length - includedPosts.length,
+        pjaxEnabled,
+        footerListEnabled,
+        randomFriends,
+        friendLinks: linkGroups.reduce(
+          (total, group) => total + (Array.isArray(group?.link_list) ? group.link_list.length : 0),
+          0,
+        ),
+        contentBytes: Buffer.byteLength(content),
+      }
+      console.log(
+        `    · /${randomPath}：${posts.length} 篇文章（random:false 排除 ${postRecords.length - includedPosts.length}），友链块 ${footerListEnabled && randomFriends > 0 ? `开（${pluginArtifacts.random.friendLinks} 条 / 每轮 ${randomFriends} 个）` : '关'}，pjax=${pjaxEnabled}`,
+      )
+    }
+  }
+
+  /* ---- 插件产物已生成，但插件「渲染期行为」里的全站后处理仍无法等价迁移 ---- */
+  if (safegoEnabled) {
+    unsupported.push({
+      category: 'hexo-plugin-page',
+      item: 'hexo_safego 全站外链改写（after_render:html）',
+      location: '_config.yml',
+      reason:
+        'go.html 与插件产物（bangumi 卡片标题）里的外链已按插件规则改写成 /go.html?u=base64；但 hexo-safego 还会在渲染后对**整站 HTML** 的外部链接统一改写，Astro 侧没有「渲染后 HTML 后处理」管线，正文里的外链仍是原始地址。',
+      action:
+        '若需要全站外链都经过 /go.html：在 BaseLayout/内容渲染层加一个 rehype 插件做同样的 href 重写（逻辑见本脚本 safeGoRewrite），或部署层用 CDN/边缘函数改写。',
+    })
+  }
+
   /* ---- 无法自动迁移项（配置侧） ---- */
   for (const key of missingIn171) {
     unsupported.push({
@@ -1176,8 +2311,11 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
       action: '改用 Astro 的 View Transitions（若需要无刷新导航），或删除该配置。',
     })
   }
+  // 其中 bangumi / envelope_comment / hexo_safego 的**页面产物**已由本脚本的 [7.x]
+  // 阶段按插件语义生成（见 report.plugins / docs/notes/P7-4-fix-plugin-pages.md），
+  // 不再列入「无等价物」清单；它们残留的渲染期行为单独归类为 hexo-plugin-page。
   const HEXO_PLUGINS = [
-    'abbrlink', 'bangumi', 'envelope_comment', 'hexo_safego', 'baidu_url_submit',
+    'abbrlink', 'baidu_url_submit',
     'aisummary', 'feed', 'sitemap', 'baidusitemap', 'search', 'all_minifier',
     'aplayer', 'nofollow', 'auto_spacing', 'highlight', 'prismjs', 'deploy',
   ]
@@ -1237,6 +2375,9 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
     posts: postRecords,
     pages: pageRecords,
     data: dataRecords,
+    /** [7.x] Hexo 插件产物：envelope / bangumi / safego / random.js（null = 源站未启用）。 */
+    plugins: pluginArtifacts,
+    pluginArtifactCount: Object.values(pluginArtifacts).filter(Boolean).length,
     configKeyDelta: {
       baseline: target.source,
       targetKeyCount: target.keys.length,
@@ -1278,6 +2419,12 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
   console.log(`  独立页面        : ${pageRecords.length}；type: ${pageTypeList.join(', ')}`)
   console.log(`  数据文件        : ${dataRecords.length}（.yml ${ymlData}）`)
   console.log(`  静态资源        : ${assetCount}`)
+  console.log(
+    `  插件产物        : ${Object.values(pluginArtifacts).filter(Boolean).length}/4（${Object.entries(pluginArtifacts)
+      .filter(([, value]) => Boolean(value))
+      .map(([key]) => key)
+      .join(', ') || '源站未启用任何插件页'}）`,
+  )
   console.log(`  主题配置覆盖    : ${matchedThemeKeys.length}/${themeKeys.length} = ${(coverageRate * 100).toFixed(2)}%`)
   console.log(`  1.7.1 新增/缺失 : ${addedIn171.length} / ${missingIn171.length}`)
   console.log(`  无法自动迁移项  : ${unsupported.length}（${[...new Set(unsupported.map((u) => u.category))].join(', ') || '无'}）`)

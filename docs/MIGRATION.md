@@ -114,7 +114,7 @@ CLI 参数：
 
 ```
 .migration-out/<站点名>/
-├── migration-report.json          # 机器可读报告：计数 / 键差异 / 待办 / 产物清单
+├── migration-report.json          # 机器可读报告：计数 / 键差异 / 待办 / 产物清单 / plugins
 ├── site.config.ts                 # 站点身份（由 _config.yml 生成）
 ├── anzhiyu.config.yml             # 主题配置（清洗后，主题包 loader 默认读这个文件名）
 ├── anzhiyu.config.original.yml    # 主题配置原文备份（含注释，人工映射时用）
@@ -122,11 +122,15 @@ CLI 参数：
 ├── astro.config.mjs               # 复用 examples/blog 的自定义 Markdown processor + stylus 插件
 ├── data/                          # source/_data/* （site-data.ts 只 glob *.yml）
 ├── public/                        # source/ 下非页面、非 _posts/_data 的静态资源
+│   ├── <hexo_safego.html_file_name>   # Hexo 插件产物 C：安全跳转页（本站 public/go.html）
+│   └── <random.path>                  # Hexo 插件产物 D：随机文章脚本（本站 public/anzhiyu/random.js）
 └── src/
     ├── content.config.ts          # posts 集合，glob loader base = ./src/content/posts
     ├── content/posts/             # 文章（保留子目录）+ 独立页面（<目录名>-page.md）
     ├── data/site-data.ts          # getSiteData()，对应上游 site.data.*
     ├── pages/                     # 最小路由：index / page/[...page] / [...path] / [year]/[month]/[day]/[slug]
+    │   ├── comments/index.astro   # Hexo 插件产物 A：envelope 留言板（路径由 envelope_comment.path 决定）
+    │   └── bangumis/index.astro   # Hexo 插件产物 B：追番页（路径由 bangumi.path 决定）
     └── styles/                    # 从 examples/blog 复制的上游 stylus + css 样式入口
 ```
 
@@ -306,6 +310,44 @@ aisummary.token、baidu_url_submit.token
 
 ---
 
+### 7.1 Hexo 插件生成页（envelope 留言板 / bangumi 追番 / safego go.html / random.js）
+
+Hexo 主题的这四类产物由**插件在 `hexo generate` 阶段生成**，不是 `source/` 里的 Markdown。
+Astro 没有插件机制，`migrate-hexo.mjs` 的 `[7.x/8]` 阶段按插件源码逐份移植，**全部由源站
+配置/数据驱动**（不写死站点身份）：
+
+| 产物 | 源站配置/数据 | 迁移后落点 | 生成逻辑来源 |
+| --- | --- | --- | --- |
+| A. 留言板 | `_config.yml:envelope_comment`（enable / custom_pic / message / bottom / height / path / front_matter） | `<path>/index.html`（本站 `/comments/`） | `hexo-butterfly-envelope/lib/html.pug` + generator |
+| B. 追番页 | `_config.yml:bangumi` + `source/_data/bangumis.json`（+可选 `extra_bangumis.json`） | `<path>/index.html`（本站 `/bangumis/`） | `hexo-bilibili-bangumi` 的 bangumi/bili-template/pagination 模板与前端脚本 |
+| C. 安全跳转页 | `_config.yml:hexo_safego`（general / security / appearance） | `<security.html_file_name>`（本站 `/go.html`） | `hexo-safego/index.js` + 插件自带 `go.html` 模板 |
+| D. 随机文章脚本 | 文章 frontmatter（date/abbrlink/random）+ `pjax.enable` + `footer.list.enable/randomFriends` + `_data/link.yml` | `<random.path>`（本站 `/anzhiyu/random.js`） | 主题 `scripts/helpers/random.js` generator |
+
+行为约定：
+
+- **对没有这些插件的站点安全**：`enable` 缺失/false、`bangumis.json` 不存在 → 只打印
+  「无 envelope_comment 配置，跳过留言板页」这类日志，不产出文件；`random.js` 是主题 generator，
+  只要有文章就生成（`random.path` 可改路径）。生成结果摘要写进 `migration-report.json` 的 `plugins`。
+- A/B 走主题 `BaseLayout` 外壳（`#page` + `h1.page-title` + `#article-container` + 评论区），
+  与其它独立页面一致；C/D 是独立静态资产（C 无主题外壳，与源站一致）。
+- C 的 base64 解码 / 10 秒倒计时 / 进度条 / 复制/取消/立即跳转逻辑与源站 go.html 逐字节一致；
+  B 的 tab 切换 + 每页 10 条分页是插件 `index.js`/`pagination.js` 的可读移植版（内联在页面里），
+  但**不再**在浏览器用 axios+pug 二次拉 `bangumis.json` 补渲染（全部条目一次性静态渲染）。
+- D 的 `posts` 按 **date 倒序**生成（排除 frontmatter `random: false`），`toRandomPost()` 按
+  `pjax.enable` 选 `pjax.loadUrl` / `location.href`；`footer.list.enable && randomFriends > 0` 时
+  追加页脚随机友链块（数据来自迁移后 `_data/link.yml`）。
+- 已知差异/未复刻：`hexo_safego` 对**整站 HTML** 的渲染后外链改写没有迁移（正文外链仍是原始地址，
+  只有插件产物内的链接已改写；见 `migration-report.json` 的 `unsupported` → `hexo-plugin-page`）；
+  图片 lazyload 后处理（占位图 + `data-lazy-src`）未迁移，图片直接输出真实 URL；`random.js` 的
+  posts 顺序与 golden 的 Hexo 插入序不同（golden 顺序非稳定契约，集合一致）。
+- 完整验证证据（产物字节数 / DOM 抽样对照 / JS 功能断言 / accept 报告）见
+  `docs/notes/P7-4-fix-plugin-pages.md`。
+
+> 改了 `packages/astro-theme-anzhiyu/**` 之后重跑迁移站：pnpm 把 `file:` 依赖快照进
+> `node_modules/.pnpm/`，旧产物仍指向旧主题代码。必须先清掉再装（见 §9.1）。
+
+---
+
 ## 8. 自定义 CDN
 
 Hexo 主题的 `CDN.internal_provider / third_party_provider / custom_format / option` 是服务端拼 URL 的模板逻辑，
@@ -340,7 +382,28 @@ cd .migration-out/xcAnzhiyu
 
 # 9.1 独立安装（file: 依赖会链接到本仓库 packages/*）
 CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm install --ignore-workspace
+```
 
+> **改了主题包之后必须强制重装（常见坑）**：`file:../../packages/astro-theme-anzhiyu` 这类依赖
+> 被 pnpm 在安装时**快照**进 `<目标站>/node_modules/.pnpm/astro-theme-anzhiyu@file+.../`（`.pnpm`
+> 里是 store 的硬链接，不是指向源码的符号链接）。改了 `packages/astro-theme-anzhiyu/**` 后，
+> 目标站构建读到的仍是**旧主题代码**，表现为「明明改了主题，迁移站页面没变」。
+>
+> ```bash
+> # 目标站里必须做（两种任选其一，推荐 ①）
+> # ① 删主题链接后强制重装（最快，保留其它依赖）
+> CODEBUDDY_SAFE_DELETE_ENABLED=0 rm -rf node_modules/astro-theme-anzhiyu
+> CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm install --ignore-workspace --force
+> # ② 彻底清掉 node_modules 重装（最稳）
+> CODEBUDDY_SAFE_DELETE_ENABLED=0 rm -rf node_modules && pnpm install --ignore-workspace
+> ```
+>
+> `scripts/accept-migration.mjs --reuse` 复用已有 `migrated/node_modules` 时**不做**这一步：
+> 主题改动后要重跑 accept 前先删 `<out>/migrated/node_modules/astro-theme-anzhiyu` 并
+> `pnpm install --ignore-workspace --force`，否则验收结果基于旧主题。本任务（W2-B1）只改
+> 迁移脚本、不改主题包；B2 之后如果动主题，务必按本节处理。
+
+```bash
 # 9.2 构建（多 agent 并行时先抢仓库根的构建锁）
 cd D:/Git-project/astro-theme-anzhiyu
 while ! mkdir .build.lock 2>/dev/null; do sleep 3; done
@@ -407,6 +470,18 @@ CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm build
 #    ✓ dist/ 下首页、/about/、/tags/、/link/、文章页都在
 #    ✓ 抽查 <title>/<html lang>/canonical/OG 是否用了 site.config.ts 的身份
 #    ✓ 浏览器抽查：图片、评论、搜索、深色模式、代码高亮、分页
+
+# D2. Hexo 插件产物（见 §7.1；产物路径由源站配置决定，下面以本站为例）
+ls -l dist/comments/index.html dist/bangumis/index.html dist/go.html dist/anzhiyu/random.js
+#    ✓ 四个文件都存在且非空（本站 69980 / 204774 / 7560 / 19523 字节）
+node -e "const fs=require('fs');const h=fs.readFileSync('dist/bangumis/index.html','utf8');
+  console.log('cards', (h.match(/class=\"bangumi-item\"/g)||[]).length,
+              'tabs', (h.match(/class=\"bangumi-tab\" /g)||[]).length)"
+#    ✓ 追番卡片数 = bangumis.json 的 wantWatch+watching+watched 之和，tab 数 = 3
+node -e "const fs=require('fs');const r=fs.readFileSync('dist/anzhiyu/random.js','utf8');
+  console.log('posts', JSON.parse(/var posts=(\[[\s\S]*?\]);/.exec(r)[1]).length)"
+#    ✓ random.js 的 posts 数 = 文章数（排除 frontmatter random:false）
+#    ✓ /go.html?u=<base64> 能正确解码并倒计时跳转；/comments/ 有 #envelope/#form-wrap/#beforeimg/#afterimg
 
 # E. 上线后
 #    ✓ 老 URL（posts/p:abbrlink/）有 301 映射或自定义 404 引导
@@ -488,9 +563,14 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 但 `[slug].astro` 里仍是硬编码 `externalLink: { enable: true, exclude: '' }`。
 要让 `exclude` 生效，把该处改成从 `siteExtras.external_link` 读取（本轮 P7-3 未改主题/示例站文件，列为待办）。
 另外 `nofollow`、`hexo_safego` 等 Hexo 插件的外链改写也没有 Astro 等价实现，需要自定义 rehype 插件。
+其中 `hexo_safego` 的**插件产物**（`/go.html` 本身 + bangumi 卡片外链）已由 §7.1 按同规则生成，
+缺的是它对**整站正文**外链的统一后处理（详见 §7.1「已知差异/未复刻」）。
 
 ### 其它
 
+- **插件页产物**：`/comments/`（envelope）、`/bangumis/`（追番）、`/go.html`（safego）、
+  `/anzhiyu/random.js`（随机文章）由 `migrate-hexo.mjs` 的 `[7.x/8]` 阶段按源站配置生成，
+  不需要手写；产物路径与行为差异见 §7.1 与 `docs/notes/P7-4-fix-plugin-pages.md`。
 - **YAML 解析失败**：源站 frontmatter 里混入了不换行空格（本站 `log/index.md` 的 `date`），
   脚本读取时对坏 YAML 有降级（只提取 `type`/`layout`/`permalink`），但 Astro 构建时仍可能报错，需人工修源内容。
 - **`data/*.json` 不生效**：见 §5.3。
@@ -505,6 +585,11 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 完整演练记录见 `docs/notes/P7-3-migration.md`。当前脚本产出的是**可继续开发的骨架**，不是「一键可上线」：
 
 ### 13.1 `migration-report.json` → `unsupported` 21 项：分类与处理建议
+
+> 注：本表是 **P7-3 首次演练**的 21 项快照。P7-4 系列修复后（主题层 URL/taxonomy/page.type +
+> 本任务的插件产物生成），真实站当前为 **18 项**：`page.type` 与 `layout` 已修（`charts` / `todolist` /
+> `sitetime` 归一）、`friends_lite` 已由主题包兼容键支持，新增 `hexo-plugin-page` 1 项
+> （safego 全站外链后处理）。以 `.migration-out/<out>/migration-report.json` 的 `unsupported` 为准。
 
 脚本不会静默吞掉无法迁移的东西，全部逐条写进报告（含 `category / item / location / reason / action`）。
 本站 8 类共 21 项：
@@ -530,7 +615,10 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 3. 站点主题配置（136 键）喂给 stylus 插件时，某条件分支展开出非法 CSS
    （postcss `Unknown word cursor`）；换成 `examples/blog/theme.config.yml` 基准配置后骨架可正常构建；
 4. 归档 / 标签 / 分类 / 404 路由未生成（最小路由只含首页、分页、独立页、文章页）；
-5. 评论 / 搜索 / 统计 / CDN / inject / pjax / 第三方 Hexo 插件全部是人工待办；
+5. 评论 / 搜索 / 统计 / CDN / inject / pjax 仍是要人工接的项；Hexo 插件产物里
+   **envelope 留言板 / bangumi 追番 / safego go.html / random.js 已由 §7.1 生成**，
+   剩余 `hexo_safego` 全站外链后处理、RSS/sitemap/search 索引仍在 `unsupported`（feed/sitemap/search
+   属 W2-B2 的生成器任务）；
 6. 主题包目前是 `private: true` 的 workspace 源码包，只能靠 `file:` 引用，尚未发布到 npm。
 
 以上都不属于脚本 bug，属于「Hexo 生态 → Astro 生态」需要逐项做语义迁移的部分。
