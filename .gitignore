@@ -49,6 +49,7 @@ examples/blog/tests/artifacts/
 # 并行 agent 的临时诊断产物（结论落在 docs/notes/，中间文件不进仓库）
 .tmp-*
 .diff-*.json
+diff-report.json
 .dist-snapshot*/
 
 # WorkBuddy 本地数据（工作日志等，不进仓库）
