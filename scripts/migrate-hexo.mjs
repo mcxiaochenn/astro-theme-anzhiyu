@@ -228,17 +228,30 @@ function loadTargetKeys(upstreamOpt) {
   return { keys: keysFromDefaultsTs(), source: posix(path.relative(REPO_ROOT, DEFAULTS_TS)) + ' (AUTO-GENERATED from 1.7.1)' }
 }
 
-/** 用 Intl 求 IANA 时区相对 UTC 的固定偏移（分钟）；无法解析返回 null。 */
-function timezoneOffsetMinutes(tz) {
+/**
+ * 用 Intl 求 IANA 时区相对 UTC 在指定时刻的偏移（分钟）；无法解析返回 null。
+ *
+ * 与旧行为的两处差异（C1）：
+ * - 裸 `GMT`（无 ± 数字，如 UTC / GMT / Etc/*，某些 ICU 版本对 UTC 只给 `GMT`）记 0，
+ *   不再因正则不匹配而回落 +08:00 把 UTC 站日期平移 8 小时。
+ * - 采样时刻由 `at` 指定（DST 时区按文章日期现场换算），不再固定采 2024-06-01。
+ *
+ * @param {string} tz IANA 时区名
+ * @param {Date|string|number} at 采样时刻；缺省 2024-06-01（仅作单常量兜底/非 DST 站用）
+ * @returns {number|null} 相对 UTC 的分钟偏移，无法解析返回 null
+ */
+function timezoneOffsetMinutes(tz, at = new Date('2024-06-01T00:00:00Z')) {
   if (!tz || typeof tz !== 'string') return null
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       timeZoneName: 'shortOffset',
-    }).formatToParts(new Date('2024-06-01T00:00:00Z'))
+    }).formatToParts(new Date(at))
     const label = parts.find((p) => p.type === 'timeZoneName')?.value ?? ''
-    const match = /GMT([+-])(\d{1,2})(?::(\d{2}))?/.exec(label)
+    // 兼容 `GMT+8` / `GMT+5:30` / 裸 `GMT`（= 0）：偏移段整体可选，缺省即 UTC。
+    const match = /GMT(?:([+-])(\d{1,2})(?::(\d{2}))?)?/.exec(label)
     if (!match) return null
+    if (!match[1]) return 0 // 裸 GMT / GMT+0 → 0（不再回落 +08:00）
     const sign = match[1] === '-' ? -1 : 1
     return sign * (Number(match[2]) * 60 + Number(match[3] ?? 0))
   } catch {
@@ -1080,10 +1093,19 @@ ${commentsRender}  </div>
 `
 }
 
-/** frontmatter/配置里的日期串 → permalink token 需要的年月日时分秒（Hexo 语义：字面量即站点墙上时间）。 */
+/**
+ * frontmatter/配置里的日期串 → permalink token 需要的年月日时分秒（Hexo 语义：字面量即站点墙上时间）。
+ *
+ * 日期分隔符 `[-/]` 与 content.config.ts 的 hexoDate 对齐（`2024/01/15` / `2024-01-15` 均可，C3）。
+ * 无法解析时不再伪造 1970-01-01，改为告警并返回 null（调用方自行兜底，不误导 URL/排序）。
+ */
 function parsePostDateParts(value) {
-  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(String(value ?? ''))
-  if (!match) return { year: 1970, month: 1, day: 1, hour: 8, minute: 0, second: 0 }
+  const text = String(value ?? '')
+  const match = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(text)
+  if (!match) {
+    console.warn(`[migrate] 无法解析日期 ${JSON.stringify(text)}，跳过日期段（不再伪造 1970）`)
+    return null
+  }
   return {
     year: Number(match[1]),
     month: Number(match[2]),
@@ -1092,6 +1114,15 @@ function parsePostDateParts(value) {
     minute: Number(match[5] ?? 0),
     second: Number(match[6] ?? 0),
   }
+}
+
+/**
+ * 文章 URL 末段收尾（C2 单一规则源）：`.html`/`.htm` 平文件型不加尾斜杠，目录型加。
+ * 迁移侧 createPostPathResolver 与生成的 src/data/post-permalink.ts 的 postHref 共用同一规则；
+ * 因分属迁移脚本（Node）与生成物（站点运行时）两个运行时，规则在两处各实例化一份，逻辑必须逐字一致。
+ */
+function applyPermalinkTrailingSlash(rendered) {
+  return /\.html?$/i.test(rendered) ? rendered : `${rendered}/`
 }
 
 /**
@@ -1109,7 +1140,12 @@ function createPostPathResolver(permalinkPattern) {
     const slug = typeof post.slug === 'string' ? post.slug : ''
     const abbr = post.abbrlink === undefined || post.abbrlink === null || post.abbrlink === '' ? '' : String(post.abbrlink)
     const effectiveSlug = abbrlinkConfigured && abbr ? abbr : slug
-    const parts = parsePostDateParts(post.date)
+    // 日期不可解析时不再伪造 1970，退回迁移时刻的日期段（parsePostDateParts 已告警），保证 URL 无 undefined。
+    const now = new Date()
+    const parts = parsePostDateParts(post.date) ?? {
+      year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate(),
+      hour: now.getHours(), minute: now.getMinutes(), second: now.getSeconds(),
+    }
     const pad = (number) => String(number).padStart(2, '0')
     const values = {
       year: String(parts.year),
@@ -1128,8 +1164,8 @@ function createPostPathResolver(permalinkPattern) {
       .map((segment) => segment.replace(/:([a-z_]+)/gi, (match, token) => (token in values ? values[token] : match)))
       .join('/')
     // 目录型 permalink（Astro build.format=directory 的产物）统一带尾斜杠，与 postHref() 一致；
-    // 平文件型（末段 .html）不带。
-    return /\.html?$/i.test(rendered) ? rendered : `${rendered}/`
+    // 平文件型（末段 .html/.htm）不带（C2，收口到 applyPermalinkTrailingSlash）。
+    return applyPermalinkTrailingSlash(rendered)
   }
 }
 
@@ -2615,9 +2651,22 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
   contentConfig = contentConfig.replace("base: '../../fixtures'", "base: './src/content/posts'")
   const tz = siteCfg.data.timezone
   const offset = timezoneOffsetMinutes(tz)
+  // DST 检测（C1）：冬/夏各采一次，偏移不同即为夏令时时区。裸 GMT 已记 0，UTC 站 offset=0 不再平移 8 小时。
+  const winterOffset = timezoneOffsetMinutes(tz, '2024-01-01T00:00:00Z')
+  const hasDST = offset !== null && winterOffset !== null && offset !== winterOffset
+  const fmtH = (m) => `UTC${m >= 0 ? '+' : ''}${(m / 60).toFixed(2)}`
   if (offset !== null) {
     contentConfig = contentConfig.replace(/const SITE_UTC_OFFSET_MINUTES = 8 \* 60/, `const SITE_UTC_OFFSET_MINUTES = ${offset}`)
-    console.log(`  ✓ timezone ${tz} → UTC${offset >= 0 ? '+' : ''}${(offset / 60).toFixed(2)}h，已写入 content.config.ts`)
+    if (hasDST) {
+      // content.config.ts 的 parseHexoDate 用单一 SITE_UTC_OFFSET_MINUTES 常量，无法按文章日期现场换算 DST 偏移；
+      // 真·per-date 需改 examples/blog/src/content.config.ts（不在本批写范围），故登记限制到 MIGRATION.md。
+      warnings.push(
+        `源站 timezone ${tz} 含夏令时（冬 ${fmtH(winterOffset)} / 夏 ${fmtH(offset)}）。迁移产物 content.config.ts 的 parseHexoDate 用单一 SITE_UTC_OFFSET_MINUTES（现取 ${fmtH(offset)}），无法按文章日期现场换算 DST 偏移；跨夏令时边界的日期可能偏移约 1 小时，需人工核对（见 MIGRATION.md「时区」）。`,
+      )
+      console.log(`  ⚠ timezone ${tz} 含夏令时（冬 ${fmtH(winterOffset)} / 夏 ${fmtH(offset)}），单常量按 ${fmtH(offset)} 写入；DST per-date 限制已登记 MIGRATION.md`)
+    } else {
+      console.log(`  ✓ timezone ${tz} → ${fmtH(offset)}，已写入 content.config.ts`)
+    }
   } else {
     warnings.push(`源站 timezone 为空/无法解析（${JSON.stringify(tz ?? '')}），content.config.ts 沿用 +08:00；若文章日期含显式时区请人工核对（见 MIGRATION.md「时区」）。`)
   }
@@ -2689,11 +2738,14 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
           ),
           'utf8',
         )
+        // warning/日志移进 !DRY（C5）：落盘后才声称「已修正」，dry-run 不再误导性地说「已修正」。
+        warnings.push(
+          '上游 _third-party/twikoo.styl 的 `.tk-actions / a / cursor pointer` 缩进笔误已按等价语义删除（浏览器本来就不生效，否则 postcss 会让构建失败）。',
+        )
+        console.log('  ✓ 修正上游 twikoo.styl 的 CSS 缩进笔误（仅 Twikoo 站会展开）')
+      } else {
+        console.log('  · [dry-run] 将修正上游 twikoo.styl 的 CSS 缩进笔误（仅 Twikoo 站会展开）')
       }
-      warnings.push(
-        '上游 _third-party/twikoo.styl 的 `.tk-actions / a / cursor pointer` 缩进笔误已按等价语义删除（浏览器本来就不生效，否则 postcss 会让构建失败）。',
-      )
-      console.log('  ✓ 修正上游 twikoo.styl 的 CSS 缩进笔误（仅 Twikoo 站会展开）')
     }
   }
 
@@ -2993,13 +3045,18 @@ export function postRouteParams(entry: { id: string; data: Record<string, unknow
   return params
 }
 
+/** 文章 URL 末段收尾（C2）：\`.html\`/\`.htm\` 平文件型不加尾斜杠，目录型加（与 scripts/migrate-hexo.mjs 的 applyPermalinkTrailingSlash 同一规则）。 */
+function applyPermalinkTrailingSlash(rendered: string): string {
+  return /\\.html?$/i.test(rendered) ? rendered : \`\${rendered}/\`
+}
+
 /** 文章完整 URL（无站点前缀，归档页/分类页链接用；与 postRouteParams 同一套规则）。 */
 export function postHref(entry: { id: string; data: Record<string, unknown> }): string {
   const segments = patternSegments.map((segment, index) => {
     const order = patternDynamicOrder.indexOf(index)
     return order === -1 ? segment : segmentValue(entry, order)
   })
-  return \`/\${segments.join('/')}/\`
+  return \`/\${applyPermalinkTrailingSlash(segments.join('/'))}\`
 }
 `
     writeOut('src/data/post-permalink.ts', permalinkTs)
@@ -3203,6 +3260,8 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
       // 任务口径：date 倒序（同日期保持源站目录顺序）
       const timestampOf = (record) => {
         const parts = parsePostDateParts(record.date)
+        // 日期不可解析：作为排序键垫底（不再伪造 1970）；parsePostDateParts 已告警。
+        if (!parts) return 0
         return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
       }
       const posts = [...includedPosts]

@@ -678,21 +678,34 @@ function isHomeExcerptText(ancestors) {
  *   2. 首页摘要：`#recent-posts > div.content` 里的**内联**残留 → 两边把已收集 id 的
  *      `## ` 前缀剥掉、保留标题词。两侧同规则处理，避免代码块等处的 `## foo` 被单边
  *      修改后造出新的假差异；正文里的代码块不在该容器内，不受影响。
+ *
+ * C4 收紧：id 收集/删除/剥离一律跳过 `pre`/`code`/`textarea` 内部（代码块里的 `## word`
+ * 是字面量，不是未渲染标题，不能牵连两侧真实标题）；宽泛的 inlineArtifact 收集已删，
+ * 内联 id 只在首页摘要容器内收集（形态 2），正文仍走整段字面量（形态 1）。
+ * 返回已收集 id 供 `--verbose` 审计。
  */
 function stripUnrenderedHeadingArtifacts(baselineRaw, distRaw) {
   const ids = new Set()
   const textArtifact = /^#{1,6}\s+([A-Za-z][\w-]*)$/
   const inlineArtifact = /(?:^|\s)#{1,6}\s+([A-Za-z][\w-]*)/g
+  // 代码/文本域内的 `## word` 是字面量，不参与 N21 豁免（C4）。
+  const isCodeLike = (tag) => tag === 'pre' || tag === 'code' || tag === 'textarea'
 
   const visit = (node, ancestors = []) => {
     if (node.type === 'text') {
       const text = node.text ?? ''
       const match = textArtifact.exec(text.trim())
       if (match) ids.add(match[1].toLowerCase())
-      for (const inline of text.matchAll(inlineArtifact)) ids.add(inline[1].toLowerCase())
+      // 内联残留只在首页摘要容器收集（形态 2）；删掉宽泛收集，避免正文/代码块牵连真实标题。
+      else if (isHomeExcerptText(ancestors)) {
+        for (const inline of text.matchAll(inlineArtifact)) ids.add(inline[1].toLowerCase())
+      }
       return
     }
-    if (node.type === 'element') ancestors.push(node)
+    if (node.type === 'element') {
+      if (isCodeLike(node.tag)) return // 跳过 pre/code/textarea 内部
+      ancestors.push(node)
+    }
     for (const child of node.children ?? []) visit(child, ancestors)
     if (node.type === 'element') ancestors.pop()
   }
@@ -709,19 +722,23 @@ function stripUnrenderedHeadingArtifacts(baselineRaw, distRaw) {
       }
       return
     }
-    if (node.type === 'element') ancestors.push(node)
+    if (node.type === 'element') {
+      if (isCodeLike(node.tag)) return // 跳过 pre/code/textarea 内部
+      ancestors.push(node)
+    }
     for (const child of node.children ?? []) stripInline(child, ancestors)
     if (node.type === 'element') ancestors.pop()
   }
   stripInline(baselineRaw)
   stripInline(distRaw)
 
-  if (ids.size === 0) return
+  if (ids.size === 0) return []
   const drop = (root) => {
     const walk = (node) => {
       const children = node.children ?? []
       for (let index = children.length - 1; index >= 0; index--) {
         const child = children[index]
+        if (child.type === 'element' && isCodeLike(child.tag)) continue // 跳过 pre/code/textarea 整棵
         if (child.type === 'text' && textArtifact.test((child.text ?? '').trim())) {
           children.splice(index, 1)
           continue
@@ -741,6 +758,7 @@ function stripUnrenderedHeadingArtifacts(baselineRaw, distRaw) {
   }
   drop(baselineRaw)
   drop(distRaw)
+  return [...ids].sort()
 }
 
 /**
@@ -1306,7 +1324,7 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
   const distStats = { comments: 0, warnings: [] }
   const baselineRaw = parseHtml(readHtml(baselinePath), baselineStats)
   const distRaw = parseHtml(readHtml(distPath), distStats)
-  stripUnrenderedHeadingArtifacts(baselineRaw, distRaw)
+  const n21ExemptIds = stripUnrenderedHeadingArtifacts(baselineRaw, distRaw)
   stripUnrenderedFootnoteDefinitions(baselineRaw, distRaw)
   const baseline = normalizeTree(baselineRaw, baselineStats)
   const dist = normalizeTree(distRaw, distStats)
@@ -1336,6 +1354,8 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
     baseline: describeDiagnostics(baselineStats, baseline.ctx, baseline.root),
     dist: describeDiagnostics(distStats, dist.ctx, dist.root),
   }
+  // C4：已收集的 N21 豁免 id，供 --verbose / --json 审计。
+  report.n21ExemptIds = n21ExemptIds
   return finishReport(report)
 }
 
@@ -1407,6 +1427,14 @@ function printPageReport(report, limit) {
 }
 
 function printDiagnostics(report) {
+  // C4：输出已收集的 N21 豁免 id，便于审计豁免范围。
+  if (Array.isArray(report.n21ExemptIds)) {
+    console.log(
+      report.n21ExemptIds.length
+        ? `  · N21 豁免收集 id（${report.n21ExemptIds.length}）: ${report.n21ExemptIds.join(', ')}`
+        : '  · N21 豁免收集 id: （无）',
+    )
+  }
   for (const [side, info] of Object.entries(report.diagnostics)) {
     if (!info) continue
     const parts = [`节点 ${info.nodes}`]

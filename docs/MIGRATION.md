@@ -620,6 +620,9 @@ const SITE_UTC_OFFSET_MINUTES = 8 * 60   // 站点 timezone 有效时脚本按 I
 ```
 
 - 若源站 `timezone: Asia/Shanghai`，脚本会自动写入 `480`；其他 IANA 时区按 `Intl` 计算。
+- 裸 `GMT`/`UTC`（Intl 的 `shortOffset` 只给 `GMT` 无 ±）记 `0`，不再错误回落 +08（C1）。
+- **DST 时区限制（C1）**：`SITE_UTC_OFFSET_MINUTES` 是单一常量，无法按文章日期现场换算夏令时偏移；
+  含 DST 时区的跨季日期可能偏移约 1 小时，详见 §13.2 第 7 条，需人工核对。
 - 若站点混用显式时区字面量（如 `2024-11-01T09:30:00Z`），已知限制见 `content.config.ts` 的 `hexoDate` 注释：
   YAML 解析后无法区分，会被一并按站点偏移处理，需要自定义 loader 保留原字面量。
 - 迁移后务必抽查几篇文章的发布时间与归档年月是否与老站一致。
@@ -742,5 +745,13 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
    **search.xml / atom.xml / rss2.xml / sitemap.xml / baidusitemap.xml / baidu_urls.txt
    已由 §7.2 生成**，剩余 `hexo_safego` 全站外链后处理仍在 `unsupported`（`hexo-plugin-page`）；
 6. 主题包目前是 `private: true` 的 workspace 源码包，只能靠 `file:` 引用，尚未发布到 npm。
+7. **DST 时区日期偏移（Batch C1）**：迁移产物 `content.config.ts` 的 `parseHexoDate` 用单一
+   `SITE_UTC_OFFSET_MINUTES` 常量把「墙上时间」还原成 UTC 瞬时，无法按文章日期现场换算夏令时
+   偏移。裸 `GMT`/`UTC` 已修正记 0（不再回落 +08）；但含 DST 的时区（如 `America/New_York`、
+   `Europe/Berlin`）目前写入一个代表性固定偏移（冬/夏采样取其一），跨夏令时边界的日期可能偏移
+   约 1 小时。完全正确需把 `parseHexoDate` 改成 per-date（`Intl.DateTimeFormat` 按该日期取
+   offset，`scripts/migrate-hexo.mjs` 的 `timezoneOffsetMinutes(tz, at)` 已具备该能力），但
+   `examples/blog/src/content.config.ts` 模板不在迁移工具写范围内、且注入 per-date 逻辑无法本地
+   build 验证，故暂登记为已知限制——DST 站请人工抽查跨季文章的发布时间与归档年月。
 
 以上都不属于脚本 bug，属于「Hexo 生态 → Astro 生态」需要逐项做语义迁移的部分。
