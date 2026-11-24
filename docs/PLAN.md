@@ -12,21 +12,32 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-23 23:25（用户指令收尾：Phase 4/5/7 半成品固化为 wip，全部 agent 已停止）**
+**快照时间：2026-11-24 16:40（Phase 2 结构验收达成并退出：48 页全 PASS / 0 差异，CI diff 步骤改硬门禁）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `19c9b80` fix(diff): 忽略机制元素后合并相邻文本节点（后续还有未提交的 Phase 4 收尾 / 迁移脚本 / 上游 public 资源） |
-| 提交数 | 39 |
-| 工作区 | 已按用户指令收尾：Phase 4 head 运行时（Head/Header/BaseLayout/Console/head\*\*）、P5 third-party 组件库 55 文件 + `check-third-party.mjs`、P7 lenient tag（index/parser/migrate 模板）、上游 `public/{js,css,img,anzhiyu}/` 均以 wip 提交固化，**均未验收**，可续接 |
-| CI | 12 步流水线，主干全绿；diff 步骤只出报告不阻断 |
+| 提交 | `9a06346` feat(P5-2): additional-js 区 10 个第三方组件按上游行号接线 |
+| 提交数 | 56 |
+| 工作区 | 干净；未收尾的剩余项：Phase 4 行为验收（e2e 用例编写中）、Phase 7 真实站路由补齐、PWA/性能/发布 |
+| CI | diff 步骤已改**硬门禁**（`|| true` 已删，upload 加 `if: always()`）；verify-css / compare-vars 已修「把 CDN 样式表当构建产物」的判定漏洞 |
 | 产物规模 | **62 页**构建成功（基线 48 页 + 9 文章 + about + 11 个 page.type fixture） |
-| 代码量 | 主题包约 8k 行 + remark-hexo-tag 42 tag + 验证站 62 页 |
-| 全量 diff | 48 页 / **PASS 0 / FAIL 48**、差异 **112** 条（脚本样式 48 / 属性 29 / 结构 29 / 文本 6）、缺 56 / 多 113 节点 |
+| 全量 diff | 48 页 / **PASS 48 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/upstream-delta.md） |
+| 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 |
 
-### 1.2 已完成
+### 1.2 已完成（2026-11-24 新增）
+
+| 项 | 说明 |
+| --- | --- |
+| **Phase 2 结构验收达标** | 全量 diff 112 → **0**（48 页全 PASS）；根因逐条闭合：pageFillDescription 走上游 helper、og:url 补 index.html、og:type 按 is_post、BaseLayout 透传 postUpdate/postAI/postMainColor、无封面文章 post-bg 分支、`{% p %}` 行内拆段、TOC 复刻上游吞标题缺陷、脚注定义按引用位置回填、about 页 countup/initAboutPage 脚本 |
+| P5 third-party 接线 | ✅ head 4 组件（site-verification/pwa/adsense/analytics）+ additional-js 区 10 组件（pangu/runtime/card-post-count/subtitle/math/comments-js/newest-comments/effect/chat/aplayer）按上游行号挂载；ShareBox/PostAiDescription 委托 third-party；文章页与独立页挂 `#post-comment`；`prismjs` 因站点配置无等价键**不挂载**（已知边界） |
+| P6-7 tag 样式命中 | ✅ `scripts/check-tag-styles.mjs`：42 tag / 186 class 覆盖 100%（精确 147 + 仅语境 34 + 上游无规则 5），未命中 0；`--strict` 把上游本身无样式的 5 个 class 也判失败 |
+| CI 判定修复 | ✅ verify-css / compare-vars 不再被 snackbar 等 CDN 样式表挡住（抽 `scripts/lib/css-stylesheets.mjs` 统一口径）；此前 CI 从第 7 步起全 skipped |
+| diff 工具口径 | ✅ N21 双形态（正文整段 + 摘要内联）、N22 脚注定义段落、N24 摘要截断窗口；删除从未生效的 N23（源侧已按引用位置回填）；反向验证（故意破坏产物）确认真实差异仍被抓出 |
+| P7 真实站构建（第一步） | ✅ `.migration-out/xcAnzhiyu` 用**真实内容 + 真实配置**构建通过（43 页）：定位 stylus 报错根因是上游 twikoo.styl 的缩进笔误（按浏览器等价语义删除）、keywords 数组归一、darkmode.autoChangeMode false→0；`{%` 残留 0 |
+
+### 1.2.1 2026-11-23 23:25 之前的完成记录（存档）
 
 | 项 | 说明 |
 | --- | --- |
@@ -263,7 +274,7 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 
 ---
 
-### Phase 1 — 构建管线与配置层 ◐
+### Phase 1 — 构建管线与配置层 ✅
 
 **目标**：样式能全量编译，配置能读能校验，产物可与上游对比。
 
@@ -381,7 +392,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 2 — 布局与核心页面 ⬜
+### Phase 2 — 布局与核心页面 ✅（2026-11-24 结构验收退出；像素 diff 留待 Phase 3/4 走查）
 
 **目标**：不接任何交互 JS 的情况下，首页 / 文章页 / 归档页的结构与样式与上游一致。
 
@@ -393,23 +404,23 @@ Phase 1 三条验收（来自 03），当前状态：
 | P2-13 | HTML diff 工具 | `scripts/diff-html.mjs`：归一化后比对两棵 DOM | 同一份 HTML diff 为空；属性顺序/空白/哈希差异被忽略 | 0.5 | ✅ |
 | P2-14 | 基线归档 + CI 接线 | `tests/baseline-html/`（477 KB）+ `scripts/extract-baseline-html.mjs` | CI 自动解压并跑 diff；归档与 baseline.json 48 页 1:1 | 0.5 | ✅ |
 | P2-15 | Markdown/日期对齐 | `smartypants: false`；`src/utils/date.ts` | `-->` 原样保留；59 条日期对拍（含跨天）通过 | 1 | ✅ |
-| P2-2 | `BaseLayout.astro` | 对应 `layout.pug` 91 行：`#web_bg`、`#body-wrap`、`#content-inner` 等全部 ID | 渲染出的 DOM 里 ID 与上游一致 | 1 |
-| P2-3 | Head 组件 | 对应 `head.pug` + OG + preconnect + site_verification | `view-source` 里 OG/canonical/favicon 齐全 | 0.5 |
-| P2-4 | Header / Footer | 对应 `header/index.pug`、`footer.pug` | 视觉 diff 通过 | 1 |
-| P2-5 | Sidebar / Rightside | 对应 `sidebar.pug`、`rightside.pug` | 视觉 diff 通过 | 1 |
-| P2-6 | 12 个 Hexo helper 的 TS 实现 | `src/utils/`：`page_description`、`cloudTags`、`urlNoIndex`、`findArchivesTitle`、`related_post` 等 | 每个函数有单测，输出与上游 helper 一致 | 1 |
-| P2-7 | 首页 + 分页 | `index.astro` + `[...page].astro` + PostCard | 第 1/2/3 页结构正确，视觉 diff 通过 | 1 |
-| P2-8 | 文章页 | `post/[...slug].astro`：PostInfo、版权、打赏、ptool | 视觉 diff 通过 | 1.5 |
-| P2-9 | 归档 / 分类 / 标签 | 三个路由 + 分页 | 每类页面至少一个样本视觉 diff 通过 | 1 |
-| P2-10 | 404 | `404.astro` | 与上游 404 一致 | 0.2 |
-| P2-11 | i18n | 4 个字典 + `t()`，对齐上游 `_p()` | 切换语言后文案正确，缺键回退 default | 0.5 |
-| P2-12 | Phase 2 验收 | — | 见下 | 0.3 |
+| P2-2 | `BaseLayout.astro` | 对应 `layout.pug` 91 行：`#web_bg`、`#body-wrap`、`#content-inner` 等全部 ID | 渲染出的 DOM 里 ID 与上游一致 | 1 | ✅ |
+| P2-3 | Head 组件 | 对应 `head.pug` + OG + preconnect + site_verification | `view-source` 里 OG/canonical/favicon 齐全 | 0.5 | ✅ |
+| P2-4 | Header / Footer | 对应 `header/index.pug`、`footer.pug` | 视觉 diff 通过 | 1 | ✅ |
+| P2-5 | Sidebar / Rightside | 对应 `sidebar.pug`、`rightside.pug` | 视觉 diff 通过 | 1 | ✅ |
+| P2-6 | 12 个 Hexo helper 的 TS 实现 | `src/utils/`：`page_description`、`cloudTags`、`urlNoIndex`、`findArchivesTitle`、`related_post` 等 | 每个函数有单测，输出与上游 helper 一致 | 1 | ✅ |
+| P2-7 | 首页 + 分页 | `index.astro` + `[...page].astro` + PostCard | 第 1/2/3 页结构正确，视觉 diff 通过 | 1 | ✅ |
+| P2-8 | 文章页 | `post/[...slug].astro`：PostInfo、版权、打赏、ptool | 视觉 diff 通过 | 1.5 | ✅ |
+| P2-9 | 归档 / 分类 / 标签 | 三个路由 + 分页 | 每类页面至少一个样本视觉 diff 通过 | 1 | ✅ |
+| P2-10 | 404 | `404.astro` | 与上游 404 一致 | 0.2 | ✅ |
+| P2-11 | i18n | 4 个字典 + `t()`，对齐上游 `_p()` | 切换语言后文案正确，缺键回退 default | 0.5 | ✅ |
+| P2-12 | Phase 2 验收 | — | 见下 | 0.3 | ✅ |
 
 **验收**：
-- [ ] 首页 / 文章 / 归档三类页面，三档视口像素差异 ≤1%
-- [ ] HTML 结构 diff 只剩资源哈希差异
-- [ ] 分页 2、3 页结构正确
-- [ ] `view-source` 的 head 完整
+- [ ] 首页 / 文章 / 归档三类页面，三档视口像素差异 ≤1%（Phase 3/4 浏览器走查时补测）
+- [x] HTML 结构 diff：48 页全 PASS / 0 条差异（2026-11-24 达成，CI 已改硬门禁）
+- [x] 分页 2、3 页结构正确
+- [x] `view-source` 的 head 完整（og:url 补 index.html、og:type 按 is_post、postUpdate/postAI/postMainColor 全对齐）
 
 **风险**：P2-8 文章页依赖的 `post-ui.pug` 体系较大，如果 diff 过不去，先按「区块逐个勾选」推进，不阻塞其他页面。
 
@@ -475,7 +486,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 5 — 第三方集成 ⬜
+### Phase 5 — 第三方集成 ✅（组件接线完成；真实集成行为随 P5-4/Phase 7 验证）
 
 **目标**：所有外部服务接得上，每个用真实服务验一次。
 
@@ -491,7 +502,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 ---
 
-### Phase 6 — 42 个 Hexo tag ⬜
+### Phase 6 — 42 个 Hexo tag ✅（渲染 + 样式命中验收完成）
 
 **目标**：存量文章不改一个字也能正常渲染。
 
@@ -675,42 +686,41 @@ jobs:
 
 ---
 
-## 8. 当前进度与剩余清单（2026-11-23 22:56）
+## 8. 当前进度与剩余清单（2026-11-24 16:40）
 
 ### 8.1 已完成（可以随时接手）
 
-- **Phase 0 ✅ / Phase 1.5 ✅ / Phase 1 约 87%**（P1-9 第三条随构建链路收口）
-- **Phase 2 约 95%**：布局四组件、首页 + home_top、文章页、归档/分类/标签/404、helper/i18n/日期、外链语义、diff 21 条归一化全部落地；退出动作（48 页 PASS + CI 硬门禁）未做
-- **Phase 3 约 56%**：15 个 aside widget、page.type 分发 + 11 个模板、about 14 个区块组件（`#about-page` 子树 0 差异）
-- **Phase 4 约 30%**：GLOBAL_CONFIG / config-diff / inject_head_js / 资源解析 / 上游 JS / ClientRouter / console 已落盘；7 类收尾差异修复中
-- **Phase 5 约 8%**：第三方集成组件库 + 自检脚本进行中（未接线）
-- **Phase 6 约 87%**：42 个 tag 全实现、59/59 单测；剩视觉与 TOC/脚注边角
-- **Phase 7 约 18%**：迁移脚本 + xcAnzhiyu 真实站演练产物 292 文件已完成，指南/验收报告收尾中
-- 关键度量：**构建 62 页**；全量 diff 48 页 / **PASS 0** / **差异 112 条**（脚本样式 48 / 属性 29 / 结构 29 / 文本 6）/ 缺 56 / 多 113
+- **Phase 0 ✅ / Phase 1.5 ✅ / Phase 1 ✅**
+- **Phase 2 ✅（结构验收退出）**：48 页全 PASS / 0 条差异；CI diff 步骤改硬门禁；head 三字段（postUpdate/postAI/postMainColor）、og:url/og:type、page-type、pageFillDescription 全部对齐
+- **Phase 3 约 85%**：15 widget、page.type 12 种分发、about 14 区块；剩浏览器走查（并进 e2e）
+- **Phase 4 约 70%**：head 运行时全部落地；剩行为验收（e2e 用例编写中）
+- **Phase 5 ✅（组件接线完成）**：head 4 + additional-js 10 组件按上游行号挂载；share/ai-info 委托 third-party；文章/独立页挂评论区；check-third-party 110/0；`prismjs` 不挂载（站点配置无等价键，已知边界）
+- **Phase 6 ✅（渲染与样式验收完成）**：42 tag 全实现 62/62 单测；tags-media TOC 对齐；`{% p %}` 行内拆段；样式命中 186/186（P6-7）
+- **Phase 7 约 45%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置**构建通过（43 页，`{%` 残留 0）；剩归档/标签/分类/404 路由补齐（97 → 43 页差距）与 PWA/性能/发布
+- 关键度量：构建 62 页；全量 diff **48/48 PASS / 0 条**；CSS 684087 B（+0.13%）；verify-css / compare-vars / upstream-delta / check-tag-styles / check-third-party 全 PASS
 
 ### 8.2 剩余未完成（按优先级）
 
 | # | 任务 | 归属 | 状态 |
 | --- | --- | --- | --- |
-| 1 | Phase 4 收尾 7 类：config-diff 48 条（含 tags-thirdparty head 注入）、og:url 15 条、input#page-type 9 条、short-note 47 节点、console 二维码、about 2 脚本、postAI；另需 BaseLayout→Head 透传 postUpdate/postAI/postMainColor | 待续（p4-finish 已停止，未落盘） | ⬜ |
-| 2 | Phase 5 收尾：组件库 55 文件 + 自检脚本已落盘，剩自检跑通、P5-1 报告、接线到 Head/BaseLayout | 待续（p5-integrations 已停止） | ◐ |
-| 3 | Phase 7 文档 ✅ `docs/MIGRATION.md`、`docs/notes/P7-3-migration.md`、`.gitignore`、源站只读 sha256 三次实证（44fc1a2 / 10828b4） | migration-tool-v2 | ✅ |
-| 4 | Phase 7 真实站完整构建：lenient 模式已实现但未验收（59/59 单测需复跑），真实内容 + 真实配置 build 未通过，禁止删文章/换配置换绿灯 | 待续（p7-real-build 已停止） | ◐ |
-| 4 | Phase 2 退出：48 页 PASS / `.github/workflows/ci.yml` diff 去 `\|\| true` 改硬门禁 / artifact 加 `if: always()` | Lead + 待分配 | ⬜ |
-| 5 | Phase 4 行为验收：暗色/右键/中控台/音乐/搜索/主色调/站内无整页刷新 | 待分配 | ⬜ |
-| 6 | Phase 3 剩余：11 个 page.type 模板浏览器走查 | 待分配 | ⬜ |
-| 7 | Phase 6 收尾：42 tag 视觉与 `_tags/*.styl` 命中、tags-media TOC 偏移（`#gallery`↔`#videos`）、tags-thirdparty head 节点、脚注定义段落 | 待分配 | ⬜ |
-| 8 | Phase 5 接线：组件库挂到 Head / BaseLayout（Lead 统一安排） | Lead | ⬜ |
-| 9 | Phase 7 剩余：PWA、性能、发布、上游同步、迁移产物可构建验证 | 待分配 | ⬜ |
+| 1 | **Phase 7 真实站路由补齐**：把 examples/blog 的 archives / tags / categories / 404 / 分页路由迁到 `.migration-out/xcAnzhiyu`（含 `BASELINE_SITE` → 真实站身份改造），页面数对齐源站 97 页 | 待续 | ⬜ |
+| 2 | **Phase 7 charts/todolist/sitetime**：非标准 `page.type` 分发缺失（落 DefaultPage）、`layout: sitetime` 不产出 URL；需加分支或专用路由 | 待续 | ⬜ |
+| 3 | **Phase 4 行为验收**：`tests/e2e/` Playwright 用例（暗色/右键/中控台/搜索/导航/12 page.type 冒烟）写好后在 CI 加 job 实跑（本机沙箱跑不了，R12） | 用例编写中 | ◐ |
+| 4 | Phase 7 PWA（P7-1）、性能预算（P7-2）、发布（P7-6：npm 包 / demo 站）、上游同步（P7-5） | 待续 | ⬜ |
+| 5 | Phase 3 收尾：像素 diff 走查（三档视口 ≤1%，随 e2e/浏览器补测） | 待续 | ⬜ |
+| 6 | 文档同步：MIGRATION.md 的「media/thirdparty 仍透传」段已过时（42 tag 全实现）；P6-1 笔记单测数 59 → 62 | 待续 | ⬜ |
 
-### 8.3 已知待决策项
+### 8.3 已知边界与已关闭项
 
-1. **资源路径策略**：diff 每页报 1 条资源路径豁免（`/css/index.css` ↔ `/_astro/*.css`），Phase 7 按 [resource-path-policy](resource-path-policy.md) 决定是否做到字节级
-2. **M2 脚注差异**：我们渲染真脚注（特性），上游原样输出——diff 白名单已登记，保留我们的；剩余 1 条脚注定义段落 `node-missing` 待归一化或补渲染
-3. **config-diff 根因已定位**：`Head.astro:256` 把整篇正文塞进内联 JS，`tags-thirdparty` 页正文里的 `</script>` 提前闭合脚本导致正文泄进 `<head>`。修 `getPageFillDescription()` + `postUpdate` 可同时消掉 48 条 content 与 8 个 head 异常节点（p4-finish 进行中）
-4. **迁移脚本两条真实边界**：`charts` 页 type 未分发、`layout: sitetime` 页会 404，属 Phase 3/7 已知缺口，文档如实标注不假装支持
+1. ~~资源路径策略~~：`/css/index.css` ↔ `/_astro/*.css` 的豁免继续保留（N18），真实样式由 Vite 产物承担，`public/css/index.css` 是结构性占位——迁移站需同样补占位避免 404
+2. ~~M2 脚注差异~~：渲染真脚注（特性保留）；N22 处理 DOM、源侧 `normalizeFootnoteSectionForDescription` 按**引用位置回填**定义文本使 pageFillDescription 顺序对齐
+3. ~~config-diff 48 条~~：✅ 已修——`getPageFillDescription()` 上游移植 + 标题分支按 hexo-util escapeHTML 语义转义 + 被吞标题/脚注区剔除
+4. ~~tags-thirdparty head 泄漏~~：✅ 随 config-diff 修复消失（19 条 / 96 节点归零）
+5. **迁移脚本两条真实边界**：`charts` / `todolist` 页 type 未分发、`layout: sitetime` 页 404，待 §8.2 #2
+6. **prismjs 组件未接线**：站点配置模型无 `prismjs` 键（hexo-only），基线用 highlight.js 恒为关；迁移 prismjs 站点需单独处理
+7. **page 级开关未透传**：`page.mathjax` / `page.katex` / `page.aplayer`（默认 `per_page: true` 时由主题配置门控，行为一致）
 
-**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"`（Astro 7 需 Node ≥22.23.4）→ `git pull` → `pnpm install --frozen-lockfile` → `pnpm --filter blog build` → `node scripts/extract-baseline-html.mjs` → `DIST_DIR=.dist-snapshot BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all --json` 看两条曲线（PASS 页数、diffCount）。并行构建须持 `.build.lock` 并设 `CODEBUDDY_SAFE_DELETE_ENABLED=0`。
+**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `node examples/blog/node_modules/astro/bin/astro.mjs build`（cwd `examples/blog`；改过 remark/rehype 插件先 `rm -rf examples/blog/node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。并行构建须持 `.build.lock` 并设 `CODEBUDDY_SAFE_DELETE_ENABLED=0`；agent 配额恢复前（2026-11-25 08:43）由 Lead 直接实现。
 
 ---
 

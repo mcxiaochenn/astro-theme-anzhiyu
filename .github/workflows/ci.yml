@@ -57,16 +57,17 @@ jobs:
       - name: Extract baseline HTML
         run: node scripts/extract-baseline-html.mjs
 
-      # Phase 2 期间 HTML 结构 diff 只出报告、不阻断（`|| true`）。Phase 2 结束后
-      # 改成硬门禁：删掉 `|| true`，让 FAIL 直接 exit 1（步骤见
-      # docs/notes/P-baseline-html-ci.md §7）。BASELINE_HTML_DIR 不能省：
+      # Phase 2 已退出（2026-11-24）：48 页全 PASS / 0 差异，此步改为硬门禁——
+      # 任何结构 / 文本 / 属性差异直接 exit 1。归一化豁免口径见 docs/upstream-delta.md
+      # （N15–N24）与 docs/resource-path-policy.md；BASELINE_HTML_DIR 不能省：
       # diff-html 默认找 .baseline-work/public，CI 上不存在。
-      - name: Diff HTML structure against upstream baseline (report only)
+      - name: Diff HTML structure against upstream baseline
         env:
           BASELINE_HTML_DIR: .baseline-html
-        run: node scripts/diff-html.mjs --all --json > diff-report.json || true
+        run: node scripts/diff-html.mjs --all --json > diff-report.json
 
       - name: Upload dist artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dist
