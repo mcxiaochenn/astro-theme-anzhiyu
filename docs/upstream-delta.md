@@ -285,7 +285,12 @@ stylus.render('@css {b,\n  strong {\n    font-weight: bolder;\n  }\n}\n')
 
 **决策：不改上游；Astro 侧按 GFM 启用**，HTML diff 时把脚注区块列为白名单差异（详见 `docs/notes/P1-6-baseline.md` §7 #3）。
 
-**验证**：P1-6 报告原始记录；Phase 2 HTML diff 时按白名单核对。
+**diff 口径（N22）**：`scripts/diff-html.mjs` 在 baseline 归一化阶段剔除「整段文本以 `[^label]: `
+开头」的 `<p>`，且仅在 dist 侧确实存在 `section[data-footnotes]` 时生效。规则只覆盖完整的
+脚注定义段落，不影响正文里正常书写的 `[^…]` 引用或其他段落。
+
+**验证**：P1-6 报告原始记录；Phase 2 HTML diff 时按白名单核对；`longform-hexo-astro` 页的
+`p[13]` node-missing 在启用 N22 后归零。
 
 ---
 

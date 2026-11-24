@@ -82,6 +82,12 @@ interface Props {
   /** `#body-wrap` 的 pageType（上游 `is_post() ? 'post' : 'page'`）。 */
   pageType?: 'post' | 'page'
   /**
+   * 上游 `page.type`（additional-js.pug:77 的 `input#page-type` 值）。
+   * 优先级高于 pageType 推导：`page.type ? page.type : (is_post ? 'post' : (is_category ? 'categories' : 'anzhiyu'))`。
+   * 站点路由负责传真实值（404 / about / categories / 文章自定义 type）。
+   */
+  pageTypeValue?: string
+  /**
    * 页面顶部图（上游 `page.top_img` 链）：
    * string = 有图 / false = 显式关闭 / 缺省 = 按主题配置（`index_img`、`default_top_img`）回退。
    * 文章页应传 `page.top_img || page.cover || page.randomcover`（P2-8）。
@@ -93,6 +99,12 @@ interface Props {
   headings?: import('../components/widget/toc.ts').TocHeading[]
   /** 评论系统是否加载（上游 `commentsJsLoad`，评论阶段传入）。 */
   commentsLoaded?: boolean
+  /** `page.updated` 的 `full_date()` 结果（`GLOBAL_CONFIG_SITE.postUpdate`）。 */
+  postUpdate?: string
+  /** `page.ai`（`GLOBAL_CONFIG_SITE.postAI`）。 */
+  postAI?: string
+  /** `page.main_color`（`GLOBAL_CONFIG_SITE.postMainColor`）。 */
+  postMainColor?: string
 }
 
 const {
@@ -110,10 +122,14 @@ const {
   aside,
   pageUrl,
   pageType: pageTypeProp,
+  pageTypeValue,
   topImg,
   showToc = false,
   headings = [],
   commentsLoaded = false,
+  postUpdate: postUpdateProp,
+  postAI,
+  postMainColor,
 } = Astro.props
 
 const site = resolveSite(siteInput)
@@ -125,6 +141,15 @@ const theme = getThemeConfig()
 
 /** 上游 layout.pug:4：`pageType = is_post() ? 'post' : 'page'`（首页是 page）。 */
 const pageType: 'post' | 'page' = pageTypeProp ?? 'page'
+
+/**
+ * 生成页（首页 / 归档 / 分类 / 标签 / 404 等）在 Hexo 里没有 `page.updated`，
+ * `full_date()` 会退化成构建时刻；基线用 `.baseline-work/scripts/reproducible.js`
+ * 把它固定成这个值（见 docs/notes/P1-6-baseline.md §5.3）。文章页与独立页面
+ * 应显式传入自己的真实 `updated`（缺省回退 `date`），不要落到这个分支。
+ */
+const GENERATED_PAGE_POST_UPDATE = '2026-01-01 00:00:00'
+const postUpdate = postUpdateProp ?? GENERATED_PAGE_POST_UPDATE
 
 /** 上游 layout.pug:1：`theme.aside.enable && theme.aside.hide`。 */
 const htmlClass = theme.aside.enable && theme.aside.hide ? 'hide-aside' : ''
@@ -265,6 +290,9 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
       pageUrl={pageUrl}
       pageType={pageType}
       showToc={showToc}
+      postUpdate={postUpdate}
+      postAI={postAI}
+      postMainColor={postMainColor}
     />
     {/* P4-3：ClientRouter 取代上游 Pjax；交互映射见 components/head/runtime.ts */}
     <ClientRouter />
@@ -497,7 +525,7 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
     <div id="rightmenu-mask" transition:persist="rightmenu_mask"></div>
 
     {/* layout.pug:88 — additional-js.pug 的整棵子树（本组件自带外层 div） */}
-    <AdditionalJs site={site} isHome={isHome} pageType={pageType} />
+    <AdditionalJs site={site} isHome={isHome} pageType={pageType} pageTypeValue={pageTypeValue} />
 
     {/* layout.pug:91 — popup/index.pug（静态结构） */}
     <div id="popup-window" transition:persist="popup_window">

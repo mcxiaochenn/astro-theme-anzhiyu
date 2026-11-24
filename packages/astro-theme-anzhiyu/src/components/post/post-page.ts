@@ -231,6 +231,28 @@ function buildRelated(
   return items.sort((a, b) => b.weight - a.weight).slice(0, limit)
 }
 
+/**
+ * 上游 `hexo-renderer-marked` 的标题吞噬缺陷（基线可见）：`{% videos %}` /
+ * `{% sitegroup %}` 容器会把紧邻其前的 Markdown 标题吞掉，1.7.1 基线里
+ * `## videos`、`## sitegroup` 以字面文本留在正文，因此 `toc(page.content)`
+ * 不含这两项。我们的 tag 插件按正常 Markdown 渲染成 `h2`，TOC 就会多出两项。
+ *
+ * 这里在**渲染后的正文 HTML** 上识别「紧跟 videos / site-card-group 容器」的标题，
+ * 只把它们从 TOC 数据里剔除；规则只认这两种容器，其它标题与正文都不动。
+ */
+const SWALLOWED_HEADING_RE =
+  /<h([1-6])\b([^>]*)>((?:(?!<h[1-6]\b)[\s\S])*?)<\/h\1>\s*<div class="(?:videos|site-card-group)["'\s>]/g
+
+function filterUpstreamSwallowedHeadings(html: string, headings: HeadingInfo[]): HeadingInfo[] {
+  const swallowed = new Set<string>()
+  for (const match of html.matchAll(SWALLOWED_HEADING_RE)) {
+    const id = /\bid="([^"]+)"/.exec(match[2])
+    if (id) swallowed.add(id[1])
+  }
+  if (swallowed.size === 0) return headings
+  return headings.filter((heading) => !swallowed.has(heading.id))
+}
+
 /** 统计标签 / 分类的文章数（上游 Tag.length / Category.length）。 */
 function collectCounts(posts: PreparedPost[]): {
   tagCounts: Record<string, number>
@@ -298,7 +320,10 @@ export function preparePostPage(
   })
   const rendered = rewriteHeadings(filteredHtml)
   const allHeadings = rendered.headings
-  const headings = allHeadings.filter((heading) => heading.level >= 2)
+  const headings = filterUpstreamSwallowedHeadings(
+    rendered.html,
+    allHeadings.filter((heading) => heading.level >= 2),
+  )
 
   // head/config_site.pug:13-23
   const tocConfig = theme.toc as { post?: boolean }

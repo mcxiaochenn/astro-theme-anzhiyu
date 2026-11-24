@@ -45,6 +45,7 @@ import type {
   FlinkGroup,
   TaxonomyItem,
 } from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
+import { hexoFullDate } from '../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
 
 import { SITE_IDENTITY } from '../data/site-identity.ts'
 
@@ -161,6 +162,19 @@ const { Content } = await render(entry)
 /** 上游 `page_description()` 用 `page.content` 回退，这里传渲染后的 HTML。 */
 const pageDescription = typeof data.description === 'string' ? data.description : undefined
 
+/**
+ * 上游 hexo-renderer-marked 在 `</hN>` 后不带换行，而 Astro 会在块级元素之间插 `\n`；
+ * `page_description()` 会把换行转成空格（`是什么 它` vs `是什么它`），这里先对齐。
+ */
+const contentForDescription = renderedHtml.replace(/(<\/h[1-6]>)\n/g, '$1')
+
+/** 上游 `full_date(page.updated)`：`updated_option: date` 下缺省回退 `page.date`。 */
+const postUpdate = hexoFullDate((data.updated ?? data.date) as Date | undefined)
+
+/** `page.ai` / `page.main_color` 原样注入 GLOBAL_CONFIG_SITE，缺省输出空串。 */
+const postAI = data.ai === undefined ? undefined : String(data.ai)
+const postMainColor = typeof data.main_color === 'string' ? data.main_color : undefined
+
 /* ------------------------------------------------------------------ */
 /* 站点数据（上游 `site.data.*`）                                      */
 /* ------------------------------------------------------------------ */
@@ -176,10 +190,14 @@ const aboutData = getSiteData<unknown[]>('about') ?? []
   site={site}
   title={title}
   description={pageDescription}
-  content={renderedHtml}
+  content={contentForDescription}
   pageType="page"
+  pageTypeValue={type || undefined}
   topImg={topImg}
   aside={aside}
+  postUpdate={postUpdate}
+  postAI={postAI}
+  postMainColor={postMainColor}
 >
   <div id="page">
     {topImg === false && !topSingle && <h1 class="page-title">{title}</h1>}

@@ -580,6 +580,73 @@ function normalizeAttrValue(name, rawValue, ctx) {
 }
 
 /**
+ * N22：M2 脚注定义段落（docs/upstream-delta.md「脚注」一条）。
+ *
+ * 上游 marked 不识别 GFM 脚注：`[^note1]: 定义…` 被当成普通段落输出，`[^note1]` 引用
+ * 也原样留在正文里。我们渲染真脚注（引用 → sup、定义 → section[data-footnotes]），
+ * 这是有意保留的升级差异。
+ *
+ * 处理：只在**我们的产物确实存在脚注区块**时，剔掉基线侧「整段文本以 `[^label]: `
+ * 开头」的 `<p>`。规则写窄（必须是完整段落 + 冒号后紧跟空白），避免误伤正文里
+ * 正常书写脚注语法的说明文字。
+ */
+const FOOTNOTE_DEFINITION_RE = /^\[\^[^\]\s]+\]:\s/
+
+/** 递归收集节点的纯文本。 */
+function textContent(node) {
+  if (node.type === 'text') return node.text ?? ''
+  return (node.children ?? []).map(textContent).join('')
+}
+
+/** 树里是否存在满足条件的元素（含自身）。 */
+function hasElement(root, predicate) {
+  let found = false
+  const walk = (node) => {
+    if (found) return
+    if (node.type === 'element' && predicate(node)) {
+      found = true
+      return
+    }
+    for (const child of node.children ?? []) walk(child)
+  }
+  walk(root)
+  return found
+}
+
+/** 从树里删除满足条件的元素（只删元素本身，不删其子节点之外的兄弟）。 */
+function removeElements(root, predicate) {
+  const walk = (node) => {
+    const children = node.children ?? []
+    for (let index = children.length - 1; index >= 0; index--) {
+      const child = children[index]
+      if (child.type === 'element' && predicate(child)) {
+        children.splice(index, 1)
+        continue
+      }
+      walk(child)
+    }
+  }
+  walk(root)
+}
+
+/**
+ * 剔除基线侧被我们渲染成真脚注的定义段落（见上一条 N22）。
+ */
+function stripUnrenderedFootnoteDefinitions(baselineRaw, distRaw) {
+  const distHasFootnotes = hasElement(
+    distRaw,
+    (node) =>
+      node.tag === 'section' && node.attrs?.some((item) => item.name === 'data-footnotes'),
+  )
+  if (!distHasFootnotes) return
+
+  removeElements(
+    baselineRaw,
+    (node) => node.tag === 'p' && FOOTNOTE_DEFINITION_RE.test(textContent(node).trim()),
+  )
+}
+
+/**
  * N21：上游 tag 解析器缺陷（`## videos` / `## sitegroup` 被吞成字面量）。
  *
  * 1.7.1 的 `{% videos %}` / `{% sitegroup %}` 容器会把紧邻的 Markdown 标题当成 tag
@@ -1153,6 +1220,7 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
   const baselineRaw = parseHtml(readHtml(baselinePath), baselineStats)
   const distRaw = parseHtml(readHtml(distPath), distStats)
   stripUnrenderedHeadingArtifacts(baselineRaw, distRaw)
+  stripUnrenderedFootnoteDefinitions(baselineRaw, distRaw)
   const baseline = normalizeTree(baselineRaw, baselineStats)
   const dist = normalizeTree(distRaw, distStats)
 

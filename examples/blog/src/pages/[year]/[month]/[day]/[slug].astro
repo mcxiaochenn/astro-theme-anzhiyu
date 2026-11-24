@@ -101,10 +101,14 @@ const keywords = page.data.keywords as string | string[] | undefined
   ogType="article"
   pageUrl={page.permalink}
   pageType="post"
+  pageTypeValue={typeof page.data.type === 'string' ? page.data.type : undefined}
   topImg={page.topImg}
   showToc={page.showToc}
   headings={page.headings}
   aside={page.data.aside !== false}
+  postUpdate={page.current.updated.full}
+  postAI={page.data.ai === undefined ? undefined : String(page.data.ai)}
+  postMainColor={typeof page.data.main_color === 'string' ? page.data.main_color : undefined}
 >
   <Fragment slot="post-info">
     <PostInfo
