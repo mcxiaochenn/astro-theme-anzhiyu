@@ -175,7 +175,7 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 
 用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)；真实站终验证据见 [终验报告](docs/notes/P7-4-final-acceptance.md)。
 
-**线上演示**：<https://mcxiaochenn.github.io/blog/>（GitHub Pages 子路径部署，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送；上游 JS 的运行时路径类次要功能——音乐球、搜索——在子路径下降级，页面导航 / 样式 / 视觉不受影响）。
+**线上演示**：<https://anzhiyu.example.mcxiaochen.top/>（GitHub Pages 自定义域名根路径部署，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送，根路径下运行时路径无降级）。
 
 ## 文档
 

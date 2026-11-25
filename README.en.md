@@ -93,7 +93,7 @@ node scripts/migrate-hexo.mjs --site <hexo-site-dir> --out .migration-out/<name>
 
 Usage, known boundaries, and timezone/permalink FAQs: [migration guide](docs/MIGRATION.md).
 
-**Live demo**: <https://mcxiaochenn.github.io/blog/> (GitHub Pages sub-path deployment via [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs); runtime-path features in the upstream JS — music player, search — degrade under a sub-path; page navigation / styles / visuals are unaffected).
+**Live demo**: <https://anzhiyu.example.mcxiaochen.top/> (GitHub Pages custom-domain root deployment via [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs); root deployment has no runtime-path degradation).
 
 ## Documents
 

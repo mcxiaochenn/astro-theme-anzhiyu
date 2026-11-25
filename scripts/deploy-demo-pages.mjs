@@ -19,9 +19,11 @@
  *   node scripts/deploy-demo-pages.mjs
  * 环境变量（可选）：
  *   DEMO_PAGES_REPO   默认 mcxiaochenn/mcxiaochenn.github.io
- *   DEMO_PAGES_PATH   默认 blog（子路径，不含斜杠）
+ *   DEMO_PAGES_PATH   默认 blog（子路径，不含斜杠）；传 '' 或 '-' 表示根路径部署
  *   DEMO_PAGES_URL    默认 https://mcxiaochenn.github.io
  *   DEMO_PAGES_BRANCH 默认 main
+ *   DEMO_PAGES_CNAME  自定义域名（写入仓库 CNAME 文件）；缺省从 DEMO_PAGES_URL
+ *                     主机名推导，*.github.io 不写
  */
 
 import { spawnSync, execSync } from 'node:child_process'
@@ -43,9 +45,19 @@ const repoRoot = resolve(here, '..', '..')
 const distDir = join(repoRoot, 'examples', 'blog', 'dist')
 
 const PAGES_REPO = process.env.DEMO_PAGES_REPO || 'mcxiaochenn/mcxiaochenn.github.io'
-const PAGES_PATH = (process.env.DEMO_PAGES_PATH || 'blog').replace(/^\/+|\/+$/g, '')
+// 显式传 ''（或 '-'）表示根路径部署（自定义域名形态）；缺省仍是子路径 'blog'。
+const rawPagesPath = process.env.DEMO_PAGES_PATH
+const PAGES_PATH = (rawPagesPath === undefined ? 'blog' : rawPagesPath === '-' ? '' : rawPagesPath).replace(
+  /^\/+|\/+$/g,
+  '',
+)
 const PAGES_URL = (process.env.DEMO_PAGES_URL || 'https://mcxiaochenn.github.io').replace(/\/+$/, '')
 const PAGES_BRANCH = process.env.DEMO_PAGES_BRANCH || 'main'
+// 自定义域名（CNAME 文件）：显式 DEMO_PAGES_CNAME 优先；否则从 URL 主机名推导，
+// *.github.io 不写 CNAME。
+const PAGES_CNAME =
+  process.env.DEMO_PAGES_CNAME ??
+  (new URL(PAGES_URL).hostname.endsWith('.github.io') ? '' : new URL(PAGES_URL).hostname)
 
 /** 带输出地执行 shell 命令；失败即退出。 */
 function run(command, options = {}) {
@@ -77,12 +89,13 @@ if (!existsSync(distDir)) fail('examples/blog/dist 不存在——先构建一�
 console.log('[1/4] demo 构建（site.url=%s, root=/%s, Astro base=/%s）', PAGES_URL, PAGES_PATH, PAGES_PATH)
 // 注意：这里用 spawnSync 的 env 注入，值以 node 直接传给子进程，不经过
 // Git Bash 的 MSYS 路径转换（命令行前缀 `/blog` 会被转换成 Windows 路径）。
+// 根路径部署时 DEPLOY_SITE_ROOT 传 '/'（site-identity 归一化后即 root=/）。
 const build = spawnSync('pnpm', ['--filter', 'blog', 'build'], {
   cwd: repoRoot,
   env: {
     ...process.env,
     DEPLOY_SITE_URL: PAGES_URL,
-    DEPLOY_SITE_ROOT: PAGES_PATH,
+    DEPLOY_SITE_ROOT: PAGES_PATH || '/',
     CODEBUDDY_SAFE_DELETE_ENABLED: '0',
   },
   stdio: 'inherit',
@@ -94,25 +107,29 @@ if (build.status !== 0) fail(`demo 构建失败（exit ${build.status}）`)
 /* 2. HTML 后处理：站内绝对路径补子路径前缀                              */
 /* ------------------------------------------------------------------ */
 
-const prefix = `/${PAGES_PATH}`
+const prefix = PAGES_PATH ? `/${PAGES_PATH}` : ''
 const shouldPrefix = (url) =>
   url.startsWith('/') && url !== prefix && !url.startsWith(`${prefix}/`) && !url.startsWith('//')
 
 const htmlFiles = collectHtmlFiles(distDir)
 let rewritten = 0
-for (const file of htmlFiles) {
-  const before = readFileSync(file, 'utf8')
-  const after = before.replace(
-    /(\s(?:href|src)=")(\/[^"#?]*?)(")/g,
-    (match, head, url, tail) => {
-      if (!shouldPrefix(url)) return match
-      rewritten += 1
-      return `${head}${prefix}${url}${tail}`
-    },
-  )
-  if (after !== before) writeFileSync(file, after)
+if (!prefix) {
+  console.log('[2/4] HTML 后处理：根路径部署，跳过前缀改写（%d 个页面）', htmlFiles.length)
+} else {
+  for (const file of htmlFiles) {
+    const before = readFileSync(file, 'utf8')
+    const after = before.replace(
+      /(\s(?:href|src)=")(\/[^"#?]*?)(")/g,
+      (match, head, url, tail) => {
+        if (!shouldPrefix(url)) return match
+        rewritten += 1
+        return `${head}${prefix}${url}${tail}`
+      },
+    )
+    if (after !== before) writeFileSync(file, after)
+  }
+  console.log('[2/4] HTML 后处理：%d 个页面，%d 处 href/src 补了 %s 前缀', htmlFiles.length, rewritten, prefix)
 }
-console.log('[2/4] HTML 后处理：%d 个页面，%d 处 href/src 补了 %s 前缀', htmlFiles.length, rewritten, prefix)
 
 /* ------------------------------------------------------------------ */
 /* 3. 同步到用户 Pages 仓库的子目录                                     */
@@ -125,14 +142,25 @@ rmSync(tmpRepo, { recursive: true, force: true })
 console.log('[3/4] clone %s（浅克隆）', PAGES_REPO)
 run(`git clone --depth 1 --branch ${PAGES_BRANCH} https://github.com/${PAGES_REPO}.git ${tmpRepo}`)
 
-const targetDir = join(tmpRepo, PAGES_PATH)
-rmSync(targetDir, { recursive: true, force: true })
+const targetDir = PAGES_PATH ? join(tmpRepo, PAGES_PATH) : tmpRepo
+if (PAGES_PATH) {
+  rmSync(targetDir, { recursive: true, force: true })
+} else {
+  // 根路径部署（自定义域名）：清空仓库内容但保留 .git
+  for (const name of readdirSync(tmpRepo)) {
+    if (name === '.git') continue
+    rmSync(join(tmpRepo, name), { recursive: true, force: true })
+  }
+}
 mkdirSync(targetDir, { recursive: true })
 cpSync(distDir, targetDir, { recursive: true })
 
 // Jekyll 会忽略下划线开头的目录（Astro 的 _astro/），必须禁用。
 const nojekyll = join(tmpRepo, '.nojekyll')
 if (!existsSync(nojekyll)) writeFileSync(nojekyll, '')
+
+// 自定义域名：CNAME 文件（GitHub Pages 读它绑定域名）
+if (PAGES_CNAME) writeFileSync(join(tmpRepo, 'CNAME'), `${PAGES_CNAME}\n`)
 
 run('git add -A', { cwd: tmpRepo })
 
@@ -154,6 +182,15 @@ if (!committed) {
 rmSync(tmpRepo, { recursive: true, force: true })
 
 console.log('')
-console.log('[deploy-demo] 完成。部署地址：%s/%s/（Pages 构建约 1–2 分钟后生效）', PAGES_URL, PAGES_PATH)
-console.log('[deploy-demo] 已知降级：上游 JS 内运行时路径（/json/music.json、/music/、搜索等）')
-console.log('[deploy-demo] 在子路径部署下不生效；页面导航 / 样式 / 视觉不受影响。')
+console.log(
+  '[deploy-demo] 完成。部署地址：%s%s（Pages 构建约 1–2 分钟后生效）',
+  PAGES_URL,
+  PAGES_PATH ? `/${PAGES_PATH}/` : '/',
+)
+if (PAGES_CNAME) console.log('[deploy-demo] CNAME: %s（DNS 解析生效 + Pages 证书签发后可访问）', PAGES_CNAME)
+if (prefix) {
+  console.log('[deploy-demo] 已知降级：上游 JS 内运行时路径（/json/music.json、/music/、搜索等）')
+  console.log('[deploy-demo] 在子路径部署下不生效；页面导航 / 样式 / 视觉不受影响。')
+} else {
+  console.log('[deploy-demo] 根路径部署：运行时路径无降级。')
+}
