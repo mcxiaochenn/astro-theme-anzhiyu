@@ -10,7 +10,7 @@
  *   - 值用 JSON 序列化，数字/布尔/null 原样保留，层级结构保持不变。
  *   - 不手改生成物：需要改默认值就改上游 _config.yml 后重跑本脚本。
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
@@ -25,6 +25,14 @@ const DEFAULT_UPSTREAM = resolve(
 const configPath = resolve(
   process.argv[2] ?? process.env.THEME_UPSTREAM_CONFIG ?? DEFAULT_UPSTREAM,
 );
+if (!existsSync(configPath)) {
+  console.error(`[gen-defaults] 上游配置不存在: ${configPath}`);
+  console.error(
+    '[gen-defaults] 默认读 _research/anzhiyu-upstream/_config.yml；' +
+      '上游副本在别处时用 THEME_UPSTREAM_CONFIG=<path>（或第一个命令行参数 [configPath]）指向真实 _config.yml。',
+  );
+  process.exit(1);
+}
 const outPath = resolve(PKG_ROOT, 'src/config/defaults.ts');
 
 const raw = readFileSync(configPath, 'utf8');

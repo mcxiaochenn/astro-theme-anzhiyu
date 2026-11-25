@@ -14,6 +14,9 @@
   "scripts": {
     "test": "node test/run.mjs"
   },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
   "keywords": [
     "remark",
     "remark-plugin",

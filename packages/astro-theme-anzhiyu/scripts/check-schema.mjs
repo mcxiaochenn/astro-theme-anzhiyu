@@ -15,7 +15,8 @@
  *
  * 退出码：0 = 全部通过；1 = 校验失败或自检用例失败；2 = 校验通过但上游有未知键。
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
@@ -30,6 +31,14 @@ const DEFAULT_UPSTREAM = resolve(
 const configPath = resolve(
   process.argv[2] ?? process.env.THEME_UPSTREAM_CONFIG ?? DEFAULT_UPSTREAM,
 );
+if (!existsSync(configPath)) {
+  console.error(`[check-schema] 上游配置不存在: ${configPath}`);
+  console.error(
+    '[check-schema] 默认读 _research/anzhiyu-upstream/_config.yml；' +
+      '上游副本在别处时用 THEME_UPSTREAM_CONFIG=<path>（或第一个命令行参数 [configPath]）指向真实 _config.yml。',
+  );
+  process.exit(1);
+}
 
 /** 上游为 null 的 11 个顶层键：P1-12 明确不编造类型，但必须继续被接受。 */
 const NULL_TOP_LEVEL_KEYS = [
@@ -52,8 +61,10 @@ const doc = parse(raw);
 const { themeConfigSchema, KNOWN_TOP_LEVEL_KEYS } = await import(
   '../src/config/schema.ts'
 );
+// zod 版本用 Node 标准解析链定位（hoisted / symlink 布局都能解析），不拼 ../../node_modules。
+const require = createRequire(import.meta.url);
 const zodVersion = JSON.parse(
-  readFileSync(resolve(PKG_ROOT, '../../node_modules/zod/package.json'), 'utf8'),
+  readFileSync(require.resolve('zod/package.json'), 'utf8'),
 ).version;
 
 const yamlKeys = doc && typeof doc === 'object' ? Object.keys(doc) : [];

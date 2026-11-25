@@ -59,6 +59,9 @@ task_plan.md
 playwright-report/
 test-results/
 blob-report/
+playwright-pwa-report/
+test-results-pwa/
+.lighthouseci/
 
 # WorkBuddy 本地数据（工作日志等，不进仓库）
 .workbuddy/
