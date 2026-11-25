@@ -92,7 +92,7 @@ $rightside-bottom = ($cfg_rightside_bottom) ? convert(($cfg_rightside_bottom)) :
 | `configPath` | `string` | — | YAML 配置路径，与 `config` 二选一 |
 | `config` | `object` | — | 直接传配置对象 |
 | `expandImports` | `boolean` | `true` | 是否展开 `.styl` 的 `@import` |
-| `warnOnMissing` | `boolean` | `true` | 引用不存在的键时告警 |
+| `warnOnMissing` | `boolean` | `true` | 缺失/改写类告警总闸（缺失键、对象值、双引号改写三类；同键只告警一次） |
 | `debug` | `boolean` | `false` | 打印每个文件的替换统计 |
 
 ## 限制
@@ -100,6 +100,7 @@ $rightside-bottom = ($cfg_rightside_bottom) ? convert(($cfg_rightside_bottom)) :
 - 只处理 `hexo-config()` 与上游主题脚本 `scripts/events/stylus.js` 注入的 4 个高亮变量（`$highlight_enable` / `$highlight_line_number` / `$prismjs_enable` / `$prismjs_line_number`），不实现 Hexo 的其它模板函数 / 过滤器。
 - glob 只支持 `dir/*` 与 `dir/**/*`，不支持 `**/*.styl` 这种放在路径中间的写法。
 - 嵌套对象（如 `menu`）会被扁平化成点路径；数组会被序列化成字符串，在 CSS 里通常没有意义。
+- 值改写语义：值同时含单双引号时 `"` 改写为 `'`（Stylus 字符串无转义）；对象/数组值按 truthy `true` 输出；缺失键、对象值、双引号改写三类告警由 `warnOnMissing` 统一门控，且同键只告警一次。
 - 配置文件变化时会按 mtime 重新读取，但已编译过的文件要等 Vite 重新触发 transform 才更新。
 
 ## 许可

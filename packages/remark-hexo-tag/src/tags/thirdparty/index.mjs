@@ -10,9 +10,8 @@
  *   - `tip.js`             → tip
  *   - `Introduction-card.js` → intCard
  *
- * `flink` 的正文是 **YAML**（上游 `renderSync({ engine: 'yaml' })`），这里用工作区
- * 已存在的 `yaml` 包解析（`vite-plugin-stylus-hexo-config` 已声明该依赖，仓库
- * `node-linker=hoisted`，不是本插件新增的依赖）。
+ * `flink` 的正文是 **YAML**（上游 `renderSync({ engine: 'yaml' })`），这里用本包声明的
+ * `yaml` 依赖（`package.json` dependencies，`^2.9.1`）解析。
  *
  * @module remark-hexo-tag/tags/thirdparty
  */

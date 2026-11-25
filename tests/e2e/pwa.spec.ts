@@ -53,10 +53,10 @@ test.describe('P7-1 PWA · 离线可访问首页', () => {
     // Workbox 预缓存清单；清单条目形如 {url:`…`,revision:…}。
     // P7-1 实测 84 条 = 62 HTML + 16 JS + 2 CSS + manifest.webmanifest + 3 图标
     // （docs/notes/P7-1-pwa.md:60/150/163）。G4 删除 2 个调试页（debug-collection、
-    // page2）+ public/slice-harness.js + P1.5 切片布局的脚本 chunk 后应为
-    // 60 HTML + 14 JS + 2 CSS + manifest + 3 图标 = 80 条；下界按 G4 后的
-    // 产物口径取 80（待 CI 的 [anzhiyu-pwa-extras] precache=N 日志复核）。
-    expect((swText.match(/\{url:/g) ?? []).length).toBeGreaterThanOrEqual(80)
+    // page2）+ public/slice-harness.js + P1.5 切片布局的脚本 chunk、B4 新增
+    // abbrlink fixture 页后应为 61 HTML + 14 JS + 2 CSS + manifest + 3 图标 = 81 条；
+    // 下界按 B4 后的产物口径取 81（待 CI 的 [anzhiyu-pwa-extras] precache=N 日志复核）。
+    expect((swText.match(/\{url:/g) ?? []).length).toBeGreaterThanOrEqual(81)
     // 离线导航的前提（run 45395473424 的排查结论，见 P7-1-pwa.md §6.1）：
     // @vite-pwa/astro 的 manifest transform 把 index.html 的 precache URL 改写成
     // 站点 scope（这里是 `/`），generateSW 再据此生成

@@ -25,6 +25,7 @@
 | U6 | 工具链差异（逐字节对齐约定） | `packages/vite-plugin-stylus-hexo-config/src/index.mjs` 的 `@css{}` 字面量 + Stylus `lexer.js:76-80` | `@css{}` 内「逗号 + 换行」被 Stylus 词法器重写成 `,\r`，与 Hexo 的 literal import 路径不可逐字节对齐 | **不改**（接受 −228 B / SHA 不一致） | 最小复现 + 字节记录 |
 | U7 | 上游仓库约定（换行） | 上游全部 `.styl` / `_config.yml` | 上游文件是 **CRLF**；镜像必须逐字节保持，任何换行归一化都会改 SHA | **保持 CRLF**，禁止格式化 | SHA + 换行统计 |
 | U8 | 上游渲染能力缺失（对照用） | hexo-renderer-marked 7.0.1 | 上游 `hexo g` 不渲染 GFM 脚注（`[^x]` 原样留段落） | 迁移期不改上游；Astro 侧按 GFM 启用，记为已知差异 | P1-6 报告 §7 #3；HTML diff 口径 |
+| U9 | 上游 tag 解析器行为（对照差异） | 1.7.1 `videos` / `sitegroup` 等容器 tag | 容器吞掉紧邻其前的 Markdown 标题，基线留下 `## xxx` 字面量（不进 TOC） | **不改上游**；Astro 侧按 GFM 渲染标题，diff 走 N21 双形态豁免（跳过 `pre/code/textarea`） | N21 口径 + `/2025/04/01/tags-media/` 正文/TOC 对齐；首页摘要 `## videos` 归零 |
 
 > U3 已在 **P1-11** 修复（插件复刻 Hexo define 层），定位实验与修复前后数据见 §3；U6 是「即使 D9 修好也不能逐字节一致」的机制解释，也是当前唯一剩余差异（−228 B），详见 §4。
 
@@ -54,7 +55,7 @@
 1. `examples/blog/astro.config.mjs` 关闭 `vite.build.cssMinify`（注释里写明了这条原因），Phase 7 处理压缩时另立预算口径，而不是打开压缩去对未压缩基准。
 2. 本题的守卫脚本把 `:120` 必须为非法写法、`:104` 必须为正确写法写死；CI 会拦住任何「顺手修复」。真要走修复路线，必须先改本表的决策 + 锚点，再动代码。
 
-**验证**：`check-upstream-delta.mjs` 第 1 组检查（行级）+ `upstreamFiles` 里 `readmode.styl` 的 SHA-256（`ea44d8a9…`）+ `pnpm verify`（±5%）+ P1-6 的 48 页 HTML 摘要。
+**验证**：`check-upstream-delta.mjs` 第 1 组检查（行级）+ `upstreamFiles` 里 `readmode.styl` 的 SHA-256（`ea44d8a9…`）+ `pnpm verify`（±5%）+ P1-6 的 HTML 摘要（48 页时点；golden 重基线后 49 页）。
 
 ### U2 · `_config.yml` 真实规模：133 顶层 / 662 递归 mapping key（文档口径纠正）
 

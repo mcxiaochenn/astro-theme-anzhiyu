@@ -283,7 +283,7 @@ node tests/baseline-html/make-baseline-html-archive.mjs
 1. B4 链路冒烟（fix-batch-b.md 清单）：astro 构建后 `/2024/11/20/24531/` 路由存在、`/2024/11/20/abbrlink-post/` 404；`/archives/`、`/categories/随笔/`、`/tags/短讯/`、`/404.html` 列表内该文 href 末段 = `24531`；文章页 `og:url`/版权 URL 同。
 2. golden vs astro 逐页 cross-check 的两处口径：
    - 计数器（文章 10、短讯 2）与标签云排序（短讯上浮到位次 4）astro 侧同渲染；
-   - **无封面文章的 prev/next 卡片**：golden 侧实测 `data-lazy-src="/"`（`url_for('')` 回落；对照组 longform 显式 `cover: /img/default_cover.jpg`）。astro 侧 post-page.ts 上下篇卡片对 coverless 文章需同样渲染 `"/"`，不能回落 `/img/default_cover.jpg`。
+   - **无封面文章的 prev/next 卡片**：golden 侧实测 `data-lazy-src="/"`（`url_for('')` 回落；对照组 longform 显式 `cover: /img/default_cover.jpg`）。astro 侧 post-page.ts 上下篇卡片对 coverless 文章渲染 `"/"`、不回落 `/img/default_cover.jpg`——**已核实一致（fix-cover-parity）**，静态对拍完成，CI 构建后逐页复核。
 3. `diff-html --all` 分母换成 49 页后（baseline.json 补页后）与归档文件数保持 1:1。
 4. CI 干净 checkout 首跑 hexo generate 是否会触发 §1.2 竞态（理论不会——无旧 db.json）；若触发则按拍板 5 固定删缓存流程。
 
@@ -377,7 +377,7 @@ PASS /2024/11/20/24531/  0 条差异
 ### 9.5 待 CI 验证清单（最终 CI = **新 golden ↔ astro dist** 的比对；本地禁跑 astro build/playwright/lighthouse）
 
 1. **B4 链路冒烟**（清单合并自 `docs/notes/fix-batch-b.md` 必答 4 / B4 行 278，与本报告 §7 待 CI-1 同源）：`astro build` 后 `/2024/11/20/24531/` 路由存在、`/2024/11/20/abbrlink-post/` 404；`/archives/`、`/categories/随笔/`、`/tags/短讯/`、`/404.html` 列表内该文 href 末段 = `24531`（期望断言）；文章页 `og:url`/版权 URL 同。
-2. **golden vs astro 逐页 cross-check 两处口径**（承 §7 待 CI-2）：计数器（文章 10、短讯 2）与标签云排序（短讯上浮到位次 4）astro 侧同渲染；**无封面文章的 prev/next 卡片** coverless 需渲染 `"/"`（golden 实测 `data-lazy-src="/"`），不能回落 `/img/default_cover.jpg`。
+2. **golden vs astro 逐页 cross-check 两处口径**（承 §7 待 CI-2）：计数器（文章 10、短讯 2）与标签云排序（短讯上浮到位次 4）astro 侧同渲染；**无封面文章的 prev/next 卡片** coverless 渲染 `"/"`（golden 实测 `data-lazy-src="/"`），不回落 `/img/default_cover.jpg`——**已核实一致（fix-cover-parity）**。
 3. **49 页分母 CI 闭环**：`diff-html --all` 以 49 页为分母跑 新 golden ↔ astro dist（BASELINE_HTML_DIR=.baseline-html），全 PASS 才算过；本地 5a/5b 已证「归档 ↔ baseline.json pages ↔ 解压」1:1 自洽。
 4. **CI 干净 checkout 首跑 hexo generate** 是否触发 §1.2 竞态（理论不会——无旧 db.json；若触发按拍板 ⑤ 先删 `.baseline-work/db.json` 再 generate）。
 5. **遗留数字口径（非回归，另行收口）**：`tests/baseline-html/README.md` 引言第 3 行「`docs/baseline.json` 里的 48 页」与 `.github/workflows/ci.yml:60` 历史注释「48 页全 PASS」均不在拍板 ④ 授权清单内，未改；前者并入「48 页→49 页全仓口径统一」（§7 待拍板-4，fix-batch-b.md 同类项）一并处理，后者是 2026-11-24 历史陈述保持原样。

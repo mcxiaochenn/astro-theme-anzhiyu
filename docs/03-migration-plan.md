@@ -94,7 +94,7 @@ README 里的 31 项特性做成可勾选的 checklist，每项附「怎么验�
 
 | 任务 | 说明 |
 | --- | --- |
-| 15 个 widget 卡片 | 作者、公告、最新文章、分类、标签、归档、网站信息、广告、TOC、控制台归档/标签… |
+| 15 个 widget 卡片（12 aside + 2 中控台 + 1 最新评论） | 作者、公告、最新文章、分类、标签、归档、网站信息、广告、TOC、控制台归档/标签… |
 | 12 个页面模板 | `about`（上游 23 KB，最复杂）、`album`、`album_detail`、`essay`、`flink`、`room`、`music`、`equipment`、`fcircle`、`categories`、`tags`、`default` |
 
 **验收**：

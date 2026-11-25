@@ -4,7 +4,7 @@ English · [简体中文](README.md)
 
 An Astro port of the [Anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) blog theme.
 
-> **Status: migration in progress.** The verification site [examples/blog](examples/blog) builds **62 pages** with upstream's full styles and config; the HTML structure diff against the 48-page upstream baseline is down to **112 differences** (verified page-by-page with [scripts/diff-html.mjs](scripts/diff-html.mjs)); the remark plugin for the 42 Hexo tags is done with **59/59 tests passing**; the Hexo → Astro migration tool and guide are delivered ([docs/MIGRATION.md](docs/MIGRATION.md)). The interaction layer and third-party integrations are written but **not yet wired or verified** — progress and acceptance criteria live in the [execution plan](docs/PLAN.md).
+> **Status: Phase 7 exit (migration complete, 2026-11-24; doc numbers refreshed 2026-11-25).** A real Hexo site (`xcAnzhiyu`, Hexo 7.3.0 + theme 1.6.14) migrates via [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) and builds **97 pages** with `pnpm accept:migration` **migration gap = 0**; the verification site [examples/blog](examples/blog) builds **61 pages** (49-page golden baseline + 12 standalone fixtures — final count per CI build), and the HTML structure diff against the upstream baseline is **49/49 PASS / 0 differences**; CI runs the build + structure-diff hard gate + 38 Playwright behavior cases + Lighthouse budgets + PWA offline cases; all 42 Hexo tags are implemented (65/65 tests). Per-item evidence: [final acceptance report](docs/notes/P7-4-final-acceptance.md) (Chinese); progress and criteria: [execution plan](docs/PLAN.md). The Chinese [README.md](README.md) is the authoritative document.
 
 ## Background
 
@@ -22,35 +22,40 @@ The list below is taken from the upstream README's feature section. **Checked = 
 
 - [ ] Multiple code highlighting schemes (the highlight.js `figure.highlight` DOM matches the baseline; engine switching not done)
 - [x] Footnote syntax (real footnotes; the intentional difference from upstream's raw output is registered in the diff whitelist)
-- [ ] LaTeX math (components written, not wired)
-- [ ] Mermaid diagrams (components written, not wired)
+- [ ] LaTeX math (components wired; missing real-formula site verification)
+- [ ] Mermaid diagrams (components wired; missing real-content verification)
 - [x] Word count per post (12 helpers verified against upstream JS as oracle)
-- [ ] AI post summaries (components written, not wired)
-- [x] Multi-language configuration (4 languages, 83 dictionary entries passing)
+- [ ] AI post summaries (components wired; real AI service connectivity is a manual step)
+- [x] Multi-language configuration (4 dictionaries: default 91 / en 165 / zh-CN 165 / zh-TW 165 entries; 83 check-i18n assertions pass)
 
 ### Navigation and interaction
 
-- [ ] Lazy-loaded page components (ClientRouter + pjax compatibility shim written; site-wide behavior verification pending)
-- [ ] Lazy-loaded images / image lightbox
-- [ ] Dark mode (injection logic written, behavior verification pending)
+- [x] Lazy-loaded page components (ClientRouter + pjax compatibility shim; CI e2e: zero document requests on in-site navigation, back/forward works, no double-init)
+- [ ] Lazy-loaded images / image lightbox (wired; not spot-checked on the real site)
+- [x] Dark mode (CI e2e 4 scenarios: first visit follows system / manual toggle / survives refresh / survives navigation; P4-4 fixed ClientRouter resets)
 - [ ] Immersive status bar (manual item, mobile screenshots)
-- [ ] Custom context menu / dynamic accent color / global control console / keyboard shortcuts (DOM and scripts written, unverified)
-- [x] Rich tag/shortcode options (all 42 Hexo tags implemented, 59/59 tests, zero leftover syntax in fixtures)
+- [x] Global control console (CI e2e 5 cases: open/close panel, hide sidebar, panel dark toggle, overlay close)
+- [x] Custom context menu (real-site browser walkthrough passed; skipped at runtime when the demo config sets `rightClickMenu.enable=false`)
+- [ ] Dynamic accent color from cover (colorthief wired; not separately verified on the real site)
+- [ ] Keyboard shortcuts (`#keyboard-tips` help overlay shipped by A5 — emitted when `shortcutKey.enable` is on; shortcuts auto-register when the config gate is on (main.js:1752-1757), the off state is not persisted; no automation yet)
+- [x] Rich tag/shortcode options (all 42 Hexo tags implemented, 65/65 tests, 186/186 style hits)
 
 ### Comments, analytics and integrations
 
-- [ ] 5 comment systems, 5 analytics, 3 search backends, chat, ad slots, privacy consent (component library of 55 files written; not wired, not self-checked)
-- [ ] Music player
+- [x] Twikoo comment backend (real-site walkthrough renders the comment area with v1.6.44; the other 4 backends are wired, real connectivity is a manual step)
+- [x] Search index (`/search.xml` 249,657 B / 22 entries match the source-site golden, compatible with `local-search.js` parsing; search-box click-through not walked yet)
+- [ ] 5 analytics, 5 chat widgets, ad slots, privacy consent (wired; real service connectivity is a manual step, keys via env vars)
+- [x] Music player (CI e2e verifies the same DOM node persists across ClientRouter navigation; playback progress surviving navigation is verified in the real-browser walkthrough)
 
 ### Visuals and assets
 
-- [ ] Masonry "moments" feed / masonry photo albums (page templates DOM-aligned; browser walkthrough pending)
-- [ ] Alibaba iconfont and Font Awesome / custom CDN (asset resolution layer written, unverified)
+- [x] Masonry "moments" feed / masonry photo albums (12 standard page.type templates + the todolist compat page = 13 real paths, CI smoke all pass; migrated `/essay` etc. render fine)
+- [x] Alibaba iconfont and Font Awesome (icon fonts ship with theme assets; custom-CDN multi-provider resolution implemented, provider switching not deployment-verified)
 
 ### Build and docs
 
-- [ ] PWA (upstream relies on the external `hexo-swpp` plugin to generate a Service Worker; the theme itself only ships a manifest and icons)
-- [x] Hexo → Astro migration tool and guide ([scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md), verified against a real site)
+- [x] PWA (`@vite-pwa/astro` 2.0.4 + `sw-rules.js` translation: cacheName simplification / external-CDN allowlist / elemecdn→cbd 3s fallback; precache **81** entries — final count per the CI `precache=N` log; offline-home case in CI; zero impact on the default build)
+- [x] Hexo → Astro migration tool and guide ([scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md), real-site migration verified with gap=0)
 
 ## Technical choices
 
@@ -59,21 +64,24 @@ Settled against measured upstream data (120 Pug files, 72 Stylus files, 42 custo
 - **Framework**: Astro 7.4 + Vite 8, pnpm workspace monorepo (`packages/*` + `examples/*`)
 - **Templates**: Pug → `.astro` components, keeping upstream DOM structure and IDs intact
 - **Styles**: Stylus stays. Porting 302 KB of styles costs far more than adding a `hexo-config()` compatibility plugin ([vite-plugin-stylus-hexo-config](packages/vite-plugin-stylus-hexo-config/))
-- **Markdown**: opt back into the Unified processor (not Astro 7's default Sätteri); [remark-hexo-tag](packages/remark-hexo-tag/) (pure ESM, zero dependencies) handles the 42 Hexo tags, and highlight.js rebuilds the upstream `figure.highlight` DOM for code blocks
+- **Markdown**: opt back into the Unified processor (not Astro 7's default Sätteri); [remark-hexo-tag](packages/remark-hexo-tag/) (pure ESM; one runtime dep: `yaml`) handles the 42 Hexo tags, and highlight.js rebuilds the upstream `figure.highlight` DOM for code blocks
 - **Navigation**: ClientRouter plus a compatibility shim instead of pjax; front-end JS keeps the `anzhiyu` namespace rather than being rewritten
-- **Config**: YAML + zod validation (133 strict top-level keys), same key names as upstream so users can copy their old config directly
+- **Config**: YAML + zod validation (strict; 133 upstream keys + the `friends_lite` compat key = 134 total, per `check-schema`), same key names as upstream so users can copy their old config directly
 
 Full rationale and trade-offs: [Technical mapping](docs/02-astro-mapping.md).
 
 ## Local verification
 
-Requires Node ≥ 22.23.4 (Astro 7):
+Requires Node ≥ 22.23.4 (Astro 7; same floor as the package `engines` `>=22.23.4`):
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter blog build                          # 62-page verification site
-node packages/remark-hexo-tag/test/run.mjs        # 59/59 tests
-BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 48-page structure diff
+pnpm --filter blog build                          # 61-page verification site (49 baseline + 12 fixtures)
+node packages/remark-hexo-tag/test/run.mjs        # 65/65 tests
+pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
+pnpm baseline:extract                             # prerequisite for diff: unpack the golden baseline
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 49-page structure diff (hard gate)
+pnpm test:e2e                                     # Playwright behavior cases (run in CI)
 ```
 
 Migrating from a Hexo site:
@@ -96,7 +104,7 @@ Usage, known boundaries, and timezone/permalink FAQs: [migration guide](docs/MIG
 | [Upstream analysis](docs/01-upstream-analysis.md) | Upstream structure, six core mechanisms, coupling ranking |
 | [Technical mapping](docs/02-astro-mapping.md) | Mechanism-by-mechanism mapping, 6 architecture decisions, verification checklist |
 | [Migration plan](docs/03-migration-plan.md) | Initial plan: 7 phases, acceptance criteria, effort estimate, risk table |
-| [Upstream delta](docs/upstream-delta.md) | Intentional differences from upstream (U1–U8) |
+| [Upstream delta](docs/upstream-delta.md) | Intentional differences from upstream (U1–U9) |
 | [Acceptance notes](docs/notes/) | Real command output and remaining diff attribution per task |
 
 ## Roadmap
@@ -104,16 +112,16 @@ Usage, known boundaries, and timezone/permalink FAQs: [migration guide](docs/MIG
 | Phase | Scope | Status |
 | --- | --- | --- |
 | Phase 0 | Repository skeleton, research and plan | ✅ Done |
-| Phase 1 | Build pipeline and config layer (Stylus compat plugin, schema, loader, CI) | ~87% |
+| Phase 1 | Build pipeline and config layer (Stylus compat plugin, schema, loader, CI) | ✅ Done |
 | Phase 1.5 | De-risking vertical slice + baseline solidification | ✅ Done |
-| Phase 2 | Layout and core pages (home, post, archive, 404, diff tooling) | ~95% |
-| Phase 3 | Widgets and page templates (15 aside cards, 12 templates, about) | ~56% |
-| Phase 4 | Interactivity (runtime, dark mode, console, script layer) | ~30% (written, behavior verification not started) |
-| Phase 5 | Third-party integrations (component library written) | ~8% (not wired) |
-| Phase 6 | remark plugin for the 42 Hexo tags | ~87% |
-| Phase 7 | Migration tooling and guide, PWA, performance, release | ~18% |
+| Phase 2 | Layout and core pages (home, post, archive, 404, diff tooling) | ✅ Done (49-page structure diff 0) |
+| Phase 3 | Widgets and page templates (15 widget cards: 12 aside + 2 console + 1 newest-comments; 13 templates; about) | ◐ All 12 standard page.type templates + the todolist compat page land in CI smoke; visual walkthrough remainder |
+| Phase 4 | Interactivity (runtime, dark mode, console, context menu, music player, ClientRouter) | ◐ e2e 29 passed / 9 skipped (search 2 + context-menu 3 + dark-mode context-menu 1 + music 1 + pwa 2) |
+| Phase 5 | Third-party integrations (head 4 + additional-js 10 wired) | ✅ Components wired; real service connectivity is a manual step |
+| Phase 6 | remark plugin for the 42 Hexo tags | ✅ 65/65 tests + 186/186 style hits |
+| Phase 7 | Migration tooling and guide, PWA, performance, release | ✅ Real-site migration gap=0, PWA/performance landed; only release authorization remains (npm publish / Pages deploy / git tag) |
 
-The overall convergence target is all 48 pages passing the HTML structure diff, after which the CI diff step switches from report-only to a hard gate. Per-task status: [PLAN.md](docs/PLAN.md).
+The overall convergence target is met: all 49 pages pass the HTML structure diff and the CI diff step is a hard gate. Per-task status: [PLAN.md](docs/PLAN.md).
 
 ## About upstream
 

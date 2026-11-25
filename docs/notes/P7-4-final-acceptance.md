@@ -85,7 +85,7 @@ migration gap: 0 / inherited: 7 / whitelisted: 1
 | 6 | 右键菜单 | ✅ | 右击页面出现自定义菜单：前进/后退/刷新/回顶 + 随便逛逛/博客分类/文章标签/复制地址/关闭热评/浅色模式/轉為繁體 |
 | 7 | 追番页（W2-B1） | ✅ | `/bangumis/`：标题「追番列表」、副标题、想看(0)/在看(10)/已看(51) 三 tab、61 张番剧卡（封面/集数/评分/播放/关注/硬币/弹幕/简介）、分页、Twikoo v1.6.44 评论区全部渲染 |
 | 8 | 搜索（数据层） | ✅（UI 点击走查未做） | `/search.xml` 200/249,657B；`GLOBAL_CONFIG.localSearch={"path":"/search.xml",...}`；`/js/search/local-search.js` 200；acceptance search 检查 PASS。**诚实记录**：走查时未能点到搜索图标触发对话框（图标无 accessible name、多次误触相邻图标），搜索框交互未做人工点击验证；该能力由 `search.xml` 结构 + local-search.js 兼容性检查覆盖，UI 交互无自动化用例（demo 站搜索关闭，spec 走 skip） |
-| 9 | 快捷键 | ⚠️ 默认关闭（与上游语义一致） | `GLOBAL_CONFIG.shortcutKey.enable=true`，但上游 `executeShortcutKeyFunction()` 以 `localStorage.keyboardToggle` 为准（默认 false），需先在中控台打开快捷键开关；故直接按 shift+D 不生效属上游设计，非迁移缺陷 |
+| 9 | 快捷键 | ⚠️ 走查未生效（**归因已修正**，Batch F） | 归因修正：直接原因是**构建配置导致 `#consoleKeyboard`（中控台快捷键开关）未输出**——`main.js:1752-1757` 的注册前提是 `GLOBAL_CONFIG.shortcutKey && getElementById("consoleKeyboard")`，前提缺一即不注册，此前记的「上游设计（`localStorage.keyboardToggle` 默认 false）」只是第二层语义。**缺口记录**：走查时 `#keyboard-tips` 帮助浮层同样未输出（上游 shortcutKey.pug 当时未移植），已由 **Batch A5** 补齐（`ShortcutKey.astro`：`shortcutKey.enable` 开启即输出 11 条键位说明；config 总闸开启即自动注册，中控台关闭不持久化），运行时复核待 CI |
 
 已知不自动验项（PLAN §3.4）：沉浸式状态栏、第三方服务真实联通（Twikoo/音乐后端需真实网络与账号）、移动端手势。
 

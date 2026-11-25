@@ -8,7 +8,7 @@
  * 两种构建形态：
  *   - 验收构建（默认，不设环境变量）：身份 = 基准站 AnZhiYu Baseline，
  *     url = https://baseline.anzhiyu.test、root = / —— 与 tests/baseline-html/
- *     的 48 页基线一一对应，scripts/diff-html.mjs 的归一化（<SITE> 占位）
+ *     的 49 页基线一一对应，scripts/diff-html.mjs 的归一化（<SITE> 占位）
  *     依赖这个身份，**不要改动默认值**。
  *   - GitHub Pages demo 构建：设置 DEPLOY_SITE_URL / DEPLOY_SITE_ROOT
  *     两个环境变量后，url / root 换成真实部署位置（如

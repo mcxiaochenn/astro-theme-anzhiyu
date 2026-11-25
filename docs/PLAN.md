@@ -8,25 +8,29 @@
 
 **更新规则**：每完成一个任务改它的状态并写一句验收结果；进度快照（§1）跟着改。不更新进度的计划没有意义。
 
+> **数字口径约定（Batch F）**：带日期的时点记录（§1.2 / §1.2.1 / §4 各阶段任务叙述 / §8.1）保留当时实测数字（48 页、48/48、112、59/59、62/62、94 页等），属**历史快照**，不逐处改写；现行唯一口径以 §1.1 当前状态表与 `docs/notes/FIX-2026-11-25.md` 为准（验证站 61 页 / diff 49/49 / remark 65/65 / 迁移站 97 页）。
+
 ---
 
 ## 1. 当前状态
 
-**快照时间：2026-11-24 21:00（Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过）**
+**快照时间：2026-11-25（Batch A–G 修复批次 + Batch F 文档对齐后刷新数字口径；2026-11-24 21:00 为 Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `f214818` docs(P7-4): 真实站终验报告（本次收尾快照另含 PLAN/回填文档 commit） |
-| 提交数 | 85 |
-| 工作区 | 干净；真实站迁移验收已通过（migration gap=0），剩余仅「需用户授权」的发布动作 |
+| 提交 | `2fa0bf7` fix(G1-G8)（A–G 修复批次序列 `6060f80`→`78a0406`→`c3db58e`→`5e92887`→`2391780`→`a3a6a52`→`74fcc9b`→`2fa0bf7`；F 批文档对齐待提交） |
+| 提交数 | 94（F 批 commit 后 95） |
+| 工作区 | A–G 修复批次已全部落盘；F 批文档对齐改动落盘待提交；真实站迁移验收已通过（migration gap=0），剩余仅「需用户授权」的发布动作 |
 | CI | **三 job 全绿**：build（结构 diff 硬门禁）/ e2e（38 条：29 passed / 9 skipped / 0 failed + PWA 离线 2/2）/ lighthouse（四项分数 + 7 条资源预算全过，artifact 已上传） |
-| 产物规模 | **62 页**验证站 + **97 页**真实站迁移产物（96 Astro + go.html） |
-| 全量 diff | 48 页 / **PASS 48 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/upstream-delta.md） |
-| 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 / accept-migration **EXIT=0 gap=0** |
+| 产物规模 | **61 页**验证站（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准）+ **97 页**真实站迁移产物（96 Astro + go.html） |
+| 全量 diff | 49 页 / **PASS 49 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/upstream-delta.md；C4 收紧 N21 后的 CI 复核值以 CI 为准） |
+| 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 / remark 65/65 / accept-migration **EXIT=0 gap=0** |
 
 ### 1.2 已完成（2026-11-24 新增）
+
+> **历史快照（Batch F 头注）**：本节是 2026-11-24 各批次的时点验收记录，文中「48/48」「112」「84 条」「94 页」等均为当时实测值，不随后续批次刷新。现行口径：验证站 61 页 / 全量 diff 49/49 / remark 65/65 / 迁移站 97 页（= 源站 97）；数字现状见 `docs/notes/FIX-2026-11-25.md`。
 
 | 项 | 说明 |
 | --- | --- |
@@ -45,6 +49,8 @@
 | P7 真实站构建（第一步） | ✅ `.migration-out/xcAnzhiyu` 用**真实内容 + 真实配置**构建通过（43 页）：定位 stylus 报错根因是上游 twikoo.styl 的缩进笔误（按浏览器等价语义删除）、keywords 数组归一、darkmode.autoChangeMode false→0；`{%` 残留 0 |
 
 ### 1.2.1 2026-11-23 23:25 之前的完成记录（存档）
+
+> **历史快照（Batch F 头注）**：存档区，逐行为当时的时点实测（如 48 页基线、59/59 单测、「纯 ESM 零依赖」），现行口径见 §1.2 头注与 `docs/notes/FIX-2026-11-25.md`。
 
 | 项 | 说明 |
 | --- | --- |
@@ -67,12 +73,12 @@
 | P2-4/P2-5 布局组件 | ✅ Header/Footer/Sidebar/Rightside 真实组件替换占位，BaseLayout 的 26 个挂载点全部有归属 |
 | P2-9/P2-10 归档与 404 | ✅ 归档（年/月三级）、分类、标签、404 路由全生成，构建 40 页 |
 | P2-7 首页与 PostCard | ✅ M1 highlight.js 对齐上游 `figure.highlight`；首页缺口 857 → 480 |
-| 上游差异档 | ✅ `docs/upstream-delta.md` 8 项 U1–U8；D9 已定位闭合，29 项机械守卫进 CI |
+| 上游差异档 | ✅ `docs/upstream-delta.md` 9 项 U1–U9；D9 已定位闭合，29 项机械守卫进 CI |
 | P1-11 define 层 | ✅ CSS 686772 → 682990（上游样式子集），prismjs 规则族清零，对基线仅剩 −228B（U6 排版差） |
 | P1-12 schema 收紧 | ✅ 顶层 `.strict()`，未知顶层键报错并列出键名；17 区块 +143 键展开；42/42 自检通过 |
 | P2-7 首页收尾 | ✅ home_top 全子树（bannerGroup/topGroup/todayCard/分类条）；首页缺口 480 → 388 → 223 → 当前 4 条 |
 | P2-8 文章页 | ✅ 9 篇文章路由与 post 组件；slugger 41 个标题 id 与基线一致（额外 footnote-label 属 M2） |
-| P3-1 aside widgets | ✅ 15 张卡片；首页/归档/文章页 aside 结构差异 0 |
+| P3-1 aside widgets | ✅ 15 张卡片（12 aside + 2 中控台 + 1 最新评论）；首页/归档/文章页 aside 结构差异 0 |
 | P3-2 page.type 分发 | ✅ `[...path]` 独立页面路由 + 11 个模板；12 个 page.type fixture 全部命中根选择器 |
 | P6-1 tag 骨架 | ✅ `packages/remark-hexo-tag`（纯 ESM 零依赖）+ 24 个行内/块级 tag，38 条单测 |
 | P6-2 剩余 tag | ✅ 媒体/卡片 11 + 第三方 7，42 个 tag 全落地，59/59 单测；四篇 fixture `{%` 残留 0 |
@@ -175,12 +181,12 @@ GPL-3.0，与上游一致。这是衍生作品的必要条件。所有从上游�
 
 **第一层：HTML 结构 diff**
 
-基线 HTML 以归档形式进仓库（`tests/baseline-html/baseline-html.tar.gz`，477 KB，48 页，manifest 逐文件校验），所以 CI 与任何一台机器都能跑：
+基线 HTML 以归档形式进仓库（`tests/baseline-html/baseline-html.tar.gz`，490 KB，49 页，manifest 逐文件校验），所以 CI 与任何一台机器都能跑：
 
 ```bash
 node scripts/extract-baseline-html.mjs          # 解压到 .baseline-html/，校验整包与逐文件 SHA256
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs <baselineHtml> <distHtml> [--json]
-BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all      # 48 页全量
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all      # 49 页全量
 ```
 
 **归一化已覆盖**：属性顺序、空白折叠、注释、资源哈希段、自闭合写法、布尔属性、`data-astro-*`、HTML 实体、class 集合、站内 origin、Astro 机制元素、`<pre>` 首行换行、CRLF、大小写。
@@ -190,7 +196,7 @@ BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all      # 48 页�
 2. 进度看 `missingNodes + unexpectedNodes` 单调下降，不能只看差异条数（骨架对上后差异会从「整块折叠」变成「逐容器报缺口」，条数反而可能上涨）
 3. Phase 2 期间允许 FAIL，但差异必须归类：目前登记两类豁免——**资源路径策略**（见 [resource-path-policy](resource-path-policy.md)）与 **Astro 机制元素**（已自动忽略并计数）。标签层级、id、class、文本、meta 全集是上游 CSS/JS 的硬契约，必须真修。
 
-**当前基线数据**（2026-11-23）：48 页 PASS 0 / FAIL 48，差异 150 条，缺口 缺 857 / 多 60 节点。剩余缺口归属：nav/footer 197+、home_top 91+、PostCard、sidebar/rightside 约 20、aside 3 卡、资源与脚本。
+**基线数据快照**（2026-11-23，历史）：48 页 PASS 0 / FAIL 48，差异 150 条，缺口 缺 857 / 多 60 节点。剩余缺口归属：nav/footer 197+、home_top 91+、PostCard、sidebar/rightside 约 20、aside 3 卡、资源与脚本。（现为 49 页 PASS 49 / 0 差异，golden 重基线后分母 49。）
 
 **Phase 2 结束时要做的**：把 CI 里 diff 步骤的 `|| true` 去掉，变成硬门禁（步骤见 `docs/notes/P-baseline-html-ci.md` §7），并给 artifact upload 加 `if: always()`。
 
@@ -233,10 +239,9 @@ pnpm install --frozen-lockfile     # 依赖可复现
 pnpm --filter blog build           # 构建通过
 node scripts/verify-css.mjs        # 样式基准比对
 node scripts/diff-html.mjs         # HTML 结构 diff（Phase 2+）
-npx playwright test                # 视觉回归（Phase 2+）
+pnpm test:e2e                       # Playwright 行为 e2e（Phase 4+；浏览器用例只在 CI 实跑）
 node scripts/compare-css-vars.mjs   # 69 个 CSS 变量逐值比对
-node scripts/check-upstream-delta.mjs  # 上游差异守卫（28 项）
-node scripts/check-features.mjs    # 特性清单自检（能自动化的部分）
+node scripts/check-upstream-delta.mjs  # 上游差异守卫（29 项）
 ```
 
 ---
@@ -258,12 +263,12 @@ node scripts/check-features.mjs    # 特性清单自检（能自动化的部分�
 | Phase 1 | 构建管线与配置层 | ✅ | 7.5 | 7.5 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ | 1.8 | 1.8 |
 | Phase 2 | 布局与核心页面 | ✅ | 9.5 | 9.5 |
-| Phase 3 | widget 与页面模板 | ◐ | 10.8 | 6.0 |
-| Phase 4 | 交互层与路由 | ✅ | 13 | 12.5 |
-| Phase 5 | 第三方集成 | ◐ | 6.3 | 0.5 |
-| Phase 6 | 42 个 Hexo tag | ◐ | 7.5 | 6.5 |
-| Phase 7 | PWA、性能、迁移文档 | ✅ | 5.5 | 5.5 |
-| **合计** | | | **≈62** | **≈55**（Phase 3/4 剩视觉走查余量按已完成计） |
+| Phase 3 | widget 与页面模板 | ◐（剩浏览器/视觉走查） | 10.8 | 6.0 |
+| Phase 4 | 交互层与路由 | ✅（e2e 29 passed / 9 skipped） | 13 | 13 |
+| Phase 5 | 第三方集成 | ✅（组件接线完成，真实联通待人工） | 6.3 | 6.3 |
+| Phase 6 | 42 个 Hexo tag | ✅（65/65 单测 + 样式命中 186/186） | 7.5 | 7.5 |
+| Phase 7 | PWA、性能、迁移文档 | ✅（仅剩发布授权） | 5.5 | 5.5 |
+| **合计** | | | **≈62** | **≈58**（Phase 3 剩视觉走查余量未计） |
 
 > 合计按「已完成」列逐项相加；22:20 版写的 25.3 与列和不一致，此处按实修正。
 
@@ -449,7 +454,7 @@ Phase 1 三条验收（来自 03），当前状态：
 
 | ID | 任务 | 产出 | 验收 | 估时 |
 | --- | --- | --- | --- | --- |
-| P3-1 | 15 个 widget 卡片 | 作者、公告、最新文章、分类、标签、归档、网站信息、广告、TOC、控制台归档/标签… | 每个卡片视觉 diff 通过 | 3 |
+| P3-1 | 15 个 widget 卡片（12 aside + 2 中控台 + 1 最新评论） | 作者、公告、最新文章、分类、标签、归档、网站信息、广告、TOC、控制台归档/标签… | 每个卡片视觉 diff 通过 | 3 |
 | P3-2 | `page.type` 分发机制 | 按类型路由到模板 | 12 种类型都有对应输出 | 0.5 |
 | P3-3 | 简单模板 ×6 | `essay`、`album`、`album_detail`、`flink`、`music`、`default` | 视觉 diff 通过 | 2 |
 | P3-4 | 中等模板 ×3 | `categories`、`tags`、`fcircle` | 视觉 diff 通过 | 1.5 |
@@ -697,13 +702,15 @@ jobs:
 
 ### 8.1 已完成（可以随时接手）
 
+> **历史快照（Batch F 头注，2026-11-25）**：本节是 **2026-11-24 21:00 Phase 7 退出时点**的进度快照，文内计数不随后续批次刷新——「验证站 62 页 / 48/48」「62/62 单测」「构建 94 页」均为当时实测。Batch A–G（修复批次）与 golden 重基线后的**现行口径**：验证站 **61 页**（49 基线 + 12 独立 fixture）、全量 diff **49/49 PASS 0**、remark **65/65**、迁移站 **97 页 = 源站 97**（§7 行「构建 94 页」是 W2-B1 插件产物并入前的时点值，随后 W2-B1/W2-B2 补齐 `/comments/`、`/bangumis/`、`/go.html`、feed/sitemap 等生成物即为 97）。数字现状与逐项落点见 `docs/notes/FIX-2026-11-25.md`。
+
 - **Phase 0 ✅ / Phase 1.5 ✅ / Phase 1 ✅**
 - **Phase 2 ✅（结构验收退出）**：48 页全 PASS / 0 条差异；CI diff 步骤改硬门禁；head 三字段（postUpdate/postAI/postMainColor）、og:url/og:type、page-type、pageFillDescription 全部对齐
 - **Phase 3 约 85%**：15 widget、page.type 12 种分发、about 14 区块；剩浏览器走查（并进 e2e）
 - **Phase 4 约 70%**：head 运行时全部落地；剩行为验收（e2e 用例编写中）
 - **Phase 5 ✅（组件接线完成）**：head 4 + additional-js 10 组件按上游行号挂载；share/ai-info 委托 third-party；文章/独立页挂评论区；check-third-party 110/0；`prismjs` 不挂载（站点配置无等价键，已知边界）
 - **Phase 6 ✅（渲染与样式验收完成）**：42 tag 全实现 62/62 单测；tags-media TOC 对齐；`{% p %}` 行内拆段；样式命中 186/186（P6-7）
-- **Phase 7 约 75%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置 + permalink 对齐**构建 94 页（源站 97，缺 bangumis/comments/go.html 三个插件生成页，已登记 hexo-plugin unsupported）；URL 结构与源站逐条一致（`posts/p:abbrlink/`、`categories/教程/Arch-Linux/`）；剩 PWA/性能/发布
+- **Phase 7 约 75%**：迁移脚本 + 指南 + 验收报告完成；真实站**真实内容 + 真实配置 + permalink 对齐**构建 94 页（时点值：W2-B1 补齐 bangumis/comments/go.html 三个插件生成页后为 97 页 = 源站 97；缺页时登记 hexo-plugin unsupported）；URL 结构与源站逐条一致（`posts/p:abbrlink/`、`categories/教程/Arch-Linux/`）；剩 PWA/性能/发布
 - **W1 批次（2026-11-24 19:20）**：P4-10 e2e 接入 CI（36 条）、P7-4 验收脚手架（`accept:migration`）、P7-5 上游同步机制（`check:upstream-sync`）、P7-6 主题静态资源打包（`assets/` + `integration.mjs`，修迁移站 `/js/*` 404）
 - **W2 批次（2026-11-24 20:20）**：真实站缺口 67→10（URL/taxonomy/identity/page-type/pseudo 归零）；插件产物 4 件补齐（迁移站 97 页 = 源站 97）；PWA 落地；e2e 38 条 CI 收敛到 28 passed / 1 failed / 9 skipped
 - **W3/W4 批次（2026-11-24 20:56）**：feed/sitemap/search 六件生成物到位（accept gap 6→**0**）；P4-4 暗色跨 ClientRouter 导航重置修复（e2e 28→**29 passed / 0 failed**）；P7-6 主题包 1.0.0（npm pack 173 文件 + tarball consumer 构建 94 页）；P7-2 Lighthouse 门禁落地
@@ -727,9 +734,9 @@ jobs:
 2. ~~M2 脚注差异~~：渲染真脚注（特性保留）；N22 处理 DOM、源侧 `normalizeFootnoteSectionForDescription` 按**引用位置回填**定义文本使 pageFillDescription 顺序对齐
 3. ~~config-diff 48 条~~：✅ 已修——`getPageFillDescription()` 上游移植 + 标题分支按 hexo-util escapeHTML 语义转义 + 被吞标题/脚注区剔除
 4. ~~tags-thirdparty head 泄漏~~：✅ 随 config-diff 修复消失（19 条 / 96 节点归零）
-5. **迁移脚本两条真实边界**：`charts` / `todolist` 页 type 未分发、`layout: sitetime` 页 404，待 §8.2 #2
+5. **迁移脚本两条真实边界**：`charts` 页 type 未分发、`layout: sitetime` 页 404（`todolist` 已按 1.6.14 模板移植为兼容页，不在边界内；无消费者数据收窄为 `widget.yml` / `creativity.yml`），待 §8.2 #2
 6. **prismjs 组件未接线**：站点配置模型无 `prismjs` 键（hexo-only），基线用 highlight.js 恒为关；迁移 prismjs 站点需单独处理
-7. **page 级开关未透传**：`page.mathjax` / `page.katex` / `page.aplayer`（默认 `per_page: true` 时由主题配置门控，行为一致）
+7. **page 级开关已透传（Batch B）**：`page.mathjax` / `page.katex` / `page.aplayer` 由路由层 front-matter 透传进 BaseLayout → AdditionalJs → `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；`per_page: false` 时按上游 `math/index.pug` 语义读 `page.mathjax` / `page.katex`。内容侧公式管线缺口见 MIGRATION.md §13.2。
 
 **恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `node examples/blog/node_modules/astro/bin/astro.mjs build`（cwd `examples/blog`；改过 remark/rehype 插件先 `rm -rf examples/blog/node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。并行构建须持 `.build.lock` 并设 `CODEBUDDY_SAFE_DELETE_ENABLED=0`。（2026-11-24 更新：本机无浏览器，e2e/Lighthouse 只在 CI 实跑；实现走 agent team，Lead 只做方向与验收。）
 

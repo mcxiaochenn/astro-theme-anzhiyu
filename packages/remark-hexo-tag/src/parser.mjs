@@ -134,7 +134,7 @@ function tagError(message, source, offset, fileLabel) {
  *   - 未知 tag / 孤立或错配的 end tag / 未终止 / 格式错误 → **原样透传**（保留
  *     `{% … %}` 字面量），并 warning；
  *   - 绝不会因为内容里的 tag 语法错误中断构建。
- * 严格模式的行为与报错文案完全不变（59/59 单测守护）。
+ * 严格模式的行为与报错文案完全不变（65/65 单测守护，见 test/run.mjs）。
  *
  * @param {string} source
  * @param {{

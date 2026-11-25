@@ -4,7 +4,7 @@
 
 [Anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 博客主题的 Astro 移植版。
 
-> **当前状态：Phase 7 退出（迁移完成，2026-11-24）。** 真实 Hexo 站点 `xcAnzhiyu`（Hexo 7.3.0 + 主题 1.6.14）经 [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) 迁移后构建 **97 页**，验收脚本 `pnpm accept:migration` **migration gap = 0**（路由 40/40、内部链接/资源缺口 0、搜索索引与 feed/sitemap 与源站 golden 条目数全等）；验证站 [examples/blog](examples/blog) 构建 62 页，与上游基线的 HTML 结构 diff **48/48 PASS / 0 差异**；CI 跑构建 + 结构 diff 硬门禁 + Playwright 行为用例（38 条）+ Lighthouse 预算 + PWA 离线用例；42 个 Hexo tag 全实现。逐项证据见 [真实站终验报告](docs/notes/P7-4-final-acceptance.md)，进度与口径见 [执行计划](docs/PLAN.md)。
+> **当前状态：Phase 7 退出（迁移完成，2026-11-24）。** 真实 Hexo 站点 `xcAnzhiyu`（Hexo 7.3.0 + 主题 1.6.14）经 [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) 迁移后构建 **97 页**，验收脚本 `pnpm accept:migration` **migration gap = 0**（路由 40/40、内部链接/资源缺口 0、搜索索引与 feed/sitemap 与源站 golden 条目数全等）；验证站 [examples/blog](examples/blog) 构建 **61 页**（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准），与上游基线的 HTML 结构 diff **49/49 PASS / 0 差异**；CI 跑构建 + 结构 diff 硬门禁 + Playwright 行为用例（38 条）+ Lighthouse 预算 + PWA 离线用例；42 个 Hexo tag 全实现（65/65 单测）。逐项证据见 [真实站终验报告](docs/notes/P7-4-final-acceptance.md)，进度与口径见 [执行计划](docs/PLAN.md)。
 
 ## 背景
 
@@ -26,7 +26,7 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 - [ ] mermaid 流程图（组件已接线，缺真实内容点验）
 - [x] 文章字数统计（12 个 helper 以上游 JS 为 oracle 对拍）
 - [ ] 文章 AI 摘要（组件已接线，真实 AI 服务联通待人工）
-- [x] 多语言配置（4 语言字典 83 项通过）
+- [x] 多语言配置（4 语言字典 default 91 / en 165 / zh-CN 165 / zh-TW 165 条；check-i18n 83 项断言通过）
 
 ### 导航与交互
 
@@ -37,24 +37,24 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 - [x] 全局中控台（CI e2e 5 条：开/关面板、隐藏侧栏、面板暗色开关、遮罩关闭）
 - [x] 定制化右键菜单（真实站浏览器走查通过；demo 站配置 `rightClickMenu.enable=false` 时按运行时检测 skip）
 - [ ] 主色调随封面变化（colorthief 接线，真实站走查未单独验证）
-- [ ] 快捷键（与上游一致默认关闭，需中控台开启；未做自动化）
-- [x] 丰富多样化的标签选项（42 个 Hexo tag 全实现 62/62 单测，样式命中 186/186）
+- [ ] 快捷键（`#keyboard-tips` 帮助浮层已由 A5 补齐：`shortcutKey.enable` 开启即输出；config 总闸开启即自动注册（main.js:1752-1757），中控台关闭不持久；按键序列未做自动化）
+- [x] 丰富多样化的标签选项（42 个 Hexo tag 全实现 65/65 单测，样式命中 186/186）
 
 ### 评论、统计与第三方集成
 
 - [x] 评论后端 Twikoo（迁移站真实站走查加载 v1.6.44 并渲染评论区；其余 4 家组件接线完成，真实联通待人工）
 - [x] 搜索索引（`/search.xml` 249,657B / 22 entry 与源站 golden 一致，与 `local-search.js` 解析口径兼容；搜索框点击走查未做）
 - [ ] 统计 × 5 / 聊天 × 5 / 广告 / 隐私协议（组件接线完成，真实服务联通待人工，密钥走环境变量）
-- [x] 音乐球（CI e2e：跨 ClientRouter 导航同一 DOM 节点、播放中导航进度继续）
+- [x] 音乐球（CI e2e 验证跨 ClientRouter 导航保持同一 DOM 节点持久化；播放中导航进度继续属真实浏览器走查验证）
 
 ### 视觉与资源
 
-- [x] 瀑布流即刻说说 / 瀑布流相册集（13 个 page.type 真实路径 CI 冒烟全 PASS；迁移站 `/essay` 等页面渲染正常）
+- [x] 瀑布流即刻说说 / 瀑布流相册集（12 种标准 page.type + todolist 兼容页共 13 条真实路径 CI 冒烟全 PASS；迁移站 `/essay` 等页面渲染正常）
 - [x] 阿里图标与 Font Awesome（图标字体随主题 assets 提供，迁移站 200；自定义 CDN 多 provider 解析层已实现，切 provider 未做真实部署验证）
 
 ### 构建与文档
 
-- [x] PWA（`@vite-pwa/astro` 2.0.4 + `sw-rules.js` 翻译：cacheName 简化规则/外部 CDN 白名单/elemecdn→cbd 3s 备用 URL；precache 84 条 / sw.js 8,279B；离线首页用例进 CI；默认构建零影响）
+- [x] PWA（`@vite-pwa/astro` 2.0.4 + `sw-rules.js` 翻译：cacheName 简化规则/外部 CDN 白名单/elemecdn→cbd 3s 备用 URL；precache **81 条**（84 − 2 调试页 − 2 孤儿 JS + 1 fixture 页，终值待 CI `precache=N` 日志复核）/ sw.js 8,279B（P7-1 时点）；离线首页用例进 CI；默认构建零影响）
 - [x] Hexo → Astro 迁移工具与指南（[scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) + [docs/MIGRATION.md](docs/MIGRATION.md)，真实站点迁移验收 gap=0）
 
 ## 技术选型
@@ -64,9 +64,9 @@ Astro 用组件描述界面，把内容交给 content collections，构建交给
 - **框架**：Astro 7.4 + Vite 8，pnpm workspace monorepo（`packages/*` + `examples/*`）
 - **模板**：Pug → `.astro` 组件，DOM 结构与 ID 保持上游原样
 - **样式**：继续用 Stylus。迁移 302 KB 样式的成本远高于补一层 `hexo-config()` 兼容插件（[vite-plugin-stylus-hexo-config](packages/vite-plugin-stylus-hexo-config/)）
-- **Markdown**：显式切回 Unified 处理器（不是 Astro 7 默认的 Sätteri），用 [remark-hexo-tag](packages/remark-hexo-tag/)（纯 ESM、零依赖）承接 42 个 Hexo tag；代码块用 highlight.js 重建上游 `figure.highlight` DOM
+- **Markdown**：显式切回 Unified 处理器（不是 Astro 7 默认的 Sätteri），用 [remark-hexo-tag](packages/remark-hexo-tag/)（纯 ESM，唯一运行时依赖 `yaml`（^2.9.1））承接 42 个 Hexo tag；代码块用 highlight.js 重建上游 `figure.highlight` DOM
 - **交互**：ClientRouter + 兼容 shim 替代 pjax；前端 JS 保留 `anzhiyu` 命名空间，不重写
-- **配置**：沿用 YAML + zod 校验（133 顶层键 strict），键名与上游一致，便于用户直接拷贝旧配置
+- **配置**：沿用 YAML + zod 校验（133 上游键 + `friends_lite` 兼容键，共 134，strict；总数以 `check-schema` 输出为准），键名与上游一致，便于用户直接拷贝旧配置
 
 完整依据与取舍见 [技术映射与架构决策](docs/02-astro-mapping.md)。
 
@@ -106,11 +106,11 @@ import anzhiyuAssets from 'astro-theme-anzhiyu/integration'
 export default defineConfig({ integrations: [anzhiyuAssets()] })
 ```
 
-- `anzhiyuAssets()`：build 时把主题包 `assets/`（11 个文件——`/js/main.js`、`/js/utils.js`、`/js/tw_cn.js`、`/js/anzhiyu/*.js`、`/js/search/*.js`、`/css/index.css`）复制进 `dist/`；dev 时挂中间件按 URL 直接读。站点 `public/` 已有同名文件时保留站点版本，只打一行 warn。
+- `anzhiyuAssets()`：build 时把主题包 `assets/`（11 个文件——`/js/main.js`、`/js/utils.js`、`/js/tw_cn.js`、`/js/anzhiyu/*.js`、`/js/search/*.js`、`/css/index.css`）复制进 `dist/`；dev 时挂中间件按 URL 直接读。站点 `public/` 已有同名文件时保留站点版本，只打一行 warn。其中 `/css/index.css` 是**结构性空占位**（上游 HTML 固定引用该路径，见 [PLAN §8.3](docs/PLAN.md)），真实样式走 Vite 产物 `/_astro/*.css`。
 - 组件 / 布局按子路径导入：`astro-theme-anzhiyu/layouts/BaseLayout.astro`、`astro-theme-anzhiyu/components/post/PostCard.astro`——`exports` 已声明 `./layouts/*`、`./components/*`、`./utils/*`、`./i18n/*`、`./schema`、`./defaults`、`./integration`。
-- 配置层：`loadThemeConfig()` 从 `anzhiyu.config.yml` 读主题配置，与默认值深合并后做 133 顶层键的 strict 校验（zod）。
+- 配置层：`loadThemeConfig()` 从 `anzhiyu.config.yml` 读主题配置，与默认值深合并后做 133 上游键 + `friends_lite` 兼容键（共 134）的 strict 校验（zod）。子键必填/可选（B3 容缺）：`reward.QR_code[].link`、`nav.menu[].icon`、`footer.bdageitem.list[].message`、`footer.socialBar.*[].title`、`home_top.category[].shadow`/`.class` 均**可选**（渲染走 `item.link || item.img` 等兜底）；`home_top.category[].icon` **必填**（`BannerGroup.astro` 无条件消费）。
 
-完整站点见 [examples/blog](examples/blog)；迁移产物 `.migration-out/xcAnzhiyu` 的副本 `.migration-out/p7-6-consumer` 以 `file:<绝对路径>.tgz` 安装主题并接上 `anzhiyuAssets()`，构建 **exit 0 / 94 页**、产物含 `/js/main.js`、`/css/index.css`、`/posts/pXXXX/`——这是 P7-6 的 tarball 冒烟证据（细节见[发布笔记](docs/notes/P7-6-release.md)）。
+完整站点见 [examples/blog](examples/blog)；迁移产物 `.migration-out/xcAnzhiyu` 的副本 `.migration-out/p7-6-consumer` 以 `file:<绝对路径>.tgz` 安装主题并接上 `anzhiyuAssets()`，构建 **exit 0 / 94 页**（P7-6 时点值：W2-B1 插件产物并入前，现为 97 页 = 源站 97）、产物含 `/js/main.js`、`/css/index.css`、`/posts/pXXXX/`——这是 P7-6 的 tarball 冒烟证据（细节见[发布笔记](docs/notes/P7-6-release.md)）。
 
 ### 发布
 
@@ -146,14 +146,15 @@ node scripts/deploy-demo-pages.mjs
 
 ## 本地验证
 
-需要 Node ≥ 22.23.4（Astro 7 要求）：
+需要 Node ≥ 22.23.4（Astro 7 要求，与包 `engines`（`>=22.23.4`）同限）：
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter blog build                          # 62 页验证站
-node packages/remark-hexo-tag/test/run.mjs        # 62/62 单测
+pnpm --filter blog build                          # 61 页验证站（49 基线 + 12 独立 fixture，以 CI 构建实测为准）
+node packages/remark-hexo-tag/test/run.mjs        # 65/65 单测
 pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
-BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 48 页结构 diff（硬门禁）
+pnpm baseline:extract                             # diff 前置：解压 golden 基线到 .baseline-html
+BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all   # 49 页结构 diff（硬门禁）
 pnpm test:e2e                                     # Playwright 行为用例 38 条（本机沙箱需 CI 环境）
 ```
 
@@ -185,7 +186,7 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 | [上游调研](docs/01-upstream-analysis.md) | 上游仓库的结构、六大核心机制、耦合强度排序 |
 | [技术映射](docs/02-astro-mapping.md) | 逐机制对应方案、6 个架构决策、待验证清单 |
 | [迁移计划](docs/03-migration-plan.md) | 初版：7 个阶段、验收标准、量级估算、风险表 |
-| [上游差异档](docs/upstream-delta.md) | 与上游的有意差异（U1–U8）登记 |
+| [上游差异档](docs/upstream-delta.md) | 与上游的有意差异（U1–U9）登记 |
 | [验收笔记](docs/notes/) | 各任务的真实命令输出与剩余差异归属 |
 
 ## 路线
@@ -195,14 +196,14 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 | Phase 0 | 仓库骨架、调研与计划 | ✅ 已完成 |
 | Phase 1 | 构建管线与配置层（Stylus 兼容插件、schema、loader、CI） | ✅ 已完成 |
 | Phase 1.5 | 垂直切片去风险 + 基准固化 | ✅ 已完成 |
-| Phase 2 | 布局与核心页面（首页、文章、归档、404、diff 工具） | ✅ 已完成（48 页结构 diff 0） |
-| Phase 3 | widget 与页面模板（15 aside 卡片、13 模板、about、todolist/friends_lite 兼容页） | ◐ 12 种 page.type 全落地并进 CI 冒烟；视觉走查余量 |
-| Phase 4 | 交互层（运行时、暗色、中控台、右键菜单、音乐球、ClientRouter） | ◐ e2e 29 passed / 9 skipped（右键菜单与搜索在 demo 配置下 skip，真实站走查覆盖） |
+| Phase 2 | 布局与核心页面（首页、文章、归档、404、diff 工具） | ✅ 已完成（49 页结构 diff 0） |
+| Phase 3 | widget 与页面模板（15 张卡片：12 aside + 2 中控台 + 1 最新评论、13 模板、about、todolist/friends_lite 兼容页） | ◐ 12 种标准 page.type + todolist 兼容页（共 13 条路径）全落地并进 CI 冒烟；视觉走查余量 |
+| Phase 4 | 交互层（运行时、暗色、中控台、右键菜单、音乐球、ClientRouter） | ◐ e2e 29 passed / 9 skipped（搜索 2 + 右键 3 + 暗色右键 1 + 音乐 1 + pwa 2，真实站走查覆盖） |
 | Phase 5 | 第三方集成（组件接线 head 4 + additional-js 10） | ✅ 组件接线完成；真实服务联通待人工 |
-| Phase 6 | 42 个 Hexo tag 的 remark 插件 | ✅ 62/62 单测 + 样式命中 186/186 |
-| Phase 7 | 迁移工具与指南、PWA、性能、发布 | ◐ 真实站迁移验收 gap=0；PWA/性能/发布已落地，待最后一轮 CI 绿灯 |
+| Phase 6 | 42 个 Hexo tag 的 remark 插件 | ✅ 65/65 单测 + 样式命中 186/186 |
+| Phase 7 | 迁移工具与指南、PWA、性能、发布 | ✅ 真实站迁移验收 gap=0，PWA/性能已落地；仅剩发布授权（npm publish / Pages 部署 / git tag） |
 
-整体收敛目标已达成：48 页 HTML 结构 diff 全部 PASS 且 CI 为硬门禁；真实 Hexo 站点迁移验收 **migration gap = 0**。逐任务状态与剩余用户动作见 [PLAN.md](docs/PLAN.md) 与 [终验报告](docs/notes/P7-4-final-acceptance.md)。
+整体收敛目标已达成：49 页 HTML 结构 diff 全部 PASS 且 CI 为硬门禁；真实 Hexo 站点迁移验收 **migration gap = 0**。逐任务状态与剩余用户动作见 [PLAN.md](docs/PLAN.md) 与 [终验报告](docs/notes/P7-4-final-acceptance.md)。
 
 ## 关于上游
 

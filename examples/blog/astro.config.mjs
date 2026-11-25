@@ -614,7 +614,7 @@ if (PWA_ENABLED) {
 export default defineConfig({
   // GitHub Pages demo 构建的子路径（`DEPLOY_SITE_ROOT`，约定不带前导斜杠传值，
   // 如 blog —— Git Bash 会把以 / 开头的 env 值做 MSYS 路径转换，这里统一归一化）。
-  // 验收构建不设该环境变量，这里保持无 base —— 产物与 48 页基线的路径
+  // 验收构建不设该环境变量，这里保持无 base —— 产物与 49 页基线的路径
   // 语义（/css/index.css、/archives/…）完全一致，diff 验收不受影响。
   // 分工：`base` 管页面输出目录与 Vite 打包资源前缀；站内链接前缀由
   // SITE_IDENTITY.root 管（见 src/data/site-identity.ts，同一个变量）。

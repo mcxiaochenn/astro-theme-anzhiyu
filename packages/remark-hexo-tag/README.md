@@ -6,7 +6,8 @@
 - 纯 ESM + JSDoc，**无构建步骤**；附录 B 的 **42 个 tag 全部实现**；
 - 另带配套 rehype 插件 `rehypeHexoInlineP`，修正句中 `{% p %}` 的段落结构；
 - 支持行内 tag、容器 tag、嵌套 tag、`key=value` 与引号参数；
-- 未知 tag / 未闭合容器 / 错配 end tag 会抛错，并带 `文件:行:列`。
+- 未知 tag / 未闭合容器 / 错配 end tag 会抛错，并带 `文件:行:列`（默认严格模式；`lenient: true`
+  宽松模式下未闭合容器自动补齐、脏 tag 原样透传并告警，供迁移站的历史内容使用）。
 
 ## 用法
 
@@ -57,11 +58,10 @@ const processor = {
 - `hideInline` 是行内实现（上游 `hide.js` 自闭合）；
 - `checkbox` / `radio` 上游自闭合但参数过 Markdown，按块级渲染；
 - `videos` / `sitegroup` / `btns` 的正文上游**不跑 Markdown**，用 `ctx.raw()`
-  只展开嵌套 tag；
+  只展开嵌套 tag；raw 区域内自闭合块级（`checkbox` / `radio`）同样展开（G7）；
 - `site` / `cell` / `bilibili` / `intCard` 输出以 `<a>` 或缩进 `<div>` 开头，
   按「字符串块级」tag 产出 html 节点，避免被包 `<p>` 或误判为代码块；
-- `flink` 的正文是 YAML，用工作区已有的 `yaml` 包解析（`node-linker=hoisted`，
-  来自 `vite-plugin-stylus-hexo-config` 的依赖，不是本插件新增）；
+- `flink` 的正文是 YAML，用本包声明的 `yaml` 依赖（`package.json` dependencies，`^2.9.1`）解析；
 - `tabs` 系列严格沿用上游 `<!-- endtab -->` 正则；
 - `<img>` 的 `data-lazy-src` / 占位 `src` 属于上游 `post_lazyload.js` 滤镜，
   不在 tag 模板里，本插件输出滤镜前形态。
@@ -77,14 +77,14 @@ src/tags/inline/index.mjs  行内 tag（13，含 hideInline）
 src/tags/block/index.mjs   块级容器 tag（11）
 src/tags/media/index.mjs   媒体与卡片（11）
 src/tags/thirdparty/index.mjs 第三方嵌入（7）
-test/run.mjs               62 条 oracle 对拍
+test/run.mjs               65 条 oracle 对拍
 test/render-fixtures.mjs   4 篇 fixture 与 `.baseline-html` 做正文文本对比
 ```
 
 ## 测试
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs              # 62/62
+node packages/remark-hexo-tag/test/run.mjs              # 65/65
 node packages/remark-hexo-tag/test/render-fixtures.mjs  # 4 篇 fixture 文本 diff
 ```
 

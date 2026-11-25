@@ -13,7 +13,7 @@
 
 | 项 | 要求 | 检查命令 |
 | --- | --- | --- |
-| Node | 24（仓库 `engines: >=22`，本轮实测 24.22.0） | `node -v` |
+| Node | 24（仓库 `engines: >=22.23.4`，本轮实测 24.22.0） | `node -v` |
 | 包管理器 | pnpm（仓库根 `packageManager: pnpm@10.29.3`，本机 9.14.4 亦可） | `pnpm -v` |
 | 本仓库 | 已 clone 且 `pnpm install` 过（需要 hoisted 的 `yaml` 包） | `ls node_modules/yaml` |
 | 源站 | Hexo 站根目录，含 `_config.yml` / `_config.anzhiyu.yml` / `source/_posts/` | `ls <站点目录>` |
@@ -240,21 +240,22 @@ tags / categories / link / essay / room / about / album /
 album_detail / music / equipment / fcircle / default
 ```
 
-不在列表里的 `type` 会落到 `DefaultPage`（只渲染正文，专属布局和数据丢失）。本站需要人工处理的页面：
+另有 **`todolist` 兼容页**（1.6.14 `todolist.pug` 模板移植，1.7.1 已删该模板）：`type: todolist`
+命中专门分支，数据来自 `data/todolist.yml`，与 12 种标准类型合计 **13 条分发路径**。
+
+不在上面两组里的 `type` 会落到 `DefaultPage`（只渲染正文，专属布局和数据丢失）。本站需要人工处理的页面：
 
 | 页面 | 问题 | 处理 |
 | --- | --- | --- |
 | `charts/index.md` | `type: charts` 非标准 | 在 `[...path].astro` 加分支，或改造成自定义 Astro 页面 |
-| `todolist/index.md` | `type: todolist` 非标准 | 同上；数据来自 `data/todolist.yml`，需自己接 |
 | `log/index.md` | `layout: sitetime`（不是 `page`） | 不会命中 `[...path].astro`，URL 会 404；需专用路由或改 `layout: page` |
 | `uitest/index.md` | 676 个 Hexo tag，含未闭合 `{% tabs %}` | 见 FAQ「tag 语法」 |
 
-**两条真实缺口（Phase 3 / Phase 7 已知边界，脚本如实标注、不假装支持）：**
+**两条真实缺口（Phase 3 / Phase 7 已知边界，脚本如实标注、不假装支持；`todolist` 已由兼容页覆盖，不在缺口内）：**
 
 1. `charts` 页 `type: charts` 未分发。Astro 侧 `[...path].astro` 的 `case` 只分发
-   `tags / categories / link / essay / room / about / album / album_detail / music /
-   equipment / fcircle / default`（12 种），其余一律落到 `DefaultPage`，只渲染正文；
-   `charts` 的专属布局与数据不会迁移。脚本把 `page.type: charts`（以及 `todolist`）写进
+   12 种标准类型 + `todolist` 兼容分支，其余一律落到 `DefaultPage`，只渲染正文；
+   `charts` 的专属布局与数据不会迁移。脚本把 `page.type: charts` 写进
    `migration-report.json` 的 `unsupported`，**没有**生成任何分支来假装支持。
 2. `layout: sitetime` 页会 404。`[...path].astro` 的 `getStaticPaths` 用
    `entry.data.layout === 'page'` 过滤，`source/log/index.md` 声明的是 `layout: sitetime`，
@@ -272,7 +273,7 @@ album_detail / music / equipment / fcircle / default
 - `import.meta.glob('../../data/*.yml')` **只匹配 `.yml`**；本站 `bangumis.json` 被复制过去但不会被读取，
   需要自己在页面里 `import` 或改 glob 模式。
 - `examples/blog` 基准站有 `album.yml`，本站没有 → `album` 页数据为空。
-- `widget.yml` / `todolist.yml` / `creativity.yml` 在现有页面组件里没有消费者，属于待接入数据。
+- `widget.yml` / `creativity.yml` 在现有页面组件里没有消费者，属于待接入数据（`todolist.yml` 已由 `todolist` 兼容页消费）。
 
 ---
 
@@ -629,11 +630,13 @@ const SITE_UTC_OFFSET_MINUTES = 8 * 60   // 站点 timezone 有效时脚本按 I
 
 ### permalink
 
-源站 `permalink: posts/p:abbrlink/`（Hexo `hexo-abbrlink` 插件）→ 老链接形如 `/posts/p3eeb/`。
-Astro 侧路由固定 `/YYYY/MM/DD/(abbrlink || id)/`（如 `/2025/07/14/3eeb/`）。**两者不兼容**：
+文章路由已按源站 permalink 落位：URL 解析为单一真源（`postHref` / 可选 `resolvePostHref`），
+源站 `permalink: posts/p:abbrlink/`（Hexo `hexo-abbrlink` 插件）迁移后链接形如 `/posts/p3eeb/`，
+与源站一致（W2-A 起 prev/next、侧栏、home_top、canonical/og:url 全部走同一解析）。
+`siteExtras.permalink` 留档备查；**redirect-map 仅当 permalink 使用了不支持的 token 时才需要**：
 
 ```bash
-# 生成老 → 新映射，交给部署平台做 301
+# 仅在 permalink 含不支持 token（无法原样落位）时生成老 → 新映射，交给部署平台做 301
 cd .migration-out/xcAnzhiyu
 node -e "
 const fs=require('fs'); const {parse}=require('yaml');
@@ -648,22 +651,19 @@ for (const f of fs.readdirSync('src/content/posts').filter(f=>f.endsWith('.md')&
 " > redirect-map.txt
 ```
 
-`siteExtras.permalink` 只是留档，不会改变路由。要保留老 URL，需在 `[year]/[month]/[day]/[slug].astro` 之外
-再加一条 `/posts/p[abbrlink]/` 路由或部署层重写。
+（保留本段脚本是为了应对自定义 permalink token 的站点；常规 `posts/p:abbrlink/` 站点不需要。）
 
 ### page.type
 
-见 §5.2。`type` 不在 12 种标准类型里就只会渲染正文。特别注意 `layout` 字段：只有 `layout: page`
-会进 `[...path].astro`；`layout: sitetime` 之类的非标准值会让该页 404。
+见 §5.2。`type` 不在 12 种标准类型（+ `todolist` 兼容页）里就只会渲染正文。特别注意 `layout`
+字段：只有 `layout: page` 会进 `[...path].astro`；`layout: sitetime` 之类的非标准值会让该页 404。
 
 ### tag 语法（`{% ... %}`）
 
-真实站点大量使用 Hexo tag 插件。`astro.config.mjs` 挂了 `remark-hexo-tag`，但它只实现了
-行内 12 + 块级 12 个 tag，media/thirdparty 组仍原样透传，且**对未闭合标签会直接报错**：
-
-```
-[remark-hexo-tag] Unclosed Hexo tag `{% tabs %}`: missing `{% endtabs %}`
-```
+真实站点大量使用 Hexo tag 插件。`astro.config.mjs` 挂了 `remark-hexo-tag`，**42 个 tag 全实现**
+（65/65 单测），且迁移产物默认注入 **`lenient: true` 宽松语义**：未闭合的块级容器自动补齐、
+未知/脏 tag 原样透传（保留 `{% … %}` 字面量）并逐条 warning，**不会因内容里的 tag 语法错误
+中断构建**（严格模式仍会报 `文件:行:列`，供新内容使用）。
 
 本站 39 个内容文件里 21 个含 `{%`，`uitest/index.md` 一个文件就有 676 个标签，是渲染测试页。
 处理顺序：
@@ -736,7 +736,9 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
 ### 13.2 其它已知限制
 
 1. `pnpm install` 在 monorepo 子目录会被上层 workspace 接管 → 必须 `--ignore-workspace`；
-2. 真实内容的 Hexo tag 语法会让内容集合渲染失败（21/39 文件含 tag，含未闭合标签）；
+2. ~~真实内容的 Hexo tag 语法会让内容集合渲染失败（21/39 文件含 tag，含未闭合标签）~~
+   **（历史结论，P7-3 时点）**——42 个 tag 现已全实现，迁移产物默认 `lenient: true` 宽松语义
+   （未闭合容器自动补齐、脏 tag 透传并告警，不中断构建），见 §12「tag 语法」；
 3. 站点主题配置（136 键）喂给 stylus 插件时，某条件分支展开出非法 CSS
    （postcss `Unknown word cursor`）；换成 `examples/blog/theme.config.yml` 基准配置后骨架可正常构建；
 4. 归档 / 标签 / 分类 / 404 路由未生成（最小路由只含首页、分页、独立页、文章页）；
@@ -753,5 +755,6 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
    offset，`scripts/migrate-hexo.mjs` 的 `timezoneOffsetMinutes(tz, at)` 已具备该能力），但
    `examples/blog/src/content.config.ts` 模板不在迁移工具写范围内、且注入 per-date 逻辑无法本地
    build 验证，故暂登记为已知限制——DST 站请人工抽查跨季文章的发布时间与归档年月。
+8. **内容侧公式管线缺口（Batch B 登记）**：站点 Markdown 渲染链未接 remark-math，正文 `$...$` / `$$...$$` 不会被解析成公式节点；主题侧 mathjax/katex 的脚本与样式已按 page 级开关正确加载（Batch B 透传：`per_page: false` + front-matter `mathjax: true`/`katex: true` 可达），但要看到公式效果需站点侧自行接入 remark-math，或在正文中直接写渲染后的 HTML。属内容管线缺口，非主题渲染层回归。
 
 以上都不属于脚本 bug，属于「Hexo 生态 → Astro 生态」需要逐项做语义迁移的部分。

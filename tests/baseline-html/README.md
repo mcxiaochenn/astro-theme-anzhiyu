@@ -1,6 +1,6 @@
 # baseline-html.tar.gz
 
-上游 Hexo 主题基线（`docs/baseline.json` 里的 48 页）的 HTML 归档，给
+上游 Hexo 主题基线（`docs/baseline.json` 里的 49 页）的 HTML 归档，给
 `scripts/diff-html.mjs --all` 当参考产物用。CI 上没有 `.baseline-work/`
 （被 gitignore），所以只把 HTML 打进归档进仓库，不再走 Release / CI cache。
 

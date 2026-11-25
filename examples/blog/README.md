@@ -1,6 +1,6 @@
 # examples/blog
 
-迁移的验证站：用上游的完整样式、配置与固定内容，逐页对齐上游 `hexo g` 产物。当前构建 **62 个页面**（48 页基线 + 9 篇文章 + about + 11 个 page.type fixture），48 页基线与产物的 HTML 结构 diff 由 [scripts/diff-html.mjs](../../scripts/diff-html.mjs) 逐页比对。
+迁移的验证站：用上游的完整样式、配置与固定内容，逐页对齐上游 `hexo g` 产物。当前构建 **61 个页面**（49 页基线 + 12 独立 fixture，以 CI 构建实测为准），49 页基线与产物的 HTML 结构 diff 由 [scripts/diff-html.mjs](../../scripts/diff-html.mjs) 逐页比对。12 独立 fixture 全名单（dist 相对基线的差集）：`/categories/`、`/tags/`、`/album/`、`/album/demo/`、`/album/gallery/`、`/equipment/`、`/essay/`、`/fcircle/`、`/link/`、`/music/`、`/page-default/`、`/room/`。
 
 ## 里面是什么
 
@@ -11,25 +11,25 @@
 | `src/content.config.ts` | 内容集合：直接读仓库根 `fixtures/`（零复制），frontmatter 日期按 Hexo `Asia/Shanghai` 语义归一化 |
 | `src/pages/**` | 首页 / 文章详情 / 归档分类标签 / 404 / 独立页面 `[...path].astro` / 分页 |
 | `data/*.yml` | `site.data.*` 的 Astro 等价数据源（about / essay / album / link / equipment 等） |
-| `public/{js,css,img,anzhiyu}/` | 上游 `source/js/*` 与静态资源复刻 |
+| `public/{img,anzhiyu}/` + `favicon.ico` | 站点静态资源（`img/` 13 个文件、`anzhiyu/random.js`、favicon）；JS/CSS 不再落 `public/`，由主题包 `anzhiyuAssets()` integration 在构建期注入 `dist/`（见根 README「使用」） |
 | `astro.config.mjs` | Unified 处理器（smartypants 关闭）+ [remark-hexo-tag](../../packages/remark-hexo-tag/) + highlight.js 重建 `figure.highlight` |
 
 上游文件按 GPL-3.0 授权，与本仓库一致。
 
 ## 跑起来
 
-需要 Node ≥ 22.23.4（Astro 7 要求）：
+需要 Node ≥ 22.23.4（Astro 7 要求，与包 `engines`（`>=22.23.4`）同限）：
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter blog dev
-pnpm --filter blog build      # 62 页，产物在 dist/
+pnpm --filter blog build      # 61 页，产物在 dist/（以 CI 构建实测为准）
 ```
 
 ## 验收命令
 
 ```bash
-# 48 页 HTML 结构 diff（与 tests/baseline-html/ 里的基线比对）
+# 49 页 HTML 结构 diff（与 tests/baseline-html/ 里的基线比对；extract 是前置步骤）
 node scripts/extract-baseline-html.mjs
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all
 
@@ -47,5 +47,5 @@ node packages/remark-hexo-tag/test/run.mjs
 
 ## 已知边界
 
-- 与基线的 diff 尚未全部 PASS（当前 112 条差异，归属见 [docs/notes/](../../docs/notes/) 与 [PLAN.md §8](../../docs/PLAN.md)）
+- 与基线的 diff **49/49 PASS / 0 差异**（CI 硬门禁；C4 收紧 N21 豁免后的终值以 CI 复核为准）
 - 交互层与第三方集成的代码已落盘但未接线；`cssMinify` 暂关（上游自身有一处非法 CSS，见 PLAN 的 D7）
