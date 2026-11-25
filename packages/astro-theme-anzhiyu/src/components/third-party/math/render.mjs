@@ -35,7 +35,7 @@ export function renderKatex(theme, props = {}) {
       anzhiyu.wrap(item, 'div', { class: 'katex-wrap'})
     })
   })()`
-  return css + copytex + inlineScript(body)
+  return css + copytex + inlineScript(body, { 'data-pjax': true })
 }
 
 /** mathjax.pug:1-38（MathJax 3 配置 + #MathJax-script 动态插入） */
@@ -77,7 +77,7 @@ export function renderMathjax(theme, props = {}) {
     MathJax.texReset()
     MathJax.typesetPromise()
   }`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** mermaid.pug:1-38 —— .mermaid-wrap 渲染 + 主题切换。 */
@@ -121,7 +121,7 @@ export function renderMermaid(theme) {
 
     window.pjax ? loadMermaid() : document.addEventListener('DOMContentLoaded', loadMermaid)
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** index.pug:1-18 —— 按上游顺序拼接（mathjax → katex → mermaid）。 */

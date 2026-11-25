@@ -69,23 +69,37 @@ test.describe('右键菜单', () => {
     // 扩展组：右击的是链接，所以「新窗口打开」「复制链接地址」可见
     await expect(page.locator('#menu-newwindow')).toBeVisible()
     await expect(page.locator('#menu-copylink')).toBeVisible()
-    // 基础组与扩展组互斥
-    await expect(page.locator('#menu-top')).toBeHidden()
+    // 基础组（.rightMenuOther：随机逛逛等）与扩展组互斥；#menu-top 属 .rightMenu-small
+    // （前进/后退/刷新/顶部），上游 right_click_menu.js 任何模式都不隐藏它
+    await expect(page.locator('#menu-randomPost')).toBeHidden()
+    await expect(page.locator('#menu-top')).toBeVisible()
   })
 
   test('右击空白处显示基础菜单，不出现链接扩展项', async ({ page }) => {
     await gotoReady(page, '/')
     test.skip(!(await hasRightMenuRuntime(page)), RIGHT_MENU_DISABLED_REASON)
 
-    await page.locator('body').click({ button: 'right', position: { x: 4, y: 4 } })
+    // 「空白」= 无链接、无图片、无选中文本的目标。上游的图片检测会看 target 的
+    // 子孙/祖先里有没有 img（right_click_menu.js 的 currentSrc/querySelector('img')/
+    // closest('img') 三连），首页固定层与卡片到处是封面图，随手右击 (4,4) 会命中
+    // 「图片扩展模式」——注入一个纯净目标来复现真正的空白场景。
+    await page.evaluate(() => {
+      const blank = document.createElement('div')
+      blank.id = 'e2e-rightmenu-blank'
+      blank.style.cssText = 'position:fixed;left:0;top:0;width:64px;height:64px;z-index:9999'
+      document.body.appendChild(blank)
+    })
+    await page.locator('#e2e-rightmenu-blank').click({ button: 'right' })
     await expect(page.locator('#rightMenu')).toBeVisible()
 
     await expect(page.locator('#menu-top')).toBeVisible()
     await expect(page.locator('#menu-backward')).toBeVisible()
     await expect(page.locator('#menu-forward')).toBeVisible()
-    await expect(page.locator('#menu-copytext')).toBeVisible()
+    await expect(page.locator('#menu-randomPost')).toBeVisible()
     await expect(page.locator('#menu-newwindow')).toBeHidden()
     await expect(page.locator('#menu-copylink')).toBeHidden()
+    // 「复制选中文本」属扩展组且仅在有选中文本时出现（upstream: selectTextNow 门控）
+    await expect(page.locator('#menu-copytext')).toBeHidden()
   })
 
   test('点击「回到顶部」关闭菜单并滚动到页首', async ({ page }) => {

@@ -269,7 +269,9 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
       } else {
         subtitleType()
       }`
-  return inlineScript(body + tail)
+  // data-pjax：上游 .js-pjax 内脚本每次换页重执行（本地约定见 AdditionalJs.astro），
+  // 打字机要对换页后的新 #subtitle / #footer-type-tips 节点重新跑。
+  return inlineScript(body + tail, { 'data-pjax': true })
 }
 
 /** third-party/subtitle.pug:1-129 —— 门控 theme.subtitle.enable（header/index.pug:48-51）。 */

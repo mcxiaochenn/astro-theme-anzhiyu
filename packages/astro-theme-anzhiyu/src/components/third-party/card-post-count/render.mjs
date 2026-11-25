@@ -11,6 +11,10 @@
  * 门控：`theme.comments.card_post_count`（上游 needLoadCountJs，见
  * mixins/post-ui.pug:69-78）+ 对应后端在 `theme.comments.use` 里。
  * 上游挂载点：additional-js.pug:66-67（.js-pjax 内）。
+ *
+ * `data-pjax`：上游 `.js-pjax` 内的脚本每次 pjax 换页都重执行（本地约定见
+ * AdditionalJs.astro 头注）；计数脚本自己也写的是 `window.pjax ? run() : load`。
+ * 不打标记的话 Astro 侧文本相同的内联脚本只执行一次，换页后侧栏计数永远是空的。
  */
 import {
   asset,
@@ -66,7 +70,7 @@ export function renderCardPostCountTwikoo(theme) {
 
     window.pjax ? getCount() : window.addEventListener('load', getCount)
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** valine.pug:1-21 */
@@ -92,7 +96,7 @@ export function renderCardPostCountValine(theme) {
 
     window.pjax ? loadValine() : window.addEventListener('load', loadValine)
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** waline.pug:1-21（上游第 1 行去掉 serverURL 结尾斜杠） */
@@ -118,7 +122,7 @@ export function renderCardPostCountWaline(theme) {
 
     window.pjax ? loadWaline() : window.addEventListener('load', loadWaline)
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** artalk.pug:1-31 */
@@ -153,7 +157,7 @@ export function renderCardPostCountArtalk(theme) {
 
     window.pjax ? getArtalkCount() : window.addEventListener('load', getArtalkCount)
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 const BACKENDS = {

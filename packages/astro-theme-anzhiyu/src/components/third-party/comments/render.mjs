@@ -84,6 +84,9 @@ export function renderCommentsIndex(theme, props = {}) {
 
 /* ------------------------------------------------------------------ */
 /* 5 个后端脚本（上游 comments/*.pug）                                  */
+/* 内联初始化脚本带 `data-pjax`：它们位于上游 `.js-pjax` 内（每次 pjax 换页 */
+/* 重执行，本地约定见 AdditionalJs.astro 头注），Astro 侧文本相同的内联脚本  */
+/* 默认只执行一次 —— 不打标记，换页后新页面的评论区永远不会初始化。        */
 /* ------------------------------------------------------------------ */
 
 /** valine.pug:1-37 —— el:'#vcomment'、appId/appKey/serverURLs/visitor/option。 */
@@ -127,7 +130,7 @@ export function renderValine(theme, props = {}) {
       window.loadOtherComment = loadValine
     }
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** waline.pug:1-45 —— el:'#waline-wrap'、serverURL/pageview/comment/imageUploader。 */
@@ -178,7 +181,7 @@ export function renderWaline(theme) {
       window.loadOtherComment = loadWaline
     }
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** twikoo.pug:1-50 —— el:'#twikoo-wrap'、envId/region、#twikoo-count。 */
@@ -235,7 +238,7 @@ export function renderTwikoo(theme) {
       window.loadOtherComment = loadTwikoo
     }
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** artalk.pug:1-72 —— el:'#artalk-wrap'、server/site、page_comment 计数。 */
@@ -311,7 +314,7 @@ export function renderArtalk(theme) {
       getCommentCount()
     }
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 /** giscus.pug:1-53 —— #giscus-wrap、repo/repo_id/category_id、theme 切换。 */
@@ -370,7 +373,7 @@ export function renderGiscus(theme) {
       window.loadOtherComment = loadGiscus
     }
   })()`
-  return inlineScript(body)
+  return inlineScript(body, { 'data-pjax': true })
 }
 
 const BACKENDS = {

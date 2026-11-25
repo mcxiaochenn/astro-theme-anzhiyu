@@ -1,6 +1,8 @@
 window.addEventListener("load", () => {
-  const $searchMask = document.getElementById("search-mask");
-  const $searchDialog = document.querySelector("#algolia-search .search-dialog");
+  // 搜索弹层/遮罩在 Search 组件子树里，ClientRouter 换页即被替换 —— 取值现查，
+  // 不缓存首屏节点（否则换页后 animateIn/animateOut 全作用在已丢弃的旧节点上）。
+  const searchMask = () => document.getElementById("search-mask");
+  const searchDialog = () => document.querySelector("#algolia-search .search-dialog");
 
   // HTML 转义函数，防止 XSS 攻击
   const escapeHtml = str => {
@@ -11,8 +13,8 @@ window.addEventListener("load", () => {
   };
 
   const openSearch = () => {
-    anzhiyu.animateIn($searchMask, "to_show 0.5s");
-    $searchDialog.style.display = "block";
+    anzhiyu.animateIn(searchMask(), "to_show 0.5s");
+    searchDialog().style.display = "block";
     setTimeout(() => {
       document.querySelector("#algolia-search .ais-SearchBox-input").focus();
     }, 100);
@@ -52,15 +54,15 @@ window.addEventListener("load", () => {
   }
 
   const closeSearch = () => {
-    anzhiyu.animateOut($searchDialog, "search_close .5s");
-    anzhiyu.animateOut($searchMask, "to_hide 0.5s");
+    anzhiyu.animateOut(searchDialog(), "search_close .5s");
+    anzhiyu.animateOut(searchMask(), "to_hide 0.5s");
     window.removeEventListener("resize", fixSafariHeight);
   };
 
   // fix safari
   const fixSafariHeight = () => {
     if (window.innerWidth < 768) {
-      $searchDialog.style.setProperty("--search-height", window.innerHeight + "px");
+      searchDialog().style.setProperty("--search-height", window.innerHeight + "px");
     }
   };
 
@@ -68,9 +70,18 @@ window.addEventListener("load", () => {
     anzhiyu.addEventListenerPjax(document.querySelector("#search-button > .search"), "click", openSearch);
   };
 
-  const searchFnOnce = () => {
-    $searchMask.addEventListener("click", closeSearch);
-    document.querySelector("#algolia-search .search-close-button").addEventListener("click", closeSearch);
+  const searchDialogFn = () => {
+    // 弹层节点带 data-astro-transition-persist（常驻）；幂等重绑兜底（dataset 防叠加）。
+    const $mask = searchMask();
+    if ($mask && !$mask.dataset.closeBound) {
+      $mask.dataset.closeBound = "1";
+      $mask.addEventListener("click", closeSearch);
+    }
+    const $closeButton = document.querySelector("#algolia-search .search-close-button");
+    if ($closeButton && !$closeButton.dataset.closeBound) {
+      $closeButton.dataset.closeBound = "1";
+      $closeButton.addEventListener("click", closeSearch);
+    }
   };
 
   const algolia = GLOBAL_CONFIG.algolia;
@@ -200,11 +211,15 @@ window.addEventListener("load", () => {
   search.start();
 
   searchClickFn();
-  searchFnOnce();
+  searchDialogFn();
 
+  window.addEventListener("pjax:send", () => {
+    const $mask = searchMask();
+    if ($mask && !anzhiyu.isHidden($mask)) closeSearch();
+  });
   window.addEventListener("pjax:complete", () => {
-    !anzhiyu.isHidden($searchMask) && closeSearch();
     searchClickFn();
+    searchDialogFn();
   });
 
   window.pjax &&

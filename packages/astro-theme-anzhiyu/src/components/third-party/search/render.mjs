@@ -17,12 +17,20 @@ import { asset, esc, flag, inlineScript, obj, styleLink, srcScript } from '../_k
 const CLOSE_BUTTON =
   '<button class="search-close-button"><i class="anzhiyufont anzhiyu-icon-xmark"></i></button>'
 const MASK = '<div id="search-mask"></div>'
+/**
+ * 搜索弹层在上游 pjax 的换页区域**之外**（layout.pug:86 的 third-party/search 整棵
+ * 不随 #body-wrap/.js-pjax 交换），Algolia instantsearch / docsearch 的容器引用也
+ * 绑在这些节点上。这里用 `data-astro-transition-persist` 把弹层标成常驻节点，
+ * 等价复刻上游生命周期；属性本身走 diff-html N7（data-astro-* 整类丢弃），不影响
+ * 基线 DOM 比对。`#search-button`（Header 子树）仍随页替换，由各搜索脚本换页重绑。
+ */
+const SEARCH_PERSIST = ' data-astro-transition-persist="search_overlay"'
 
 /** local-search.pug:1-20 —— 完整弹层 DOM（上游无任何脚本，脚本在 additional-js.pug:49-50）。 */
 export function renderLocalSearch(theme) {
   if (!flag(theme.local_search, 'enable')) return ''
   return (
-    '<div id="local-search">' +
+    `<div id="local-search"${SEARCH_PERSIST}>` +
     '<div class="search-dialog">' +
     '<nav class="search-nav">' +
     '<span class="search-dialog-title">搜索</span>' +
@@ -61,7 +69,7 @@ export function renderAlgolia(theme) {
         .join('')
     : ''
   return (
-    '<div id="algolia-search">' +
+    `<div id="algolia-search"${SEARCH_PERSIST}>` +
     '<div class="search-dialog">' +
     '<nav class="search-nav">' +
     '<span class="search-dialog-title">搜索</span>' +
@@ -106,7 +114,7 @@ export function renderDocsearch(theme) {
       window.addEventListener('pjax:complete', searchClickFn)
     })()`
   return (
-    '<div class="docsearch-wrap">' +
+    `<div class="docsearch-wrap"${SEARCH_PERSIST}>` +
     '<div id="docsearch" style="display:none"></div>' +
     styleLink(asset(theme, 'docsearch_css')) +
     srcScript(asset(theme, 'docsearch_js')) +

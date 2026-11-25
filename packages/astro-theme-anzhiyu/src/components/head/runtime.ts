@@ -10,7 +10,7 @@
  * Astro 侧由 `<ClientRouter />` 接管第 1 件事，本模块只负责第 2 件事的**等价映射**：
  *   astro:before-swap  → 记录当前 `<html data-theme>` + 补发 `pjax:send`
  *   astro:after-swap   → 重放 `<html data-theme>`（ClientRouter 换页会覆写 html 属性）
- *   astro:page-load    → 先 `window.refreshFn()`，再补发 `pjax:complete`
+ *   astro:page-load    → 先 `window.refreshFn()`，再补发 `pjax:success` + `pjax:complete`
  *
  * 三个关键点：
  *   - **首屏不重复执行**：`main.js` 在 DOMContentLoaded 里已经调用过 `refreshFn()`，
@@ -42,7 +42,11 @@
 import { navigate } from 'astro:transitions/client'
 
 type PjaxLoadOptions = { history?: boolean }
-type PjaxGlobal = { loadUrl: (url: string, options?: PjaxLoadOptions) => void }
+type PjaxGlobal = {
+  loadUrl: (url: string, options?: PjaxLoadOptions) => void
+  /** 上游 `pjax.refresh(container)`：重扫容器里的站内链接。ClientRouter 用全局委托接管链接，等价为空操作；保留占位避免页面脚本 TypeError。 */
+  refresh: (container?: unknown) => void
+}
 
 type RuntimeWindow = Window & {
   pjax?: PjaxGlobal
@@ -99,7 +103,10 @@ function restoreTheme(theme: ThemeMode): void {
 declare const anzhiyu: { removeGlobalFnEvent?: (name: string) => void } | undefined
 
 function dispatch(name: string): void {
-  document.dispatchEvent(new CustomEvent(name))
+  // 上游 Pjax 的 `fire()` 用 `initEvent(name, true, true)` 派发——事件会冒泡到
+  // window；local-search / algolia 等脚本的 `window.addEventListener('pjax:complete')`
+  // 靠这个才收得到。不冒泡的 CustomEvent 会让这些「换页后重绑」路径全部哑掉。
+  document.dispatchEvent(new CustomEvent(name, { bubbles: true }))
 }
 
 /** 上游 pjax.pug:24-44 的 `pjax:send` 副作用。 */
@@ -158,6 +165,66 @@ function onPjaxComplete(): void {
   }
 }
 
+/**
+ * Meting2 生命周期保护（P4-7 复核修）——针对「无 `Element.moveBefore` 的浏览器」。
+ *
+ * 上游 pjax 从不搬移 `#nav-music`（它在换页区域之外），`meting-js` 的
+ * `disconnectedCallback` / `connectedCallback` 因此永远不触发；而 Astro 的
+ * `transition:persist` 搬移在没有 `moveBefore` 的内核上走「摘下→挂回」路径，
+ * 每次换页都会让 Meting2 把播放器销毁再重建（音乐岛换页即重启/失声）。
+ *
+ * Meting2 自带两个可编程挂点（hexo-anzhiyu-music@1.0.1）：
+ *   - `disconnectedCallback(){ this.lock || this.aplayer.destroy() }` —— 实例属性
+ *     `lock` 为真时跳过销毁；
+ *   - `connectedCallback(){ …this._init(), this._parse() }` —— 重连时会重建播放器，
+ *     用实例属性把 `_init` / `_parse` 临时置空即可跳过（属性遮蔽原型方法）。
+ *
+ * 换页搬移窗口（astro:before-swap → astro:after-swap）内对**所有** meting-js 上锁：
+ *   - persist 容器内要搬走的实例（#nav-music 的播放器）：锁 + stub → 原样搬家，
+ *     窗口结束后恢复；
+ *   - 随旧 body 丢弃的实例（如 /music/ 页播放器）：锁住避免半初始化时
+ *     `this.aplayer.destroy()` 抛 TypeError，窗口结束后显式销毁（补空值保护）。
+ *
+ * 注意不能走「补丁 prototype.disconnectedCallback」路线：custom element 的生命周期
+ * 回调在 `customElements.define()` 时就被快照进 definition，事后改原型无效（实测）。
+ */
+type MetingElement = HTMLElement & {
+  lock?: boolean
+  aplayer?: { destroy?: () => void }
+  _init?: () => void
+  _parse?: () => void
+  __anzhiyuMetingGuard?: { lock?: boolean; init?: () => void; parse?: () => void }
+}
+const movingMetings: MetingElement[] = []
+
+function protectMetingBeforeSwap(): void {
+  document.querySelectorAll<MetingElement>('meting-js').forEach((el) => {
+    if (el.__anzhiyuMetingGuard) return
+    el.__anzhiyuMetingGuard = { lock: el.lock, init: el._init, parse: el._parse }
+    el.lock = true
+    el._init = () => {}
+    el._parse = () => {}
+    movingMetings.push(el)
+  })
+}
+
+function restoreMetingAfterSwap(): void {
+  while (movingMetings.length) {
+    const el = movingMetings.pop() as MetingElement
+    const guard = el.__anzhiyuMetingGuard
+    if (guard) {
+      el.lock = guard.lock
+      el._init = guard.init
+      el._parse = guard.parse
+    }
+    delete el.__anzhiyuMetingGuard
+    // 随旧 body 丢弃的实例在这里显式销毁（Meting2 原逻辑在半初始化时会 NPE）。
+    if (!el.isConnected && el.aplayer && typeof el.aplayer.destroy === 'function') {
+      el.aplayer.destroy()
+    }
+  }
+}
+
 function install(): void {
   if (w.__anzhiyuPjaxRuntime) return
   w.__anzhiyuPjaxRuntime = true
@@ -168,6 +235,9 @@ function install(): void {
       loadUrl(url: string, options: PjaxLoadOptions = {}) {
         const history = options.history === false ? 'replace' : 'auto'
         void navigate(url, { history })
+      },
+      refresh() {
+        /* ClientRouter 全局链接委托已覆盖 `pjax.refresh` 的职责（重扫容器内链接）。 */
       },
     }
   }
@@ -189,6 +259,10 @@ function install(): void {
     const newDocument = (event as unknown as { newDocument?: Document }).newDocument
     newDocument?.querySelectorAll('meting-js').forEach((node) => node.remove())
 
+    // 换页搬移窗口开启：全部 meting-js 上锁，persist 实例原样搬家、
+    // 被丢弃实例延后到 after-swap 显式销毁。
+    protectMetingBeforeSwap()
+
     w.__anzhiyuPjaxNavigated = true
     onPjaxSend()
     dispatch('pjax:send')
@@ -202,6 +276,7 @@ function install(): void {
    * 负责，本监听不写 localStorage、不调 handleThemeChange。
    */
   document.addEventListener('astro:after-swap', () => {
+    restoreMetingAfterSwap()
     if (themeBeforeSwap) restoreTheme(themeBeforeSwap)
   })
 
@@ -209,6 +284,9 @@ function install(): void {
     // 首屏：main.js 的 DOMContentLoaded 已经 refreshFn 过；上游也不会发 pjax:complete。
     if (!w.__anzhiyuPjaxNavigated) return
     onPjaxComplete()
+    // 上游 pjax 在导航成功后先发 `pjax:success` 再发 `pjax:complete`；缺前者会让
+    // people.js 等监听 `pjax:success` 的页面脚本永远拿不到重初始化时机。
+    dispatch('pjax:success')
     dispatch('pjax:complete')
   })
 }
