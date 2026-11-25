@@ -269,6 +269,79 @@ function unwrapFigureTbody(html) {
   )
 }
 
+/* ================================================================== */
+/* CI 修 · 段内软换行 → <br>（golden 语义对齐）                         */
+/* ================================================================== */
+/*
+ * 上游 hexo-renderer-marked 默认 `breaks: true`
+ * （.baseline-work/node_modules/hexo-renderer-marked/index.js:10）：段内单个软换行
+ * 渲染成 `<br>`（marked 的 br() 只输出 `<br>`，换行前的行尾空格被 br 正则
+ * `^( *|\\)\n` 吞掉）。CommonMark/remark 把软换行留在 mdast text 节点的 `\n` 里，
+ * mdast-util-to-hast 的 text handler 再把 `\n` 折叠成空格——golden
+ * （.baseline-html/2024/11/20/24531/index.html）p[1] 两处 + p[2] 一处 `<br>`
+ * 就是这么丢的（fixtures/abbrlink-post.md 的段内换行）。
+ *
+ * remarkHexoSoftBreaks：把 text 节点里的 `\n` 拆成 `text + break` 节点序列，
+ * remark-rehype 渲染 `<br>`。零依赖、纯 mdast 变换：
+ *   - 只动 `text` 节点；`code` / `inlineCode` / `html`（含 remarkHexoTag 的
+ *     raw 区域与 `{% %}` 渲染产物）一律不动；
+ *   - **必须排在 remarkHexoTag 之后**：它的 transformer 从原文重建整棵树
+ *     （tree.children = ctx.md(source)，见 remark-hexo-tag/src/index.mjs），
+ *     先跑会被覆盖；之后跑则天然共存——tag 已展开成 html/mdast 节点，
+ *     剩下的 text 都是真实正文（含容器正文经 ctx.md 递归解析的部分，
+ *     与上游 renderSync({engine:'markdown'}) 的 breaks 语义一致）；
+ *   - 换行前的行尾空格按 marked 的 br 正则语义吞掉，换行后的行首空格保留；
+ *   - **tag 岛内的换行不拆**（text 节点两侧兄弟都是 html/raw 时原样保留）：
+ *     上游 tag 渲染在 marked **之后**做模板替换——golden
+ *     .baseline-html/2025/03/18/tags-block/index.html:228-229 的 hideInline
+ *     `点我查看\n  </button>` 没有 `<br>`，而 marked 对同一字符串是会出 `<br>` 的
+ *     （.baseline-work marked 实测，见 docs/notes/fix-ci-wave.md），
+ *     说明模板字面换行不走 breaks 语义，不能拆。
+ */
+function remarkHexoSoftBreaks() {
+  return (tree) => {
+    const isRawHtml = (node) => Boolean(node) && (node.type === 'html' || node.type === 'raw')
+    const splitText = (node) => {
+      if (!Array.isArray(node.children)) return
+      /** @type {object[]} */
+      const next = []
+      for (let index = 0; index < node.children.length; index++) {
+        const child = node.children[index]
+        const inTagIsland = isRawHtml(node.children[index - 1]) && isRawHtml(node.children[index + 1])
+        if (
+          !inTagIsland &&
+          child.type === 'text' &&
+          typeof child.value === 'string' &&
+          child.value.includes('\n')
+        ) {
+          const parts = child.value.split(/\r?\n/)
+          parts.forEach((part, partIndex) => {
+            const isLast = partIndex === parts.length - 1
+            const value = isLast ? part : part.replace(/ +$/, '')
+            if (value) next.push({ type: 'text', value })
+            if (!isLast) next.push({ type: 'break' })
+          })
+          continue
+        }
+        splitText(child)
+        next.push(child)
+      }
+      node.children = next
+    }
+    splitText(tree)
+  }
+}
+
+/**
+ * mdast `break` 的默认 handler（mdast-util-to-hast break.js）输出
+ * `[<br>, "\n"]`，比 marked 的裸 `<br>` 多一个文本节点——DOM 里
+ * `\n` 会并进后继文本节点，严格逐节点比对（golden 的文本切分）会差一个前缀。
+ * 这里覆盖成与 marked `br(){ return "<br>" }` 同形的裸 `<br>`。
+ */
+function hastBreakBare(state, node) {
+  return state.applyData(node, { type: 'element', tagName: 'br', properties: {}, children: [] })
+}
+
 /**
  * 自定义 Markdown 处理器：等价于 `unified({ smartypants: false, rehypePlugins: [...] })`，
  * 额外只在 `render()` 外面套一层 {@link unwrapFigureTbody}。
@@ -292,7 +365,12 @@ const hexoMarkdownProcessor = {
       // P6-1：manifest 里行内 12 + 块级 12 个 tag 已实现；media/thirdparty 两组
       // 仍原样透传（warning），等 P6-2 / P6-3 填 handler。
       // `noteStyle` 对齐 theme.config.yml 的 `note.style`（当前为 flat）。
-      remarkPlugins: [[remarkHexoTag, { noteStyle: 'flat' }]],
+      //
+      // CI 修：remarkHexoSoftBreaks 必须排在 remarkHexoTag **之后**（它会重建整棵树），
+      // 把段内软换行拆成 break 节点（见上方「段内软换行」说明）。
+      remarkPlugins: [[remarkHexoTag, { noteStyle: 'flat' }], remarkHexoSoftBreaks],
+      // break 节点 → 裸 `<br>`（marked br() 同形）；不影响 allowDangerousHtml（默认 true）。
+      remarkRehype: { handlers: { break: hastBreakBare } },
       // M1：`<pre><code class="language-x">` → 上游 `figure.highlight`
       //
       // `rehypeHexoInlineP`：把句中的 `{% p %}` 从外层段落里拆成兄弟节点。
@@ -309,6 +387,11 @@ const hexoMarkdownProcessor = {
     }
   },
 }
+
+// 供 node 级验证脚本复用**同一份**处理器配置（docs/notes/fix-ci-wave.md 的验证一节）：
+// hexoMarkdownProcessor 是生产配置本体；其余是验证脚本搭「修复前」对照臂用的纯函数。
+// Astro 配置加载只读 default export，具名导出不影响构建。
+export { hexoMarkdownProcessor, remarkHexoSoftBreaks, rehypeHexoHighlight, unwrapFigureTbody }
 
 /* ================================================================== */
 /* P7-1 · PWA（默认关闭；`ANZHIYU_PWA=1` 才接线）                       */

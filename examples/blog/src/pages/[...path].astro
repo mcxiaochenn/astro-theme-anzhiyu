@@ -155,8 +155,8 @@ const contentForDescription = renderedHtml.replace(/(<\/h[1-6]>)\n/g, '$1')
 /** 上游 `full_date(page.updated)`：`updated_option: date` 下缺省回退 `page.date`。 */
 const postUpdate = hexoFullDate((data.updated ?? data.date) as Date | undefined)
 
-/** 上游 `escapeQuote(page.ai)`：falsy（含 false / 空串）一律输出空串；B1：字符串原值透传，布尔 true 不再 `String()` 成 `"true"`（与 slug.astro 同步）。 */
-const postAI = typeof data.ai === 'string' ? data.ai : undefined
+/** 上游 `escapeQuote(page.ai)` 同形（config_site.pug:2,5）：falsy（含 false / 空串）输出空串，真值 `String(page.ai)`——`ai: true` 必须落 `'true'`（golden 逐字节），与 slug.astro 同步。「'true' 不当摘要」由消费层 ai_abstract.js 守卫。 */
+const postAI = data.ai ? String(data.ai) : undefined
 const postMainColor = typeof data.main_color === 'string' ? data.main_color : undefined
 /** B2：page 级开关透传（front-matter 原值；缺省 undefined，见 BaseLayout 的 props 注释）。 */
 const pageSwitch = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)

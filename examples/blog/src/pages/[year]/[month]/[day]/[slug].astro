@@ -116,7 +116,7 @@ const pageSwitch = (value: unknown): boolean | undefined => (typeof value === 'b
   headings={page.headings}
   aside={page.data.aside !== false}
   postUpdate={page.current.updated.full}
-  postAI={typeof page.data.ai === 'string' ? page.data.ai : undefined}
+  postAI={page.data.ai ? String(page.data.ai) : undefined}
   postMainColor={typeof page.data.main_color === 'string' ? page.data.main_color : undefined}
   pageComments={pageSwitch(page.data.comments)}
   pageMathjax={pageSwitch(page.data.mathjax)}

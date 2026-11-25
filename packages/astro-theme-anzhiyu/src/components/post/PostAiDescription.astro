@@ -10,7 +10,8 @@
  *
  * B1：`ai` 放宽为布尔 | 字符串后，门控改**真值判断**（对齐上游 `pageFillDescription && page.ai`）：
  * ai 为真即出 AI 摘要块；**原值透传**给 render 层——字符串即摘要候选（经 postAI 通道给
- * ai_abstract.js 的 local 模式），布尔 true 只当开关（postAI 不得落成 `"true"`，见 slug.astro）。
+ * ai_abstract.js 的 local 模式）。postAI 序列化与上游 config_site.pug 同形（`ai: true` →
+ * `'true'`，见 slug.astro）；字面 `'true'` 不当摘要是 ai_abstract.js 消费层的守卫。
  * ai-info 的 Props 类型暂收窄为 boolean，此处过界断言，运行时按原值走。
  */
 import AiInfo from '../third-party/ai-info.astro'

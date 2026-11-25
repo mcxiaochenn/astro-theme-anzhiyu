@@ -53,7 +53,18 @@ const THIRD_PARTY_STUB = `
   window.Pace = window.Pace || { on: noop, off: noop, start: noop, stop: noop, restart: noop };
   // about 页（components/page/about/about-script.ts）：typeof gsap 守卫后的 CountUp 动画
   window.CountUp = window.CountUp || function () { this.start = noop; this.update = noop; };
-  window.gsap = window.gsap || { set: noop, to: noop, timeline: function () { return this; } };
+  // peoplecanvas（assets/js/anzhiyu/people.js）用到 parseEase / timeline 链 / ticker.add·remove；
+  // 桩必须覆盖 cleanupPeopleCanvas（pjax:send → gsap.ticker.remove），否则「外部 CDN 不可达」
+  // 会伪装成产品 TypeError（G1 CI 红：reading 'remove'）。
+  window.gsap = window.gsap || {
+    set: noop,
+    to: noop,
+    parseEase: function () { return function (t) { return t; }; },
+    ticker: { add: noop, remove: noop },
+    timeline: function () {
+      return { timeScale: noop, to: noop, eventCallback: noop, kill: noop, progress: noop };
+    },
+  };
   window.socialShare = window.socialShare || noop;
 })();
 `
