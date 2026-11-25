@@ -14,7 +14,7 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-25（Batch A–G 修复批次 + Batch F 文档对齐后刷新数字口径；2026-11-24 21:00 为 Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过；2026-11-25 17:49 demo 站部署上线——`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`）**
+**快照时间：2026-11-25（Batch A–G 修复批次 + Batch F 文档对齐后刷新数字口径；2026-11-24 21:00 为 Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过；2026-11-25 17:49 demo 站部署上线——`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`，同日 22:35 改版为本仓库 `demo-pages` 产物分支 + 同一 CNAME，独立部署仓库已删除）**
 
 ### 1.1 仓库
 
@@ -722,7 +722,7 @@ jobs:
 | # | 事项 | 归属 | 说明 |
 | --- | --- | --- | --- |
 | 1 | **npm publish 主题包 1.0.0** | 用户 | 本机 `npm whoami` = ENEEDAUTH；发布命令与 2FA 步骤见 `docs/notes/P7-6-release.md`；tarball 安装冒烟已通过 |
-| 2 | ~~demo 站 Pages 部署~~ | ✅ 2026-11-25 | 已部署 `mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`（`cd8ae03`；旧 `mcxiaochenn.github.io/blog` 子路径部署已移除） |
+| 2 | ~~demo 站 Pages 部署~~ | ✅ 2026-11-25 | 部署形态改版本仓库 `demo-pages` 产物分支 + CNAME `anzhiyu.example.mcxiaochen.top`（`scripts/deploy-demo-pages.mjs` 一键构建推送；先前的独立部署仓库 `mcxiaochenn/anzhiyu-demo` 与更早的 `mcxiaochenn.github.io/blog` 子路径部署均已移除） |
 | 3 | **git tag v1.0.0** | 用户 | 只本地创建待授权；`git push origin v1.0.0` 属远程操作 |
 | 4 | Lighthouse a11y（0.76-0.85）/ seo（0.83-0.92）提升 | 后续 backlog | 当前为实测基线与回归门禁，不阻塞迁移退出；见 P7-2 笔记 §9.2 |
 | 5 | 真实站浏览器走查的搜索框点击、快捷键、图片懒加载/灯箱、主色调随封面 | 后续人工 | 数据层/组件层已验收；UI 点击走查项见 P7-4 终验报告 §4 的诚实记录 |

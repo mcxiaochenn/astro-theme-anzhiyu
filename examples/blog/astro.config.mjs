@@ -28,7 +28,10 @@ const root = path.dirname(fileURLToPath(import.meta.url))
 //     显式 configPath 由 ANZHIYU_THEME_CONFIG 提供（theme-context.ts:28-29）。
 // 构建时显式传 configPath = theme.config.yml（严禁重命名 theme.config.yml / 新建同内容
 // 副本），两条通道收口到同一文件；此前 HTML 侧按文件名搜索找不到配置、静默走 defaults。
-process.env.ANZHIYU_THEME_CONFIG = path.join(root, 'theme.config.yml')
+// 外部已设 ANZHIYU_THEME_CONFIG 时以之为准（demo 构建指向 theme.config.demo.yml，
+// 见 scripts/deploy-demo-pages.mjs），两条通道仍收口到同一文件。
+const themeConfigPath = process.env.ANZHIYU_THEME_CONFIG || path.join(root, 'theme.config.yml')
+process.env.ANZHIYU_THEME_CONFIG = themeConfigPath
 
 /* ================================================================== */
 /* M1 · 代码块 DOM 对齐（P2-7）                                        */
@@ -777,8 +780,9 @@ export default defineConfig({
     plugins: [
       stylusHexoConfig({
         // 直接复用上游 Hexo 主题的 _config.yml，不做任何改写。
-        // B5：与 HTML 通道（ANZHIYU_THEME_CONFIG，见文件头）指向同一文件 theme.config.yml。
-        configPath: path.join(root, 'theme.config.yml'),
+        // B5：与 HTML 通道（ANZHIYU_THEME_CONFIG，见文件头）指向同一文件 themeConfigPath
+        //（默认 theme.config.yml；demo 构建指向 theme.config.demo.yml）。
+        configPath: themeConfigPath,
         debug: true,
       }),
     ],

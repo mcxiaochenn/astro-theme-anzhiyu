@@ -93,7 +93,7 @@ node scripts/migrate-hexo.mjs --site <hexo-site-dir> --out .migration-out/<name>
 
 Usage, known boundaries, and timezone/permalink FAQs: [migration guide](docs/MIGRATION.md).
 
-**Live demo**: <https://anzhiyu.example.mcxiaochen.top/> (GitHub Pages custom-domain root deployment via [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs); root deployment has no runtime-path degradation).
+**Live demo**: <https://anzhiyu.example.mcxiaochen.top/> (GitHub Pages custom-domain root deployment, artifacts on this repo's `demo-pages` branch via [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs); root deployment has no runtime-path degradation).
 
 ## Documents
 

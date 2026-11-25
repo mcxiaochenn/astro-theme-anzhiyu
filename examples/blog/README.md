@@ -7,7 +7,7 @@
 | 文件 | 来源 |
 | --- | --- |
 | `theme.config.yml` | 上游 [anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 1.7.1 的 `_config.yml`，未改动 |
-| `theme.config.demo.yml` | 线上演示（anzhiyu.example.mcxiaochen.top）功能全开配置留档（2026-11-25）；CI / 验收构建仍用 `theme.config.yml` |
+| `theme.config.demo.yml` | 线上演示（anzhiyu.example.mcxiaochen.top）功能全开 delta（2026-11-25；menu 4 组 / local_search / rightClickMenu / shortcutKey / greetingBox / busuanzi / mainTone / swiper / bubble），由 `scripts/deploy-demo-pages.mjs` 深合并到 `theme.config.yml` 后构建；CI / 验收构建仍用 `theme.config.yml` |
 | `src/styles/**` | 上游 `source/css/` 全量 72 styl + 47 css，未改动 |
 | `src/content.config.ts` | 内容集合：直接读仓库根 `fixtures/`（零复制），frontmatter 日期按 Hexo `Asia/Shanghai` 语义归一化 |
 | `src/pages/**` | 首页 / 文章详情 / 归档分类标签 / 404 / 独立页面 `[...path].astro` / 分页 |

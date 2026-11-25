@@ -134,19 +134,19 @@ npm publish --access public # 真发布；2FA 账号加 --otp 123456
 
 ### demo 站部署
 
-[scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一条命令：demo 构建（`DEPLOY_SITE_URL/ROOT` 映射到 `site.url`/`root` 与 Astro `base`）→ 子路径部署时给站内绝对路径补前缀（根路径部署跳过改写）→ clone 目标 Pages 仓库 → 覆盖产物（子路径只动子目录；根路径清仓保留 `.git`）→ 补 `.nojekyll` 与 `CNAME` → commit → push。
+[scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一条命令：功能全开 demo 构建（`theme.config.yml` 基线 + [theme.config.demo.yml](examples/blog/theme.config.demo.yml) delta 深合并成临时完整配置，经 `ANZHIYU_THEME_CONFIG` 收口 HTML/CSS 双通道；`data/essay.yml` 首组临时补 `home_essay`；生成 `search.xml` 索引）→ 根路径部署时跳过前缀改写 → 同步产物到**本仓库 `demo-pages` 分支**（产物分支，首推自动建分支）→ 补 `.nojekyll` 与 `CNAME` → commit → push。
 
 ```bash
 node scripts/deploy-demo-pages.mjs
-# 可选环境变量：DEMO_PAGES_REPO（默认 mcxiaochenn/mcxiaochenn.github.io）
-#                DEMO_PAGES_PATH（默认 blog；传 '' 或 '-' 走根路径部署）
-#                DEMO_PAGES_URL / DEMO_PAGES_BRANCH
-#                DEMO_PAGES_CNAME（自定义域名写入 CNAME 文件；缺省从 URL 主机名推导，*.github.io 不写）
+# 可选环境变量：DEMO_PAGES_REPO（默认 mcxiaochenn/astro-theme-anzhiyu，即本仓库）
+#                DEMO_PAGES_BRANCH（默认 demo-pages）
+#                DEMO_PAGES_PATH（默认 '' 根路径；传 blog 等走子路径）
+#                DEMO_PAGES_URL / DEMO_PAGES_CNAME（默认 anzhiyu.example.mcxiaochen.top）
 ```
 
-当前线上演示的部署形态（2026-11-25）：`DEMO_PAGES_REPO=mcxiaochenn/anzhiyu-demo` + 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`；旧 `mcxiaochenn.github.io/blog` 子路径部署已移除。
+当前线上演示的部署形态（2026-11-25 改版）：本仓库 `demo-pages` 产物分支 + GitHub Pages 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`；独立部署仓库 `mcxiaochenn/anzhiyu-demo` 已废弃（改用分支形式，不新建仓库）。
 
-**授权边界**：该脚本会写**另一个仓库**并 push 到它的 `main`（默认 `mcxiaochenn/mcxiaochenn.github.io`，`DEMO_PAGES_REPO` 可改目标）。本仓库的任何自动化都不会执行它；要执行需要作者明确授权 + 本机对该仓库有 push 凭据。`git push`、`git push --tags`、GitHub Pages 构建触发都不在自动流程里。已知降级：子路径部署下上游 JS 的运行时路径（音乐球、搜索等）不生效，页面导航 / 样式 / 视觉不受影响；根路径部署无此降级。
+**授权边界**：该脚本会 push 本仓库的 `demo-pages` 分支（仅产物分支，不动 `main`）。本仓库的任何自动化都不会执行它；要执行需要作者明确授权 + 本机有 push 凭据。`git push`、`git push --tags`、GitHub Pages 构建触发都不在自动流程里（ci.yml 只跑 `main`/PR，`demo-pages` push 不触发 CI）。已知降级：子路径部署下上游 JS 的运行时路径（音乐球、搜索等）不生效，页面导航 / 样式 / 视觉不受影响；根路径部署无此降级。
 
 ## 本地验证
 
@@ -179,7 +179,7 @@ node scripts/migrate-hexo.mjs --site <hexo站点目录> --out .migration-out/<na
 
 用法、已知边界与时区/永久链接 FAQ 见 [迁移指南](docs/MIGRATION.md)；真实站终验证据见 [终验报告](docs/notes/P7-4-final-acceptance.md)。
 
-**线上演示**：<https://anzhiyu.example.mcxiaochen.top/>（GitHub Pages 自定义域名根路径部署，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送，根路径下运行时路径无降级）。
+**线上演示**：<https://anzhiyu.example.mcxiaochen.top/>（GitHub Pages 自定义域名根路径部署，产物在本仓库 `demo-pages` 分支，由 [scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一键构建推送，根路径下运行时路径无降级）。
 
 ## 文档
 

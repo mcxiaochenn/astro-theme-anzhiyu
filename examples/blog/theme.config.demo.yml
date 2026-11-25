@@ -1,14 +1,15 @@
-# theme.config.demo.yml — 功能全开演示配置（2026-11-25）
+# theme.config.demo.yml — 功能全开演示配置 delta（2026-11-25）
 #
 # 用途：本地/线上演示主题全部功能，与 SHA 守卫的 theme.config.yml（上游
 # 1.7.1 冻结基线，diff 硬门禁参照）并存互不影响。使用方法：
-#   1. 复制本文件覆盖 examples/blog/theme.config.yml（或构建时经 loader 指向本文件）；
-#   2. data/essay.yml 第一组加一行 `home_essay: true`（首页即刻短文条 #bbTimeList）；
-#   3. 生成搜索索引 public/search.xml（格式见 local-search.js 的 <entry> 解析：
-#      title/url/content/tags，部署子路径时 url 需带前缀，如 /blog/2024/11/20/24531/）；
-#   4. pnpm --filter blog build。
+#   scripts/deploy-demo-pages.mjs 构建时把下方 delta 深合并到 theme.config.yml
+#   （对象递归、数组整体替换，与 loader 合并语义一致），生成临时完整配置并经
+#   ANZHIYU_THEME_CONFIG 指向（HTML 与 CSS 两条通道收口同一文件，B5 不变）；
+#   同时 data/essay.yml 第一组临时补 `home_essay: true`（构建后恢复）、
+#   生成搜索索引 search.xml（格式见 local-search.js 的 <entry> 解析：
+#   title/url/content/tags，部署子路径时 url 需带前缀，如 /blog/2024/11/20/24531/）。
 #
-# 与基线配置的差异（功能开关）：
+# 与基线配置的差异（功能开关）：即下方 delta——
 #   menu: 顶层菜单 4 组（文章/短文/友链/我的，链到 fixtures 页面型内容）
 #   local_search.enable: true（+ search.xml 索引）
 #   rightClickMenu.enable: true
@@ -18,10 +19,74 @@
 #   mainTone.enable: true + mode: colorthief（前端取主色，A2 的 color-thief 脚本）
 #   home_top.swiper.enable: true（首页轮播卡）
 #   bubble.enable: true（卡片气泡动效）
-#   data/essay.yml 首组 home_essay: true（A6 #bbTimeList）
+#   data/essay.yml 首组 home_essay: true（A6 #bbTimeList，脚本临时注入）
 #
 # 未开：评论系统（需 Twikoo/Waline 等后端）、comment_barrage（依赖 Twikoo）、
 # friends_vue（需朋友圈后端 apiurl）、agreementPopup（演示免打扰）。
-#
-# 已知降级（GitHub Pages 子路径部署）：上游 JS 内运行时路径类功能
-# （搜索点击跳转、音乐页跳转等）在 /blog/ 子路径下降级，见 deploy-demo-pages.mjs。
+
+menu:
+  文章:
+    隧道: /archives/ || anzhiyu-icon-box-archive
+    分类: /categories/ || anzhiyu-icon-shapes
+    标签: /tags/ || anzhiyu-icon-tags
+  短文:
+    闲言碎碎: /essay/ || anzhiyu-icon-lightbulb
+  友链:
+    友人帐: /link/ || anzhiyu-icon-link
+    朋友圈: /fcircle/ || anzhiyu-icon-artstation
+  我的:
+    音乐馆: /music/ || anzhiyu-icon-music
+    关于: /about/
+
+local_search:
+  enable: true
+
+rightClickMenu:
+  enable: true
+
+shortcutKey:
+  enable: true
+
+greetingBox:
+  enable: true
+  list:
+    - greeting: 晚安😴
+      startTime: 0
+      endTime: 5
+    - greeting: 早上好鸭👋, 祝你一天好心情！
+      startTime: 6
+      endTime: 9
+    - greeting: 上午好👋, 状态很好，鼓励一下～
+      startTime: 10
+      endTime: 10
+    - greeting: 11点多啦, 在坚持一下就吃饭啦～
+      startTime: 11
+      endTime: 11
+    - greeting: 午安👋, 宝贝
+      startTime: 12
+      endTime: 14
+    - greeting: 🌈充实的一天辛苦啦！
+      startTime: 14
+      endTime: 18
+    - greeting: 19点喽, 奖励一顿丰盛的大餐吧🍔。
+      startTime: 19
+      endTime: 19
+    - greeting: 晚上好👋, 在属于自己的时间好好放松😌~
+      startTime: 20
+      endTime: 24
+
+busuanzi:
+  site_uv: true
+  site_pv: true
+  page_pv: true
+
+mainTone:
+  enable: true
+  mode: colorthief
+
+home_top:
+  swiper:
+    enable: true
+
+bubble:
+  enable: true
