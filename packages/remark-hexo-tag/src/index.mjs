@@ -209,13 +209,67 @@ function renderMarkdown(markdown, ctx) {
  * HTML（嵌套 tag 由 Nunjucks 先渲染，Markdown 语法保持字面量），所以这里不能走
  * `ctx.md`。返回字符串，由调用方包进一个 `html` 节点。
  *
- * 已知限制：区域内若出现**容器型** tag，会保持原文（`ctx.md` 才能递归渲染容器），
- * fixtures 与常见用法里这三类 tag 的正文只含行内 tag。
+ * 自闭合块级 tag（`ends === false`：site / cell / bilibili / intCard /
+ * checkbox / radio）在 raw 区域里同样展开，否则 videos / sitegroup / btns 的
+ * 正文会残留 `{% %}` 字面量（G7）。容器型 tag（`ends !== false`）仍保持原文
+ * （`ctx.md` 才能递归渲染容器），fixtures 与常见用法里容器正文只含行内 tag。
  *
  * @param {string} markdown
  * @param {object} ctx
  * @returns {string}
  */
+function escapeHtmlText(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtmlText(value).replace(/"/g, '&quot;')
+}
+
+/**
+ * 行内 mdast → raw HTML。checkbox / radio 的正文是单行参数，只可能产出
+ * html/text 与常见行内排版节点；未知节点回退为转义文本，不抛错。
+ */
+function rawInlineHtml(node) {
+  switch (node.type) {
+    case 'html':
+    case 'raw':
+      return String(node.value ?? '')
+    case 'text':
+      return escapeHtmlText(node.value)
+    case 'inlineCode':
+      return `<code>${escapeHtmlText(node.value)}</code>`
+    case 'emphasis':
+      return `<em>${rawChildrenHtml(node)}</em>`
+    case 'strong':
+      return `<strong>${rawChildrenHtml(node)}</strong>`
+    case 'delete':
+      return `<del>${rawChildrenHtml(node)}</del>`
+    case 'break':
+      return '<br>'
+    case 'link':
+      return `<a href="${escapeHtmlAttr(node.url ?? '')}">${rawChildrenHtml(node)}</a>`
+    case 'image':
+      return `<img src="${escapeHtmlAttr(node.url ?? '')}" alt="${escapeHtmlAttr(node.alt ?? '')}">`
+    default:
+      return node.children ? rawChildrenHtml(node) : escapeHtmlText(node.value ?? '')
+  }
+}
+
+function rawChildrenHtml(node) {
+  return (node.children ?? []).map((child) => rawInlineHtml(child)).join('')
+}
+
+/** 块级 handler 返回的 mdast 节点数组 → raw HTML 字符串（G7：checkbox / radio）。 */
+function nodesToRawHtml(nodes) {
+  return (Array.isArray(nodes) ? nodes : [nodes])
+    .map((node) => (node.type === 'paragraph' ? `<p>${rawChildrenHtml(node)}</p>` : rawInlineHtml(node)))
+    .join('')
+}
+
 function renderRaw(markdown, ctx) {
   const nodes = scanTags(markdown, {
     resolve: ctx.resolve,
@@ -233,11 +287,13 @@ function renderRaw(markdown, ctx) {
       output += renderInline(node, ctx)
       continue
     }
-    // `site` / `cell` 这类「字符串块级」自闭合 tag 也要在 raw 区域里展开，
-    // 否则 sitegroup / btns 的正文会残留 `{% site %}`。
+    // `site` / `cell` 这类「字符串块级」自闭合 tag（render 返回字符串）与
+    // checkbox / radio（自闭合，render 返回 mdast 节点）都要在 raw 区域里展开，
+    // 否则 sitegroup / btns 的正文会残留 `{% site %}` / `{% checkbox %}`。
     const entry = lookupBlock(node.name)
-    if (entry && entry.ends === false && entry.string) {
-      output += entry.render(blockContext(node, ctx))
+    if (entry && entry.ends === false) {
+      const rendered = entry.render(blockContext(node, ctx))
+      output += typeof rendered === 'string' ? rendered : nodesToRawHtml(rendered)
       continue
     }
     output += node.raw

@@ -22,9 +22,13 @@ import { renderToc, type TocHeading } from './toc.ts'
 
 interface Props {
   headings: TocHeading[]
+  /** 站点语言（`config.language`），用于 `_p()` 文案；缺省走 i18n 的 default 字典。 */
+  lang?: string
 }
 
-const { headings } = Astro.props
+const { headings, lang } = Astro.props
+const _p = (key: string) => tp(key, lang)
+
 const theme = getThemeConfig()
 
 const tocNumber = theme.toc.number
@@ -37,7 +41,7 @@ const tocHtml = renderToc(headings, { listNumber: tocNumber })
     <div id="card-toc" class="card-widget">
       <div class="item-headline">
         <i class="anzhiyufont anzhiyu-icon-bars" />
-        <span>{tp('aside.card_toc')}</span>
+        <span>{_p('aside.card_toc')}</span>
         <span class="toc-percentage" />
       </div>
       <div class:list={['toc-content', tocExpand && 'is-expand']} set:html={tocHtml} />

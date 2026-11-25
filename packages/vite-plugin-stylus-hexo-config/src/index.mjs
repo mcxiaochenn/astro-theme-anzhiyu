@@ -206,10 +206,13 @@ export function stylusHexoConfig(options = {}) {
       if (!hasSingle) return `'${value}'`
       const hasDouble = value.includes('"')
       if (!hasDouble) return `"${value}"`
-      warnedKeys.add(`quote:${key}`)
-      console.warn(
-        `[stylus-hexo-config] hexo-config('${key}') 的值同时含单双引号，双引号已替换为单引号：${value}`,
-      )
+      // 同键告警只打一次，且与 missing/object 告警共用 warnOnMissing 总闸（G6）。
+      if (warnOnMissing && !warnedKeys.has(`quote:${key}`)) {
+        warnedKeys.add(`quote:${key}`)
+        console.warn(
+          `[stylus-hexo-config] hexo-config('${key}') 的值同时含单双引号，双引号已替换为单引号：${value}`,
+        )
+      }
       return `"${value.replace(/"/g, "'")}"`
     }
     // 对象 / 数组：Hexo 下 getProperty 原样返回，Stylus 把 JS 值 coerce 成

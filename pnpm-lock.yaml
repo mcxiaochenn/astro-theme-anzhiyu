@@ -12,7 +12,7 @@ importers:
         specifier: 1.65.1
         version: 1.65.1
       playwright:
-        specifier: ^1.65.1
+        specifier: 1.65.1
         version: 1.65.1
 
   examples/blog:
@@ -23,6 +23,9 @@ importers:
       astro:
         specifier: ^7.4.13
         version: 7.4.13(@astrojs/markdown-remark@7.3.10)(stylus@0.64.0)(yaml@2.9.1)
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
     devDependencies:
       '@vite-pwa/astro':
         specifier: ^2.0.4
@@ -49,7 +52,11 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
 
-  packages/remark-hexo-tag: {}
+  packages/remark-hexo-tag:
+    dependencies:
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   packages/vite-plugin-stylus-hexo-config:
     dependencies:

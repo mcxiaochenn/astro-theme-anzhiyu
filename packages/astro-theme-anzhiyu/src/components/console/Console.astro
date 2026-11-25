@@ -12,7 +12,8 @@
  *
  * 数据来源：
  *   - 打赏二维码：`theme.reward.QR_code`；
- *   - 最新评论卡：`CardNewestComment`（静态占位，评论阶段填充）；
+ *   - 最新评论卡：`card_newest_comment.pug` 结构内联在本组件（`#card-newest-comments`，
+ *     G3 已删除无人引用的死卡 `widget/CardNewestComment.astro`）；
  *   - 标签云 / 归档：`CardConsoleTags` / `CardConsoleArchives`（P3-1 已实现，
  *     与 aside 同名卡片共用 `getSiteStats()` 缓存）。
  */
@@ -99,10 +100,9 @@ const newestCommentsEnabled = flag(theme.newest_comments, 'enable')
   <div class="console-card-group">
     <div class="console-card-group-left">
       {/*
-        上游 `card_newest_comment.pug` 的结构在这里内联，而不是复用
-        `widget/CardNewestComment.astro`：后者调用 `_p()` 时没有传站点语言，
-        缺 `lang` 会回退到 default 字典并输出键名（`console.interaction`）。
-        中控台文案必须走当前站点语言，因此在此按 `_p` 直出。
+        上游 `card_newest_comment.pug` 的结构在这里内联（G3：原
+        `widget/CardNewestComment.astro` 从未被任何组件 import，是死卡，已删除）。
+        文案走 `_p`（带 lang 的 tp 包装），中控台文案按当前站点语言输出。
       */}
       {newestCommentsEnabled && (
         <div class="console-card" id="card-newest-comments">
@@ -138,7 +138,7 @@ const newestCommentsEnabled = flag(theme.newest_comments, 'enable')
           <i class="anzhiyufont anzhiyu-icon-box-archiv" />
           <span>{_p('console.articles')}</span>
         </div>
-        <CardConsoleArchives posts={stats.archivePosts} />
+        <CardConsoleArchives posts={stats.archivePosts} lang={lang} />
       </div>
     </div>
   </div>

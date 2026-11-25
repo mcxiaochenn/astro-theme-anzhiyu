@@ -18,16 +18,22 @@
  *
  * console 断言只过滤「资源加载失败」类噪音（第三方 CDN、图片 404 由 P4 资源/第三方
  * 集成用例负责），运行时 JS 异常与其余 console.error 一律 fail。
+ *
+ * G1（M24）：test/expect 取自 helpers 的扩展 test —— 其 page fixture 自动挂
+ * `isolateExternalRequests`（外部脚本打桩 / 外链样式空体 / 其余 abort），
+ * 3 条导航用例因此都获得外部资源隔离，不再裸奔。
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import {
   clickAndWaitForClientRoute,
   collectPageErrors,
+  expect,
   goBackAndWait,
   goForwardAndWait,
   gotoReady,
   internalLink,
   runtimeConsoleErrors,
+  test,
   trackDocumentRequests,
 } from './helpers'
 

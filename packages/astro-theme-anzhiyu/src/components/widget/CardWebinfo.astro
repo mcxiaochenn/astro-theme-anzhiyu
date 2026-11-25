@@ -26,9 +26,13 @@ interface Props {
   postCount: number
   /** `totalcount(site)`。 */
   totalWordCount: number
+  /** 站点语言（`config.language`），用于 `_p()` 文案；缺省走 i18n 的 default 字典。 */
+  lang?: string
 }
 
-const { postCount, totalWordCount } = Astro.props
+const { postCount, totalWordCount, lang } = Astro.props
+const _p = (key: string) => tp(key, lang)
+
 const theme = getThemeConfig()
 const config = theme.aside.card_webinfo
 const showRuntime = readFlag(theme.runtimeshow, 'enable')
@@ -67,14 +71,14 @@ function parsePublishDate(value: string): string {
     <div class="card-webinfo">
       <div class="item-headline">
         <i class="anzhiyufont anzhiyu-icon-chart-line" />
-        <span>{tp('aside.card_webinfo.headline')}</span>
+        <span>{_p('aside.card_webinfo.headline')}</span>
       </div>
       <div class="webinfo">
         {config.post_count && (
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-file-lines" />
-              <div class="item-name">{tp('aside.card_webinfo.article_name')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.article_name')} :</div>
             </div>
             <div class="item-count">{postCount}</div>
           </div>
@@ -83,7 +87,7 @@ function parsePublishDate(value: string): string {
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-stopwatch" />
-              <div class="item-name">{tp('aside.card_webinfo.runtime.name')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.runtime.name')} :</div>
             </div>
             <div class="item-count" id="runtimeshow" data-publishDate={publishDate}>
               <i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-spin" />
@@ -94,7 +98,7 @@ function parsePublishDate(value: string): string {
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-font" />
-              <div class="item-name">{tp('aside.card_webinfo.site_wordcount')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.site_wordcount')} :</div>
             </div>
             <div class="item-count">{totalWordCount}</div>
           </div>
@@ -103,7 +107,7 @@ function parsePublishDate(value: string): string {
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-universal-access" />
-              <div class="item-name">{tp('aside.card_webinfo.site_uv_name')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.site_uv_name')} :</div>
             </div>
             <div class="item-count" id="busuanzi_value_site_uv">
               <i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-spin" />
@@ -114,7 +118,7 @@ function parsePublishDate(value: string): string {
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-square-poll-vertical" />
-              <div class="item-name">{tp('aside.card_webinfo.site_pv_name')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.site_pv_name')} :</div>
             </div>
             <div class="item-count" id="busuanzi_value_site_pv">
               <i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-spin" />
@@ -125,7 +129,7 @@ function parsePublishDate(value: string): string {
           <div class="webinfo-item">
             <div class="webinfo-item-title">
               <i class="anzhiyufont anzhiyu-icon-hourglass-start" />
-              <div class="item-name">{tp('aside.card_webinfo.last_push_date.name')} :</div>
+              <div class="item-name">{_p('aside.card_webinfo.last_push_date.name')} :</div>
             </div>
             <div class="item-count" id="last-push-date" data-lastPushDate={lastPushDate}>
               <i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-spin" />

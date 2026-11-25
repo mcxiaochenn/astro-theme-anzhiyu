@@ -22,9 +22,11 @@ import { SITE_LANGUAGE, SITE_TIME_ZONE } from '../../data/site-stats.ts'
 interface Props {
   /** 全站文章日期（`asideArchives` 内部排序）。 */
   posts: Array<{ date: Date }>
+  /** 站点语言（`config.language`），透传给 `t()` 文案；缺省走 i18n 的 default 字典。 */
+  lang?: string
 }
 
-const { posts } = Astro.props
+const { posts, lang } = Astro.props
 const theme = getThemeConfig()
 const urlFor = createUrlFor('/')
 
@@ -42,7 +44,7 @@ const html = asideArchives(
     timezone: SITE_TIME_ZONE,
     language: SITE_LANGUAGE,
     urlFor,
-    t: (key: string) => tp(key),
+    t: (key: string) => tp(key, lang),
   },
 )
 ---

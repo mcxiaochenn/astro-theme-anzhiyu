@@ -497,6 +497,44 @@ const cases = [
       '<a class="button no-text-decoration" href="/about/" title="关于页"><i class="anzhiyufont anzhiyu-icon-paper-plane"></i>关于页</a>',
   },
 
+  // ── G7：raw 区域（videos/btns 正文）内嵌自闭合块级 tag 也展开 ─────────────
+  {
+    name: 'videos（正文内嵌 checkbox：自闭合块级在 raw 区域展开）',
+    input: [
+      '{% videos , 2 %}',
+      '{% video https://example.com/1.mp4 %}',
+      '{% checkbox 已完成的事项 %}',
+      '{% endvideos %}',
+    ].join('\n'),
+    expected:
+      '<div class="videos" col="2">' +
+      '<div class="video"><video controls preload><source src="https://example.com/1.mp4" type="video/mp4">Your browser does not support the video tag.</video></div>' +
+      '<div class="checkbox"><input type="checkbox"><p>已完成的事项</p></div>' +
+      '</div>',
+  },
+  {
+    name: 'btns（正文内嵌 radio）',
+    input: [
+      '{% btns rounded %}',
+      '{% cell 示例链接, https://example.com, anzhiyufont anzhiyu-icon-arrow-right %}',
+      '{% radio checked, 单选选项 %}',
+      '{% endbtns %}',
+    ].join('\n'),
+    expected:
+      '<div class="btns rounded">' +
+      '<a class="button no-text-decoration" href="https://example.com" title="示例链接"><i class="anzhiyufont anzhiyu-icon-arrow-right"></i>示例链接</a>' +
+      '<div class="checkbox checked"><input type="radio" checked><p>单选选项</p></div>' +
+      '</div>',
+  },
+  {
+    name: 'videos（checkbox 参数含行内 Markdown）',
+    input: ['{% videos , 2 %}', '{% checkbox 含 *强调* 的文字 %}', '{% endvideos %}'].join('\n'),
+    expected:
+      '<div class="videos" col="2">' +
+      '<div class="checkbox"><input type="checkbox"><p>含 <em>强调</em> 的文字</p></div>' +
+      '</div>',
+  },
+
   // ── 第三方嵌入 7 个（P6-3） ──────────────────────────────────────────────
   {
     name: 'bilibili（客户端脚本与构建期插值）',

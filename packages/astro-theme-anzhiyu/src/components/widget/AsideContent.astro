@@ -52,6 +52,8 @@ interface Props {
 const { pageType, showToc = false, headings = [], site: siteInput } = Astro.props
 const theme = getThemeConfig()
 const site = resolveSite(siteInput)
+/** 站点语言（`config.language`）：tp() 文案按站点语言取字典，缺省走 default。 */
+const lang = site.language
 const stats = await getSiteStats({ resolvePostHref: postHrefOf(site) })
 
 /** 上游 `showToc` 本身已经保证 `toc(page.content) !== ''`；这里再兜一层空数组。 */
@@ -69,17 +71,17 @@ const bottomWidgets: WidgetDataItem[] = []
     pageType === 'post' ? (
       tocVisible && tocStyleSimple ? (
         <div class="sticky_layout">
-          <CardPostToc headings={headings} />
+          <CardPostToc headings={headings} lang={lang} />
         </div>
       ) : (
         <>
           <CardAuthor site={site} />
-          <CardAnnouncement />
+          <CardAnnouncement lang={lang} />
           <CardWeixin />
           <CardTopSelf items={topWidgets} />
           <div class="sticky_layout">
-            {tocVisible && <CardPostToc headings={headings} />}
-            <CardRecentPost items={stats.recentPosts} />
+            {tocVisible && <CardPostToc headings={headings} lang={lang} />}
+            <CardRecentPost items={stats.recentPosts} lang={lang} />
             <CardAd />
           </div>
         </>
@@ -87,17 +89,21 @@ const bottomWidgets: WidgetDataItem[] = []
     ) : (
       <>
         <CardAuthor site={site} />
-        <CardAnnouncement />
+        <CardAnnouncement lang={lang} />
         <CardWeixin />
         <CardTopSelf items={topWidgets} />
-        <CardCategories categories={stats.categories} />
+        <CardCategories categories={stats.categories} lang={lang} />
         <div class="sticky_layout">
-          {tocVisible && <CardPostToc headings={headings} />}
+          {tocVisible && <CardPostToc headings={headings} lang={lang} />}
           <div class="card-widget">
             <CardAd />
             <CardTags tags={stats.tags} />
-            <CardArchives posts={stats.archivePosts} />
-            <CardWebinfo postCount={stats.postCount} totalWordCount={stats.totalWordCount} />
+            <CardArchives posts={stats.archivePosts} lang={lang} />
+            <CardWebinfo
+              postCount={stats.postCount}
+              totalWordCount={stats.totalWordCount}
+              lang={lang}
+            />
           </div>
           <CardBottomSelf items={bottomWidgets} />
         </div>

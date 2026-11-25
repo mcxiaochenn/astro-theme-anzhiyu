@@ -219,7 +219,14 @@ if (failed) {
   process.exit(1)
 }
 if (orderOnly.length > 0) {
-  log(`比对通过（${orderOnly.length} 处为声明顺序差异，取值集合一致）`)
+  if (upstreamChecked) {
+    log(`比对通过（${orderOnly.length} 处为声明顺序差异，取值集合一致）`)
+  } else {
+    log(
+      `比对通过（${orderOnly.length} 处为声明顺序差异；声明值集合一致性未验证——` +
+        '上游 CSS 不在本机，未做集合复核）',
+    )
+  }
 } else {
   log('比对通过（全部变量逐值一致）')
 }

@@ -20,9 +20,11 @@ import type { SiteCategoryItem } from '../../data/site-stats.ts'
 
 interface Props {
   categories: SiteCategoryItem[]
+  /** 站点语言（`config.language`），透传给 `t()` 文案；缺省走 i18n 的 default 字典。 */
+  lang?: string
 }
 
-const { categories } = Astro.props
+const { categories, lang } = Astro.props
 const theme = getThemeConfig()
 const urlFor = createUrlFor('/')
 
@@ -35,7 +37,7 @@ const html = asideCategories(
     categories,
     categoryDir: 'categories',
     urlFor,
-    t: (key: string) => tp(key),
+    t: (key: string) => tp(key, lang),
   },
 )
 ---
