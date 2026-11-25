@@ -14,15 +14,15 @@
 
 ## 1. 当前状态
 
-**快照时间：2026-11-25（Batch A–G 修复批次 + Batch F 文档对齐后刷新数字口径；2026-11-24 21:00 为 Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过）**
+**快照时间：2026-11-25（Batch A–G 修复批次 + Batch F 文档对齐后刷新数字口径；2026-11-24 21:00 为 Phase 7 退出：真实 Hexo 站迁移验收 gap=0；CI build/e2e/lighthouse 三 job 全绿：e2e 29 passed+9 skipped、PWA 离线 2/2、Lighthouse 四项全过；2026-11-25 17:49 demo 站部署上线——`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`）**
 
 ### 1.1 仓库
 
 | 项 | 值 |
 | --- | --- |
-| 提交 | `2fa0bf7` fix(G1-G8)（A–G 修复批次序列 `6060f80`→`78a0406`→`c3db58e`→`5e92887`→`2391780`→`a3a6a52`→`74fcc9b`→`2fa0bf7`；F 批文档对齐待提交） |
-| 提交数 | 94（F 批 commit 后 95） |
-| 工作区 | A–G 修复批次已全部落盘；F 批文档对齐改动落盘待提交；真实站迁移验收已通过（migration gap=0），剩余仅「需用户授权」的发布动作 |
+| 提交 | `cd8ae03` feat(deploy)（A–G 修复批次序列 `6060f80`→`78a0406`→`c3db58e`→`5e92887`→`2391780`→`a3a6a52`→`74fcc9b`→`2fa0bf7` 后：F 批文档对齐 `2930fe0` → CI golden 对齐 `65391d0` → demo 配置留档 `4b3cbf6` → demo 根路径部署 `cd8ae03`） |
+| 提交数 | 98（本次文档整理后 99） |
+| 工作区 | 干净（A–G 修复 + F 批文档对齐 + demo 部署均已入库；2026-11-25 晚文档回填与本地残留清理）；真实站迁移验收已通过（migration gap=0），剩余仅「需用户授权」的发布动作 |
 | CI | **三 job 全绿**：build（结构 diff 硬门禁）/ e2e（38 条：29 passed / 9 skipped / 0 failed + PWA 离线 2/2）/ lighthouse（四项分数 + 7 条资源预算全过，artifact 已上传） |
 | 产物规模 | **61 页**验证站（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准）+ **97 页**真实站迁移产物（96 Astro + go.html） |
 | 全量 diff | 49 页 / **PASS 49 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/upstream-delta.md；C4 收紧 N21 后的 CI 复核值以 CI 为准） |
@@ -722,7 +722,7 @@ jobs:
 | # | 事项 | 归属 | 说明 |
 | --- | --- | --- | --- |
 | 1 | **npm publish 主题包 1.0.0** | 用户 | 本机 `npm whoami` = ENEEDAUTH；发布命令与 2FA 步骤见 `docs/notes/P7-6-release.md`；tarball 安装冒烟已通过 |
-| 2 | **demo 站 Pages 部署** | 用户 | `node scripts/deploy-demo-pages.mjs` 会写 `mcxiaochenn/mcxiaochenn.github.io` 另一个仓库，需明确授权 |
+| 2 | ~~demo 站 Pages 部署~~ | ✅ 2026-11-25 | 已部署 `mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`（`cd8ae03`；旧 `mcxiaochenn.github.io/blog` 子路径部署已移除） |
 | 3 | **git tag v1.0.0** | 用户 | 只本地创建待授权；`git push origin v1.0.0` 属远程操作 |
 | 4 | Lighthouse a11y（0.76-0.85）/ seo（0.83-0.92）提升 | 后续 backlog | 当前为实测基线与回归门禁，不阻塞迁移退出；见 P7-2 笔记 §9.2 |
 | 5 | 真实站浏览器走查的搜索框点击、快捷键、图片懒加载/灯箱、主色调随封面 | 后续人工 | 数据层/组件层已验收；UI 点击走查项见 P7-4 终验报告 §4 的诚实记录 |
@@ -734,7 +734,7 @@ jobs:
 2. ~~M2 脚注差异~~：渲染真脚注（特性保留）；N22 处理 DOM、源侧 `normalizeFootnoteSectionForDescription` 按**引用位置回填**定义文本使 pageFillDescription 顺序对齐
 3. ~~config-diff 48 条~~：✅ 已修——`getPageFillDescription()` 上游移植 + 标题分支按 hexo-util escapeHTML 语义转义 + 被吞标题/脚注区剔除
 4. ~~tags-thirdparty head 泄漏~~：✅ 随 config-diff 修复消失（19 条 / 96 节点归零）
-5. **迁移脚本两条真实边界**：`charts` 页 type 未分发、`layout: sitetime` 页 404（`todolist` 已按 1.6.14 模板移植为兼容页，不在边界内；无消费者数据收窄为 `widget.yml` / `creativity.yml`），待 §8.2 #2
+5. **迁移脚本两条真实边界**：`charts` 页 type 未分发、`layout: sitetime` 页 404（`todolist` 已按 1.6.14 模板移植为兼容页，不在边界内；无消费者数据收窄为 `widget.yml` / `creativity.yml`）；demo 已上线（§8.2 #2 完成），此二边界仍在
 6. **prismjs 组件未接线**：站点配置模型无 `prismjs` 键（hexo-only），基线用 highlight.js 恒为关；迁移 prismjs 站点需单独处理
 7. **page 级开关已透传（Batch B）**：`page.mathjax` / `page.katex` / `page.aplayer` 由路由层 front-matter 透传进 BaseLayout → AdditionalJs → `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；`per_page: false` 时按上游 `math/index.pug` 语义读 `page.mathjax` / `page.katex`。内容侧公式管线缺口见 MIGRATION.md §13.2。
 

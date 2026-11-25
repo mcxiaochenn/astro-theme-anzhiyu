@@ -385,7 +385,7 @@ git tag -l            # 本机当前没有任何 tag（git tag -l 实测为空�
 
 ## 6. demo 站部署：命令与授权边界
 
-脚本：`scripts/deploy-demo-pages.mjs`（**本轮未执行**）。
+脚本：`scripts/deploy-demo-pages.mjs`（**本轮未执行**；2026-11-25 已另行部署上线：`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`，旧 `mcxiaochenn.github.io/blog` 子路径部署已移除。脚本已支持 `DEMO_PAGES_PATH` 传 `''`/`'-'` 走根路径部署与 `DEMO_PAGES_CNAME` 写 CNAME，见根 README「demo 站部署」）。
 
 ```bash
 # 默认目标：https://mcxiaochenn.github.io/blog/ ，仓库 mcxiaochenn/mcxiaochenn.github.io @ main
@@ -414,7 +414,7 @@ node scripts/deploy-demo-pages.mjs
 
 ## 7. 人工步骤清单（按顺序，全部需要授权）
 
-0. [ ] **先更新根 `pnpm-lock.yaml`（跨任务，不在本任务写范围）**：主题包 `yaml` 从 `devDependencies` 挪到 `dependencies` 后，锁文件 importer 仍写着 `dependencies: zod` / `devDependencies: yaml`，与改后的 `package.json` 不一致。CI 两个 job 都是 `pnpm install --frozen-lockfile`（`.github/workflows/ci.yml:37`、`:105`），会报 `ERR_PNPM_OUTDATED_LOCKFILE`。修法：在仓库根 `pnpm install --lockfile-only`（或完整 `pnpm install`）后提交 `pnpm-lock.yaml`。本任务写范围只有 `packages/astro-theme-anzhiyu/package.json` + `README.md` + `docs/notes/**`，锁文件留给 Lead 批量落地。
+0. [x] **先更新根 `pnpm-lock.yaml`（跨任务，不在本任务写范围）**：主题包 `yaml` 从 `devDependencies` 挪到 `dependencies` 后，锁文件 importer 仍写着 `dependencies: zod` / `devDependencies: yaml`，与改后的 `package.json` 不一致。CI 两个 job 都是 `pnpm install --frozen-lockfile`（`.github/workflows/ci.yml:37`、`:105`），会报 `ERR_PNPM_OUTDATED_LOCKFILE`。修法：在仓库根 `pnpm install --lockfile-only`（或完整 `pnpm install`）后提交 `pnpm-lock.yaml`。本任务写范围只有 `packages/astro-theme-anzhiyu/package.json` + `README.md` + `docs/notes/**`，锁文件留给 Lead 批量落地（✅ 已在 `2fa0bf7` 随 G 批刷新提交）。
 1. [ ] 在最终 commit 上重跑 `npm pack --dry-run`，确认 173 项、无 `node_modules/.astro/dist/docs` 泄漏，记录新 sha256。
 2. [ ] `npm login --registry=https://registry.npmjs.org`（或配 `//registry.npmjs.org/:_authToken`），再 `npm whoami --registry https://registry.npmjs.org` 返回用户名。
 3. [ ] `npm publish --dry-run` 输出 `Publishing to https://registry.npmjs.org/ ...`。
@@ -422,7 +422,7 @@ node scripts/deploy-demo-pages.mjs
 5. [ ] `npm view astro-theme-anzhiyu@1.0.0 dist.tarball` + 空目录 `npm i` 冒烟。
 6. [ ] `git tag -a v1.0.0 -m "astro-theme-anzhiyu v1.0.0"`（本地）。
 7. [ ] **单独授权后**：`git push origin v1.0.0`。
-8. [ ] **单独授权后**：`node scripts/deploy-demo-pages.mjs`（会推 `mcxiaochenn/mcxiaochenn.github.io`）。
+8. [x] ~~**单独授权后**：`node scripts/deploy-demo-pages.mjs`（会推 `mcxiaochenn/mcxiaochenn.github.io`）。~~ ✅ 2026-11-25 已完成：部署 `mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`。
 9. [ ] 提醒：发布包缺 `README.md` / `LICENSE` 文件（见 §8 #1），若在意 npm 页面展示，先补文件再发。
 
 ---

@@ -4,7 +4,7 @@
 
 [Anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 博客主题的 Astro 移植版。
 
-> **当前状态：Phase 7 退出（迁移完成，2026-11-24）。** 真实 Hexo 站点 `xcAnzhiyu`（Hexo 7.3.0 + 主题 1.6.14）经 [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) 迁移后构建 **97 页**，验收脚本 `pnpm accept:migration` **migration gap = 0**（路由 40/40、内部链接/资源缺口 0、搜索索引与 feed/sitemap 与源站 golden 条目数全等）；验证站 [examples/blog](examples/blog) 构建 **61 页**（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准），与上游基线的 HTML 结构 diff **49/49 PASS / 0 差异**；CI 跑构建 + 结构 diff 硬门禁 + Playwright 行为用例（38 条）+ Lighthouse 预算 + PWA 离线用例；42 个 Hexo tag 全实现（65/65 单测）。逐项证据见 [真实站终验报告](docs/notes/P7-4-final-acceptance.md)，进度与口径见 [执行计划](docs/PLAN.md)。
+> **当前状态：Phase 7 退出（迁移完成，2026-11-24）。** 真实 Hexo 站点 `xcAnzhiyu`（Hexo 7.3.0 + 主题 1.6.14）经 [scripts/migrate-hexo.mjs](scripts/migrate-hexo.mjs) 迁移后构建 **97 页**，验收脚本 `pnpm accept:migration` **migration gap = 0**（路由 40/40、内部链接/资源缺口 0、搜索索引与 feed/sitemap 与源站 golden 条目数全等）；验证站 [examples/blog](examples/blog) 构建 **61 页**（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准），与上游基线的 HTML 结构 diff **49/49 PASS / 0 差异**；CI 跑构建 + 结构 diff 硬门禁 + Playwright 行为用例（38 条）+ Lighthouse 预算 + PWA 离线用例；42 个 Hexo tag 全实现（65/65 单测）。逐项证据见 [真实站终验报告](docs/notes/P7-4-final-acceptance.md)，进度与口径见 [执行计划](docs/PLAN.md)。2026-11-25 完成全量审查修复（54 项，[FIX-2026-11-25](docs/notes/FIX-2026-11-25.md)）并上线[线上演示](https://anzhiyu.example.mcxiaochen.top/)。
 
 ## 背景
 
@@ -81,7 +81,7 @@ pnpm add astro-theme-anzhiyu astro@^7
 # 发布前 / 离线安装：pnpm add file:<绝对路径>/astro-theme-anzhiyu-1.0.0.tgz
 ```
 
-站点侧需要自备的配套依赖（版本取自 [examples/blog/package.json](examples/blog/package.json) 与迁移产物 `.migration-out/xcAnzhiyu/package.json`，两者都实测能构建）：
+站点侧需要自备的配套依赖（版本取自 [examples/blog/package.json](examples/blog/package.json) 与迁移产物 `.migration-out/xcAnzhiyu/package.json`——后者由 `pnpm accept:migration` 本地生成、不入库，两者都实测能构建）：
 
 | 依赖 | 版本范围 | 作用 | 必需性 |
 | --- | --- | --- | --- |
@@ -134,15 +134,19 @@ npm publish --access public # 真发布；2FA 账号加 --otp 123456
 
 ### demo 站部署
 
-[scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一条命令：demo 构建（`DEPLOY_SITE_URL/ROOT` 映射到 `site.url`/`root` 与 Astro `base`）→ HTML 站内绝对路径补子路径前缀 → clone 用户站仓库 → 覆盖 `blog/` → commit → push。
+[scripts/deploy-demo-pages.mjs](scripts/deploy-demo-pages.mjs) 一条命令：demo 构建（`DEPLOY_SITE_URL/ROOT` 映射到 `site.url`/`root` 与 Astro `base`）→ 子路径部署时给站内绝对路径补前缀（根路径部署跳过改写）→ clone 目标 Pages 仓库 → 覆盖产物（子路径只动子目录；根路径清仓保留 `.git`）→ 补 `.nojekyll` 与 `CNAME` → commit → push。
 
 ```bash
 node scripts/deploy-demo-pages.mjs
 # 可选环境变量：DEMO_PAGES_REPO（默认 mcxiaochenn/mcxiaochenn.github.io）
-#                DEMO_PAGES_PATH（默认 blog）/ DEMO_PAGES_URL / DEMO_PAGES_BRANCH
+#                DEMO_PAGES_PATH（默认 blog；传 '' 或 '-' 走根路径部署）
+#                DEMO_PAGES_URL / DEMO_PAGES_BRANCH
+#                DEMO_PAGES_CNAME（自定义域名写入 CNAME 文件；缺省从 URL 主机名推导，*.github.io 不写）
 ```
 
-**授权边界**：该脚本会写**另一个仓库**（`mcxiaochenn/mcxiaochenn.github.io`）并 push 到它的 `main`。本仓库的任何自动化都不会执行它；要执行需要作者明确授权 + 本机对该仓库有 push 凭据。`git push`、`git push --tags`、GitHub Pages 构建触发都不在自动流程里。已知降级：子路径部署下上游 JS 的运行时路径（音乐球、搜索等）不生效，页面导航 / 样式 / 视觉不受影响。
+当前线上演示的部署形态（2026-11-25）：`DEMO_PAGES_REPO=mcxiaochenn/anzhiyu-demo` + 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`；旧 `mcxiaochenn.github.io/blog` 子路径部署已移除。
+
+**授权边界**：该脚本会写**另一个仓库**并 push 到它的 `main`（默认 `mcxiaochenn/mcxiaochenn.github.io`，`DEMO_PAGES_REPO` 可改目标）。本仓库的任何自动化都不会执行它；要执行需要作者明确授权 + 本机对该仓库有 push 凭据。`git push`、`git push --tags`、GitHub Pages 构建触发都不在自动流程里。已知降级：子路径部署下上游 JS 的运行时路径（音乐球、搜索等）不生效，页面导航 / 样式 / 视觉不受影响；根路径部署无此降级。
 
 ## 本地验证
 

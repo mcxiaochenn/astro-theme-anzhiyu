@@ -7,6 +7,7 @@
 | 文件 | 来源 |
 | --- | --- |
 | `theme.config.yml` | 上游 [anzhiyu-c/hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 1.7.1 的 `_config.yml`，未改动 |
+| `theme.config.demo.yml` | 线上演示（anzhiyu.example.mcxiaochen.top）功能全开配置留档（2026-11-25）；CI / 验收构建仍用 `theme.config.yml` |
 | `src/styles/**` | 上游 `source/css/` 全量 72 styl + 47 css，未改动 |
 | `src/content.config.ts` | 内容集合：直接读仓库根 `fixtures/`（零复制），frontmatter 日期按 Hexo `Asia/Shanghai` 语义归一化 |
 | `src/pages/**` | 首页 / 文章详情 / 归档分类标签 / 404 / 独立页面 `[...path].astro` / 分页 |
@@ -48,4 +49,4 @@ node packages/remark-hexo-tag/test/run.mjs
 ## 已知边界
 
 - 与基线的 diff **49/49 PASS / 0 差异**（CI 硬门禁；C4 收紧 N21 豁免后的终值以 CI 复核为准）
-- 交互层与第三方集成的代码已落盘但未接线；`cssMinify` 暂关（上游自身有一处非法 CSS，见 PLAN 的 D7）
+- 交互层与第三方集成已接线并通过 CI 行为验收（e2e 29 passed / 9 skipped；第三方服务真实联通待人工）；`cssMinify` 暂关（上游自身有一处非法 CSS，见 PLAN 的 D7）
