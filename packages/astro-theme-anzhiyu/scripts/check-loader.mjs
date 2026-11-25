@@ -14,6 +14,9 @@
  *   g) 未找到配置文件 → 返回完整默认配置；
  *   h) 显式路径不存在 → 报错；
  *   i) 返回值与 defaults 隔离。
+ * D5 (M1) 新增：用例 a 内含 defaults ↔ 上游 `_config.yml` 直比断言（键序无关，
+ *   defaults 值漂移 / 上游新增键 / defaults 多键直接红）。
+ * E3 (L1) 新增：上游 `_config.yml` 缺失时明确报错并提示 THEME_UPSTREAM_CONFIG。
  *
  * 用法（在 packages/astro-theme-anzhiyu 目录下）：
  *   node scripts/check-loader.mjs
@@ -21,7 +24,7 @@
  *
  * 退出码：0 = 全部通过；1 = 有失败项。
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +35,16 @@ const PKG_ROOT = path.resolve(HERE, '..')
 const UPSTREAM_CONFIG = process.env.THEME_UPSTREAM_CONFIG
   ? path.resolve(process.env.THEME_UPSTREAM_CONFIG)
   : path.resolve(PKG_ROOT, '../../../_research/anzhiyu-upstream/_config.yml')
+
+// E3：上游配置缺失时给明确报错（含 THEME_UPSTREAM_CONFIG 提示），不裸抛 ENOENT 栈
+if (!existsSync(UPSTREAM_CONFIG)) {
+  console.error(`[check-loader] 上游配置不存在: ${UPSTREAM_CONFIG}`)
+  console.error(
+    '[check-loader] 默认读 _research/anzhiyu-upstream/_config.yml；' +
+      '上游副本在别处时用 THEME_UPSTREAM_CONFIG=<path> 指向真实 _config.yml。',
+  )
+  process.exit(1)
+}
 
 const { loadThemeConfig } = await import('../src/config/loader.ts')
 const { defaults } = await import('../src/config/defaults.ts')
@@ -140,6 +153,15 @@ try {
     `全量深比较（${upstreamTopLevelKeys} 个顶层键）`,
     deepEqual(fullConfig, upstreamDoc),
     '合并结果与上游 YAML 完全一致',
+  )
+
+  // D5 (M1)：defaults ↔ 上游直比。上面的「合并结果 vs 上游」是恒真的用户值胜出合并——
+  // defaults 值漂移、上游新增键都抓不到（假绿）。这里直接比 defaults 与上游 YAML：
+  // 键序无关，值漂移 / 上游新增键 / defaults 多键都会红。
+  check(
+    `defaults 与上游 _config.yml 直比（${upstreamTopLevelKeys} 个顶层键）`,
+    deepEqual(defaults, upstreamDoc),
+    'defaults.ts 与上游 YAML 完全一致（值漂移 / 键漂移在此红）',
   )
 
   // P1-12：11 个上游 null 顶层键保持 z.unknown()，但必须继续被接受

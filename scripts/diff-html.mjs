@@ -16,7 +16,8 @@
  *   dist     根目录：DIST_DIR，默认 examples/blog/dist
  *   baseline.json：BASELINE_PATH，默认 docs/baseline.json
  *
- * 退出码：全部 PASS → 0；有 FAIL → 1；baseline 目录/文件不存在 → 打印提示并 0
+ * 退出码：全部 PASS → 0；有 FAIL → 1；baseline 缺失 / 无 pages / filter 无命中 /
+ *        用法错误 → 2（D1：跳过不算通过，假绿堵死）
  * （CI 上没有参考产物时不能红；与 verify-css.mjs 的处理一致）。
  *
  * 依赖：零第三方依赖。仓库里没有 parse5/cheerio，CI 也不该为一个 diff 脚本
@@ -1407,9 +1408,10 @@ function countsLine(report) {
 // 5. 输出
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** 没有参考产物时 --json 也要吐出合法 JSON，CI 才能无脑解析 */
+/** 没有参考产物时 --json 也要吐出合法 JSON，CI 才能无脑解析。
+ *  D1：skip 不是通过——ok 恒为 false，配合非零退出码，「没比对」不能再被读成「全对」。 */
 function skipReport(mode, reason) {
-  return { mode, ok: true, skipped: true, reason }
+  return { mode, ok: false, skipped: true, reason }
 }
 
 function printPageReport(report, limit) {
@@ -1470,7 +1472,7 @@ const USAGE = `用法：
   DIST_DIR           dist 根目录，默认 examples/blog/dist
   BASELINE_PATH      baseline.json 路径，默认 docs/baseline.json
 
-退出码：全部 PASS → 0；有 FAIL → 1；baseline 不存在 → 0（CI 无参考产物不红）
+退出码：全部 PASS → 0；有 FAIL → 1；无法比对（baseline 缺失 / 无 pages / filter 无命中）或用法错误 → 2
 `
 
 function parseArgv(argv) {
@@ -1545,23 +1547,24 @@ function loadBaselinePages() {
 
 function runAll(options) {
   if (!existsSync(BASELINE_HTML_DIR) || !statSync(BASELINE_HTML_DIR).isDirectory()) {
-    log(`baseline 目录不存在，跳过比对：${rel(BASELINE_HTML_DIR)}`)
-    log('（参考产物不进仓库，属预期情况；本地可用 BASELINE_HTML_DIR 指向 hexo g 的 public 目录）')
+    log(`baseline 目录不存在，无法比对：${rel(BASELINE_HTML_DIR)}`)
+    log('（跳过不算通过：本地用 BASELINE_HTML_DIR 指向 hexo g 的 public，或先跑 node scripts/extract-baseline-html.mjs 解出 .baseline-html）')
     if (options.json) console.log(JSON.stringify(skipReport('all', 'baseline-missing'), null, 2))
-    return 0
+    return 2
   }
 
   const pages = loadBaselinePages()
-  if (!pages) {
-    log(`未找到可用的页面清单：${rel(BASELINE_JSON)}（缺 pages 数组）`)
+  if (!pages || !pages.length) {
+    log(`未找到可用的页面清单：${rel(BASELINE_JSON)}（缺 pages 数组或为空）`)
     if (options.json) console.log(JSON.stringify(skipReport('all', 'baseline-json-missing'), null, 2))
-    return 0
+    return 2
   }
 
   const selected = options.filter ? pages.filter((page) => page.includes(options.filter)) : pages
   if (!selected.length) {
     log(`没有页面匹配 --filter ${JSON.stringify(options.filter)}`)
-    return 0
+    if (options.json) console.log(JSON.stringify(skipReport('all', 'filter-no-match'), null, 2))
+    return 2
   }
 
   if (!options.json) {
@@ -1655,10 +1658,10 @@ function runPair(options) {
   const distFile = resolveHtml(distArg)
 
   if (!existsSync(baselineFile)) {
-    log(`baseline 文件不存在，跳过比对：${rel(baselineFile)}`)
-    log('（参考产物不进仓库，属预期情况；本地可用 BASELINE_HTML_DIR 或直接传 hexo g 的 public 路径）')
+    log(`baseline 文件不存在，无法比对：${rel(baselineFile)}`)
+    log('（跳过不算通过：本地可用 BASELINE_HTML_DIR 或直接传 hexo g 的 public 路径）')
     if (options.json) console.log(JSON.stringify(skipReport('pair', 'baseline-missing'), null, 2))
-    return 0
+    return 2
   }
 
   const report = comparePages({

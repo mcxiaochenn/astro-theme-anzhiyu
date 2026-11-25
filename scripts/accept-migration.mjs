@@ -1685,9 +1685,14 @@ function checkTagResidue(distDir) {
   return finalizeCheck(check)
 }
 
-/** search 检查 */
+/** search 检查（D3：以源站 facts.config.search 为前提——源站启用才断言，
+ *  源站启用而产物缺 localSearch / 索引计 migration-gap；SKIP 只留「源站未启用」，
+ *  产物缺配置不再能靠 SKIP 假绿） */
 function checkSearch({ distDir, config, goldenDir }) {
   const check = makeCheck('search', '搜索：GLOBAL_CONFIG.localSearch 索引文件存在性')
+  // 源站启用 = 源站 _config.yml 配了 search.path（hexo-generator-search 的产物开关）
+  const expectedPath = config?.search?.path || null
+  const sourceSearchEnabled = Boolean(expectedPath)
   const indexFile = path.join(distDir, 'index.html')
   if (!isFile(indexFile)) {
     check.status = 'SKIP'
@@ -1696,9 +1701,9 @@ function checkSearch({ distDir, config, goldenDir }) {
   }
   const html = readText(indexFile)
   const localSearch = extractJsObject(html, 'localSearch')
-  const expectedPath = config.search?.path || null
   const goldenSearch = path.join(goldenDir, String(expectedPath || 'search.xml'))
   check.counts = {
+    sourceSearchEnabled,
     localSearchEnabled: Boolean(localSearch),
     localSearchPath: localSearch?.path ?? null,
     configSearchPath: expectedPath,
@@ -1708,10 +1713,26 @@ function checkSearch({ distDir, config, goldenDir }) {
     globalConfigExcerpt: localSearch ? JSON.stringify(localSearch) : null,
     sourceConfig: 'search.path（_config.yml）+ hexo-generator-search 产物',
   }
-  if (!localSearch) {
-    check.note = '首页没有 GLOBAL_CONFIG.localSearch（搜索未启用或配置未迁移），跳过断言'
+  if (!sourceSearchEnabled) {
+    check.note = '源站 _config.yml 未启用本地搜索（无 search.path），跳过断言'
     check.status = 'SKIP'
     return check
+  }
+  if (!localSearch) {
+    const expectedIndex = normalizeRoute(`/${String(expectedPath).replace(/^\/+/, '')}`)
+    check.gaps.push({
+      status: 'migration-gap',
+      classification: 'search-index',
+      url: expectedIndex,
+      expectedPath,
+      goldenHasFile: isFile(goldenSearch),
+      detail: `源站启用本地搜索（search.path=${expectedPath}）但产物首页没有 GLOBAL_CONFIG.localSearch，配置未迁移`,
+      owner: CLASS_OWNER['search-index'],
+    })
+    check.counts.indexFile = expectedIndex.replace(/^\/+/, '')
+    check.counts.indexExists = false
+    check.counts.indexBytes = 0
+    return finalizeCheck(check)
   }
   const indexPath = normalizeRoute(`/${String(localSearch.path || '').replace(/^\/+/, '')}`)
   const target = indexPath.replace(/^\/+/, '')
@@ -1723,7 +1744,7 @@ function checkSearch({ distDir, config, goldenDir }) {
       url: indexPath,
       expectedPath,
       goldenHasFile: isFile(goldenSearch),
-      detail: `localSearch.path=${indexPath} 指向的索引文件不存在（当前 94 页产物无本地搜索索引）`,
+      detail: `localSearch.path=${indexPath} 指向的索引文件不存在`,
       owner: CLASS_OWNER['search-index'],
     })
   }
@@ -1774,18 +1795,26 @@ function checkFeedSitemap({ distDir, config, plugins, goldenDir }) {
       row.goldenItems = (text.match(item.itemRe) || []).length
     }
     rows.push(row)
-    if (!row.exists || row.bytes === 0 || (item.kind !== 'baidu_urls' && row.items === 0)) {
+    // D4：条目数与 golden 不一致也算缺口（golden = 源站最后一次构建参照，迁移前后
+    // feed/sitemap 条目数应一致）；golden 无文件时不比（没有参照，避免误报）。
+    const itemMismatch = row.goldenExists && row.items !== row.goldenItems
+    const emptyItems = item.kind !== 'baidu_urls' && row.items === 0
+    if (!row.exists || row.bytes === 0 || emptyItems || itemMismatch) {
+      const detail = !row.exists
+        ? `产物不存在（golden ${row.goldenExists ? `有，${row.goldenItems} 条目` : '也没有'}）`
+        : row.bytes === 0
+          ? '产物为空文件'
+          : emptyItems
+            ? '产物存在但条目数为 0'
+            : `条目数与 golden 不一致（产物 ${row.items} / golden ${row.goldenItems}）`
       check.gaps.push({
         status: 'migration-gap',
         classification: item.classification,
         url: row.path,
         goldenExists: row.goldenExists,
         goldenItems: row.goldenItems,
-        detail: !row.exists
-          ? `产物不存在（golden ${row.goldenExists ? `有，${row.goldenItems} 条目` : '也没有'}）`
-          : row.bytes === 0
-            ? '产物为空文件'
-            : '产物存在但条目数为 0',
+        items: row.items,
+        detail,
         owner: CLASS_OWNER[item.classification],
       })
     }

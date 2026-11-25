@@ -9,13 +9,17 @@
  * - 字节数：相对误差 ≤ ±5%（PLAN §P1-5「字节数与上游 index.css 差异 ≤5%」）
  * - gzip 体积：相对误差 ≤ ±5%（baseline 与本脚本的 zlib 版本/压缩等级可能不同，
  *   实测这种差异远小于 5%，用同一阈值吸收）
- * - SHA-256：只记录、不判失败。迁移期的 CSS 不会与上游逐字节一致，
- *   硬失败会让 ≤5% 的验收标准永远过不了；字节级收敛后再改成硬失败。
- * - baseline.json 不存在：打印「baseline 未就绪，跳过比对」并以 0 退出。
- *   baseline 由 P1-6 并行产出，CI 不能因为它还没进仓库而红。
+ * - SHA-256：不一致时显式登记为已知差异（REGISTRY），不判失败——迁移期的 CSS
+ *   不会与上游逐字节一致（构建管线不同，PLAN §P1-5 的验收口径是 ±5% 字节）。
+ *   需要字节级硬校验（如收敛完成后）设 VERIFY_CSS_REQUIRE_SHA_MATCH=1，不一致即 FAIL。
+ * - baseline.json 不存在：默认 FAIL（D2：跳过即假绿）。迁移期确需豁免时
+ *   显式设 VERIFY_CSS_ALLOW_MISSING=1 才跳过（exit 0）。
  *
  * 本地调试用的路径覆盖（CI 不设置）：
  *   BASELINE_PATH=... DIST_DIR=...
+ * 豁免/严格开关（默认都不开）：
+ *   VERIFY_CSS_ALLOW_MISSING=1      baseline 缺失时跳过而非失败（迁移期）
+ *   VERIFY_CSS_REQUIRE_SHA_MATCH=1  SHA 不一致判失败（字节级收敛后启用）
  */
 
 import { createHash } from 'node:crypto'
@@ -42,10 +46,16 @@ const fail = (message) => {
   process.exit(1)
 }
 
-// —— 1. baseline 缺失：跳过，不算失败 ——
+// —— 1. baseline 缺失：默认 FAIL（D2 堵假绿）；迁移期豁免需显式 env ——
 if (!existsSync(BASELINE_PATH)) {
-  log('baseline 未就绪，跳过比对')
-  process.exit(0)
+  if (process.env.VERIFY_CSS_ALLOW_MISSING === '1') {
+    log('baseline 未就绪，跳过比对（VERIFY_CSS_ALLOW_MISSING=1 显式豁免）')
+    process.exit(0)
+  }
+  fail(
+    `baseline 不存在：${path.relative(REPO_ROOT, BASELINE_PATH)} — 跳过即假绿，判失败；` +
+      '迁移期豁免需显式 VERIFY_CSS_ALLOW_MISSING=1',
+  )
 }
 
 // —— 2. 读 baseline 摘要并校验字段 ——
@@ -131,8 +141,15 @@ compare('gzip 体积', actual.gzip, expected.gzip, GZIP_TOLERANCE)
 
 if (actual.sha === expected.sha.toLowerCase()) {
   log('PASS SHA256 一致')
+} else if (process.env.VERIFY_CSS_REQUIRE_SHA_MATCH === '1') {
+  console.error(
+    `[verify-css] FAIL SHA256 不一致（VERIFY_CSS_REQUIRE_SHA_MATCH=1 硬校验）：实际 ${actual.sha} / baseline ${expected.sha.toLowerCase()}`,
+  )
+  failed = true
 } else {
-  log(`WARN SHA256 不一致（记录，不判失败）：实际 ${actual.sha} / baseline ${expected.sha.toLowerCase()}`)
+  log(
+    `REGISTRY SHA256 不一致（已显式登记为已知差异，不判失败；硬校验设 VERIFY_CSS_REQUIRE_SHA_MATCH=1）：实际 ${actual.sha} / baseline ${expected.sha.toLowerCase()}`,
+  )
 }
 
 if (failed) {
