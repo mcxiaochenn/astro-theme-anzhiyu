@@ -1,13 +1,15 @@
 window.addEventListener("load", () => {
   let loadFlag = false;
   let dataObj = [];
-  const $searchMask = document.getElementById("search-mask");
+  // `#search-mask` 属于 Search 组件子树，ClientRouter 换页即被替换 —— 取值必须
+  // 每次现查；首屏缓存旧节点会让换页后遮罩永远显示不出来（animateIn 到已丢弃节点）。
+  const searchMask = () => document.getElementById("search-mask");
 
   const openSearch = () => {
     const bodyStyle = document.body.style;
     bodyStyle.width = "100%";
     bodyStyle.overflow = "hidden";
-    anzhiyu.animateIn($searchMask, "to_show 0.5s");
+    anzhiyu.animateIn(searchMask(), "to_show 0.5s");
     anzhiyu.animateIn(document.querySelector("#local-search .search-dialog"), "titleScale 0.5s");
     setTimeout(() => {
       document.querySelector("#local-search-input input").focus();
@@ -30,18 +32,35 @@ window.addEventListener("load", () => {
     bodyStyle.width = "";
     bodyStyle.overflow = "";
     anzhiyu.animateOut(document.querySelector("#local-search .search-dialog"), "search_close .5s");
-    anzhiyu.animateOut($searchMask, "to_hide 0.5s");
+    anzhiyu.animateOut(searchMask(), "to_hide 0.5s");
   };
 
   const searchClickFn = () => {
-    document.querySelector("#search-button > .search").addEventListener("click", openSearch);
-    document.querySelector("#menu-search").addEventListener("click", openSearch);
+    // `#search-button` 在 Header 子树（换页被替换），每次导航后对新节点重绑。
+    const $searchButton = document.querySelector("#search-button > .search");
+    if ($searchButton) $searchButton.addEventListener("click", openSearch);
+    // `#menu-search` 在 transition:persist 的 #rightMenu 里，全站只绑一次；
+    // 每次 pjax:complete 重绑会在常驻节点上逐页叠加 openSearch。
+    const $menuSearch = document.getElementById("menu-search");
+    if ($menuSearch && !$menuSearch.dataset.searchBound) {
+      $menuSearch.dataset.searchBound = "1";
+      $menuSearch.addEventListener("click", openSearch);
+    }
   };
 
-  const searchClickFnOnce = () => {
-    document.querySelector("#local-search .search-close-button").addEventListener("click", closeSearch);
-    $searchMask.addEventListener("click", closeSearch);
-    if (GLOBAL_CONFIG.localSearch.preload) dataObj = fetchData(GLOBAL_CONFIG.localSearch.path);
+  const searchDialogFn = () => {
+    // 弹层节点带 data-astro-transition-persist（常驻，同上游 pjax 语义）；这里仍做
+    // 幂等重绑兜底（dataset 防叠加），站点未启用常驻或弹层被重建时同样成立。
+    const $closeButton = document.querySelector("#local-search .search-close-button");
+    if ($closeButton && !$closeButton.dataset.closeBound) {
+      $closeButton.dataset.closeBound = "1";
+      $closeButton.addEventListener("click", closeSearch);
+    }
+    const $mask = searchMask();
+    if ($mask && !$mask.dataset.closeBound) {
+      $mask.dataset.closeBound = "1";
+      $mask.addEventListener("click", closeSearch);
+    }
   };
 
   // check url is json or not
@@ -260,11 +279,18 @@ window.addEventListener("load", () => {
   };
 
   searchClickFn();
-  searchClickFnOnce();
+  searchDialogFn();
+  if (GLOBAL_CONFIG.localSearch.preload) dataObj = fetchData(GLOBAL_CONFIG.localSearch.path);
 
   // pjax
+  // 换页前（pjax:send）搜索层还开着就先收起：mask 属于换页即被替换的子树，
+  // 等 pjax:complete 时旧 mask 已丢弃、查不到「是否开着」，body 的滚动锁会残留。
+  window.addEventListener("pjax:send", () => {
+    const $mask = searchMask();
+    if ($mask && !anzhiyu.isHidden($mask)) closeSearch();
+  });
   window.addEventListener("pjax:complete", () => {
-    !anzhiyu.isHidden($searchMask) && closeSearch();
     searchClickFn();
+    searchDialogFn();
   });
 });

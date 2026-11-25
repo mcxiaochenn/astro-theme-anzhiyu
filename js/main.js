@@ -154,6 +154,8 @@ var musicVolume = 0.8;
 var changeMusicListFlag = false;
 // 当前默认播放列表
 var defaultPlayMusicList = [];
+// /music/ 页等待播放器就绪的计时器（utils.js changeMusicBg 使用；同一时刻只允许一个）
+var anMusicBgTimer = null;
 var themeColorMeta, pageHeaderEl, navMusicEl, consoleEl;
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -904,12 +906,22 @@ document.addEventListener("DOMContentLoaded", function () {
     },
   };
 
-  document.getElementById("rightside").addEventListener("click", function (e) {
-    const $target = e.target.closest("[id]");
-    if ($target && rightSideFn[$target.id]) {
-      rightSideFn[$target.id](this);
-    }
-  });
+  /**
+   * Rightside 事件委托。
+   * `#rightside` 不在 `transition:persist` 名单里，ClientRouter 每次换页都会换成新
+   * 节点 —— 委托必须在 refreshFn 里对**当前**节点重绑（addEventListenerPjax 在
+   * pjax:send 自动解绑旧节点），不能只在首屏绑一次，否则换页后整个右侧按钮栏失效。
+   */
+  const bindRightsideDelegate = () => {
+    const $rightside = document.getElementById("rightside");
+    if (!$rightside) return;
+    anzhiyu.addEventListenerPjax($rightside, "click", function (e) {
+      const $target = e.target.closest("[id]");
+      if ($target && rightSideFn[$target.id]) {
+        rightSideFn[$target.id](this);
+      }
+    });
+  };
 
   //监听蒙版关闭
   document.addEventListener(
@@ -939,10 +951,14 @@ document.addEventListener("DOMContentLoaded", function () {
    * 手机端目录点击
    */
   const openMobileMenu = () => {
+    const $toggleMenu = document.getElementById("toggle-menu");
+    // 404 页没有 Header（is404 分支不渲染 #body-wrap），null 直接 addEventListener 会
+    // 把整个 refreshFn 打断，导致其后所有初始化失效。
+    if (!$toggleMenu) return;
     const handleClick = () => {
       sidebarFn.open();
     };
-    anzhiyu.addEventListenerPjax(document.getElementById("toggle-menu"), "click", handleClick);
+    anzhiyu.addEventListenerPjax($toggleMenu, "click", handleClick);
   };
 
   /**
@@ -970,7 +986,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     };
 
-    document.body.addEventListener("copy", handleCopy);
+    // `document.body` 在 ClientRouter 换页时整体换成新节点（swapBodyElement），
+    // 监听必须走 addEventListenerPjax：换页解绑旧 body、refreshFn 重绑新 body。
+    anzhiyu.addEventListenerPjax(document.body, "copy", handleCopy);
   };
 
   /**
@@ -1188,6 +1206,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // 开始监听
     observer.observe(document.getElementById("post-comment"), config);
+    // 换页后 #post-comment 随 body 整体被替换（swapBodyElement），观察器在 pjax:send
+    // 解绑，避免一直挂在被丢弃的子树上（每次进文章页泄漏一个 observer）。
+    anzhiyu.addGlobalFn("pjax", () => observer.disconnect());
 
     function handleMouseOver(e) {
       if (e.target.tagName == "IMG" && flag) {
@@ -1595,9 +1616,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function setInputFocusListener() {
     const inputs = document.querySelectorAll("input, textarea");
+    // 排除中控台开关与 page-type 隐藏域：它们获得焦点≠用户在打字
+    // （原条件 `id !== A || id !== B` 恒真，把全部输入框过滤掉，anzhiyu_intype 永远
+    // 是 false —— 在搜索框/评论框打字时 Shift 快捷键照样触发）。
     const filteredinputs = Array.from(inputs).filter(heading => {
-      if (heading.id !== "center-console" || heading.id !== "page-type") {
-        return;
+      if (heading.id !== "center-console" && heading.id !== "page-type") {
+        return heading;
       }
     });
     filteredinputs.forEach(input => {
@@ -1704,7 +1728,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let OriginTitile = document.title;
     let titleTime;
 
-    document.addEventListener("visibilitychange", function () {
+    // refreshFn 每次换页都会重跑本函数；document 常驻，裸 addEventListener 会逐页
+    // 叠加（换 N 页后一次 visibilitychange 命中 N 个处理器、标题互相覆盖）。
+    anzhiyu.addEventListenerPjax(document, "visibilitychange", function () {
       if (document.hidden) {
         //离开当前页面时标签显示内容
         document.title = leaveTitle;
@@ -1736,19 +1762,15 @@ document.addEventListener("DOMContentLoaded", function () {
       mobileSidebarOpen && anzhiyu.isHidden(document.getElementById("toggle-menu")) && sidebarFn.close();
     });
 
-    document.getElementById("menu-mask").addEventListener("click", e => {
-      sidebarFn.close();
-    });
-
     // 处理右键
     $rightMenu = document.getElementById("rightMenu");
     addDarkModeEventListener("menu-darkmode");
-    addDarkModeEventListener("sidebar", ".darkmode_switchbutton");
 
-    clickFnOfSubMenu();
     GLOBAL_CONFIG.islazyload && lazyloadImg();
-    GLOBAL_CONFIG.copyright !== undefined && addCopyright();
     GLOBAL_CONFIG.navMusic && listenNavMusicPause();
+    // #nav-music 是 transition:persist 常驻节点，列表点击监听只绑一次；
+    // 在 refreshFn 里重绑会逐页叠加（换 N 页后一次点击命中 N 个处理器）。
+    anzhiyu.addEventListenerConsoleMusicList();
     if (GLOBAL_CONFIG.shortcutKey && document.getElementById("consoleKeyboard")) {
       localStorage.setItem("keyboardToggle", "true");
       document.getElementById("consoleKeyboard").classList.add("on");
@@ -1775,6 +1797,23 @@ document.addEventListener("DOMContentLoaded", function () {
     consoleEl = document.getElementById("console");
 
     addDarkModeEventListener("console", ".darkmode_switchbutton");
+
+    /*
+     * 换页即被替换的节点上的交互，统一在 refreshFn 重绑（旧节点的解绑由
+     * addEventListenerPjax 在 pjax:send 完成）：
+     *   - #rightside 事件委托（整个右侧按钮栏）
+     *   - #menu-mask 点击关侧栏、侧栏暗色开关、侧栏子菜单展开（#sidebar-menus 子树）
+     */
+    bindRightsideDelegate();
+    const $menuMask = document.getElementById("menu-mask");
+    if ($menuMask) {
+      anzhiyu.addEventListenerPjax($menuMask, "click", () => {
+        sidebarFn.close();
+      });
+    }
+    addDarkModeEventListener("sidebar", ".darkmode_switchbutton");
+    clickFnOfSubMenu();
+    GLOBAL_CONFIG.copyright !== undefined && addCopyright();
 
     if (GLOBAL_CONFIG_SITE.isPost) {
       GLOBAL_CONFIG.noticeOutdate !== undefined && addPostOutdateNotice();
@@ -1808,9 +1847,6 @@ document.addEventListener("DOMContentLoaded", function () {
     clickFnOfTagHide();
     tabsFn();
     switchComments();
-    document.getElementById("toggle-menu").addEventListener("click", () => {
-      sidebarFn.open();
-    });
 
     // 如果当前页有评论就执行函数
     if (document.getElementById("post-comment")) owoBig();
@@ -1821,8 +1857,9 @@ document.addEventListener("DOMContentLoaded", function () {
     openMobileMenu();
 
     // needRefresh
-    // nav中间的标题变化
-    document.getElementById("page-name").innerText = document.title.split(` | ${GLOBAL_CONFIG_SITE.configTitle}`)[0];
+    // nav中间的标题变化（404 页无 Header/#page-name，缺节点不能打断 refreshFn）
+    const $pageName = document.getElementById("page-name");
+    if ($pageName) $pageName.innerText = document.title.split(` | ${GLOBAL_CONFIG_SITE.configTitle}`)[0];
     anzhiyu.initIndexEssay();
     anzhiyu.changeTimeInEssay();
     anzhiyu.removeBodyPaceClass();
@@ -1839,7 +1876,6 @@ document.addEventListener("DOMContentLoaded", function () {
     anzhiyu.topCategoriesBarScroll();
     anzhiyu.switchRightClickMenuHotReview();
     anzhiyu.getCustomPlayList();
-    anzhiyu.addEventListenerConsoleMusicList(false);
     anzhiyu.initPaginationObserver();
 
     setTimeout(() => {

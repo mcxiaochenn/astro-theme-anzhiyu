@@ -645,6 +645,12 @@ const anzhiyu = {
   },
   //切换音乐播放状态
   musicToggle: function (changePaly = true) {
+    if (!navMusicEl) return;
+    const navMeting = document.querySelector("#nav-music meting-js");
+    const navPlayer = navMeting && navMeting.aplayer;
+    // 播放器未就绪（Meting/APlayer 仍在加载）时直接返回：旧逻辑会在
+    // `navMeting.aplayer.toggle()` 上抛 TypeError，音乐球点击无反应且污染控制台。
+    if (changePaly && !navPlayer) return;
     if (!anzhiyu_musicFirst) {
       anzhiyu.musicBindEvent();
       anzhiyu_musicFirst = true;
@@ -665,7 +671,7 @@ const anzhiyu = {
       anzhiyu_musicPlaying = true;
       navMusicEl.classList.add("stretch");
     }
-    if (changePaly) document.querySelector("#nav-music meting-js").aplayer.toggle();
+    if (changePaly) navPlayer.toggle();
     rm && rm.hideRightMenu();
   },
   // 音乐伸缩
@@ -815,24 +821,36 @@ const anzhiyu = {
     if (isChangeBg) {
       // player listswitch 会进入此处
       const musiccover = document.querySelector("#anMusic-page .aplayer-pic");
+      // 换页后旧播放器事件仍可能到达（listswitch/loadeddata），此时音乐页已不存在
+      if (!anMusicBg || !musiccover) return;
       anMusicBg.style.backgroundImage = musiccover.style.backgroundImage;
     } else {
       // 第一次进入，绑定事件，改背景
-      let timer = setInterval(() => {
-        const musiccover = document.querySelector("#anMusic-page .aplayer-pic");
+      // 同一时刻只允许一个等待计时器：多次进出音乐页会叠出多个 interval，
+      // 每个都执行一遍 addEventListenerMusic（按钮/键盘监听成倍叠加）。
+      if (anMusicBgTimer) clearInterval(anMusicBgTimer);
+      anMusicBgTimer = setInterval(() => {
+        // 已离开音乐页（换页后 #anMusic-page 随 body 被替换）就停止等待，
+        // 否则这个 interval 会永远每 100ms 轮询一次（探针实测泄漏）。
+        const anMusicPage = document.getElementById("anMusic-page");
+        if (!anMusicPage || !anMusicPage.isConnected) {
+          clearInterval(anMusicBgTimer);
+          anMusicBgTimer = null;
+          return;
+        }
+        const musiccover = anMusicPage.querySelector(".aplayer-pic");
         // 确保player加载完成
         if (musiccover) {
-          clearInterval(timer);
+          clearInterval(anMusicBgTimer);
+          anMusicBgTimer = null;
           // 绑定事件
           anzhiyu.addEventListenerMusic();
           // 确保第一次能够正确替换背景
           anzhiyu.changeMusicBg();
 
           // 暂停nav的音乐
-          if (
-            document.querySelector("#nav-music meting-js").aplayer &&
-            !document.querySelector("#nav-music meting-js").aplayer.audio.paused
-          ) {
+          const navMeting = document.querySelector("#nav-music meting-js");
+          if (navMeting && navMeting.aplayer && !navMeting.aplayer.audio.paused) {
             anzhiyu.musicToggle();
           }
         }
@@ -848,6 +866,8 @@ const anzhiyu = {
     const userId = "8152976493";
     const userServer = "netease";
     const anMusicPageMeting = document.getElementById("anMusic-page-meting");
+    // 音乐页骨架缺节点时不能把整个 refreshFn 打断
+    if (!anMusicPageMeting) return;
     if (urlParams.get("id") && urlParams.get("server")) {
       const id = urlParams.get("id");
       const server = urlParams.get("server");
@@ -872,11 +892,20 @@ const anzhiyu = {
   // 监听音乐背景改变
   addEventListenerMusic: function () {
     const anMusicPage = document.getElementById("anMusic-page");
+    if (!anMusicPage) return;
+    // 同一页只绑一次：changeMusicBg 的等待计时器被多次触发时会重复进来，
+    // 键盘/按钮监听会成倍叠加（Space 一次触发 N 次 toggle，看起来像「点了没反应」）。
+    if (anMusicPage.dataset.musicBound === "1") return;
     const aplayerIconMenu = anMusicPage.querySelector(".aplayer-info .aplayer-time .aplayer-icon-menu");
     const anMusicBtnGetSong = anMusicPage.querySelector("#anMusicBtnGetSong");
     const anMusicRefreshBtn = anMusicPage.querySelector("#anMusicRefreshBtn");
     const anMusicSwitchingBtn = anMusicPage.querySelector("#anMusicSwitching");
-    const metingAplayer = anMusicPage.querySelector("meting-js").aplayer;
+    const metingJs = anMusicPage.querySelector("meting-js");
+    const metingAplayer = metingJs && metingJs.aplayer;
+    if (!aplayerIconMenu || !anMusicBtnGetSong || !anMusicRefreshBtn || !anMusicSwitchingBtn || !metingAplayer) {
+      return;
+    }
+    anMusicPage.dataset.musicBound = "1";
     //初始化音量
     metingAplayer.volume(0.8, true);
     metingAplayer.on("loadeddata", function () {
@@ -889,16 +918,16 @@ const anzhiyu = {
       anMusicPage.querySelector(".aplayer.aplayer-withlist .aplayer-list").style.opacity = "1";
     });
 
-    function anMusicPageMenuAask() {
-      if (window.location.pathname != "/music/") {
-        document.getElementById("menu-mask").removeEventListener("click", anMusicPageMenuAask);
-        return;
-      }
-
-      anMusicPage.querySelector(".aplayer-list").classList.remove("aplayer-list-hide");
+    const $menuMask = document.getElementById("menu-mask");
+    if ($menuMask) {
+      // addEventListenerPjax：换页自动解绑。旧实现靠 pathname 自查 + 手动 remove，
+      // 多次进出音乐会把 anMusicPageMenuAask 叠在 menu-mask 上。
+      anzhiyu.addEventListenerPjax($menuMask, "click", function () {
+        const aplayerList = anMusicPage.querySelector(".aplayer-list");
+        if (!aplayerList) return;
+        aplayerList.classList.remove("aplayer-list-hide");
+      });
     }
-
-    document.getElementById("menu-mask").addEventListener("click", anMusicPageMenuAask);
 
     // 监听增加单曲按钮
     anMusicBtnGetSong.addEventListener("click", () => {
@@ -928,7 +957,10 @@ const anzhiyu = {
 
     // 监听键盘事件
     //空格控制音乐
-    document.addEventListener("keydown", function (event) {
+    // addEventListenerPjax：换页（pjax:send）自动解绑。旧实现裸绑 document 且永不
+    // 解除 —— 每次进出音乐页叠一个「全局劫持 Space/方向键 + preventDefault」的
+    // 处理器，闭包还指着已随旧 body 销毁的播放器，离开音乐页后全站键盘行为异常。
+    anzhiyu.addEventListenerPjax(document, "keydown", function (event) {
       //暂停开启音乐
       if (event.code === "Space") {
         event.preventDefault();
@@ -993,12 +1025,15 @@ const anzhiyu = {
     // 切换标志位
     changeMusicListFlag = !changeMusicListFlag;
   },
-  // 控制台音乐列表监听
+  // 控制台音乐列表监听（#nav-music 是 transition:persist 常驻节点，由 unRefreshFn 只绑一次）
   addEventListenerConsoleMusicList: function () {
     const navMusic = document.getElementById("nav-music");
     if (!navMusic) return;
     navMusic.addEventListener("click", e => {
       const aplayerList = navMusic.querySelector(".aplayer-list");
+      // APlayer 尚未渲染出列表（Meting 还在加载/被隔离）时点击音乐球，旧逻辑直接
+      // 在 aplayerList.classList 上抛 TypeError。
+      if (!aplayerList) return;
       const listBtn = navMusic.querySelector(
         "div.aplayer-info > div.aplayer-controller > div.aplayer-time.aplayer-time-narrow > button.aplayer-icon.aplayer-icon-menu svg"
       );
@@ -1139,10 +1174,13 @@ const anzhiyu = {
 
   // 音乐绑定事件
   musicBindEvent: function () {
-    document.querySelector("#nav-music .aplayer-music").addEventListener("click", function () {
+    const aplayerMusic = document.querySelector("#nav-music .aplayer-music");
+    const aplayerButton = document.querySelector("#nav-music .aplayer-button");
+    if (!aplayerMusic || !aplayerButton) return;
+    aplayerMusic.addEventListener("click", function () {
       anzhiyu.musicTelescopic();
     });
-    document.querySelector("#nav-music .aplayer-button").addEventListener("click", function () {
+    aplayerButton.addEventListener("click", function () {
       anzhiyu.musicToggle(false);
     });
   },
