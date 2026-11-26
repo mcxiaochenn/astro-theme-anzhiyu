@@ -6,7 +6,7 @@
   - `scripts/check-upstream-delta.mjs`（只读 CI 校验）
   - 根 `package.json` 新增 `check:upstream-delta`（只加条目，未改其他 script）
   - 本报告
-- 写范围：只碰上述 4 个文件。`git status` 里其他改动（`docs/notes/phases/P1-8-loader.md`、`examples/blog/src/layouts/`、`packages/astro-theme-anzhiyu/*`、`scripts/compare-css-vars.mjs` 等）是并行任务产物，未触碰。
+- 写范围：只碰上述 4 个文件。`git status` 里其他改动（`docs/notes/phases/P1-8-loader.md`、`src/layouts/`、`packages/astro-theme-anzhiyu/*`、`scripts/compare-css-vars.mjs` 等）是并行任务产物，未触碰。
 - 基线：上游 1.7.1 / `72439d93936b63da59a4a1195f64de9f952f6cc1`；参考产物 CSS 683218 B（`docs/reference/baseline.json`）。
 
 ---
@@ -86,7 +86,7 @@ hexo.extend.filter.register("stylus:renderer", style => {
 
 ```js
 import { createRequire } from 'node:module'
-const require = createRequire('D:/Git-project/astro-theme-anzhiyu/examples/blog/package.json')
+const require = createRequire('D:/Git-project/astro-theme-anzhiyu/package.json')
 const stylus = require('stylus')
 
 const cases = {
@@ -163,7 +163,7 @@ expanded + $prismjs_enable=false        bytes: 682990  delta=-228   sha_equal_ba
 expanded + 四项 Hexo define（完整模拟） bytes: 682990  delta=-228   sha_equal_baseline=false
 ```
 
-- 「原样」的字节数与 SHA 与当时 `examples/blog/dist` 产物**完全一致**（686772 / `1319c726…`），证明复现的是真实管线而不是玩具输入；
+- 「原样」的字节数与 SHA 与当时 `dist` 产物**完全一致**（686772 / `1319c726…`），证明复现的是真实管线而不是玩具输入；
 - 只补 `$prismjs_enable=false` 就精确减掉 **3782 字节**；另外三个变量补不补结果相同（未定义真值恰等于基线值，见 §2.3）；
 - 逐块 diff：多出的 **32 个规则块**全部来自 `_highlight/prismjs/{index,line-number,diff}.styl`，与 P1-5 §6.1 `{` 计数 +32 完全对应。P1-5 §6.2 的「34 条」是选择器级 multiset 口径，不与之矛盾；**字节口径以 3782 为准**；
 - 剩余 −228 B 是 U6 的字面量行折叠差，与 prismjs 无关。
@@ -215,15 +215,15 @@ expanded + 四项 Hexo define（完整模拟） bytes: 682990  delta=-228   sha_
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssBytes 与登记表一致（683218）
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssGzipBytes 与登记表一致（79124）
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssSha256 与登记表一致（7c1b1ec08779d351f146b2120cbff4311c021073c457378b39bdeef074a07f61）
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/index.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/var.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/highlight.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/theme.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/index.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/line-number.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/diff.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_mode/readmode.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/theme.config.yml
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/index.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/var.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/highlight.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/theme.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/index.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/line-number.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/diff.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_mode/readmode.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 theme.config.yml
 [check-upstream-delta] PASS 上游 72 个 styl 里 $highlight_enable / $highlight_line_number / $prismjs_enable / $prismjs_line_number 仍然零赋值（它们由 Hexo 模板脚本的 .define() 注入，D9 的前提）
 [check-upstream-delta] PASS _highlight/highlight.styl 仍有 if $prismjs_enable 守卫（D9 现场保留）
 [check-upstream-delta] PASS theme.config.yml 顶层键 = 133（登记表 133）
@@ -247,7 +247,7 @@ expanded + 四项 Hexo define（完整模拟） bytes: 682990  delta=-228   sha_
   实际："background: var(--highlight-bg) !important"。把这里"修好"会让 read-mode 代码块背景真的生效（上游实际不生效），破坏像素级还原与 P1-6 字节基准；确需修复请先更新 docs/reference/upstream-delta.md 的决策与锚点。
 [check-upstream-delta] FAIL baseline.json css.indexCssBytes 与登记表一致
   baseline.json=683219 / 登记表=683218
-[check-upstream-delta] FAIL 上游文件 SHA-256 examples/blog/src/styles/upstream/_mode/readmode.styl
+[check-upstream-delta] FAIL 上游文件 SHA-256 src/styles/upstream/_mode/readmode.styl
   实际 5abed5… / 登记表 ea44d8…。上游副本必须与 1.7.1 基线逐字节一致（不许格式化/换行归一化/"顺手修复"）。
 [check-upstream-delta] 校验失败：3 项不通过（PASS 17 / SKIP 3）
 ```
@@ -271,7 +271,7 @@ expanded + 四项 Hexo define（完整模拟） bytes: 682990  delta=-228   sha_
 2. **这三个键不要补进 defaults**：`theme_color.button_hover` / `blockquote_padding_color` / `blockquote_background_color`；缺失 → falsy → 上游 fallback 默认色，补键会改色值分支。
 3. **`hexo-config()` 对象语义保持降级**：`theme_color` / `hr_icon` / `preloader` / `footer.footerBar` / `dynamicEffect` / `katex` / `local_search` 共 7 处对象取值全部只在 `if` / `&&` 里；当前用 `true` 字面量代替。若出现「取对象子属性再输出」的新用法，必须先改实现，否则会把 `true` 当值输出。
 4. **Phase 7 之前保持 `cssMinify:false`**：U1 与「未压缩基准」双重要求；开压缩时要另立压缩后体积预算，而不是拿压缩产物对 683218。
-5. **禁止修改上游镜像**：`examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml` 是基线证据，SHA 由 CI 守卫；修上游必须走登记表 + 锚点变更。
+5. **禁止修改上游镜像**：`src/styles/upstream/**`、`theme.config.yml` 是基线证据，SHA 由 CI 守卫；修上游必须走登记表 + 锚点变更。
 6. **换行保持 CRLF**：不要对镜像跑 formatter / "统一换行"（U7）。
 7. **基准只能同版本重跑**：hexo 7.3.0 + 固定 fixture + 固定站点配置；上游 commit 冻结 `72439d93`，迁移期不追新。
 8. **逐字节对齐的边界**：即使 D9 关闭，仍差 −228 B（U6）。Phase 2 的 HTML/CSS 比对不能把「SHA 相等」当门槛，按 `verify-css.mjs` ±5% + 字节闭环 + 选择器集合 diff 三层判。

@@ -20,7 +20,7 @@
 | `ANZHIYU_PWA=1` 但包缺失（迁移站） | `try/catch` 捕获 → `console.warn` → 按无 PWA 构建，**退出码 0**（实验见 §6） |
 | 迁移站默认（不设 env） | 根本不执行 import，天然不受影响 |
 
-要点：`migrate-hexo.mjs` 会整份复制 `examples/blog/astro.config.mjs`，迁移产物
+要点：`migrate-hexo.mjs` 会整份复制 `astro.config.mjs`，迁移产物
 `package.json` 里没有 `@vite-pwa/astro`，所以这里**不能**用静态 import，只能用
 `await import()` + `catch`。
 
@@ -75,7 +75,7 @@ precache  84 entries (3465.28 KiB)
   本次用默认的 `generateSW`（Workbox 全权生成）。
 - `rolldown` 是 optional peer，`autoInstallPeers: true` 下自动装到 `rolldown@1.3.3`，
   `@vite-pwa/workbox-build` 用它给 SW 做 bundling。
-- 依赖声明位置：`examples/blog/package.json` 的 devDependencies
+- 依赖声明位置：`package.json` 的 devDependencies
   `"@vite-pwa/astro": "^2.0.4"`（站点自己用，不进主题包；CI 的
   `pnpm install --frozen-lockfile` 从根 lockfile 装到 hoisted node_modules）。
 - 本机安装环境异常（与方案无关，记录备查）：workspace 里现成的 `node_modules`
@@ -101,7 +101,7 @@ after : 3D14B88A7BE695A8C2E017C4D4A897525C80D4FCE921C29EAFF1AFC6A5B737B8
 ## 3. sw-rules.js 逐条映射
 
 上游：`_research/anzhiyu-upstream/sw-rules.js`（131 行，hexo-swpp 规则）。
-新实现：`examples/blog/astro.config.mjs` 的 P7-1 段（§「P7-1 · PWA」）。
+新实现：`astro.config.mjs` 的 P7-1 段（§「P7-1 · PWA」）。
 行号对当前工作副本，便于 review：
 
 | # | 上游规则（sw-rules.js） | 新实现（astro.config.mjs） | 状态 |
@@ -288,7 +288,7 @@ skip 口径：根配置扫到 `pwa.spec.ts` 时，`beforeEach` 先 `request.get(
 | --- | --- |
 | `tests/e2e/pwa.spec.ts` | 测试 2 首访前调用主 e2e 的 `isolateExternalRequests(page)`（外部脚本打桩 / 外链样式空体 / 其余 abort），`page.goto('/', { waitUntil: 'domcontentloaded' })`；SW 注册脚本挂在 `load` 上，所以 `waitForFunction(controller)` 仍隐含等 load 完成。断网 reload 保持 `domcontentloaded`。测试 1 追加「首页以 `/` 进 precache」的产物断言（`{url:`/`,revision:`），防止 future 改动静默破坏离线导航前提。 |
 | `playwright.pwa.config.ts` | 显式 `serviceWorkers: 'allow'` + 注释：SW 是验收对象；Playwright 的 route 不拦截 SW 接管的请求，所以「隔离外部 CDN」和「允许 SW」可以共存，改成 `block` 会让离线断言永久失败。 |
-| `examples/blog/astro.config.mjs` | **只加注释、不改配置**：说明 `navigateFallback` 不能写死 `'/'`（它是 base-aware 的，写死会破坏 `DEPLOY_SITE_ROOT` 子路径部署），自动默认值 + manifest transform 才能让离线 `/` 命中预缓存；证据指向本节。 |
+| `astro.config.mjs` | **只加注释、不改配置**：说明 `navigateFallback` 不能写死 `'/'`（它是 base-aware 的，写死会破坏 `DEPLOY_SITE_ROOT` 子路径部署），自动默认值 + manifest transform 才能让离线 `/` 命中预缓存；证据指向本节。 |
 
 **产物级证据**（本机 `ANZHIYU_PWA=1` 构建，`.build.lock` 内执行，
 `CODEBUDDY_SAFE_DELETE_ENABLED=0`；日志 `.tmp-pwa-fix/build-pwa2.log`、
@@ -307,7 +307,7 @@ precache  84 entries (3465.71 KiB)
 - `dist/sw.js` 最终 **8279 B**，SHA-256 `37BA394C7EB9B9C3C098094E129DDD2258D4A85B76811828E972987796B3B4D1`
   —— 与「只加注释」改动前**完全一致**（配置语义零变化，改的是测试与注释）。
 - `navigateFallbackDenylist` 不需要：demo 站没有 `/go.html` 之类需要绕开的导航页
-  （`go.html` 只出现在 `packages/astro-theme-anzhiyu/assets/js/utils.js` 指向的
+  （`go.html` 只出现在 `public/js/utils.js` 指向的
   外部 travellings.cn 链接里）。
 
 **默认构建零影响**（同一把 `.build.lock` 内紧接着重建）：
@@ -335,7 +335,7 @@ Edge 在 DSH 沙箱里启动数秒即退出（`crashpad … OpenProcess: 拒绝�
 
 ```
 $ node --import ./.tmp-pwa-migr/register.mjs --input-type=module \
-    -e "const m = await import('./examples/blog/astro.config.mjs'); …"
+    -e "const m = await import('./astro.config.mjs'); …"
 config loaded OK; integrations = [ 'anzhiyu-assets' ]
 [P7-1 PWA] 设置了 ANZHIYU_PWA=1，但加载 @vite-pwa/astro 失败，本次构建降级为无 PWA
 （迁移站没装这个包时属预期）：Cannot find package '@vite-pwa/astro' (simulated…)
@@ -378,8 +378,8 @@ exit code: 0        # dist/sw.js 不存在、HTML 无 manifest link 注入（62/
 
 | 文件 | 改动 |
 | --- | --- |
-| `examples/blog/astro.config.mjs` | P7-1 PWA 段（env 门控、Workbox 配置、getSpareUrls 补丁、manifest、构建后注入 integration） |
-| `examples/blog/package.json` | devDependencies + `"@vite-pwa/astro": "^2.0.4"` |
+| `astro.config.mjs` | P7-1 PWA 段（env 门控、Workbox 配置、getSpareUrls 补丁、manifest、构建后注入 integration） |
+| `package.json` | devDependencies + `"@vite-pwa/astro": "^2.0.4"` |
 | `pnpm-lock.yaml` | 新增 PWA 依赖树（+227 行，只增不删） |
 | `tests/e2e/pwa.spec.ts` | 新增 2 条离线/产物用例 |
 | `playwright.pwa.config.ts` | 新增独立 PWA 配置（4322、ANZHIYU_PWA=1 webServer、独立报告目录） |

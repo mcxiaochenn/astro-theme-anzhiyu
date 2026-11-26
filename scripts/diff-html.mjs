@@ -13,7 +13,7 @@
  *
  * --all 模式按 docs/reference/baseline.json 的 pages 列表批量比对：
  *   baseline 根目录：BASELINE_HTML_DIR，默认 .baseline-work/public
- *   dist     根目录：DIST_DIR，默认 examples/blog/dist
+ *   dist     根目录：DIST_DIR，默认 dist
  *   baseline.json：BASELINE_PATH，默认 docs/reference/baseline.json
  *
  * 退出码：全部 PASS → 0；有 FAIL → 1；baseline 缺失 / 无 pages / filter 无命中 /
@@ -37,7 +37,7 @@ const BASELINE_HTML_DIR = process.env.BASELINE_HTML_DIR
   : path.join(REPO_ROOT, '.baseline-work', 'public')
 const DIST_DIR = process.env.DIST_DIR
   ? path.resolve(process.env.DIST_DIR)
-  : path.join(REPO_ROOT, 'examples', 'blog', 'dist')
+  : path.join(REPO_ROOT, 'dist')
 
 const log = (...args) => (jsonMode ? console.error : console.log)('[diff-html]', ...args)
 const rel = (file) => path.relative(REPO_ROOT, file) || '.'
@@ -1494,7 +1494,7 @@ const USAGE = `用法：
 
 环境变量：
   BASELINE_HTML_DIR  baseline 根目录，默认 .baseline-work/public
-  DIST_DIR           dist 根目录，默认 examples/blog/dist
+  DIST_DIR           dist 根目录，默认 dist
   BASELINE_PATH      baseline.json 路径，默认 docs/reference/baseline.json
 
 退出码：全部 PASS → 0；有 FAIL → 1；无法比对（baseline 缺失 / 无 pages / filter 无命中）或用法错误 → 2

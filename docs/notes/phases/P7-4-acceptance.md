@@ -308,8 +308,8 @@ Lead 用 `.tmp-lead-linkcheck.mjs` 在**更早的产物**（`.migration-out/xcAn
 ## 7. 工作区演进说明（重要）
 
 本脚本的产物依赖**当前仓库 HEAD + 工作区状态**。本次首跑时工作区里有并行任务未提交的改动
-（`git status`：P7-6 主题静态资源管线，新增 `packages/astro-theme-anzhiyu/assets/`、
-`integration.mjs`，删除 `examples/blog/public/js/**`、`examples/blog/public/css/index.css`），因此：
+（`git status`：P7-6 主题静态资源管线，新增 `public/`、
+`integration.mjs`，删除 `public/js/**`、`public/css/index.css`），因此：
 
 - **fresh migrate+build**：`/css/index.css`、`/js/main.js`、`/js/utils.js`、`/js/tw_cn.js`、
   `/js/anzhiyu/right_click_menu.js` 已由主题包 assets 管线产出，不再计入缺口；

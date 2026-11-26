@@ -43,7 +43,7 @@ pnpm install
 pnpm dev
 ```
 
-Open the URL printed in your terminal to preview the example site (`examples/blog`).
+Open the URL printed in your terminal to preview the example site (this repository root).
 
 3. Build for production:
 
@@ -51,7 +51,7 @@ Open the URL printed in your terminal to preview the example site (`examples/blo
 pnpm build
 ```
 
-Static output is generated in `examples/blog/dist/` and can be deployed to GitHub Pages, Cloudflare Pages, Vercel, Netlify, or any static host.
+Static output is generated in `dist/` and can be deployed to GitHub Pages, Cloudflare Pages, Vercel, Netlify, or any static host.
 
 ### Option 2: Migrate from an Existing Hexo AnZhiYu Site
 
@@ -67,26 +67,7 @@ node scripts/migrate-hexo.mjs --site <your-hexo-site-dir> --out <output-dir>
 
 The tool automatically converts posts, standalone pages, YAML data files (links, essays, albums, equipment, about), permalinks, and theme config. See the [Migration Guide](docs/guides/MIGRATION.md) for details.
 
-### Option 3: Use as a Theme Package in an Astro Project
-
-The core theme is split into three workspace packages (currently local to the monorepo and not yet published to npm; reference via `workspace:*`, tarball `.tgz`, or `file:` path):
-
-- `astro-theme-anzhiyu`: layouts, components, config schema/loader, and static assets integration
-- `remark-hexo-tag`: full remark support for all 42 Hexo `{% tag %}` shortcodes
-- `vite-plugin-stylus-hexo-config`: compiles upstream Stylus stylesheets with `hexo-config()` injection
-
-Enable the theme assets integration in `astro.config.mjs`:
-
-```js
-import { defineConfig } from 'astro/config'
-import anzhiyuAssets from 'astro-theme-anzhiyu/integration'
-
-export default defineConfig({
-  integrations: [anzhiyuAssets()],
-})
-```
-
-> See [examples/blog/astro.config.mjs](examples/blog/astro.config.mjs) for the complete setup including `remark-hexo-tag` and `vite-plugin-stylus-hexo-config`.
+> See [astro.config.mjs](astro.config.mjs) for the complete setup including `remark-hexo-tag` and `vite-plugin-stylus-hexo-config`.
 
 ## ⚙ Configuration & Content
 
@@ -94,14 +75,14 @@ export default defineConfig({
 
 This theme **keeps the exact YAML structure and key names of `hexo-theme-anzhiyu`**. You can follow the [AnZhiYu Official Docs](https://docs.anheyu.com/) directly or reuse your existing `_config.anzhiyu.yml`:
 
-- Default starter config: [examples/blog/theme.config.yml](examples/blog/theme.config.yml)
-- Full-featured demo config: [examples/blog/theme.config.demo-delta.yml](examples/blog/theme.config.demo-delta.yml)
+- Default starter config: [theme.config.yml](theme.config.yml)
+- Full-featured demo config: [theme.config.demo-delta.yml](theme.config.demo-delta.yml)
 
 Built-in Zod validation automatically merges defaults and checks your config during dev and build.
 
 ### Content & Data Files
 
-Under `examples/blog/`, site content is organized as follows:
+Under `src/`, site content is organized as follows:
 
 | Path | Purpose |
 | --- | --- |
@@ -165,7 +146,6 @@ ANZHIYU_PWA=1 pnpm build
 ## 🗂 Documentation
 
 - [Hexo → Astro Migration Guide](docs/guides/MIGRATION.md)
-- [Example Site Guide](examples/blog/README.md)
 - [Upstream Repository (anzhiyu-c/hexo-theme-anzhiyu)](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
 - [Upstream Documentation (docs.anheyu.com)](https://docs.anheyu.com/)
 
@@ -176,7 +156,7 @@ ANZHIYU_PWA=1 pnpm build
 - Local checks:
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs
+node tests/remark-hexo-tag/run.mjs
 pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
 ```
 

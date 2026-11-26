@@ -3,14 +3,14 @@
 - 执行 ID：B4 尾巴（任务卡「无封面文章卡片 cover 属性与 golden 对齐」）
 - 日期：2026-11-25
 - 结论：**静态已对齐，待 CI 复核**。Astro 侧无封面 prev/next 卡与 relatedPosts 卡的 cover 属性（`data-lazy-src`）实测渲染 `"/"`，与 golden 完全一致；**未改任何代码**，只新增本报告。
-- 写范围实况：`packages/astro-theme-anzhiyu/src/components/` 下组件零改动（结论为「一致」按任务步骤 3 处理）；本文件为唯一新增。
+- 写范围实况：`src/components/` 下组件零改动（结论为「一致」按任务步骤 3 处理）；本文件为唯一新增。
 
 ---
 
 ## 审查修正（FIXPLAN/任务卡与代码冲突，以代码为准）
 
-1. 任务卡步骤 5 写「node scripts/check-third-party.mjs / check-loader.mjs」，实际这两个脚本位于 `packages/astro-theme-anzhiyu/scripts/`（`scripts/` 下只有 check-upstream-delta / check-tag-styles / check-upstream-sync）。已按实际路径 + 白名单全量 check 执行（见「验证」）。
-2. `docs/notes/fixes/fix-rebaseline.md` §7（L286）把「astro 侧对 coverless 文章需同样渲染 `/`，不能回落 `/img/default_cover.jpg`」列为待办风险。经静态 + 动态取证，**该风险在当前代码不成立**：cover-less 分支落 `urlFor(undefined) = "/"`，`/img/default_cover.jpg` 只会在 `cover.default_cover` 配置了非空值时由 `resolveCover` 落出，而基准站 `examples/blog/theme.config.yml:163-164` 的 `default_cover` 是注释态（值 `null`）。任务卡的「疑似渲染 /img/default_cover.jpg 或其它值」的怀疑**未被证实**，实测为 `"/"`。
+1. 任务卡步骤 5 写「node scripts/check-third-party.mjs / check-loader.mjs」，实际这两个脚本位于 `scripts/`（`scripts/` 下只有 check-upstream-delta / check-tag-styles / check-upstream-sync）。已按实际路径 + 白名单全量 check 执行（见「验证」）。
+2. `docs/notes/fixes/fix-rebaseline.md` §7（L286）把「astro 侧对 coverless 文章需同样渲染 `/`，不能回落 `/img/default_cover.jpg`」列为待办风险。经静态 + 动态取证，**该风险在当前代码不成立**：cover-less 分支落 `urlFor(undefined) = "/"`，`/img/default_cover.jpg` 只会在 `cover.default_cover` 配置了非空值时由 `resolveCover` 落出，而基准站 `theme.config.yml:163-164` 的 `default_cover` 是注释态（值 `null`）。任务卡的「疑似渲染 /img/default_cover.jpg 或其它值」的怀疑**未被证实**，实测为 `"/"`。
 
 ---
 
@@ -44,13 +44,13 @@
 
 | 环节 | 位置 | 行为 |
 | --- | --- | --- |
-| cover 解析 | `packages/astro-theme-anzhiyu/src/components/post/post-list.ts:282-293`（`resolveCover`）、`:362` | frontmatter 无 cover 且 `cover.default_cover` 为空 → `cover: false` |
-| 值转 URL | `packages/astro-theme-anzhiyu/src/layouts/site.ts:107-121`（`createUrlFor`） | `urlFor(undefined) → "/"`（L110 `if (!path) return base`，base=`"/"`） |
-| prev/next 卡 | `packages/astro-theme-anzhiyu/src/components/post/PostPagination.astro:36-39`（`coverOf`）、`:41-50`（`coverAttrs`）、`:59/:70`（渲染点） | `post.cover === false ? undefined : post.cover` → `urlFor(undefined)` → 懒加载属性 |
-| relatedPosts 卡 | `packages/astro-theme-anzhiyu/src/components/post/RelatedPosts.astro:45-46`、`:51`（渲染点） | 同一 cover 逻辑，同一 `lazyImageAttrs` |
-| 懒加载属性 | `packages/astro-theme-anzhiyu/src/components/layout/lazyload.ts:45-61`（`lazyImageAttrs`） | `src=占位` + `onerror` + `data-lazy-src=src` |
+| cover 解析 | `src/components/post/post-list.ts:282-293`（`resolveCover`）、`:362` | frontmatter 无 cover 且 `cover.default_cover` 为空 → `cover: false` |
+| 值转 URL | `src/layouts/site.ts:107-121`（`createUrlFor`） | `urlFor(undefined) → "/"`（L110 `if (!path) return base`，base=`"/"`） |
+| prev/next 卡 | `src/components/post/PostPagination.astro:36-39`（`coverOf`）、`:41-50`（`coverAttrs`）、`:59/:70`（渲染点） | `post.cover === false ? undefined : post.cover` → `urlFor(undefined)` → 懒加载属性 |
+| relatedPosts 卡 | `src/components/post/RelatedPosts.astro:45-46`、`:51`（渲染点） | 同一 cover 逻辑，同一 `lazyImageAttrs` |
+| 懒加载属性 | `src/components/layout/lazyload.ts:45-61`（`lazyImageAttrs`） | `src=占位` + `onerror` + `data-lazy-src=src` |
 
-**当前 Astro 侧 cover-less 卡渲染属性串**（动态取证实测，`%TEMP%\b4-cover-parity.mjs` 用真实 `createUrlFor`/`lazyImageAttrs` + 真实 `examples/blog/theme.config.yml` 执行）：
+**当前 Astro 侧 cover-less 卡渲染属性串**（动态取证实测，`%TEMP%\b4-cover-parity.mjs` 用真实 `createUrlFor`/`lazyImageAttrs` + 真实 `theme.config.yml` 执行）：
 
 ```
 prev-cover    : {"class":"prev-cover","alt":"cover of previous post","src":"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7","onerror":"this.onerror=null,this.src=\"/img/404.jpg\"","data-lazy-src":"/"}
@@ -58,7 +58,7 @@ related-cover : {"class":"cover","alt":"cover","src":"data:image/gif;base64,R0lG
 next-cover    : {"class":"next-cover","alt":"cover of next post","src":"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7","onerror":"this.onerror=null,this.src=\"/img/404.jpg\"","data-lazy-src":"/img/512.png"}
 ```
 
-frontmatter 佐证：`tests/fixtures/abbrlink-post.md`（title「abbrlink 覆盖末段样本」，`abbrlink: 24531`）**无 `cover` 键** → cover-less；`tests/fixtures/multi-taxonomy.md:16` `cover: /img/512.png` → next 卡对照组。
+frontmatter 佐证：`src/content/abbrlink-post.md`（title「abbrlink 覆盖末段样本」，`abbrlink: 24531`）**无 `cover` 键** → cover-less；`src/content/multi-taxonomy.md:16` `cover: /img/512.png` → next 卡对照组。
 
 ## 3. 一致 / 不一致结论
 
@@ -92,7 +92,7 @@ frontmatter 佐证：`tests/fixtures/abbrlink-post.md`（title「abbrlink 覆盖
 
 ```
 node -e "import('file:///C:/Users/mcxiaochen/AppData/Local/Temp/b4-cover-parity.mjs')"
-== 真实配置（examples/blog/theme.config.yml） ==
+== 真实配置（theme.config.yml） ==
 theme.cover.default_cover = null
 theme.lazyload = {"enable":true,"field":"site","placeholder":null,"blur":true,"progressive":true}
 theme.error_img.post_page = "/img/404.jpg"
@@ -133,38 +133,38 @@ node scripts/compare-css-vars.mjs
 [compare-css-vars] 比对通过（1 处为声明顺序差异，取值集合一致）
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-third-party.mjs
+node scripts/check-third-party.mjs
 通过 110 条，失败 0 条
 P5-1 第三方集成组件门控与 DOM 验证通过 ✓
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-loader.mjs
+node scripts/check-loader.mjs
 [check-loader] 结果: PASS（通过 42 项，失败 0 项）
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-schema.mjs
+node scripts/check-schema.mjs
 [check-schema] 结果: PASS（上游零错误 + 三条用例全部符合预期）
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-date.mjs
+node scripts/check-date.mjs
 [check-date] 结果：62 PASS / 0 FAIL / 0 SKIP
 [check-date] [check-date] 全部通过
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-i18n.mjs
+node scripts/check-i18n.mjs
 [check-i18n] 结果: PASS（通过 83 项，失败 0 项）
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-helpers.mjs
+node scripts/check-helpers.mjs
 [check-helpers] 结果: PASS（通过 269 项，失败 0 项，跳过 0 项）
 exit=0
 
-node packages/astro-theme-anzhiyu/scripts/check-slugger.mjs
+node scripts/check-slugger.mjs
 [check-slugger] 活体对拍：9 页 / 41 个标题
 [check-slugger] 汇总：PASS 49 / FAIL 0 / SKIP 0
 exit=0
 
-node packages/remark-hexo-tag/test/run.mjs
+node tests/remark-hexo-tag/run.mjs
 remark-hexo-tag: 65/65 通过
 exit=0
 ```

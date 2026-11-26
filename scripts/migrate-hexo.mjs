@@ -9,7 +9,7 @@
  * - 源站**只读**：脚本只 read/copy，从不写入 --site 指向的目录。
  * - 目标站是一个自包含的 Astro 项目骨架：站点配置、主题配置、内容集合、页面路由、
  *   样式入口、静态资源、package.json 都由脚本生成；主题本体通过 `file:` 相对引用
- *   指向本仓库 packages/*，不复制主题源码。
+ *   模板 src/ 全量拷贝进输出站（自包含，无跨仓引用）。
  * - 配置分两层，与上游 Hexo 一致：
  *     _config.yml          → site.config.ts（站点身份 / 渲染无关字段）
  *     _config.anzhiyu.yml  → anzhiyu.config.yml（主题配置，主题包 loader 的默认文件名）
@@ -33,9 +33,9 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..')
-const BLOG = path.join(REPO_ROOT, 'examples', 'blog')
-const THEME_PKG_DIR = path.join(REPO_ROOT, 'packages', 'astro-theme-anzhiyu')
-const DEFAULTS_TS = path.join(THEME_PKG_DIR, 'src', 'config', 'defaults.ts')
+// 模板根 = 仓库根（单包模板仓，src/ 全量随输出站拷贝，不再跨仓引用）。
+const TEMPLATE = REPO_ROOT
+const DEFAULTS_TS = path.join(REPO_ROOT, 'src', 'config', 'defaults.ts')
 
 /** [...path].astro 实际分发的 page.type；default 是无 type 时的兜底。 */
 const STANDARD_PAGE_TYPES = new Set([
@@ -77,7 +77,7 @@ const USAGE = `
 可选:
   --out <dir>             目标 Astro 目录，默认 .migration-out/<站点目录名>
   --upstream <path>       1.7.1 上游参考（目录或 _config.yml 文件），用于配置键差异对比；
-                          不传时用本仓库 packages/astro-theme-anzhiyu/src/config/defaults.ts
+                          不传时用本仓库 src/config/defaults.ts
   --dry-run               不写任何文件，把完整 migration-report 打到 stdout
   --no-assets             不复制 source/ 下的静态资源到 public/
   -h, --help              显示本帮助
@@ -1031,7 +1031,6 @@ function renderEnvelopePageHtml(config, siteConfig, root = '/') {
  *   #page → (top_img === false) h1.page-title → #article-container != page.content → comments
  */
 function renderPluginPageAstro({
-  packages,
   siteConfig,
   styles,
   title,
@@ -1047,7 +1046,7 @@ function renderPluginPageAstro({
   const pageTypeLiteral = JSON.stringify(pageTypeValue || 'page')
   const contentLiteral = JSON.stringify(content)
   const commentsImport = showComments
-    ? `import CommentsIndex from '${packages}astro-theme-anzhiyu/src/components/third-party/comments/index.astro'\n`
+    ? `import CommentsIndex from '@/components/third-party/comments/index.astro'\n`
     : ''
   const commentsRender = showComments ? '    <CommentsIndex page={{ root: site.root }} />\n' : ''
   return `---
@@ -1063,7 +1062,7 @@ function renderPluginPageAstro({
  *     if page.comments !== false → third-party/comments
  * 外壳（Header / Footer / aside / #body-wrap）由主题 BaseLayout 提供，与其它独立页面一致。
  */
-import BaseLayout from '${packages}astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+import BaseLayout from '@/layouts/BaseLayout.astro'
 ${commentsImport}import { site } from '${siteConfig}'
 import '${styles}'
 
@@ -1462,7 +1461,6 @@ function collectHexoStaticPageInputs(sourceDir, skipRender) {
 function renderSiteFeedsModule({
   siteConfigSpecifier,
   permalinkSpecifier,
-  packagesPrefix,
   taxonomySpecifier,
   generators,
   staticPages,
@@ -1499,7 +1497,7 @@ function renderSiteFeedsModule({
 import { getCollection } from 'astro:content'
 import { site } from '__SITE_CONFIG__'
 import { postHref } from '__PERMALINK__'
-import { rewriteHeadings } from '__PACKAGES__astro-theme-anzhiyu/src/utils/slugger.ts'
+import { rewriteHeadings } from '@/utils/slugger.ts'
 import { taxonomySlug } from '__TAXONOMY__'
 
 type AnyRecord = Record<string, any>
@@ -2203,7 +2201,6 @@ export async function renderBaiduUrls(): Promise<Response> {
   return template
     .replaceAll('__SITE_CONFIG__', siteConfigSpecifier)
     .replaceAll('__PERMALINK__', permalinkSpecifier)
-    .replaceAll('__PACKAGES__', packagesPrefix)
     .replaceAll('__TAXONOMY__', taxonomySpecifier)
     .replaceAll('__GENERATORS__', JSON.stringify(generators, null, 2))
     .replaceAll('__STATIC_PAGES__', JSON.stringify(staticPages, null, 2))
@@ -2260,18 +2257,8 @@ function main() {
   console.log(`  ✓ 源站目录有效；主题版本 ${siteThemeVersion}`)
   console.log(`  ✓ 目标目录${DRY ? '（dry-run 不创建）' : '可写且为空/不存在'}`)
 
-  /* 目标站 → 仓库根的相对前缀（用于 package.json 的 file: 依赖）。 */
-  const repoRelRaw = path.relative(OUT, REPO_ROOT)
-  const CROSS_DRIVE = path.isAbsolute(repoRelRaw) // Windows 跨盘时 path.relative 返回绝对路径
-  const repoRel = posix(repoRelRaw)
-  const repoImportPrefix = CROSS_DRIVE
-    ? pathToFileURL(REPO_ROOT).href
-    : repoRel === '' ? '.' : repoRel.startsWith('.') ? repoRel : `./${repoRel}`
+  /* 目标站自包含：src/ 整树拷贝 + 生成物注入；跨盘/跨仓引用机制已随模板仓化删除。 */
   const warnings = []
-  if (CROSS_DRIVE) {
-    warnings.push('目标站与本仓库不在同一磁盘：生成的主题包 import 使用 file:// URL，部分构建工具可能不支持，请把目标站移到同盘或手工改相对路径。')
-  }
-  const pkgPrefix = `${repoImportPrefix.replace(/\/$/, '')}/packages/`
 
   /**
    * ESM import 说明符按「引用文件所在目录」解析，不能所有页面共用一个前缀。
@@ -2287,15 +2274,7 @@ function main() {
     const r = posix(raw)
     return r.startsWith('.') ? r : `./${r}`
   }
-  const packagesSpecifier = (fileRel) =>
-    CROSS_DRIVE
-      ? `${pathToFileURL(REPO_ROOT).href}/packages/`
-      : `${relativeSpecifier(fileRel, REPO_ROOT)}/packages/`
-  const siteConfigSpecifier = (fileRel) =>
-    CROSS_DRIVE
-      ? `${pathToFileURL(OUT).href}/site.config.ts`
-      : `${relativeSpecifier(fileRel, OUT)}/site.config`
-  console.log(`  ✓ 主题包引用前缀（package.json / astro.config.mjs）: ${pkgPrefix}`)
+  const siteConfigSpecifier = (fileRel) => `${relativeSpecifier(fileRel, OUT)}/site.config`
 
   /* ---- [2/8] 读配置 ---- */
   console.log('\n[2/8] 读取源站配置')
@@ -2343,7 +2322,7 @@ function main() {
   const siteConfigTs = `/**
  * AUTO-GENERATED by scripts/migrate-hexo.mjs — 来自源站 _config.yml。
  *
- * site      : 主题渲染需要的站点元数据（对应 packages/.../src/utils/url-utils.ts 的 SiteConfig）。
+ * site      : 主题渲染需要的站点元数据（对应 src/utils/url-utils.ts 的 SiteConfig）。
  *             页面路由已从硬编码的 BASELINE_SITE 改为 import 本文件。
  * siteExtras: 渲染无关、但迁移/部署/验证会用到的原始字段（时区、分页、permalink、外链策略）。
  *
@@ -2371,7 +2350,7 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
   // 只做「运行时等价」的形态转换，语义不变，且每条都写进 warnings。
   // 上游文档 _config.yml 的 darkmode 注释里明确列了 `autoChangeMode: false`
   // （不同步系统/时段 = 手动），主题运行时只判断 `=== 1` / `=== 2`，其余值一律走
-  // 手动分支（见 packages/astro-theme-anzhiyu/src/components/head/inject-head-js.ts:131），
+  // 手动分支（见 src/components/head/inject-head-js.ts:131），
   // 但 1.7.1 的 schema 写的是 `z.number()`（schema.ts:686），false 会被拒。
   if (cleaned.darkmode && typeof cleaned.darkmode === 'object' && cleaned.darkmode.autoChangeMode === false) {
     cleaned.darkmode.autoChangeMode = 0
@@ -2513,20 +2492,43 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
   console.log(`  ✓ 独立页面 ${pageRecords.length} 个；page.type: ${pageTypeList.join(', ')}`)
 
   /* ---- [6/8] 数据 + 静态资源 ---- */
-  console.log('\n[6/8] 站点数据 → data/，静态资源 → public/')
+  console.log('\n[6/8] 模板整拷贝 + 站点数据 → src/data/，静态资源 → public/')
+
+  // —— 模板整拷贝：输出站自包含（src/ + public/ + tsconfig.json，无跨仓引用）——
+  // 生成物 / demo 内容跳过：
+  //   src/content/**（demo 文章；源站文章写入 src/content/posts/）
+  //   src/content.config.ts、src/data/site-identity.ts（下方生成）
+  //   src/pages/**（ROUTES 与插件产物重写生成）
+  //   src/data/*.yml（demo 站点数据；源站 _data 写入同目录）
+  //   public/anzhiyu/**（random.js 等按源站数据生成）
+  // 源站静态资源在 --assets 一步后拷，冲突时站点侧文件优先（与原 integration 语义一致）。
+  const skipTemplateFile = (rel) =>
+    rel.startsWith('content/') ||
+    rel === 'content.config.ts' ||
+    rel.startsWith('pages/') ||
+    (rel.startsWith('data/') && (rel.endsWith('.yml') || rel === 'data/site-identity.ts'))
+  for (const rel of walkFiles(path.join(TEMPLATE, 'src'))) {
+    if (skipTemplateFile(rel)) continue
+    copyOut(path.join(TEMPLATE, 'src', rel), `src/${rel}`, `模板 src/${rel}`)
+  }
+  for (const rel of walkFiles(path.join(TEMPLATE, 'public'))) {
+    if (rel.startsWith('anzhiyu/')) continue
+    copyOut(path.join(TEMPLATE, 'public', rel), `public/${rel}`, `模板 public/${rel}`)
+  }
+  copyOut(path.join(TEMPLATE, 'tsconfig.json'), 'tsconfig.json', '模板 tsconfig.json')
   const dataDir = path.join(SITE, 'source', '_data')
   const dataRecords = []
   if (existsSync(dataDir)) {
     for (const rel of walkFiles(dataDir)) {
       const srcAbs = path.join(dataDir, rel)
-      const dest = `data/${rel}`
+      const dest = `src/data/${rel}`
       copyOut(srcAbs, dest)
       dataRecords.push({ source: `source/_data/${rel}`, target: dest })
     }
   } else {
     console.log('  · 源站没有 source/_data/，跳过')
   }
-  // 注意：examples/blog 的 site-data.ts 只 glob data/*.yml，.json 数据需自行接入。
+  // 注意：模板的 site-data.ts 只 glob src/data/*.yml，.json 数据需自行接入。
   const ymlData = dataRecords.filter((d) => d.target.endsWith('.yml')).length
   console.log(`  ✓ 数据文件 ${dataRecords.length} 个（其中 .yml ${ymlData} 个可被 site-data.ts 读取）`)
 
@@ -2563,7 +2565,7 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
   /* ---- [7/8] Astro 骨架 ---- */
   console.log('\n[7/8] Astro 项目骨架（配置 / 内容集合 / 路由 / 样式）')
 
-  // package.json：主题包与 vite 插件用 file: 相对引用，其余依赖与 examples/blog 对齐。
+  // package.json：普通 registry 依赖（模板 src/ 全量随站拷贝，无跨仓引用）。
   const packageJson = {
     name: `${siteName.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-astro`,
     private: true,
@@ -2576,14 +2578,12 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
     dependencies: {
       '@astrojs/markdown-remark': '^7.3.10',
       astro: '^7.4.13',
-      'astro-theme-anzhiyu': `file:${pkgPrefix}astro-theme-anzhiyu`,
-      'remark-hexo-tag': `file:${pkgPrefix}remark-hexo-tag`,
       yaml: '^2.9.1',
+      zod: '^4.6.7',
     },
     devDependencies: {
       'highlight.js': '^11.12.0',
       stylus: '^0.64.0',
-      'vite-plugin-stylus-hexo-config': `file:${pkgPrefix}vite-plugin-stylus-hexo-config`,
     },
   }
   writeOut('package.json', packageJson)
@@ -2625,9 +2625,8 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
 `,
   )
 
-  // astro.config.mjs：复用 examples/blog 的自定义 Markdown processor + stylus 插件，重写路径。
-  let astroConfig = readFileSync(path.join(BLOG, 'astro.config.mjs'), 'utf8')
-  astroConfig = astroConfig.replace(/(?:\.\.\/)+packages\//g, packagesSpecifier('astro.config.mjs'))
+  // astro.config.mjs：复用模板的自定义 Markdown processor + stylus 插件，改配置文件名。
+  let astroConfig = readFileSync(path.join(TEMPLATE, 'astro.config.mjs'), 'utf8')
   astroConfig = astroConfig.replace(
     "path.join(root, 'theme.config.yml')",
     "path.join(root, 'anzhiyu.config.yml')",
@@ -2642,19 +2641,19 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
     "[remarkHexoTag, { noteStyle: 'flat', lenient: true }]",
   )
   if (astroConfig === lenientBefore) {
-    fail('examples/blog/astro.config.mjs 的 remarkPlugins 模板已变化，无法注入 lenient: true；请同步更新 scripts/migrate-hexo.mjs 的注入规则。')
+    fail('模板 astro.config.mjs 的 remarkPlugins 已变化，无法注入 lenient: true；请同步更新 scripts/migrate-hexo.mjs 的注入规则。')
   }
   writeOut('astro.config.mjs', astroConfig)
 
-  // content.config.ts：复用 examples/blog 的 schema，把 loader base 指向本站内容目录。
-  let contentConfig = readFileSync(path.join(BLOG, 'src', 'content.config.ts'), 'utf8')
+  // content.config.ts：复用模板的 schema，把 loader base 指向本站内容目录。
+  let contentConfig = readFileSync(path.join(TEMPLATE, 'src', 'content.config.ts'), 'utf8')
   contentConfig = contentConfig.replace(/^\/\*\*[\s\S]*?\*\/\r?\n/, `/**
- * AUTO-GENERATED by scripts/migrate-hexo.mjs（schema 复用 examples/blog）。
+ * AUTO-GENERATED by scripts/migrate-hexo.mjs（schema 复用模板）。
  * 内容来源改为本目标站的 src/content/posts/（文章 + 独立页面共用一个集合）。
  * date/updated 的 Hexo 时区语义见下方 hexoDate 注释。
  */
 `)
-  contentConfig = contentConfig.replace("base: '../../tests/fixtures'", "base: './src/content/posts'")
+  contentConfig = contentConfig.replace("base: './src/content'", "base: './src/content/posts'")
   const tz = siteCfg.data.timezone
   const offset = timezoneOffsetMinutes(tz)
   // DST 检测（C1）：冬/夏各采一次，偏移不同即为夏令时时区。裸 GMT 已记 0，UTC 站 offset=0 不再平移 8 小时。
@@ -2665,7 +2664,7 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
     contentConfig = contentConfig.replace(/const SITE_UTC_OFFSET_MINUTES = 8 \* 60/, `const SITE_UTC_OFFSET_MINUTES = ${offset}`)
     if (hasDST) {
       // content.config.ts 的 parseHexoDate 用单一 SITE_UTC_OFFSET_MINUTES 常量，无法按文章日期现场换算 DST 偏移；
-      // 真·per-date 需改 examples/blog/src/content.config.ts（不在本批写范围），故登记限制到 MIGRATION.md。
+      // 真·per-date 需改模板 src/content.config.ts（不在本批写范围），故登记限制到 MIGRATION.md。
       warnings.push(
         `源站 timezone ${tz} 含夏令时（冬 ${fmtH(winterOffset)} / 夏 ${fmtH(offset)}）。迁移产物 content.config.ts 的 parseHexoDate 用单一 SITE_UTC_OFFSET_MINUTES（现取 ${fmtH(offset)}），无法按文章日期现场换算 DST 偏移；跨夏令时边界的日期可能偏移约 1 小时，需人工核对（见 MIGRATION.md「时区」）。`,
       )
@@ -2678,10 +2677,8 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
   }
   writeOut('src/content.config.ts', contentConfig)
 
-  // 站点数据读取层（与 examples/blog 完全一致，glob data/*.yml）。
-  copyOut(path.join(BLOG, 'src', 'data', 'site-data.ts'), 'src/data/site-data.ts', 'examples/blog/src/data/site-data.ts')
 
-  // 站点身份：examples/blog 把「基准站」元数据收敛到 src/data/site-identity.ts
+  // 站点身份：模板把「基准站」元数据收敛到 src/data/site-identity.ts
   // （各页面 import SITE_IDENTITY，archives/_data.ts 再导出成 BASELINE_SITE）。
   // 迁移站没有「基准站」概念，这里让它直接复用 site.config.ts（来源：源站 _config.yml），
   // 保证站点身份只有一个来源；否则页面 import 会直接找不到模块（构建期
@@ -2689,13 +2686,13 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
   //
   // P7-4：额外把源站 permalink 编译出来的 `postHref()` 挂到 `site.postHref`，
   // 主题层的 preparePosts / preparePostPage / site-stats 会优先用它生成文章 URL
-  // （render 阶段的 `site` 就是这份对象，见 examples/blog 各页面与 BaseLayout）。
+  // （render 阶段的 `site` 就是这份对象，见模板各页面与 BaseLayout）。
   writeOut(
     'src/data/site-identity.ts',
     `/**
  * AUTO-GENERATED by scripts/migrate-hexo.mjs
  *
- * examples/blog 用本文件承载「基准站」身份（archives/_data.ts 再导出成 BASELINE_SITE）。
+ * 模板用本文件承载「基准站」身份（archives/_data.ts 再导出成 BASELINE_SITE）。
  * 迁移站的身份来自源站 _config.yml，已由本脚本生成到 site.config.ts；
  * 这里再挂上源站 permalink 编译产物 postHref（文章 URL 单一真源，P7-4），
  * 避免身份散落两处、也避免 DEPLOY_SITE_* 演示覆盖语义与真实站点 URL 打架。
@@ -2708,11 +2705,6 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
 `,
   )
 
-  // 样式入口（整目录复制，index.styl 的 @import 相对路径保持有效）。
-  const stylesRoot = path.join(BLOG, 'src', 'styles')
-  for (const rel of walkFiles(stylesRoot)) {
-    copyOut(path.join(stylesRoot, rel), `src/styles/${rel}`, `examples/blog/src/styles/${rel}`)
-  }
 
   // 上游主题 CSS 笔误（逐字节存在于 1.6.14 与 1.7.1 的 _third-party/twikoo.styl）：
   //
@@ -2730,7 +2722,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
   const twikooSourceRel = 'upstream/_third-party/twikoo.styl'
   const twikooStyl = `src/styles/${twikooSourceRel}`
   {
-    const source = readFileSync(path.join(stylesRoot, twikooSourceRel), 'utf8')
+    const source = readFileSync(path.join(TEMPLATE, 'src', 'styles', twikooSourceRel), 'utf8')
     if (TWIKOO_TYPO_RE.test(source)) {
       if (!DRY) {
         // 原地改写 copyOut 刚落盘的那份：不走 writeOut，避免 outputFiles / counters 重复计数。
@@ -2756,7 +2748,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
   }
 
   // 路由集合：首页 / 分页 / 独立页面 / 文章页 / 404 / 归档（三级） / 分类 / 标签。
-  // 归档/分类/标签的数据层在 examples/blog/src/pages/archives/_data.ts，常量来自
+  // 归档/分类/标签的数据层在模板 src/pages/archives/_data.ts，常量来自
   // 基准站 _config.yml；迁移站按源站配置注入（见 rewriteArchiveData）。
   // Hexo 官方 generator 的默认值（未配置块时）：
   //   archive_generator: per_page=站点 per_page，yearly/monthly=true，daily=false
@@ -2781,7 +2773,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
   const siteLanguage = typeof siteForRender.language === 'string' && siteForRender.language ? siteForRender.language : 'zh-CN'
 
   /**
-   * 把 examples/blog 的 archives/_data.ts 改写成迁移站的版本：
+   * 把模板的 archives/_data.ts 改写成迁移站的版本：
    *   1. 基准站常量（时区 / 语言 / 日期格式 / 各级 per_page）→ 源站 _config.yml 的值；
    *   2. ARCHIVE_GENERATOR 块 → 按源站配置与 Hexo 默认值合成；
    *   3. 文章 href → 走 post-permalink.ts（源站 permalink 模式，如 posts/p:abbrlink/），
@@ -2793,7 +2785,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
     const constBlock =
       /export const SITE_TIMEZONE = '[^']*'[\s\S]*?export const TAG_PER_PAGE = \d+\r?\n/
     if (!constBlock.test(out)) {
-      fail('archives/_data.ts 的基准常量块与预期结构不符，无法注入源站配置（examples/blog 该文件可能已变更）')
+      fail('archives/_data.ts 的基准常量块与预期结构不符，无法注入源站配置（模板该文件可能已变更）')
     }
     out = out.replace(
       constBlock,
@@ -2863,13 +2855,12 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
     'src/pages/tags/[tag]/[...page].astro',
   ]
   for (const rel of ROUTES) {
-    let text = readFileSync(path.join(BLOG, rel), 'utf8')
-    text = text.replace(/(?:\.\.\/)+packages\//g, packagesSpecifier(rel))
+    let text = readFileSync(path.join(TEMPLATE, rel), 'utf8')
     const siteConst = /^const site = \{[\s\S]*?^\}/m
     if (siteConst.test(text)) {
       text = text.replace(siteConst, `import { site } from '${siteConfigSpecifier(rel)}'`)
     } else if (!/from\s+['"][^'"]*data\/site-identity(?:\.ts)?['"]/.test(text)) {
-      // 现状：examples/blog 的页面改从 src/data/site-identity.ts 取身份（见上面生成的
+      // 现状：模板页面从 src/data/site-identity.ts 取身份（见上面生成的
       // 转发文件），不再内联 const site。两条路都没有才需要人工看。
       warnings.push(`${rel} 既没有内联的 site 常量，也没有 import data/site-identity.ts，站点身份可能仍是基准站，请人工检查。`)
     }
@@ -2883,7 +2874,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
 
   /* ---- 文章路由按源站 permalink 模式落位 ----
    * 源站 `_config.yml` 的 `permalink`（如 `posts/p:abbrlink/`）决定文章 URL；
-   * examples/blog 的文章路由写死了 `:year/:month/:day/:title/`（文件路径即路由），
+   * 模板的文章路由写死了 `:year/:month/:day/:title/`（文件路径即路由），
    * 直接照搬会让迁移站的全部文章 URL 与源站不一致（书签/SEO 全断）。
    * 这里把模式编译成「目录段 + 动态参数段」：
    *   - 纯字面量段 → 字面量目录；
@@ -2925,8 +2916,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
   ].join('/')
   const postRouteSourceRel = 'src/pages/[year]/[month]/[day]/[slug].astro'
   {
-    let text = readFileSync(path.join(BLOG, postRouteSourceRel), 'utf8')
-    text = text.replace(/(?:\.\.\/)+packages\//g, packagesSpecifier(postRouteRel))
+    let text = readFileSync(path.join(TEMPLATE, postRouteSourceRel), 'utf8')
     const siteConst = /^const site = \{[\s\S]*?^\}/m
     if (siteConst.test(text)) {
       text = text.replace(siteConst, `import { site } from '${siteConfigSpecifier(postRouteRel)}'`)
@@ -2954,12 +2944,10 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
       /(import \{ SITE_IDENTITY \}.*\r?\n)/,
       `$1import { postRouteParams } from '${permalinkSpecifier}'\n`,
     )
-    // 4) 搬移目录后重算其余相对导入的深度（packages/ 的已由 packagesSpecifier 处理，
-    //    跳过，避免二次改写把正确深度弄错）
+    // 4) 搬移目录后重算其余相对导入的深度（`@/` 说明符不以 ./ 或 ../ 开头，不受影响）
     text = text.replace(
       /(from\s*|import\s+)(['"])(\.\.?\/[^'"]+)\2/g,
       (match, prefix, quote, spec) => {
-        if (spec.includes('/packages/')) return match
         const abs = posix(path.posix.normalize(path.posix.join(path.posix.dirname(postRouteSourceRel), spec)))
         const r = posix(path.relative(path.posix.dirname(postRouteRel), abs))
         const fixed = r.startsWith('.') ? r : `./${r}`
@@ -3007,7 +2995,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
  * 语义与 Hexo 一致：无时区字面量按站点时区的「墙上时间」解释；
  * :title / :abbrlink 缺省回退到文件名 slug（hexo-abbrlink 会把 abbrlink 写进 frontmatter）。
  */
-import { createSiteDateFormatter } from '${relativeSpecifier('src/data/post-permalink.ts', REPO_ROOT)}/packages/astro-theme-anzhiyu/src/utils/date.ts'
+import { createSiteDateFormatter } from '@/utils/date.ts'
 
 const formatter = createSiteDateFormatter({ timezone: '${timezoneDefault}' })
 
@@ -3086,7 +3074,6 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
 
   /** 插件产物页的公共 import 说明符（packages / site.config / 全局样式入口）。 */
   const pluginPageDeps = (pageRel) => ({
-    packages: packagesSpecifier(pageRel),
     siteConfig: siteConfigSpecifier(pageRel),
     styles: relativeSpecifier(pageRel, path.join(OUT, 'src', 'styles', 'upstream', 'index.styl')),
   })
@@ -3388,7 +3375,6 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
       renderSiteFeedsModule({
         siteConfigSpecifier: siteConfigSpecifier(feedsRel),
         permalinkSpecifier: relativeSpecifier(feedsRel, path.join(OUT, 'src', 'data', 'post-permalink.ts')),
-        packagesPrefix: packagesSpecifier(feedsRel),
         taxonomySpecifier: relativeSpecifier(feedsRel, path.join(OUT, 'src', 'pages', 'archives', '_data.ts')),
         generators: generatorsConfig,
         staticPages: staticPageInputs,

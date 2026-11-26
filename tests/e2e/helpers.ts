@@ -226,7 +226,7 @@ export async function goForwardAndWait(page: Page, previousUrl: string): Promise
  * 首页第一张真实文章卡片的标题链接（站内导航类用例的稳定入口）。
  *
  * 为什么不用 `#recent-posts a[href^="/"]`：`#recent-posts` 里文章卡片之前先渲染分类条
- * `#categoryBar`（examples/blog/src/pages/index.astro:50-57，CategoryBar 在 PostCard 之前），
+ * `#categoryBar`（src/pages/index.astro:50-57，CategoryBar 在 PostCard 之前），
  * 它的第一个链接是当前页自己 `<a href="/">首页</a>` —— 点击后 URL 不变，
  * clickAndWaitForClientRoute 的 URL poll 会 20s 超时（CI 第二轮 5 条导航用例的死因）。
  *
@@ -251,7 +251,7 @@ export async function openContextMenu(page: Page, target: Locator) {
 /**
  * demo 站是否加载了自定义右键菜单运行时。
  *
- * 依据：`examples/blog/theme.config.yml` 的 `rightClickMenu.enable: false`（与上游主题
+ * 依据：`theme.config.yml` 的 `rightClickMenu.enable: false`（与上游主题
  * 默认一致）→ AdditionalJs 不输出 right_click_menu.js → `window.rm` 不存在。
  * 用例据此 skip，而不是伪造成「右键没反应」的产品 bug；一旦 fixture 打开该开关，
  * 这些用例会自动开始执行。
@@ -267,7 +267,7 @@ export async function hasRightMenuRuntime(page: Page): Promise<boolean> {
 export const RIGHT_MENU_DISABLED_REASON =
   'demo 站 theme.config.yml 的 rightClickMenu.enable=false（与上游主题默认一致），' +
   'right_click_menu.js 未加载、window.rm 不存在；右键菜单行为验收需要启用该开关的站点/' +
-  'fixture（examples/blog 配置属并行任务范围，见 P4-10 报告 §5）'
+  'fixture（配置属并行任务范围，见 P4-10 报告 §5）'
 
 /** 读取 `saveToLocal('theme')` 的值；没写过时返回 undefined。 */
 export async function readStoredTheme(page: Page): Promise<string | undefined> {

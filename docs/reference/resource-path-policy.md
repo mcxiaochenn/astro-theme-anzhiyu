@@ -22,7 +22,7 @@
 
 ## 1. 当前实测差异清单
 
-对比对象：`.baseline-work/public`（上游 `hexo g` 产物）↔ `examples/blog/dist`（当前构建）。
+对比对象：`.baseline-work/public`（上游 `hexo g` 产物）↔ `dist`（当前构建）。
 
 ### 1.1 本地资源
 

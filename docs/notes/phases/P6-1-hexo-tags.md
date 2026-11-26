@@ -31,9 +31,9 @@ packages/remark-hexo-tag/
    └─ render-fixtures.mjs           用真实 astro.config 处理器渲染 fixtures 对比基准
 ```
 
-另外只改了一处：`examples/blog/astro.config.mjs` 的 `remarkPlugins: []` →
+另外只改了一处：`astro.config.mjs` 的 `remarkPlugins: []` →
 `[[remarkHexoTag, { noteStyle: 'flat' }]]`，并按任务允许用相对路径导入 `.mjs`。
-`examples/blog/package.json` 未改（无新增依赖，故无需 workspace 依赖与 lockfile 变更）。
+`package.json` 未改（无新增依赖，故无需 workspace 依赖与 lockfile 变更）。
 
 ## 2. 实现要点
 
@@ -97,7 +97,7 @@ packages/remark-hexo-tag/
 
 ```bash
 $ export PATH="/c/Program Files/nodejs:$PATH"
-$ node packages/remark-hexo-tag/test/run.mjs
+$ node tests/remark-hexo-tag/run.mjs
 （透传 warning 1 条，示例：[remark-hexo-tag] `{% mermaid %}` 尚未实现（P6-2 / P6-3），已按原文透传…）
 remark-hexo-tag: 38/38 通过
 ```
@@ -109,12 +109,12 @@ oracle 来源：
 
 ### 4.2 fixture 级正文对拍（走**真实** astro.config 处理器）
 
-脚本直接 `import('examples/blog/astro.config.mjs')`，调用
+脚本直接 `import('astro.config.mjs')`，调用
 `config.markdown.processor.createRenderer({})`——即构建时实际使用的那条管线
 （包含 `remarkPlugins: [[remarkHexoTag, …]]` 与 rehype 侧代码块重建）。
 
 ```bash
-$ node packages/remark-hexo-tag/test/render-fixtures.mjs
+$ node tests/remark-hexo-tag/render-fixtures.mjs
 == tags-inline ==
   渲染产物 `{%` 残留: 0
   正文文本: 期望 250 字符 / 实际 250 字符
@@ -150,7 +150,7 @@ $ pnpm --filter blog build
 
 构建成功、页数不减。这一次构建时 `post-page` 的文章详情路由在场，所以是 49 页
 （基线 48 页 + debug 页）。构建日志里只出现 media / thirdparty 的透传 warning
-（18 个 tag，均带 `tests/fixtures/tags-*.md` 的 `行:列`），**没有** `Unknown Hexo tag`。
+（18 个 tag，均带 `src/content/tags-*.md` 的 `行:列`），**没有** `Unknown Hexo tag`。
 
 该次构建产出的两篇文章页：
 
@@ -166,7 +166,7 @@ dist/index.html                          `{%` 计数 = 22（全部 media/thirdpa
 
 ### 4.4 结构 diff（`scripts/diff-html.mjs`，正文片段级）
 
-因为当前源码里**没有文章详情路由**（`examples/blog/src/pages` 下没有
+因为当前源码里**没有文章详情路由**（`src/pages` 下没有
 `[...slug]` / `[id]` 文章页；21:21 的构建一度有，随后被移除），当前 dist 里
 不存在 `/2025/03/05/tags-inline/`，无法直接 diff 整页。改为把两篇 fixture 的正文
 片段与基准 `<article>` 正文（去掉站点头部 `<header>`）写成临时 HTML 再比对：

@@ -8,14 +8,14 @@
 
 | 文件 | 变更 | 说明 |
 |---|---|---|
-| `examples/blog/src/content.config.ts` | 新增 129 行 | glob loader 直读仓库根 `tests/fixtures/` + frontmatter schema |
-| `examples/blog/src/pages/debug-collection.astro` | 新增 76 行 | 临时验证页（Phase 2 后续被真实页面替换） |
-| `examples/blog/astro.config.mjs` | +8 行 | import `unified` + `markdown.processor`；`cssMinify: false` 注释与 stylus 插件配置**未动** |
-| `examples/blog/package.json` | +1 行 | `@astrojs/markdown-remark: ^7.3.10`（`pnpm add` 写入） |
+| `src/content.config.ts` | 新增 129 行 | glob loader 直读仓库根 `src/content/` + frontmatter schema |
+| `src/pages/debug-collection.astro` | 新增 76 行 | 临时验证页（Phase 2 后续被真实页面替换） |
+| `astro.config.mjs` | +8 行 | import `unified` + `markdown.processor`；`cssMinify: false` 注释与 stylus 插件配置**未动** |
+| `package.json` | +1 行 | `@astrojs/markdown-remark: ^7.3.10`（`pnpm add` 写入） |
 | `pnpm-lock.yaml` | +1233 / −6 行 | 新依赖树的 lock 变更（预期） |
 | `docs/notes/phases/P2-1-content-collection.md` | 新增 | 本报告 |
 
-- 未触碰：`packages/`、`scripts/`、`docs/reference/baseline.json`、`tests/fixtures/`（`git status --short fixtures` 为空）
+- 未触碰：`packages/`、`scripts/`、`docs/reference/baseline.json`、`src/content/`（`git status --short fixtures` 为空）
 
 ## 结论速览
 
@@ -58,7 +58,7 @@ Done in 3.7s using pnpm v10.29.3
 落盘结果：
 
 ```json
-// examples/blog/package.json
+// package.json
 "dependencies": {
   "@astrojs/markdown-remark": "^7.3.10",
   "astro": "^7.4.13"
@@ -240,11 +240,11 @@ const hexoDate = z.union([z.date(), z.string()]).transform((value, ctx) => {
     "multi-taxonomy", "short-note", "sticky-top", "tags-block", "tags-inline",
     "tags-media", "tags-thirdparty"],
   "内容来源 filePath 样例": [
-    "../../tests/fixtures/about-page.md",
-    "../../tests/fixtures/cover-variants.md",
-    "../../tests/fixtures/longform-hexo-astro.md"
+    "../../src/content/about-page.md",
+    "../../src/content/cover-variants.md",
+    "../../src/content/longform-hexo-astro.md"
   ],
-  "所有 filePath 都指向 ../../tests/fixtures/（未复制）": true,
+  "所有 filePath 都指向 ../../src/content/（未复制）": true,
   "文章数（layout !== page）": 9,
   "独立页面数（layout === page）": 1,
   "独立页面 id": ["about-page"],
@@ -268,7 +268,7 @@ const hexoDate = z.union([z.date(), z.string()]).transform((value, ctx) => {
 - 10 条：`getCollection('posts')` 返回 10 条，id 与 10 个 fixture 文件一一对应。
 - 按 slug 取一篇：`getEntry('posts', 'longform-hexo-astro')` 命中，title/tags/date 均可读。
 - about 页：`layout === 'page'` 且 `type === 'about'`，是集合里唯一的独立页面；其余 9 篇是文章。Phase 3 的 `page.type` 分发可直接用这两个字段。
-- 单数据源：每条 `filePath` 都是 `../../tests/fixtures/<name>.md`，没有复制。
+- 单数据源：每条 `filePath` 都是 `../../src/content/<name>.md`，没有复制。
 - 渲染能力：`<table>`（GFM 表格）、`<del>`（删除线）、`data-footnotes`（脚注）、公式原文 `mc^2` 全部由 unified 渲染产出。
 
 > `debug-collection.astro` 是临时验证页，Phase 2 的 P2-7/P2-8 落地后应删除或替换。
@@ -278,7 +278,7 @@ const hexoDate = z.union([z.date(), z.string()]).transform((value, ctx) => {
 ### 5.1 配置片段
 
 ```js
-// examples/blog/astro.config.mjs
+// astro.config.mjs
 import { unified } from '@astrojs/markdown-remark'
 
 export default defineConfig({
@@ -296,7 +296,7 @@ export default defineConfig({
 ### 5.2 运行时读取配置对象
 
 ```powershell
-node -e "import('./examples/blog/astro.config.mjs').then(m => { const p = m.default.markdown.processor; console.log(p.name, typeof p.createRenderer) })"
+node -e "import('./astro.config.mjs').then(m => { const p = m.default.markdown.processor; console.log(p.name, typeof p.createRenderer) })"
 ```
 
 ```text
@@ -353,10 +353,10 @@ const processor = await markdown.processor.createRenderer({ ... })
 
 ### 7.1 glob base 指向 `src/` 之外是否可行 —— **可行**
 
-- 实现方式：`base: '../../tests/fixtures'`。Astro 把它按 `new URL(base, config.root)` 解析，所以读的是 `examples/blog` 之外、仓库根下的 `tests/fixtures/`。
+- 实现方式：`base: '../../tests/fixtures'`。Astro 把它按 `new URL(base, config.root)` 解析，所以读的是 `examples/blog` 之外、仓库根下的 `src/content/`。
 - 限制：`pattern` **不能**以 `../` 或 `/` 开头（`glob.js` 会直接 `throw`，提示改用 `base`）。所以「模式相对 base、base 指向外面」是唯一正确写法。
-- 副作用：id 相对 base 生成，`filePath` 记录为 `../../tests/fixtures/xxx.md`（相对项目根）；后续 diff/校验脚本拿 filePath 时要能接受 `..` 前缀。
-- `pnpm --filter blog build` 与 dev 均正常读取；watch 也监听 `tests/fixtures/`（build 里 `[content] Synced content`）。
+- 副作用：id 相对 base 生成，`filePath` 记录为 `../../src/content/xxx.md`（相对项目根）；后续 diff/校验脚本拿 filePath 时要能接受 `..` 前缀。
+- `pnpm --filter blog build` 与 dev 均正常读取；watch 也监听 `src/content/`（build 里 `[content] Synced content`）。
 
 ### 7.2 时区与日期解析（本次最大的语义坑）
 
@@ -382,7 +382,7 @@ const processor = await markdown.processor.createRenderer({ ... })
 
 ### 7.5 schema 不是「摆设」——负向测试
 
-用 fixtures 的**临时副本**（不动仓库 `tests/fixtures/`）验证校验真的生效，测完恢复：
+用 fixtures 的**临时副本**（不动仓库 `src/content/`）验证校验真的生效，测完恢复：
 
 | 构造的错误 | 构建结果 |
 |---|---|
@@ -399,7 +399,7 @@ const processor = await markdown.processor.createRenderer({ ... })
 "未知字段透传（probe-unknown.another_unknown）": { "nested": true }
 ```
 
-构建通过，未知字段原样进入校验后的 `data`。测完已删除临时副本、恢复 `base: '../../tests/fixtures'`，仓库 `tests/fixtures/` 始终零改动。
+构建通过，未知字段原样进入校验后的 `data`。测完已删除临时副本、恢复 `base: '../../tests/fixtures'`，仓库 `src/content/` 始终零改动。
 
 ### 7.7 smartypants 会改写正文（未改配置，留给组长决策）
 
@@ -434,6 +434,6 @@ DIFF tags-thirdparty.md
 
 ## 8. 判定
 
-**内容集合可用，P2-1 可以判定完成。** `glob` loader 直接读取仓库根 `tests/fixtures/`（`filePath` 全部为 `../../tests/fixtures/*.md`，零复制），10 篇 fixture 全部通过 schema 校验；9 篇文章 + 1 个 `layout: page` + `type: about` 的独立页面可以被 `getCollection` / `getEntry` 正确区分和取用；unified 处理器经配置对象、A/B 构建产物序列化差异与内容渲染链路源码三重确认已生效，GFM 表格/删除线/脚注在真实构建产物里可验证。
+**内容集合可用，P2-1 可以判定完成。** `glob` loader 直接读取仓库根 `src/content/`（`filePath` 全部为 `../../src/content/*.md`，零复制），10 篇 fixture 全部通过 schema 校验；9 篇文章 + 1 个 `layout: page` + `type: about` 的独立页面可以被 `getCollection` / `getEntry` 正确区分和取用；unified 处理器经配置对象、A/B 构建产物序列化差异与内容渲染链路源码三重确认已生效，GFM 表格/删除线/脚注在真实构建产物里可验证。
 
 **schema 没有 fixture 字段漏网**：19 个实际字段 19/19 显式覆盖，另预置 6 个上游常见 optional 键，未知字段由 `.passthrough()` 兜底（已用临时探针实测透传、并用临时错误数据实测类型拒绝）。真正需要上游拍板的是两条：① 日期时区归一化策略已按基准站的 `Asia/Shanghai` 落地并写清限制，Phase 2 必须用同一时区格式化；② smartypants 默认开与 Hexo 不一致（会让 `{% mermaid %}` 里的 `-->` 变 `—>`），要么在 Phase 6 让 tag 插件先行、要么后续改成 `unified({ smartypants: false })`——本次按任务口径未擅自改。

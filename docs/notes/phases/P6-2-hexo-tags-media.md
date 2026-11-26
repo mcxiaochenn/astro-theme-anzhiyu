@@ -50,7 +50,7 @@
 ### 2.1 单测
 
 ```bash
-$ node packages/remark-hexo-tag/test/run.mjs
+$ node tests/remark-hexo-tag/run.mjs
 remark-hexo-tag: 59/59 通过
 ```
 
@@ -60,7 +60,7 @@ remark-hexo-tag: 59/59 通过
 ### 2.2 4 篇 fixture 正文对拍（真实 astro.config processor）
 
 ```bash
-$ node packages/remark-hexo-tag/test/render-fixtures.mjs
+$ node tests/remark-hexo-tag/render-fixtures.mjs
 == tags-inline ==        `{%` 残留 0，正文文本一致
 == tags-block ==         `{%` 残留 0，正文文本一致
 == tags-media ==         `{%` 残留 0，正文文本一致（忽略块级边界空白）
@@ -146,13 +146,13 @@ Nunjucks 占位块：Markdown 先跑完，标题就变成字面量 `## videos`�
 
 ## 5. 改动文件
 
-- `packages/remark-hexo-tag/src/tags/media/index.mjs`：11 个 tag
-- `packages/remark-hexo-tag/src/tags/thirdparty/index.mjs`：7 个 tag
-- `packages/remark-hexo-tag/src/index.mjs`：删除 PENDING 表；新增 `lookupBlock` /
+- `src/plugins/remark-hexo-tag/tags/media/index.mjs`：11 个 tag
+- `src/plugins/remark-hexo-tag/tags/thirdparty/index.mjs`：7 个 tag
+- `src/plugins/remark-hexo-tag/index.mjs`：删除 PENDING 表；新增 `lookupBlock` /
   `blockContext` / `string` 块级支持 / `ctx.raw()`
-- `packages/remark-hexo-tag/src/parser.mjs`：`key=value` 保留在 `args`
-- `packages/remark-hexo-tag/src/runtime.mjs`：`escapeHtml`
-- `packages/remark-hexo-tag/test/run.mjs`：+21 条用例（59 总）
-- `packages/remark-hexo-tag/test/render-fixtures.mjs`：扩到 4 篇 + 上游缺陷白名单
+- `src/plugins/remark-hexo-tag/parser.mjs`：`key=value` 保留在 `args`
+- `src/plugins/remark-hexo-tag/runtime.mjs`：`escapeHtml`
+- `tests/remark-hexo-tag/run.mjs`：+21 条用例（59 总）
+- `tests/remark-hexo-tag/render-fixtures.mjs`：扩到 4 篇 + 上游缺陷白名单
 - `packages/remark-hexo-tag/README.md`：42 tag 清单、选项、限制
-- `examples/blog/astro.config.mjs`：**未改**（新增默认值都对齐基准，无需传选项）
+- `astro.config.mjs`：**未改**（新增默认值都对齐基准，无需传选项）

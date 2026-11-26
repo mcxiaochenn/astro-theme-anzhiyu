@@ -6,10 +6,10 @@
 - 基线：`.baseline-html/about/index.html`（只读）。
 - 目标：`/about/` 的 `#about-page` 子树与基线结构一致；本阶段只出 DOM，
   交互脚本留给 Phase 4。
-- 交付范围：`packages/astro-theme-anzhiyu/src/components/page/about/**` 与本报告。
+- 交付范围：`src/components/page/about/**` 与本报告。
   **未改** 路由 `[...path].astro`、BaseLayout / Head / Header / AsideContent、
   其它 page 模板、`docs/plan/PLAN.md`、`scripts/diff-html.mjs`；
-  `examples/blog/data/about.yml` 本阶段无需补字段，保持 P3-2 原样。
+  `src/data/about.yml` 本阶段无需补字段，保持 P3-2 原样。
 
 ---
 
@@ -44,7 +44,7 @@
 
 ## 2. 数据契约
 
-数据来源：`examples/blog/data/about.yml` → `examples/blog/src/data/site-data.ts`
+数据来源：`src/data/about.yml` → `src/data/site-data.ts`
 的 `getSiteData('about')` → 站点路由 `[...path].astro` 的 `aboutData` →
 `<AboutPage data={aboutData} html={renderedHtml} />`。
 顶层是数组（对应上游 `each item in aboutData`），每个 item 产出一棵 `#about-page`。
@@ -179,7 +179,7 @@ FAIL .baseline-html\about\index.html ↔ .dist-snapshot\about\index.html  14 条
 [diff-html] 结构不一致
 ```
 
-用本次构建的 `examples/blog/dist/about/index.html` 跑同一条命令，输出完全一致
+用本次构建的 `dist/about/index.html` 跑同一条命令，输出完全一致
 （`14 条差异 / 缺口 缺 3 节点`）。
 
 ### 4.3 逐条判定（14 条里属于 `#about-page` 的：0 条）

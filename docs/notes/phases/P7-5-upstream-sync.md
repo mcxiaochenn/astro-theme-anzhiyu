@@ -184,7 +184,7 @@ index 4685e20..7bcad19 100644
 
 | 项 | 结论 |
 | --- | --- |
-| 文件 | `_config.yml`（上游 133 顶层键 / 662 递归 mapping key 的来源；仓库里镜像为 `examples/blog/theme.config.yml`，与登记表 §5 的 SHA 绑定） |
+| 文件 | `_config.yml`（上游 133 顶层键 / 662 递归 mapping key 的来源；仓库里镜像为 `theme.config.yml`，与登记表 §5 的 SHA 绑定） |
 | 改动 | 仅 1 行 YAML 注释：`# 51a统计配置` → `# 51la统计配置` |
 | 语义影响 | 无。YAML 里 `#` 之后是注释，解析后的键/值不变；不影响 `var.styl` fallback、不影响 133/662 计数 |
 | 是否要同步镜像 | **不要**。镜像 `theme.config.yml` 与上游 `72439d93` 逐字节绑定（SHA 在锚点里），同步一个只存在于 dev 的注释改动会破坏「镜像 = 基线」的约定 |

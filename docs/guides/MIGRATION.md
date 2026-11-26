@@ -118,15 +118,15 @@ CLI 参数：
 ├── site.config.ts                 # 站点身份（由 _config.yml 生成）
 ├── anzhiyu.config.yml             # 主题配置（清洗后，主题包 loader 默认读这个文件名）
 ├── anzhiyu.config.original.yml    # 主题配置原文备份（含注释，人工映射时用）
-├── package.json                   # astro + 主题包/插件的 file: 相对引用
-├── astro.config.mjs               # 复用 examples/blog 的自定义 Markdown processor + stylus 插件
-├── data/                          # source/_data/* （site-data.ts 只 glob *.yml）
-├── public/                        # source/ 下非页面、非 _posts/_data 的静态资源
+├── package.json                   # 普通 registry 依赖（模板 src/ 全量随站拷贝，无跨仓引用）
+├── astro.config.mjs               # 复用模板的自定义 Markdown processor + stylus 插件，配置文件名改为 anzhiyu.config.yml
+├── public/                        # 模板 public/（主题静态）+ source/ 下非页面、非 _posts/_data 的静态资源（站点侧优先）
 │   ├── <hexo_safego.html_file_name>   # Hexo 插件产物 C：安全跳转页（本站 public/go.html）
 │   └── <random.path>                  # Hexo 插件产物 D：随机文章脚本（本站 public/anzhiyu/random.js）
-└── src/
+└── src/                           # 模板 src/ 全量拷贝（组件/配置/i18n/布局/插件/类型/工具），生成物覆盖其中
     ├── content.config.ts          # posts 集合，glob loader base = ./src/content/posts
     ├── content/posts/             # 文章（保留子目录）+ 独立页面（<目录名>-page.md）
+    ├── data/                      # 模板 data/*.ts + source/_data/*（site-data.ts 只 glob *.yml）
     ├── data/site-data.ts          # getSiteData()，对应上游 site.data.*
     ├── data/site-feeds.ts         # 6 个站点级生成物的构建期实现（search/feed/sitemap/百度，见 §7.2）
     ├── pages/                     # 最小路由：index / page/[...page] / [...path] / [year]/[month]/[day]/[slug]
@@ -138,7 +138,7 @@ CLI 参数：
     │   ├── sitemap.xml.ts         # 站点级生成物：sitemap（路径由 sitemap.path 决定）
     │   ├── baidusitemap.xml.ts    # 站点级生成物：百度 sitemap（路径由 baidusitemap.path 决定）
     │   └── baidu_urls.txt.ts      # 站点级生成物：百度 URL 清单（路径由 baidu_url_submit.path 决定）
-    └── styles/                    # 从 examples/blog 复制的上游 stylus + css 样式入口
+    └── styles/                    # 模板 src/styles/ 的上游 stylus + css 样式入口（整目录拷贝）
 ```
 
 > 上面 6 个站点级生成物（以及 `sitemap.txt` 之类的可选产物）**不在迁移期写文件**：
@@ -146,10 +146,10 @@ CLI 参数：
 
 设计约定：
 
-- 主题本体**不复制**，`package.json` 用 `file:../../packages/astro-theme-anzhiyu` 等相对引用指向本仓库，
-  页面里的 `import ... from '<N 个 ../>/packages/...'` 由脚本按**每个文件所在目录**单独计算。
+- 输出站**自包含**：模板 `src/` / `public/` / `tsconfig.json` 全量拷贝进输出站，`package.json` 用普通
+  registry 依赖，页面里的 `@/` 说明符由输出站自己的 `tsconfig.json` + `astro.config.mjs` 别名解析。
 - 文章与独立页面共用 `posts` 集合，靠 `layout: page` 区分（见第 5 节）。
-- `site.config.ts` 被 4 个页面路由 `import`，替换掉 `examples/blog` 里硬编码的基准站身份。
+- `site.config.ts` 被 4 个页面路由 `import`，替换掉模板里硬编码的基准站身份。
 
 ---
 
@@ -241,7 +241,7 @@ album_detail / music / equipment / fcircle / default
 ```
 
 另有 **`todolist` 兼容页**（1.6.14 `todolist.pug` 模板移植，1.7.1 已删该模板）：`type: todolist`
-命中专门分支，数据来自 `data/todolist.yml`，与 12 种标准类型合计 **13 条分发路径**。
+命中专门分支，数据来自 `src/data/todolist.yml`，与 12 种标准类型合计 **13 条分发路径**。
 
 不在上面两组里的 `type` 会落到 `DefaultPage`（只渲染正文，专属布局和数据丢失）。本站需要人工处理的页面：
 
@@ -267,10 +267,10 @@ album_detail / music / equipment / fcircle / default
 
 ### 5.3 站点数据
 
-`source/_data/*.yml` → `data/*.yml`，由 `src/data/site-data.ts` 的 `getSiteData(name)` 读取
+`source/_data/*.yml` → `src/data/*.yml`，由 `src/data/site-data.ts` 的 `getSiteData(name)` 读取
 （对应上游 `site.data.<name>`）。注意：
 
-- `import.meta.glob('../../data/*.yml')` **只匹配 `.yml`**；本站 `bangumis.json` 被复制过去但不会被读取，
+- `import.meta.glob('./*.yml')` **只匹配 `.yml`**；本站 `bangumis.json` 被复制过去但不会被读取，
   需要自己在页面里 `import` 或改 glob 模式。
 - `examples/blog` 基准站有 `album.yml`，本站没有 → `album` 页数据为空。
 - `widget.yml` / `creativity.yml` 在现有页面组件里没有消费者，属于待接入数据（`todolist.yml` 已由 `todolist` 兼容页消费）。
@@ -740,7 +740,7 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
    **（历史结论，P7-3 时点）**——42 个 tag 现已全实现，迁移产物默认 `lenient: true` 宽松语义
    （未闭合容器自动补齐、脏 tag 透传并告警，不中断构建），见 §12「tag 语法」；
 3. 站点主题配置（136 键）喂给 stylus 插件时，某条件分支展开出非法 CSS
-   （postcss `Unknown word cursor`）；换成 `examples/blog/theme.config.yml` 基准配置后骨架可正常构建；
+   （postcss `Unknown word cursor`）；换成 `theme.config.yml` 基准配置后骨架可正常构建；
 4. 归档 / 标签 / 分类 / 404 路由未生成（最小路由只含首页、分页、独立页、文章页）；
 5. 评论 / 搜索 / 统计 / CDN / inject / pjax 仍是要人工接的项；Hexo 插件产物里
    **envelope 留言板 / bangumi 追番 / safego go.html / random.js 已由 §7.1 生成**，
@@ -753,7 +753,7 @@ grep -rl '{%' src/content/posts            # 列出所有需检查的文件
    `Europe/Berlin`）目前写入一个代表性固定偏移（冬/夏采样取其一），跨夏令时边界的日期可能偏移
    约 1 小时。完全正确需把 `parseHexoDate` 改成 per-date（`Intl.DateTimeFormat` 按该日期取
    offset，`scripts/migrate-hexo.mjs` 的 `timezoneOffsetMinutes(tz, at)` 已具备该能力），但
-   `examples/blog/src/content.config.ts` 模板不在迁移工具写范围内、且注入 per-date 逻辑无法本地
+   `src/content.config.ts` 模板不在迁移工具写范围内、且注入 per-date 逻辑无法本地
    build 验证，故暂登记为已知限制——DST 站请人工抽查跨季文章的发布时间与归档年月。
 8. **内容侧公式管线缺口（Batch B 登记）**：站点 Markdown 渲染链未接 remark-math，正文 `$...$` / `$$...$$` 不会被解析成公式节点；主题侧 mathjax/katex 的脚本与样式已按 page 级开关正确加载（Batch B 透传：`per_page: false` + front-matter `mathjax: true`/`katex: true` 可达），但要看到公式效果需站点侧自行接入 remark-math，或在正文中直接写渲染后的 HTML。属内容管线缺口，非主题渲染层回归。
 

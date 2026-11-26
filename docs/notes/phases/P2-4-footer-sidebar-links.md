@@ -98,7 +98,7 @@ v24.22.0
 DIST_DIR=.dist-snapshot BASELINE_HTML_DIR=.baseline-html \
   node scripts/diff-html.mjs --all --json 2>/dev/null > .tmp-links-diff-before.json
 # 后：私有快照
-cp -r examples/blog/dist .dist-snapshot-links
+cp -r dist .dist-snapshot-links
 DIST_DIR=.dist-snapshot-links BASELINE_HTML_DIR=.baseline-html \
   node scripts/diff-html.mjs --all --json 2>/dev/null > .tmp-links-diff.json
 ```

@@ -2,8 +2,8 @@
 
 - 任务：task-14 / W4-A（CI e2e 最后 1 条真实产品 bug）
 - 失败现场：CI run `45390434679`（2026-11-24T12:07–12:08Z）`npx playwright test`，**28 passed / 1 failed / 9 skipped**
-- 输入证据：`.ci-logs/e2e-fail3.log`、`tests/e2e/dark-mode.spec.ts:88`、`tests/e2e/helpers.ts`、`packages/astro-theme-anzhiyu/src/components/head/{inject-head-js.ts,runtime.ts}`、`layouts/BaseLayout.astro`、`assets/js/main.js`、`node_modules/astro` / `node_modules/@astrojs/runtime` 的 ClientRouter 实现
-- 产物：`packages/astro-theme-anzhiyu/src/components/head/runtime.ts`（+74/-1）、本文件
+- 输入证据：`.ci-logs/e2e-fail3.log`、`tests/e2e/dark-mode.spec.ts:88`、`tests/e2e/helpers.ts`、`src/components/head/{inject-head-js.ts,runtime.ts}`、`layouts/BaseLayout.astro`、`assets/js/main.js`、`node_modules/astro` / `node_modules/@astrojs/runtime` 的 ClientRouter 实现
+- 产物：`src/components/head/runtime.ts`（+74/-1）、本文件
 - 浏览器级验证：本机无浏览器（PLAN R12），**等 Lead 推 CI 复跑**；本文只写本地能确定性复现/证明的部分
 
 ---
@@ -73,7 +73,7 @@ test('站内导航（ClientRouter）后主题不被重置', async ({ page }) => 
 
 ### 2.1 新文档的 `<html data-theme>` 是构建期静态值
 
-`packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro:254-263`：
+`src/layouts/BaseLayout.astro:254-263`：
 
 ```ts
 /**
@@ -91,7 +91,7 @@ const displayMode = theme.display_mode === 'dark' ? 'dark' : 'light'
 <html lang={site.language} data-theme={displayMode} class={htmlClass || undefined}>
 ```
 
-`examples/blog/theme.config.yml:731` 是 `display_mode: light`，所以**每一页**的服务端 HTML 都是
+`theme.config.yml:731` 是 `display_mode: light`，所以**每一页**的服务端 HTML 都是
 `<html lang="zh-CN" data-theme="light">`（构建产物实测）：
 
 ```
@@ -228,7 +228,7 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e =
 
 ## 3. 修复
 
-### 3.1 改动（唯一代码文件：`packages/astro-theme-anzhiyu/src/components/head/runtime.ts`，+74/-1）
+### 3.1 改动（唯一代码文件：`src/components/head/runtime.ts`，+74/-1）
 
 核心三段：
 

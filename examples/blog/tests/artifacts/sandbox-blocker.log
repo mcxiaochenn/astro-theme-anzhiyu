@@ -1,0 +1,37 @@
+== P1.5 本机 Playwright/Chromium 沙箱限制证据（2026-11-23，DSH Windows 沙箱） ==
+
+-- 1) 官方安装器失败：playwright install 的下载子进程 spawn 被拒 --
+Error: Failed to download Chrome Headless Shell 159.0.8154.6 (playwright chromium-headless-shell v1255), caused by
+Error: spawn EPERM
+=== exit 1 at 2026-11-23T18:40:11.1856194+08:00 ===
+
+-- 2) tests/vertical-slice.mjs 运行失败链路 --
+[slice] piped stdio spawn 被拒（EPERM），退化为 stdio:ignore 重试
+[slice] preview ready: http://127.0.0.1:4399
+[slice] chromium.launch() 失败: browserType.launch: spawn EPERM
+[slice] 手动启动浏览器: D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\playwright-browsers\chromium_headless_shell-1255\chrome-headless-shell-win64\chrome-headless-shell.exe
+[slice] 运行失败: browserType.connectOverCDP: Timeout 30000ms exceeded.
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9333
+  - <ws connecting> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e
+  - <ws connected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e
+  - <ws disconnected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e code=1006 reason=
+
+    at launchViaCdpFallback (D:\Git-project\astro-theme-anzhiyu\examples\blog\tests\vertical-slice.mjs:167:36)
+    at async main (D:\Git-project\astro-theme-anzhiyu\examples\blog\tests\vertical-slice.mjs:302:24) {
+  log: [
+    '  - <ws preparing> retrieving websocket url from http://127.0.0.1:9333',
+    '  - <ws connecting> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e',
+    '  - <ws connected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e',
+    '  - <ws disconnected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e code=1006 reason='
+  ],
+  name: 'TimeoutError'
+}
+
+-- 3) Chromium 自身日志：mojo 命名管道创建被拒（任何 target 都无法 attach） --
+[1123/184235.724:FATAL:mojo\public\cpp\platform\platform_channel.cc:112] Check failed: . : 拒绝访问。 (0x5)
+[1123/184235.747:ERROR:content\browser\network_sandbox.cc:422] Failed to grant sandbox access to cache directory D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\pw-ud-plain\Default\Cache\Cache_Data: 拒绝访问。 (0x5)
+[1123/184235.752:ERROR:content\browser\network_sandbox.cc:342] Failed to grant sandbox access to SharedDictionary directory D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\pw-ud-plain\Default\Shared Dictionary: 拒绝访问。 (0x5)
+[1123/184235.753:ERROR:content\browser\network_sandbox.cc:539] Failed to grant sandbox access to network context data directory D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\pw-ud-plain\Default\Network: 拒绝访问。 (0x5)
+DevTools listening on ws://127.0.0.1:9385/devtools/browser/4ec502e5-db87-4f75-b614-38d9963ec9a1
+[1123/184235.777:ERROR:content\browser\network_sandbox_grant_result_helper.cc:108] Encountered error while migrating network context data or granting sandbox access for D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\pw-ud-plain\Default\Network. Result: 6: 操作成功完成。 (0x0)

@@ -1,7 +1,7 @@
 # FIX-CI-WAVE：CI run 45530122093（head 2930fe0）两红回修
 
 > 约束遵守：零 git 写操作；未跑 astro build / Playwright / Lighthouse（本地沙箱不允许）；
-> 未碰 `examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`；
+> 未碰 `src/styles/upstream/**`、`theme.config.yml`；
 > 未触 golden 对比层（render.mjs / global-config.ts / astro.config.mjs）。
 > 两路各写自己的章节，本文件由各路 append。
 
@@ -25,7 +25,7 @@ TypeError: Cannot read properties of undefined (reading 'remove')
 
 来源：`.ci-logs/pwreport/test-results/…-retry1/trace.zip` → `1-trace.trace` 三条 `pageError`
 （time 17673 / 17869 / 17987，与点击、后退、前进三次导航一一对应），location 均为
-`js/anzhiyu/people.js:184:14`。抛点与 `packages/astro-theme-anzhiyu/assets/js/anzhiyu/people.js:185`
+`js/anzhiyu/people.js:184:14`。抛点与 `public/js/anzhiyu/people.js:185`
 （修复前 `gsap.ticker.remove(render)`）逐字对应。
 
 ### 2. 机制还原
@@ -58,7 +58,7 @@ TypeError: Cannot read properties of undefined (reading 'remove')
 
 ### 4. 修法（双管齐下，各治一半）
 
-**① 本地兜底（代码）** `packages/astro-theme-anzhiyu/assets/js/anzhiyu/people.js`：
+**① 本地兜底（代码）** `public/js/anzhiyu/people.js`：
 3 处 `gsap.ticker.*` 调用（cleanup 的 `remove`、init 与 pjax:success 的 `add`）统一加
 `if (gsap.ticker)` 守卫。真实 gsap（ticker 必在）行为逐字节不变，上游语义保留；gsap 残缺时
 清理路径安全 no-op 而不是 TypeError。people.js 是运行时资源，**不进 golden 对比层输出**，
@@ -81,12 +81,12 @@ bug」——G1 之前的桩反而制造了产品 bug 假象）；对照先例：
 
 | 命令 | 结果 |
 |---|---|
-| `node packages/astro-theme-anzhiyu/scripts/check-loader.mjs` | PASS 43/43 |
-| `node packages/astro-theme-anzhiyu/scripts/check-schema.mjs` | PASS（上游零错误 + 3 用例） |
-| `node packages/astro-theme-anzhiyu/scripts/check-helpers.mjs` | PASS 269/269 |
-| `node packages/astro-theme-anzhiyu/scripts/check-i18n.mjs` | PASS 83/83 |
-| `node packages/astro-theme-anzhiyu/scripts/check-date.mjs` | 62 PASS / 0 FAIL |
-| `node packages/astro-theme-anzhiyu/scripts/check-slugger.mjs` | 49 PASS / 0 FAIL |
+| `node scripts/check-loader.mjs` | PASS 43/43 |
+| `node scripts/check-schema.mjs` | PASS（上游零错误 + 3 用例） |
+| `node scripts/check-helpers.mjs` | PASS 269/269 |
+| `node scripts/check-i18n.mjs` | PASS 83/83 |
+| `node scripts/check-date.mjs` | 62 PASS / 0 FAIL |
+| `node scripts/check-slugger.mjs` | 49 PASS / 0 FAIL |
 | `node scripts/check-upstream-delta.mjs` | PASS 29/29 |
 
 **node 级针对性验证**（`%TEMP%\verify-e2e-remove-fix.mjs`，vm 沙箱把 people.js 的
@@ -113,12 +113,12 @@ B  THIRD_PARTY_STUB 提取 eval → gsap 桩 API 面齐全（ticker/parseEase/ti
 
 | 文件 | 改动 |
 |---|---|
-| `packages/astro-theme-anzhiyu/assets/js/anzhiyu/people.js` | 3 处 `gsap.ticker.*` 调用加 `if (gsap.ticker)` 守卫（:185 / :200 / :217） |
+| `public/js/anzhiyu/people.js` | 3 处 `gsap.ticker.*` 调用加 `if (gsap.ticker)` 守卫（:185 / :200 / :217） |
 | `tests/e2e/helpers.ts` | `THIRD_PARTY_STUB` 的 gsap 桩补 `ticker`/`parseEase`/`timeline` 链式 API + 注释 |
 | `docs/notes/fixes/fix-ci-wave.md` | 本报告 |
 
 未触碰：golden 对比层（render.mjs / global-config.ts / astro.config.mjs）、
-`examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`、任何 spec 的断言。
+`src/styles/upstream/**`、`theme.config.yml`、任何 spec 的断言。
 
 ---
 
@@ -136,14 +136,14 @@ B  THIRD_PARTY_STUB 提取 eval → gsap 桩 API 面齐全（ticker/parseEase/ti
 
 **根因**：上游 hexo-renderer-marked 默认 `breaks: true`
 （`.baseline-work/node_modules/hexo-renderer-marked/index.js:10`，marked 的 `br(){return"<br>"}`，
-段内单换行 → `<br>`）；我们的自定义处理器（`examples/blog/astro.config.mjs`
+段内单换行 → `<br>`）；我们的自定义处理器（`astro.config.mjs`
 hexoMarkdownProcessor → `createMarkdownProcessor`）走 CommonMark 默认——remark 把软换行留在
 mdast `text` 节点的 `\n` 里，mdast-util-to-hast 的 text handler 把 `\n` 折叠成空格。
 fixtures 的段内换行此前都藏在 tag/代码块里没暴露，abbrlink-post.md 是第一篇正文带软换行的
 fixture。diff 证据（`.ci-logs/dist/diff-report.json`，7 处）：p[1] 缺 `br[1]`/`br[2]` +
 text()[2]/[3]、[6]/[7] 被空格合并，p[2] 缺 1 br。
 
-**修法**（`examples/blog/astro.config.mjs`，零新依赖）：
+**修法**（`astro.config.mjs`，零新依赖）：
 
 1. `remarkHexoSoftBreaks`：remark 插件，把 mdast `text` 节点里的 `\n` 拆成
    `text + break` 节点序列（remark-rehype 渲染 `<br>`）。只动 text 节点；
@@ -230,14 +230,14 @@ falsy → `''`）。
 **修法**：
 
 a. 序列化恢复上游同形（产出点 = 路由传参，本路最小改动）：
-   - `examples/blog/src/pages/[year]/[month]/[day]/[slug].astro:119`：
+   - `src/pages/[year]/[month]/[day]/[slug].astro:119`：
      `postAI={page.data.ai ? String(page.data.ai) : undefined}`（true→'true'、'文本'→'文本'、
      false/空/undefined→''，与上游 escapeQuote 真值语义逐形态一致）；
-   - `examples/blog/src/pages/[...path].astro:159` 同步；
+   - `src/pages/[...path].astro:159` 同步；
    - `global-config.ts` 的 `escapeQuote` 本就与上游 pug 逐字同构，模板行
      `postAI: '${escapeQuote(input.postAI)}',` 不动（核实过仍是上游形状）。
 b. 改进移到**消费层**（不参与 HTML 逐字节对比的 JS）：
-   `packages/astro-theme-anzhiyu/assets/js/anzhiyu/ai_abstract.js` 的 `aiAbstractLocal()`
+   `public/js/anzhiyu/ai_abstract.js` 的 `aiAbstractLocal()`
    （local 模式 `postAI.split(',')` 摘要候选）对字面 `"true"` 候选做守卫——视为开关剔除；
    候选耗尽回退 fill 描述（`pageFillDescription`）；`postAI: ''` 空候选保持原空摘要动画行为；
    `ai: "摘要文本"` 单候选、`"a,b"` 多候选随机语义不变。`node --check` 语法 exit 0。
@@ -260,7 +260,7 @@ false     → postAI: ''     （上游 escapeQuote falsy 语义，附加断言�
 
 ```
 node scripts/check-upstream-delta.mjs      → [check-upstream-delta] 校验通过：PASS 29 / SKIP 0 / FAIL 0（exit 0）
-node packages/remark-hexo-tag/test/run.mjs → remark-hexo-tag: 65/65 通过（exit 0；本路未动该包，链路相邻防回归）
+node tests/remark-hexo-tag/run.mjs → remark-hexo-tag: 65/65 通过（exit 0；本路未动该包，链路相邻防回归）
 node --check …/ai_abstract.js              → exit 0
 ```
 
@@ -268,16 +268,16 @@ node --check …/ai_abstract.js              → exit 0
 
 | 文件 | 改动 |
 |---|---|
-| `examples/blog/astro.config.mjs` | 新增 `remarkHexoSoftBreaks` + `hastBreakBare`（remarkRehype handlers.break）并挂进 hexoMarkdownProcessor；具名导出处理器与纯函数供验证脚本复用 |
-| `examples/blog/src/pages/[year]/[month]/[day]/[slug].astro` | :119 postAI 改 `String(page.data.ai)` 真值形态 |
-| `examples/blog/src/pages/[...path].astro` | :158-159 同上 + 注释更正 |
-| `packages/astro-theme-anzhiyu/assets/js/anzhiyu/ai_abstract.js` | aiAbstractLocal 加 `"true"` 候选守卫 + fill 描述回退 |
-| `packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro` | 仅注释：postAI 契约说明更正（旧文与新序列化矛盾，属 postAI 传参链） |
+| `astro.config.mjs` | 新增 `remarkHexoSoftBreaks` + `hastBreakBare`（remarkRehype handlers.break）并挂进 hexoMarkdownProcessor；具名导出处理器与纯函数供验证脚本复用 |
+| `src/pages/[year]/[month]/[day]/[slug].astro` | :119 postAI 改 `String(page.data.ai)` 真值形态 |
+| `src/pages/[...path].astro` | :158-159 同上 + 注释更正 |
+| `public/js/anzhiyu/ai_abstract.js` | aiAbstractLocal 加 `"true"` 候选守卫 + fill 描述回退 |
+| `src/components/post/PostAiDescription.astro` | 仅注释：postAI 契约说明更正（旧文与新序列化矛盾，属 postAI 传参链） |
 | `docs/notes/fixes/fix-ci-wave.md` | 本章节 |
 
 未动：`tests/e2e/**`、`packages/remark-hexo-tag/**`、`third-party/render.mjs`、
-`head/global-config.ts`、fixtures 正文、`examples/blog/src/styles/upstream/**`、
-`examples/blog/theme.config.yml`。
+`head/global-config.ts`、fixtures 正文、`src/styles/upstream/**`、
+`theme.config.yml`。
 
 ### 5. 已知残留 / 待 CI 清单
 

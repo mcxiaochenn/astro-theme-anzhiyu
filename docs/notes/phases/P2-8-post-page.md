@@ -1,6 +1,6 @@
 # P2-8 · 文章页（PostInfo / 版权 / 打赏 / ptool / 上下篇 / 相关推荐 + M3 slugger）
 
-任务：`examples/blog/src/pages/[year]/[month]/[day]/[slug].astro`，复刻上游
+任务：`src/pages/[year]/[month]/[day]/[slug].astro`，复刻上游
 `layout/post.pug` 及其 include；M3 标题 slugger 与 headerlink。
 
 > 状态：**完成**。49 页构建通过；长文文章页的 **header（`#post-info`）与 `#post` 子树
@@ -23,23 +23,23 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `packages/astro-theme-anzhiyu/src/utils/slugger.ts` | 新增：hexo-util `slugize()` + marked heading（id / 重复后缀 / headerlink） |
-| `packages/astro-theme-anzhiyu/scripts/check-slugger.mjs` | 新增：M3 自检，硬编码 9 篇基线 id 作 oracle + 活体对拍 |
+| `src/utils/slugger.ts` | 新增：hexo-util `slugize()` + marked heading（id / 重复后缀 / headerlink） |
+| `scripts/check-slugger.mjs` | 新增：M3 自检，硬编码 9 篇基线 id 作 oracle + 活体对拍 |
 | `packages/astro-theme-anzhiyu/package.json` | 新增 `check:slugger` 脚本 |
-| `packages/astro-theme-anzhiyu/src/components/post/post-page.ts` | 新增：文章页数据层（abbrlink、上下篇、相关推荐、TOC、lazyload/外链） |
-| `packages/astro-theme-anzhiyu/src/components/post/PostInfo.astro` | 新增：`post-info.pug` + 波浪 + `#post-top-cover` |
-| `packages/astro-theme-anzhiyu/src/components/post/PostContent.astro` | 新增：`article#article-container` |
-| `packages/astro-theme-anzhiyu/src/components/post/PostCopyright.astro` | 新增：`post-copyright.pug`（含 `#post-tools` / `.post-tools-right`） |
-| `packages/astro-theme-anzhiyu/src/components/post/PostPtool.astro` | 新增：`ptool.pug` |
-| `packages/astro-theme-anzhiyu/src/components/post/PostReward.astro` | 新增：`reward.pug` |
-| `packages/astro-theme-anzhiyu/src/components/post/ShareBox.astro` | 新增：share.js 分支 |
-| `packages/astro-theme-anzhiyu/src/components/post/PostPagination.astro` | 新增：`pagination.pug` 文章分支 |
-| `packages/astro-theme-anzhiyu/src/components/post/RelatedPosts.astro` | 新增：`related_posts()` 输出 |
-| `packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro` | 新增：`anzhiyu/ai-info.pug`（长文 `ai: true` 会命中，整棵缺失会污染 diff） |
-| `examples/blog/src/pages/[year]/[month]/[day]/[slug].astro` | 新增：文章页路由 |
+| `src/components/post/post-page.ts` | 新增：文章页数据层（abbrlink、上下篇、相关推荐、TOC、lazyload/外链） |
+| `src/components/post/PostInfo.astro` | 新增：`post-info.pug` + 波浪 + `#post-top-cover` |
+| `src/components/post/PostContent.astro` | 新增：`article#article-container` |
+| `src/components/post/PostCopyright.astro` | 新增：`post-copyright.pug`（含 `#post-tools` / `.post-tools-right`） |
+| `src/components/post/PostPtool.astro` | 新增：`ptool.pug` |
+| `src/components/post/PostReward.astro` | 新增：`reward.pug` |
+| `src/components/post/ShareBox.astro` | 新增：share.js 分支 |
+| `src/components/post/PostPagination.astro` | 新增：`pagination.pug` 文章分支 |
+| `src/components/post/RelatedPosts.astro` | 新增：`related_posts()` 输出 |
+| `src/components/post/PostAiDescription.astro` | 新增：`anzhiyu/ai-info.pug`（长文 `ai: true` 会命中，整棵缺失会污染 diff） |
+| `src/pages/[year]/[month]/[day]/[slug].astro` | 新增：文章页路由 |
 
 未改动：`BaseLayout.astro`、`AsideContent.astro`、`docs/plan/PLAN.md`、`HomeTop.astro`、`Header.astro`、
-`post-list.ts`、`examples/blog/astro.config.mjs`。
+`post-list.ts`、`astro.config.mjs`。
 
 ---
 
@@ -103,7 +103,7 @@ node scripts/check-slugger.mjs
 
 ### 2.1 路由
 
-`examples/blog/src/pages/[year]/[month]/[day]/[slug].astro`
+`src/pages/[year]/[month]/[day]/[slug].astro`
 
 - `getStaticPaths`：`getCollection('posts')` → `layout !== 'page'` → 复用
   `preparePosts()` 算出的 `YYYY/MM/DD/`（站点时区 `Asia/Shanghai`，与首页卡片同一套语义）；
@@ -221,7 +221,7 @@ XX -  |  h2 #footnote-label
 ```bash
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
   .baseline-html/2024/11/01/longform-hexo-astro/index.html \
-  examples/blog/dist/2024/11/01/longform-hexo-astro/index.html --limit 80
+  dist/2024/11/01/longform-hexo-astro/index.html --limit 80
 ```
 
 ```
@@ -323,5 +323,5 @@ pnpm --filter blog build
 # 单页 diff
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
   .baseline-html/2024/11/01/longform-hexo-astro/index.html \
-  examples/blog/dist/2024/11/01/longform-hexo-astro/index.html --limit 80
+  dist/2024/11/01/longform-hexo-astro/index.html --limit 80
 ```

@@ -3,7 +3,7 @@
 - **批次**：Batch C · C1–C5（迁移工具正确性）
 - **执行**：agent-3（迁移工具组）
 - **写范围**：`scripts/migrate-hexo.mjs`、`scripts/diff-html.mjs`（仅 C4 豁免逻辑区 + `--verbose` 输出）、`docs/guides/MIGRATION.md`（仅 C1 DST 限制登记，见「审查修正」）、本报告。
-- **未触碰**：`examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`（SHA 守卫，`git diff --stat` 仅两个脚本 + MIGRATION.md 变动）；`scripts/diff-html.mjs` 的 `:1445`（USAGE 退出语义）/`:1519-1531`（`runAll` skip 退出）属 D1，本批零改动（见文末 git diff 佐证）。
+- **未触碰**：`src/styles/upstream/**`、`theme.config.yml`（SHA 守卫，`git diff --stat` 仅两个脚本 + MIGRATION.md 变动）；`scripts/diff-html.mjs` 的 `:1445`（USAGE 退出语义）/`:1519-1531`（`runAll` skip 退出）属 D1，本批零改动（见文末 git diff 佐证）。
 
 ---
 
@@ -74,7 +74,7 @@ PASS UTC fixture 日期（offset=0）不平移 => "2024-01-15T09:30:00.000Z"
 
 **DST 处理方式（二选一）：登记限制。**
 
-理由（审查修正，以代码实态为准）：迁移产物 `content.config.ts` 的 `parseHexoDate` 用单一 `SITE_UTC_OFFSET_MINUTES` 常量把「墙上时间」还原为 UTC 瞬时；DST 时区该偏移随日期变化，单常量无法表达。真·per-date 需改 `examples/blog/src/content.config.ts` 的 `parseHexoDate`（不在本批写范围），或由 `migrate-hexo.mjs` 对生成模板做 per-date 注入——但注入无法本地 build 验证（本地禁跑 `astro build`），且属日期管线高风险改动，按「验证后再声称完成 / 不做危险未验证改动」原则不做。故：
+理由（审查修正，以代码实态为准）：迁移产物 `content.config.ts` 的 `parseHexoDate` 用单一 `SITE_UTC_OFFSET_MINUTES` 常量把「墙上时间」还原为 UTC 瞬时；DST 时区该偏移随日期变化，单常量无法表达。真·per-date 需改 `src/content.config.ts` 的 `parseHexoDate`（不在本批写范围），或由 `migrate-hexo.mjs` 对生成模板做 per-date 注入——但注入无法本地 build 验证（本地禁跑 `astro build`），且属日期管线高风险改动，按「验证后再声称完成 / 不做危险未验证改动」原则不做。故：
 - `timezoneOffsetMinutes(tz, at)` 已具备 per-date 能力（断言 NY 冬 -300 / 夏 -240，见上）；
 - 消费点检测 `hasDST` 并告警；
 - 限制登记至 `docs/guides/MIGRATION.md §13.2 第 7 条`（详见「审查修正」）。
@@ -193,7 +193,7 @@ PASS 形态2 剥 ## 前缀 => "hello sitegroup world"
 **`--dry-run` 输出全文（相关段）+ 零「已修正」验证**（`node scripts/migrate-hexo.mjs --site %TEMP%\c5fx --dry-run`，exit 0）：
 
 ```
-[dry-run] copy  src/styles/upstream/_third-party/twikoo.styl  <- examples/blog/src/styles/upstream/_third-party/twikoo.styl
+[dry-run] copy  src/styles/upstream/_third-party/twikoo.styl  <- src/styles/upstream/_third-party/twikoo.styl
 · [dry-run] 将修正上游 twikoo.styl 的 CSS 缩进笔误（仅 Twikoo 站会展开）
 ```
 

@@ -5,7 +5,7 @@
 这份表是「上游有什么问题、我们为什么这么处理」的唯一登记处。PLAN §1.4 的 D7 / D8 / D9 都收敛到这里；后续任何 Phase 若想「顺手修一下上游」，先看本表的决策列。
 
 - 本地只读副本：`D:\Git-project\_research\anzhiyu-upstream`（331 文件 / 2.55 MB，与基线一致）
-- 仓库内镜像：`examples/blog/src/styles/upstream/`（72 个 `.styl` + 47 个 `.css`，与上游逐字节一致）+ `examples/blog/theme.config.yml`（= 上游 `_config.yml`）
+- 仓库内镜像：`src/styles/upstream/`（72 个 `.styl` + 47 个 `.css`，与上游逐字节一致）+ `theme.config.yml`（= 上游 `_config.yml`）
 - 机械校验：`node scripts/check-upstream-delta.mjs`（根 `package.json` 的 `check:upstream-delta`）；只读、不构建、不需要 `_research` 副本
 - 维护规则：**任何一条**「位置 / 原文 / 决策 / 基准数字」变化都要同步改本表 + 锚点，否则 CI 会红——这是故意的
 
@@ -22,7 +22,7 @@
 | U3 (**D9**) | 管线缺口（Hexo 注入层未复刻） | `source/css/_highlight/highlight.styl:29`（及 `:3`） | `$prismjs_enable` 由上游模板脚本 `.define()` 注入，不在 styl 里；我们没复刻 → Stylus 未定义变量在 `if` 里为真 → 多出 prismjs 分支 | **已修复（P1-11）**：插件 `hexoDefineLines()` 复刻 `.define()` 注入 4 个变量，站点级键缺失时回落 Hexo 7.3.0 默认值 | 展开源码 4 行赋值守卫 + 字节闭环 683218 − 228 = 682990 + prismjs 规则族消失 |
 | U4 | 环境约定（版本钉死） | `.baseline-work/package.json`、Hexo 依赖树 | 参考产物必须 hexo **7.3.0**；`hexo-renderer-stylus` 3.0.1 / nib 1.2.0 / 上游侧 stylus 0.62.0，我们侧 0.64.0 | **钉死 7.3.0**，迁移期不追上游/不换 Hexo | 本地 `.baseline-work` 三项校验（CI SKIP） |
 | U5 | 上游配置缺失（注释掉） | `_config.yml:613`（`theme_color`）/ `:755`（`hr_icon`）/ `:618`、`:626`、`:627` | 3 个子键被注释 → 配置里不存在 → `getProperty` 返回 `''` → 走 fallback；`theme_color` / `hr_icon` 本身是对象 | **不补键**（补了会改色值分支）；对象按 truthy 处理 | YAML 键存在性 + 对象类型 + SHA |
-| U6 | 工具链差异（逐字节对齐约定） | `packages/vite-plugin-stylus-hexo-config/src/index.mjs` 的 `@css{}` 字面量 + Stylus `lexer.js:76-80` | `@css{}` 内「逗号 + 换行」被 Stylus 词法器重写成 `,\r`，与 Hexo 的 literal import 路径不可逐字节对齐 | **不改**（接受 −228 B / SHA 不一致） | 最小复现 + 字节记录 |
+| U6 | 工具链差异（逐字节对齐约定） | `src/plugins/stylus-hexo-config/index.mjs` 的 `@css{}` 字面量 + Stylus `lexer.js:76-80` | `@css{}` 内「逗号 + 换行」被 Stylus 词法器重写成 `,\r`，与 Hexo 的 literal import 路径不可逐字节对齐 | **不改**（接受 −228 B / SHA 不一致） | 最小复现 + 字节记录 |
 | U7 | 上游仓库约定（换行） | 上游全部 `.styl` / `_config.yml` | 上游文件是 **CRLF**；镜像必须逐字节保持，任何换行归一化都会改 SHA | **保持 CRLF**，禁止格式化 | SHA + 换行统计 |
 | U8 | 上游渲染能力缺失（对照用） | hexo-renderer-marked 7.0.1 | 上游 `hexo g` 不渲染 GFM 脚注（`[^x]` 原样留段落） | 迁移期不改上游；Astro 侧按 GFM 启用，记为已知差异 | P1-6 报告 §7 #3；HTML diff 口径 |
 | U9 | 上游 tag 解析器行为（对照差异） | 1.7.1 `videos` / `sitegroup` 等容器 tag | 容器吞掉紧邻其前的 Markdown 标题，基线留下 `## xxx` 字面量（不进 TOC） | **不改上游**；Astro 侧按 GFM 渲染标题，diff 走 N21 双形态豁免（跳过 `pre/code/textarea`） | N21 口径 + `/2025/04/01/tags-media/` 正文/TOC 对齐；首页摘要 `## videos` 归零 |
@@ -37,7 +37,7 @@
 
 ### U1 · `readmode.styl:120` 非法自定义属性（上游缺陷，不改）
 
-**位置**：`source/css/_mode/readmode.styl:120`（仓库镜像 `examples/blog/src/styles/upstream/_mode/readmode.styl:120`）
+**位置**：`source/css/_mode/readmode.styl:120`（仓库镜像 `src/styles/upstream/_mode/readmode.styl:120`）
 
 **原文**（CRLF 文件，行内内容）：
 
@@ -54,14 +54,14 @@
 
 **决策：不改。** 双重措施：
 
-1. `examples/blog/astro.config.mjs` 关闭 `vite.build.cssMinify`（注释里写明了这条原因），Phase 7 处理压缩时另立预算口径，而不是打开压缩去对未压缩基准。
+1. `astro.config.mjs` 关闭 `vite.build.cssMinify`（注释里写明了这条原因），Phase 7 处理压缩时另立预算口径，而不是打开压缩去对未压缩基准。
 2. 本题的守卫脚本把 `:120` 必须为非法写法、`:104` 必须为正确写法写死；CI 会拦住任何「顺手修复」。真要走修复路线，必须先改本表的决策 + 锚点，再动代码。
 
 **验证**：`check-upstream-delta.mjs` 第 1 组检查（行级）+ `upstreamFiles` 里 `readmode.styl` 的 SHA-256（`ea44d8a9…`）+ `pnpm verify`（±5%）+ P1-6 的 HTML 摘要（48 页时点；golden 重基线后 49 页）。
 
 ### U2 · `_config.yml` 真实规模：133 顶层 / 662 递归 mapping key（文档口径纠正）
 
-**位置**：`_config.yml` 全文（仓库镜像 `examples/blog/theme.config.yml`，41845 字节，与上游逐字节一致）
+**位置**：`_config.yml` 全文（仓库镜像 `theme.config.yml`，41845 字节，与上游逐字节一致）
 
 **原文/事实**：Phase 0 的 `docs/analysis/01-upstream-analysis.md`、`02-astro-mapping.md`、`03-migration-plan.md` 写的是「约 200 个键」。实测 YAML 解析：
 
@@ -74,7 +74,7 @@ recursive mapping keys = 662
 
 **决策：以实测为准，不改上游文件。**
 
-- `PLAN.md` §1.4 D8 已纠正；`packages/astro-theme-anzhiyu/src/config/{defaults,schema}.ts` 按 133 顶层 + 31 个精确类型区块落地。
+- `PLAN.md` §1.4 D8 已纠正；`src/config/{defaults,schema}.ts` 按 133 顶层 + 31 个精确类型区块落地。
 - 01/02/03 是历史调研文档，**不回改**（保留当时的估算痕迹），引用时以 PLAN 与本表为准。
 
 **验证**：`check-upstream-delta.mjs` 的 `themeConfigTopLevelKeys` / `themeConfigRecursiveMappingKeys` 校验（需要可选依赖 `yaml`，缺失时 SKIP）+ `theme.config.yml` SHA-256（`bd0bd629…`）。
@@ -128,7 +128,7 @@ hexo.extend.filter.register("stylus:renderer", style => {
 
 **结论（三选一问题的答案）**：**既不是插件主动注入，也不是 Vite-stylus 配置问题，更不是上游 styl 里藏了赋值**，而是「上游用 Hexo 模板脚本 `.define()` 注入四个变量 + 我们的插件没复刻这一层 + Stylus 未定义变量在 `if` 里为真」三者叠加。归因：**迁移管线的已知缺口**，不是上游缺陷。
 
-**修复（P1-11，已落地）**：`packages/vite-plugin-stylus-hexo-config/src/index.mjs` 新增 `hexoDefineLines()`，在每次 transform 的展开源码顶部（与 `$cfg_*` 变量同级）写入 4 行赋值：
+**修复（P1-11，已落地）**：`src/plugins/stylus-hexo-config/index.mjs` 新增 `hexoDefineLines()`，在每次 transform 的展开源码顶部（与 `$cfg_*` 变量同级）写入 4 行赋值：
 
 ```text
 $highlight_enable = true
@@ -142,7 +142,7 @@ $prismjs_line_number = true
 1. `syntax_highlighter`（`hexo.config` 顶层的站点级字符串，Hexo >7.0 语义）：**非空时** enable 由它推导——`$highlight_enable = (syntax_highlighter === 'highlight.js')`、`$prismjs_enable = (syntax_highlighter === 'prismjs')`，二者互斥（`prismjs` 时 highlight 为 false）。
 2. `highlight.enable` / `prismjs.enable`（boolean；Hexo ≤6 的旧开关）：仅在 `syntax_highlighter` 为空/缺失时生效。
 3. `highlight.line_number` / `prismjs.line_number`（boolean）：原值直接注入，不参与上面的互斥推导。
-4. **值来源**：`hexo.config` = 站点 `_config.yml` 深合并 `hexo/dist/hexo/default_config.js`。插件拿到的 YAML 目前是主题配置（`examples/blog/theme.config.yml`，不含站点级键），因此缺省回落 Hexo 7.3.0 默认值：`syntax_highlighter: 'highlight.js'`、`highlight.line_number: true`、`prismjs.line_number: true` → 恰好是基线站点注入的四个值。Phase 2 站点配置层落地后把站点 YAML 的这几个键传进来（或整体合并后传入），插件优先用配置值，推导逻辑不变。
+4. **值来源**：`hexo.config` = 站点 `_config.yml` 深合并 `hexo/dist/hexo/default_config.js`。插件拿到的 YAML 目前是主题配置（`theme.config.yml`，不含站点级键），因此缺省回落 Hexo 7.3.0 默认值：`syntax_highlighter: 'highlight.js'`、`highlight.line_number: true`、`prismjs.line_number: true` → 恰好是基线站点注入的四个值。Phase 2 站点配置层落地后把站点 YAML 的这几个键传进来（或整体合并后传入），插件优先用配置值，推导逻辑不变。
 5. **值类型/等价性**：`.define()` 走 stylus/lib/utils.js 的 `coerce`，boolean → `nodes.Boolean`、number → `nodes.Unit`、string → `nodes.String`，源码文本的 `$x = true/false` 与之一一对应；配置缺失时上游拿到 `nodes.null`（条件语境为假），插件写成 `false`——上游 styl 只在 `if` / `&&` / `!` 里消费这四个变量，二者在这些语境同真值。
 
 **修复前后（同一份展开源码 + stylus 0.64.0 渲染；修复前对照 = 从展开源码里去掉那 4 行）**：
@@ -238,14 +238,14 @@ $button-hover-color = $themeColorEnable && hexo-config('theme_color.button_hover
 
 **决策：不补键、不改上游文件、保持对象语义。**
 
-- `packages/astro-theme-anzhiyu/src/config/defaults.ts` 已按上游 YAML 生成，`theme_color` / `hr_icon` 仍是对象，三个注释键**不在** defaults 里（P1-7 已与上游 YAML 深比较一致）——保持。
+- `src/config/defaults.ts` 已按上游 YAML 生成，`theme_color` / `hr_icon` 仍是对象，三个注释键**不在** defaults 里（P1-7 已与上游 YAML 深比较一致）——保持。
 - Phase 2 渲染侧必须保留「缺失键 → falsy → fallback」语义；如果未来 schema 想给这三个键加默认值，必须同时确认它们不出现在 CSS 分支判断里（或明确接受色值变化并更新基准）。
 
 **验证**：`check-upstream-delta.mjs` 第 4b 组（三个键不在配置里、两个键必须是对象）+ `theme.config.yml` SHA-256 + P1-5 插件日志（`hexo-config('theme_color.blockquote_*') 在配置里不存在，按 '' 处理`）。
 
 ### U6 · 逐字节对齐的机制障碍：`@css{}` 字面量里的 `,\r`（工具链差异）
 
-**位置**：`packages/vite-plugin-stylus-hexo-config/src/index.mjs` 的 `cssLiteralBlock()`（纯 CSS `@import` → `@css { … }`）+ Stylus 词法器 `node_modules/stylus/lib/lexer.js:76-80`（构造函数的「选择器逗号续行」重写）与 `lexer.js:340-367`（`@css` literal 原样收集）
+**位置**：`src/plugins/stylus-hexo-config/index.mjs` 的 `cssLiteralBlock()`（纯 CSS `@import` → `@css { … }`）+ Stylus 词法器 `node_modules/stylus/lib/lexer.js:76-80`（构造函数的「选择器逗号续行」重写）与 `lexer.js:340-367`（`@css` literal 原样收集）
 
 **机制**：Stylus 在构造 Lexer 时对**整个输入**做一次前置重写，其中一条规则把「`)` / `,` / `:` 后面的注释/换行」折叠成 `val + '\r'`（`lexer.js:79`；`\r` 是 Stylus 内部的行续接标记）。Hexo 的 `include css: true` 走的是 evaluator 的 literal import 路径，CSS 文本不经过这条前置重写；我们插件把 CSS 包成源码里的 `@css{…}`，于是**字面量内部**的「逗号 + 换行」也被折叠，产物里出现 `b,\rstrong` 这类行，行数与缩进和 Hexo 产物不同。
 
@@ -321,7 +321,7 @@ stylus.render('@css {b,\n  strong {\n    font-weight: bolder;\n  }\n}\n')
 ```js
 // 依赖：examples/blog 的 stylus 0.64.0
 import { createRequire } from 'node:module'
-const require = createRequire('D:/Git-project/astro-theme-anzhiyu/examples/blog/package.json')
+const require = createRequire('D:/Git-project/astro-theme-anzhiyu/package.json')
 const stylus = require('stylus')
 
 const cases = {
@@ -378,9 +378,9 @@ prismjs-guard-false.styl     -> ".tail {\n  color: #008000;\n}\n"
 ### 3.2 用真实插件展开上游入口，再看变量到底有没有被赋值（P1-11 修复前的历史记录）
 
 ```js
-// 用 packages/vite-plugin-stylus-hexo-config 的真实 transform 展开
-const { stylusHexoConfig } = await import('.../packages/vite-plugin-stylus-hexo-config/src/index.mjs')
-const plugin = stylusHexoConfig({ configPath: 'examples/blog/theme.config.yml' })
+// 用 src/plugins/stylus-hexo-config 的真实 transform 展开
+const { stylusHexoConfig } = await import('.../src/plugins/stylus-hexo-config/index.mjs')
+const plugin = stylusHexoConfig({ configPath: 'theme.config.yml' })
 const expanded = plugin.transform(fs.readFileSync('.../upstream/index.styl', 'utf8'), entry).code
 ```
 
@@ -412,7 +412,7 @@ expanded + 四项 Hexo define（完整模拟） bytes: 682990  delta_vs_baseline
 P1-11 修复后（插件真实注入，当前管线）  bytes: 682990  delta_vs_baseline=-228   sha=429ff06f…
 ```
 
-- 「修复前原样」与当时 `examples/blog/dist` 的 CSS **字节数与 SHA 完全一致**（686772 / `1319c726…`），证明复现的就是真实管线。
+- 「修复前原样」与当时 `dist` 的 CSS **字节数与 SHA 完全一致**（686772 / `1319c726…`），证明复现的就是真实管线。
 - 只补 `$prismjs_enable=false` 就精确减掉 **3782 字节**，其他三个变量补不补结果相同（因为它们的未定义真值恰好等于基线值）。
 - 逐块 diff：多出的 **32 个规则块**全部来自 `_highlight/prismjs/{index,line-number,diff}.styl`，与 P1-5 §6.1 的 `{` 计数 +32 对应；P1-5 §6.2 的「34 条」是选择器级统计口径，两者不矛盾。**字节口径以 3782 为准**。
 - 剩余 −228 B 是 U6 的 `@css{}` 字面量行折叠差，不是 prismjs。
@@ -429,7 +429,7 @@ P1-11 修复后（插件真实注入，当前管线）  bytes: 682990  delta_vs_
 2. **不要把这三个缺失键补进 defaults**：`theme_color.button_hover` / `theme_color.blockquote_padding_color` / `theme_color.blockquote_background_color`。它们缺失时上游走 fallback 默认色，补键会改色值分支。
 3. **`hexo-config()` 的对象语义保持降级**：对象/数组在布尔语境恒真（当前用 `true` 字面量代替）。若未来出现「取对象子属性再输出」的新用法，必须重新评估——这是会把 `true` 当值输出的事故点。
 4. **CSS 压缩在 Phase 7 之前保持关闭**：`cssMinify:false` 是 U1 与「未压缩基准」双重要求；Phase 7 开压缩时要另立「压缩后体积」预算，而不是拿压缩产物对 683218。
-5. **禁止修改上游镜像**：`examples/blog/src/styles/upstream/**` 与 `theme.config.yml` 是基线证据，SHA 由 CI 守卫；任何修复都记进本表，不许直接改。
+5. **禁止修改上游镜像**：`src/styles/upstream/**` 与 `theme.config.yml` 是基线证据，SHA 由 CI 守卫；任何修复都记进本表，不许直接改。
 6. **换行保持 CRLF**：不要对镜像做 `prettier --write` / 编辑器「统一换行」。
 7. **基准只能同版本重跑**：hexo 7.3.0 + 固定 fixture + 固定站点配置；上游 commit 冻结在 `72439d93`，迁移期不追新。
 8. **逐字节对齐的边界**：D9 已修好（P1-11），上游样式子集仍差 −228 B（U6）；**真实构建产物**是 682990 + 1097（ClientRouter，来自 P1.5 垂直切片）= 684087 B，对基线 +869 B（+0.13%）。Phase 2 的 HTML/CSS 比对不能把「SHA 相等」当验收门槛；如需更严口径，按 `verify-css.mjs` ±5% + 本表字节闭环 + 选择器集合 diff 三层来判。
@@ -475,15 +475,15 @@ P1-11 修复后（插件真实注入，当前管线）  bytes: 682990  delta_vs_
   ],
   "objectValuedConfigKeys": ["theme_color", "hr_icon"],
   "upstreamFiles": {
-    "examples/blog/src/styles/upstream/index.styl": "5cd84ef7be022401257a19c171d48813f604007fd02d6508128d89d9b4d141b8",
-    "examples/blog/src/styles/upstream/var.styl": "bd1ff3f89e87059d594024e6c0d0e6959ce25efbc11d756bcef74bc29e8454a0",
-    "examples/blog/src/styles/upstream/_highlight/highlight.styl": "e7e7dc818b42d140532c22cfa9922c0e3f6f84f5b60ecc90ceb59f0c711b943f",
-    "examples/blog/src/styles/upstream/_highlight/theme.styl": "73acf393a4c211608ec57905cadde41c4b089a4478098ad9e4ae40c58d0fcb14",
-    "examples/blog/src/styles/upstream/_highlight/prismjs/index.styl": "a5f0f419bbea300e43f015e3c0bca8115bb7ed067aa17c19a17ebaa8bf99569a",
-    "examples/blog/src/styles/upstream/_highlight/prismjs/line-number.styl": "dfe9205a5426537f59b0b44739ffdf56eea4b0c4d61aec6b86938118945331a6",
-    "examples/blog/src/styles/upstream/_highlight/prismjs/diff.styl": "0144c894e2095fabb2ad9488687145e47f47531e49a21910d97c697d5e560850",
-    "examples/blog/src/styles/upstream/_mode/readmode.styl": "ea44d8a95bdd39e26d0142aab55fe15095b37f3f445202b6ffee464874bd70e1",
-    "examples/blog/theme.config.yml": "bd0bd629ff6903ce036b136e0b1d058f595b56aeba6ae4c3eb9448900e1a9d2c"
+    "src/styles/upstream/index.styl": "5cd84ef7be022401257a19c171d48813f604007fd02d6508128d89d9b4d141b8",
+    "src/styles/upstream/var.styl": "bd1ff3f89e87059d594024e6c0d0e6959ce25efbc11d756bcef74bc29e8454a0",
+    "src/styles/upstream/_highlight/highlight.styl": "e7e7dc818b42d140532c22cfa9922c0e3f6f84f5b60ecc90ceb59f0c711b943f",
+    "src/styles/upstream/_highlight/theme.styl": "73acf393a4c211608ec57905cadde41c4b089a4478098ad9e4ae40c58d0fcb14",
+    "src/styles/upstream/_highlight/prismjs/index.styl": "a5f0f419bbea300e43f015e3c0bca8115bb7ed067aa17c19a17ebaa8bf99569a",
+    "src/styles/upstream/_highlight/prismjs/line-number.styl": "dfe9205a5426537f59b0b44739ffdf56eea4b0c4d61aec6b86938118945331a6",
+    "src/styles/upstream/_highlight/prismjs/diff.styl": "0144c894e2095fabb2ad9488687145e47f47531e49a21910d97c697d5e560850",
+    "src/styles/upstream/_mode/readmode.styl": "ea44d8a95bdd39e26d0142aab55fe15095b37f3f445202b6ffee464874bd70e1",
+    "theme.config.yml": "bd0bd629ff6903ce036b136e0b1d058f595b56aeba6ae4c3eb9448900e1a9d2c"
   }
 }
 ```
@@ -573,7 +573,7 @@ node scripts/check-upstream-sync.mjs --baseline 1.6.9 --ref 1.7.1
 1. 跑 8.1 的 ①+②，保存 stdout（或 `--json`）到当轮报告 `docs/notes/phases/P7-x-upstream-sync-<日期>.md`；
 2. 对每个「必须跟进」文件做 triage，三选一：
    - **注释级/无关语义** → 报告里写明「已 triage，忽略」，不动镜像与基准；
-   - **影响镜像内容** → 按本表 §7 变更流程更新镜像（`examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`）、§5 锚点与 `docs/notes/phases/P1-*` 基准数字，并跑 `node scripts/check-upstream-delta.mjs` 直到绿；
+   - **影响镜像内容** → 按本表 §7 变更流程更新镜像（`src/styles/upstream/**`、`theme.config.yml`）、§5 锚点与 `docs/notes/phases/P1-*` 基准数字，并跑 `node scripts/check-upstream-delta.mjs` 直到绿；
    - **只存在于 `dev`、未合入 `main`** → 记录「上游尚未发布」，下季度复查；不提前同步；
 3. 「可选」项只记录结论（跟/不跟），不改基准；「无关」项直接忽略；
 4. 季度报告里保留**原始 git 输出**（`ls-remote`、`fetch` 退出码、`log`、`diff --name-status`）与脚本退出码，便于复核；

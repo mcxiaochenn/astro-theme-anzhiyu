@@ -43,7 +43,7 @@ pnpm install
 pnpm dev
 ```
 
-打开终端输出的地址即可实时预览示例站点（位于 `examples/blog`）。
+打开终端输出的地址即可实时预览示例站点。
 
 3. 构建静态产物：
 
@@ -51,7 +51,7 @@ pnpm dev
 pnpm build
 ```
 
-构建后的纯静态文件会输出到 `examples/blog/dist/`，可直接部署到 GitHub Pages、Cloudflare Pages、Vercel、Netlify 或任意静态托管服务。
+构建后的纯静态文件会输出到 `dist/`，可直接部署到 GitHub Pages、Cloudflare Pages、Vercel、Netlify 或任意静态托管服务。
 
 ### 方式二：从已有 Hexo AnZhiYu 站点一键迁移
 
@@ -67,26 +67,7 @@ node scripts/migrate-hexo.mjs --site <你的Hexo站点目录> --out <输出目�
 
 迁移工具会自动转换文章、独立页面、YAML 数据文件（友链 / 说说 / 相册 / 装备 / 关于）、永久链接格式与主题配置。详细步骤与注意事项请阅读 [Hexo 迁移指南](docs/guides/MIGRATION.md)。
 
-### 方式三：作为主题包接入现有 Astro 项目
-
-主题核心由工作区内的三个包组成（目前处于 monorepo 本地开发阶段，尚未发布到 npm，可通过 `workspace:*` 或本地 `.tgz` / `file:` 路径引入）：
-
-- `astro-theme-anzhiyu`：布局、页面组件、配置校验与静态资源 integration
-- `remark-hexo-tag`：在 Markdown 中完整解析 Hexo `{% tag %}` 语法
-- `vite-plugin-stylus-hexo-config`：编译原版 Stylus 样式并注入 `hexo-config()`
-
-在 `astro.config.mjs` 中启用主题静态资源集成：
-
-```js
-import { defineConfig } from 'astro/config'
-import anzhiyuAssets from 'astro-theme-anzhiyu/integration'
-
-export default defineConfig({
-  integrations: [anzhiyuAssets()],
-})
-```
-
-> 完整配置示例（含 Markdown `remark-hexo-tag` 与 Vite Stylus 插件接线）可参考 [examples/blog/astro.config.mjs](examples/blog/astro.config.mjs)。
+> 完整配置示例（含 Markdown `remark-hexo-tag` 与 Vite Stylus 插件接线）可参考 [astro.config.mjs](astro.config.mjs)。
 
 ## ⚙ 配置与内容管理
 
@@ -94,24 +75,24 @@ export default defineConfig({
 
 本主题**沿用与原版 `hexo-theme-anzhiyu` 一致的 YAML 配置结构与键名**。你可以直接参考 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) 进行个性化配置，或将原 Hexo 站点的 `_config.anzhiyu.yml` 内容直接迁移过来：
 
-- 示例站点配置文件：[examples/blog/theme.config.yml](examples/blog/theme.config.yml)
-- 功能全开参考配置：[examples/blog/theme.config.demo-delta.yml](examples/blog/theme.config.demo-delta.yml)
+- 示例站点配置文件：[theme.config.yml](theme.config.yml)
+- 功能全开参考配置：[theme.config.demo-delta.yml](theme.config.demo-delta.yml)
 
 主题内置了基于 Zod 的配置校验，修改配置后在开发或构建时会自动合并默认值并校验结构。
 
 ### 博客内容与数据文件
 
-在 `examples/blog/` 目录下，你可以按如下位置管理站点内容：
+在 `src/` 目录下，你可以按如下位置管理站点内容：
 
 | 目录 / 文件 | 用途 |
 | --- | --- |
-| `src/content/posts/` | 博客文章（Markdown，兼容 Hexo Frontmatter 与 `{% tag %}`） |
-| `src/content/pages/` | 独立页面（如关于、友链、说说、相册、装备、音乐、友链朋友圈等） |
-| `data/link.yml` | 友情链接数据 |
-| `data/essay.yml` | 即刻说说 / 短动态数据 |
-| `data/album.yml` | 相册集与照片数据 |
-| `data/equipment.yml` | 好物 / 装备清单数据 |
-| `data/about.yml` | 关于页面个人信息、技能与生涯数据 |
+| `src/content/` | 博客文章（Markdown，兼容 Hexo Frontmatter 与 `{% tag %}`） |
+
+| `src/data/link.yml` | 友情链接数据 |
+| `src/data/essay.yml` | 即刻说说 / 短动态数据 |
+| `src/data/album.yml` | 相册集与照片数据 |
+| `src/data/equipment.yml` | 好物 / 装备清单数据 |
+| `src/data/about.yml` | 关于页面个人信息、技能与生涯数据 |
 | `public/` | 站点自定义静态资源（头像、图标、背景图等） |
 
 ### 可选：开启 PWA 离线缓存
@@ -170,7 +151,6 @@ ANZHIYU_PWA=1 pnpm build
 ## 🗂 相关文档
 
 - [Hexo → Astro 迁移指南](docs/guides/MIGRATION.md)
-- [示例站点说明](examples/blog/README.md)
 - [原版主题仓库（anzhiyu-c/hexo-theme-anzhiyu）](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
 - [原版主题文档（docs.anheyu.com）](https://docs.anheyu.com/)
 
@@ -181,7 +161,7 @@ ANZHIYU_PWA=1 pnpm build
 - 本地测试与基线校验：
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs
+node tests/remark-hexo-tag/run.mjs
 pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
 ```
 

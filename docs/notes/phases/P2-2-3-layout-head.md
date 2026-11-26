@@ -18,18 +18,18 @@
 | 首页 diff `diffCount` | ⚠️ 66 → 103（不是退化，见 §5.3：对齐上的节点变多，差异从「整块缺失」变成「逐节点缺口」） | §5 |
 | `verify-css` | ✅ PASS（字节 −0.03%，gzip −0.84%） | §6 |
 | 组件包 exports 接好 | ✅ exports 已加；`astro-theme-anzhiyu/layouts/BaseLayout.astro` 可解析 | §7 |
-| examples/blog 的 import 写法 | ⚠️ 用**相对路径**（`examples/blog/package.json` 没声明依赖，且不在本次写范围）；一行即可切回包名 | §7.3 |
+| examples/blog 的 import 写法 | ⚠️ 用**相对路径**（`package.json` 没声明依赖，且不在本次写范围）；一行即可切回包名 | §7.3 |
 
 ### 改动清单（全部在写范围内）
 
 | 文件 | 变更 | 说明 |
 |---|---|---|
-| `packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro` | 新增 476 行 | layout.pug 骨架 + 首屏 theme bootstrap + 占位容器 |
-| `packages/astro-theme-anzhiyu/src/components/Head.astro` | 新增 263 行 | head.pug 基础部分（meta/link/OG/canonical/favicon/preconnect/站长验证/noscript） |
-| `packages/astro-theme-anzhiyu/src/layouts/site.ts` | 新增 111 行 | 站点级元数据类型 + `url_for`/`full_url_for` 最小实现 |
-| `packages/astro-theme-anzhiyu/src/layouts/theme-context.ts` | 新增 79 行 | 组件层读主题配置（复用 P1-8 loader，模块级缓存） |
+| `src/layouts/BaseLayout.astro` | 新增 476 行 | layout.pug 骨架 + 首屏 theme bootstrap + 占位容器 |
+| `src/components/Head.astro` | 新增 263 行 | head.pug 基础部分（meta/link/OG/canonical/favicon/preconnect/站长验证/noscript） |
+| `src/layouts/site.ts` | 新增 111 行 | 站点级元数据类型 + `url_for`/`full_url_for` 最小实现 |
+| `src/layouts/theme-context.ts` | 新增 79 行 | 组件层读主题配置（复用 P1-8 loader，模块级缓存） |
 | `packages/astro-theme-anzhiyu/package.json` | +5 行 | `exports` 加 `components/*`、`layouts/*` 与两个显式子路径 |
-| `examples/blog/src/pages/index.astro` | 重写（47 → 98 行） | 用 BaseLayout + `getCollection('posts')` 渲染 9 篇文章列表 |
+| `src/pages/index.astro` | 重写（47 → 98 行） | 用 BaseLayout + `getCollection('posts')` 渲染 9 篇文章列表 |
 | `docs/notes/phases/P2-2-3-layout-head.md` | 新增 | 本报告 |
 
 未触碰：`astro.config.mjs`、`src/content.config.ts`、`packages` 的 `src/config|i18n|utils`、根 `scripts/`、`examples/blog` 的其它页面与样式。
@@ -86,7 +86,7 @@
 ```js
 const ids = (file) => [...readFileSync(file, 'utf8').matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])
 const baseline = ids('.baseline-work/public/index.html')
-const dist = ids('examples/blog/dist/index.html')
+const dist = ids('dist/index.html')
 console.log(baseline.filter((id) => !dist.includes(id)))   // dist 缺失的 baseline id
 ```
 
@@ -104,7 +104,7 @@ layout.pug 挂载点: web_bg=OK an_music_bg=OK loading-box=OK body-wrap=OK page-
 
 ### 1.3 首页真实内容渲染
 
-`examples/blog/src/pages/index.astro`：
+`src/pages/index.astro`：
 
 ```astro
 const entries = await getCollection('posts')
@@ -287,7 +287,7 @@ const themeBootstrap = `(function () {
 
 ## 5. 必答 5：diff 结果（改前 / 改后）
 
-命令：`node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html --verbose`
+命令：`node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html --verbose`
 
 ### 5.1 改动前（P1.5 垂直切片的 dist，本次动手前实测）
 
@@ -355,7 +355,7 @@ diff 的粒度是「两个能对齐的节点之间逐项比较」：
 [verify-css] 比对通过
 ```
 
-- 样式入口只有页面里的一次 import（`examples/blog/src/pages/index.astro:21 → ../styles/upstream/index.styl`），**主题包没有复制样式**，产物仍是单文件 682990 B；
+- 样式入口只有页面里的一次 import（`src/pages/index.astro:21 → ../styles/upstream/index.styl`），**主题包没有复制样式**，产物仍是单文件 682990 B；
 - 与 `docs/notes/phases/P1.5-vertical-slice.md` 记的 687869 B 不同：P1.5 之后有 commit `996e21b`（「复刻 Hexo define 层使 CSS 收敛至 -228B」），当前 -228 B 正是那次工作的结果，不是本次改动引入的（本次没有碰 `src/styles/`，`git status` 可证）；
 - ClientRouter 的 CSS 增量消失，是因为首页不再用 P1.5 的站点侧 layout（`page2` 仍用它，但那页不参与 verify-css 的取值）。
 
@@ -389,7 +389,7 @@ astro-theme-anzhiyu                        -> file:///…/node_modules/astro-the
 
 ### 7.3 为什么 examples/blog 里实际用的是相对路径
 
-`examples/blog/package.json` **没有声明** `astro-theme-anzhiyu` 依赖，仓库也没有任何包依赖它，所以真实解析直接失败：
+`package.json` **没有声明** `astro-theme-anzhiyu` 依赖，仓库也没有任何包依赖它，所以真实解析直接失败：
 
 ```text
 $ cd examples/blog; node --input-type=module -e "import.meta.resolve('astro-theme-anzhiyu/layouts/BaseLayout.astro')"
@@ -398,11 +398,11 @@ $ Test-Path examples/blog/node_modules/astro-theme-anzhiyu   → False
 $ Test-Path node_modules/astro-theme-anzhiyu                 → False
 ```
 
-`examples/blog/package.json` 不在本次写范围（写范围只到 `src/pages/index.astro`），所以按任务给的退路用相对路径：
+`package.json` 不在本次写范围（写范围只到 `src/pages/index.astro`），所以按任务给的退路用相对路径：
 
 ```astro
-// examples/blog/src/pages/index.astro:20
-import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+// src/pages/index.astro:20
+import BaseLayout from '../../../../src/layouts/BaseLayout.astro'
 import '../styles/upstream/index.styl'
 ```
 
@@ -414,11 +414,11 @@ pnpm --filter blog add astro-theme-anzhiyu@workspace:*
 # import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
 ```
 
-行号是对齐的（`examples/blog/src/pages/index.astro` 在 `src/pages/` 下，上四级是仓库根），换成包名时只改这一行即可，其余不用动。
+行号是对齐的（`src/pages/index.astro` 在 `src/pages/` 下，上四级是仓库根），换成包名时只改这一行即可，其余不用动。
 
 ### 7.4 样式为什么在页面里 import 而不是 BaseLayout 里
 
-上游 302 KB Stylus 目前还在 `examples/blog/src/styles/upstream/`（Phase 1 的站点资产，主题包 `src/styles/` 还没建）。主题包组件无法用相对路径去 import 站点目录，所以按任务口径「examples/blog 已 import、别重复引入」——由页面 import 一次，BaseLayout 只负责 DOM。等 Phase 7 把样式搬进主题包时，这个 import 会随之下沉到 `src/layouts/BaseLayout.astro`。
+上游 302 KB Stylus 目前还在 `src/styles/upstream/`（Phase 1 的站点资产，主题包 `src/styles/` 还没建）。主题包组件无法用相对路径去 import 站点目录，所以按任务口径「examples/blog 已 import、别重复引入」——由页面 import 一次，BaseLayout 只负责 DOM。等 Phase 7 把样式搬进主题包时，这个 import 会随之下沉到 `src/layouts/BaseLayout.astro`。
 
 ---
 
@@ -429,7 +429,7 @@ pnpm --filter blog add astro-theme-anzhiyu@workspace:*
 3. **Hexo generator meta** 无法复刻（`<meta name="generator" content="Hexo 7.3.0">`），Astro 产物的 generator meta 已被 diff 工具按 N12 归一并丢弃。
 4. **pace 进度条**（`theme.preloader.source === 3` 的第二段）未做：需要 `plugins.yml` 的 asset URL 解析（P4-1）。`#loading-box` 那张 fullpage loading 已经实做并有脚本保证 10s 内一定 `loaded`，不会挡住首屏。
 5. **首页一次性渲染 9 篇**，baseline 首页 6 篇（per_page 6）：分页属 P2-7；P2-7 做完第 1 页应为 6 篇 + `#pagination`。
-6. **`examples/blog/src/layouts/BaseLayout.astro`（P1.5 切片）仍然存在**，`/page2/` 与 `/debug-collection/` 还在用它。本次没有删（不在写范围）：P2-4/P2-5/P2-7 迁移完页面后应把这两个页面切到主题包 BaseLayout，再删掉切片 layout 与 `public/slice-harness.js`。
+6. **`src/layouts/BaseLayout.astro`（P1.5 切片）仍然存在**，`/page2/` 与 `/debug-collection/` 还在用它。本次没有删（不在写范围）：P2-4/P2-5/P2-7 迁移完页面后应把这两个页面切到主题包 BaseLayout，再删掉切片 layout 与 `public/slice-harness.js`。
 7. **P1.5 的页内 harness 不再适用于首页**：`#nav-page2`/`#shim-page2` 等探针随首页重写被移除，`tests/vertical-slice.mjs` 若按原断言跑首页会失败。它属于 Phase 1.5 的历史证据，Phase 2 的验收应以 `diff-html` +（CI 上）浏览器测试为准。
 8. **站点配置层还没有**：`site`（title/subtitle/description/author/url/language）现在是 `index.astro` 里显式传的基准站身份 + `BaseLayout`/`src/layouts/site.ts` 的中性默认值。Phase 7 迁移脚本把 Hexo `_config.yml` 落成站点配置后，页面里的这份常量应删除。
 9. **主题配置来源**：`BaseLayout`/`Head` 通过 `src/layouts/theme-context.ts` 调 P1-8 的 `loadThemeConfig()`。`examples/blog` 里没有 `anzhiyu.config.yml`（只有给 stylus 插件用的 `theme.config.yml`，文件名不在 loader 的搜索列表里），所以走完整默认值；`ANZHIYU_THEME_CONFIG` 环境变量可显式指定配置文件。对本次涉及的开关（preloader/aside/home_top/nav_music/footerBar/display_mode）默认值与 `theme.config.yml` 一致，产物判断不受影响。
@@ -438,10 +438,10 @@ pnpm --filter blog add astro-theme-anzhiyu@workspace:*
 
 ## 9. 并行工作对本次验收的影响（交接注意）
 
-本次运行期间 `git status` 里还有其它组员的未提交改动（`examples/blog/astro.config.mjs` 的 smartypants、`packages/astro-theme-anzhiyu/src/utils/date.ts`、`tests/`、`scripts/extract-baseline-html.mjs`、`.github/workflows/ci.yml` 等）。因此：
+本次运行期间 `git status` 里还有其它组员的未提交改动（`astro.config.mjs` 的 smartypants、`src/utils/date.ts`、`tests/`、`scripts/extract-baseline-html.mjs`、`.github/workflows/ci.yml` 等）。因此：
 
 - 构建/`diff-html`/`verify-css` 的结果反映的是「我改的 + 其它组员当时未提交改动」的合成状态；
-- `examples/blog/dist/` 是共享产物目录，多个 agent 同时 build 会互相覆盖。本报告的数字来自最后一次**独占**构建（19:46:14 那次，exit 0）；
+- `dist/` 是共享产物目录，多个 agent 同时 build 会互相覆盖。本报告的数字来自最后一次**独占**构建（19:46:14 那次，exit 0）；
 - 若后续 diff 数字与本文不一致，先用 `git status` 确认是否有新的并发改动进了树，再重跑 §10 的命令。
 
 ---
@@ -455,7 +455,7 @@ cd D:\Git-project\astro-theme-anzhiyu
 pnpm --filter blog build
 
 # 2) 首页结构 diff（进度指标看 missingNodes / dist 节点数）
-node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html --verbose
+node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html --verbose
 
 # 3) 样式基准
 node scripts/verify-css.mjs
@@ -468,6 +468,6 @@ node scripts/diff-html.mjs --all --filter index
 
 ## 11. 最后一段（判定）
 
-**首页已经由真实内容集合渲染出来了**：`examples/blog/src/pages/index.astro` 用 `getCollection('posts')` 取 10 条 fixture、过滤掉 `layout: page` 的 about 页，按 Hexo 的「sticky 降序 → 日期降序」排好 9 篇，每篇输出上游同构的 `div.recent-post-item > .recent-post-info > .recent-post-info-top > a.article-title` + `.article-meta-wrap > .post-meta-date > time[datetime]`，日期时区按 P2-1 的 `Asia/Shanghai` 语义格式化，`datetime` 与 baseline 逐篇一致；`BaseLayout` 把 layout.pug 的 26 个直接挂载点全部复刻成真实 DOM（`#web_bg` / `#an_music_bg` / `#loading-box` / `#body-wrap.page` / `#page-header` / `#nav` / `#blog-container` / `#home_top` / `#content-inner.layout` / `#aside-content` / `#footer` / `#footer-wrap` / `#footer-bar` / `#sidebar` / `#rightside` / `#nav-music` / `#rightMenu` / `#rightmenu-mask` / additional-js wrapper / `#popup-window`），`html[data-theme]` 用「静态 `display_mode` + 首屏同步 bootstrap（localStorage `saveToLocal` 格式 → 系统偏好 → 默认）」两层保证首帧不透明，`Head` 输出了 head.pug 的 32 条 meta/link（charset…站长验证 + `noscript`）且与 baseline 逐条对上（唯一属性差异是 `og:url` 的路由模型差异）。
+**首页已经由真实内容集合渲染出来了**：`src/pages/index.astro` 用 `getCollection('posts')` 取 10 条 fixture、过滤掉 `layout: page` 的 about 页，按 Hexo 的「sticky 降序 → 日期降序」排好 9 篇，每篇输出上游同构的 `div.recent-post-item > .recent-post-info > .recent-post-info-top > a.article-title` + `.article-meta-wrap > .post-meta-date > time[datetime]`，日期时区按 P2-1 的 `Asia/Shanghai` 语义格式化，`datetime` 与 baseline 逐篇一致；`BaseLayout` 把 layout.pug 的 26 个直接挂载点全部复刻成真实 DOM（`#web_bg` / `#an_music_bg` / `#loading-box` / `#body-wrap.page` / `#page-header` / `#nav` / `#blog-container` / `#home_top` / `#content-inner.layout` / `#aside-content` / `#footer` / `#footer-wrap` / `#footer-bar` / `#sidebar` / `#rightside` / `#nav-music` / `#rightMenu` / `#rightmenu-mask` / additional-js wrapper / `#popup-window`），`html[data-theme]` 用「静态 `display_mode` + 首屏同步 bootstrap（localStorage `saveToLocal` 格式 → 系统偏好 → 默认）」两层保证首帧不透明，`Head` 输出了 head.pug 的 32 条 meta/link（charset…站长验证 + `noscript`）且与 baseline 逐条对上（唯一属性差异是 `og:url` 的路由模型差异）。
 
 **骨架缺口还剩 857 个节点（改前 1058，减少 201）**，且缺口的归属已经全部落到明确的后续任务上：P2-4 Header/Footer（最大头，`#nav-right` 一棵 197 节点）、P2-7 首页/分页（`#home_top` 91 + `#categoryBar` 32 + PostCard 内部）、P2-5 Sidebar/Rightside（约 20）、P3-1 widget（3 个卡片）、P4-1/P4-2 资源与脚本（head 三段脚本 + additional-js 的 20 个节点）。本次任务的两个交付物（`BaseLayout.astro`、`Head.astro`）按「容器 tag/id/class 必须对、内容可占位」的口径已经完整成立，后续任务只需要在已就位的容器里填内容，不需要再改骨架结构。

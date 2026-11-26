@@ -123,7 +123,7 @@ throw new Error(
 
 - **`pinned_post` 在上游配置里不存在。** `_research/anzhiyu-upstream/_config.yml`（133 键，基线 72439d9 /
   主题 1.7.1）没有 `pinned_post`，schema 也没有。置顶在上游是**文章 frontmatter**
-  （`sticky: 10` / `top: true` / `swiper_index` / `top_group_index`，见 `tests/fixtures/sticky-top.md`），
+  （`sticky: 10` / `top: true` / `swiper_index` / `top_group_index`，见 `src/content/sticky-top.md`），
   不是主题配置。所以任务建议里的 `pinned_post` 无键可展开，也不该为一个不存在的键编造 schema
   （否则 `KNOWN_TOP_LEVEL_KEYS` 会多出幻影键）。用 Phase 2 同样高频的 `footer` 和文章页 5 个小块补位。
 - **顶层 `menu` 是上游 11 个 null 键之一**，按任务要求 #4 保持 `z.unknown()`。真正被 `nav.pug` /
@@ -284,7 +284,7 @@ EXIT=0
 ### 4.3 补充：null 键被用户填值、以及区块内自定义子键仍被接受
 
 ```console
-$ # 基线示例配置（examples/blog/theme.config.yml，CI 构建实际用的那份）
+$ # 基线示例配置（theme.config.yml，CI 构建实际用的那份）
 theme.config.yml keys: 133
 unknown: []
 safeParse: PASS
@@ -300,7 +300,7 @@ $ # 11 个 null 键填成对象/数组/字符串 + 展开区块里的自定义�
   nav.menu[0] = {"title":"额外分组","item":[{"name":"新菜单","link":"/new/","icon":"/img/new.ico","extra_key_of_menu_item":"透传"}]}
 ```
 
-`examples/blog/theme.config.yml`（Phase 2 起 loader 要吃的同一份 133 键配置）也通过 strict，
+`theme.config.yml`（Phase 2 起 loader 要吃的同一份 133 键配置）也通过 strict，
 说明后续把 loader 接进构建不会因为 strict 而炸。
 
 ## 5. 还剩多少 passthrough 区块、对 loader 行为的影响
@@ -344,10 +344,10 @@ shortcutKey, accesskey, linkPageTop, agreementPopup, rightClickMenu, peoplecanva
 
 | 文件 | 变更 |
 | --- | --- |
-| `packages/astro-theme-anzhiyu/src/config/schema.ts` | 顶层 `.strict()`；17 个区块展开；+527 / -127 行（529 → 929 行） |
-| `packages/astro-theme-anzhiyu/src/config/loader.ts` | `unrecognized_keys` 展开成一个键一行；错误头部按展开行数计数；+17 / -4 |
-| `packages/astro-theme-anzhiyu/scripts/check-schema.mjs` | 新增三条用例 + 11 null 键断言；+122 / -14 |
-| `packages/astro-theme-anzhiyu/scripts/check-loader.mjs` | 新增用例 d、展开区块深层类型用例、11 null 键断言；30 → 42 项；+90 / -12 |
+| `src/config/schema.ts` | 顶层 `.strict()`；17 个区块展开；+527 / -127 行（529 → 929 行） |
+| `src/config/loader.ts` | `unrecognized_keys` 展开成一个键一行；错误头部按展开行数计数；+17 / -4 |
+| `scripts/check-schema.mjs` | 新增三条用例 + 11 null 键断言；+122 / -14 |
+| `scripts/check-loader.mjs` | 新增用例 d、展开区块深层类型用例、11 null 键断言；30 → 42 项；+90 / -12 |
 | `docs/notes/phases/P1-12-schema-strict.md` | 本报告（新增） |
 
 ### 风险 / 代价（都已评估，没扩大范围）
@@ -377,4 +377,4 @@ shortcutKey, accesskey, linkPageTop, agreementPopup, rightClickMenu, peoplecanva
 （`astro.config.mjs` 只把 `theme.config.yml` 传给 stylus 配置插件，`grep loadThemeConfig examples` 零命中），
 所以**今天的 `pnpm build` 不会因为顶层键拼错而失败**——strict 目前生效在「加载层 + 双自检脚本」，
 而不是当前的 blog 构建入口。Phase 2 的 BaseLayout / 内容层一旦按 P1-8 的设计接上 loader，未知名顶层键就会
-成为构建的硬错误；本次已用 `examples/blog/theme.config.yml`（133 键）实跑 strict 验证过「正常配置不会被误杀」。
+成为构建的硬错误；本次已用 `theme.config.yml`（133 键）实跑 strict 验证过「正常配置不会被误杀」。

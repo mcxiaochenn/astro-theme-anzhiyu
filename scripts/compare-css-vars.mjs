@@ -4,7 +4,7 @@
  *
  * 读 docs/reference/baseline.json 的 `css.cssVars`（P1-6 从上游 hexo 产物提取的 69 个变量，
  * 取法：按 CSS 文件出现顺序扫描 /(--anzhiyu-[a-zA-Z0-9-]+)\s*:\s*([^;}]+)/，
- * 同名变量只保留第一次出现），与 examples/blog/dist 里 index 页面实际引用的 CSS 逐条比对。
+ * 同名变量只保留第一次出现），与 dist 里 index 页面实际引用的 CSS 逐条比对。
  *
  * 判定：
  * - 严格一致：产物中该变量第一次声明的值与 baseline 首值逐字符相同（trim 后）。
@@ -27,7 +27,7 @@ const BASELINE_PATH = process.env.BASELINE_PATH
   : path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 const DIST_DIR = process.env.DIST_DIR
   ? path.resolve(process.env.DIST_DIR)
-  : path.join(REPO_ROOT, 'examples', 'blog', 'dist')
+  : path.join(REPO_ROOT, 'dist')
 // 上游产物只在 P1-6 的 .baseline-work 里（被 gitignore），有就做更严格的复核，没有就跳过。
 const UPSTREAM_CSS = process.env.UPSTREAM_CSS
   ? path.resolve(process.env.UPSTREAM_CSS)

@@ -4,7 +4,7 @@
  * 浏览器级验证在 CI（Ubuntu runner）执行；本地可只用 `playwright test --list` 证明
  * 用例可被收集，或设置 `E2E_CHANNEL=msedge` 用系统 Edge 跑（无需下载浏览器）。
  *
- * 站点由 `examples/blog` 构建后用 `astro preview` 提供：
+ * 站点构建后用 `astro preview` 提供：
  *   - 默认端口 4321；
  *   - 已有一个服务在跑时复用（本地开发方便），CI 里强制新起，避免误连旧产物；
  *   - 设置 `E2E_BASE_URL` 可指向任意已部署的实例（此时不再自动拉起 webServer）。
@@ -57,7 +57,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --host ${HOST} --port ${PORT}`,
+        command: `pnpm build && pnpm exec astro preview --host ${HOST} --port ${PORT}`,
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,

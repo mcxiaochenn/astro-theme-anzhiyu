@@ -1,0 +1,165 @@
+---
+/**
+ * 文章页（P2-8）— 上游 `layout/post.pug`。
+ *
+ * 路由：`/YYYY/MM/DD/(abbrlink || id)/`，对应 Hexo 默认 permalink
+ * `:year/:month/:day/:title/` 与 abbrlink 插件对最后一段的覆盖。
+ * `getStaticPaths` 只取 `layout !== 'page'` 的条目（独立页面由 P3 的 page 路由负责）。
+ *
+ * 页面自身只做三件事：
+ *   1. 用 `preparePostPage()` 准备文章 / 上下篇 / 相关推荐 / TOC；
+ *   2. 把 `#post-info` 通过 BaseLayout 的 `post-info` 具名插槽交给 Header；
+ *   3. 按 post.pug 的顺序拼 `#post` 子树（AI 摘要 → 正文 → 版权/工具条 → 分页 → 相关推荐）。
+ *
+ * aside 的内容由 AsideContent（P3-1）负责，本页只传 showToc / headings。
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import PostInfo from '@/components/post/PostInfo.astro'
+import PostContent from '@/components/post/PostContent.astro'
+import PostCopyright from '@/components/post/PostCopyright.astro'
+import PostPagination from '@/components/post/PostPagination.astro'
+import RelatedPosts from '@/components/post/RelatedPosts.astro'
+import PostAiDescription from '@/components/post/PostAiDescription.astro'
+import CommentsIndex from '@/components/third-party/comments/index.astro'
+import { preparePostPage } from '@/components/post/post-page.ts'
+import { preparePosts } from '@/components/post/post-list.ts'
+import { postHrefOf, postSlugOf } from '@/utils/url-utils.ts'
+import { getThemeConfig } from '@/config/theme-context.ts'
+import '../../../../styles/upstream/index.styl'
+import { getCollection, getEntry } from 'astro:content'
+import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
+
+import { SITE_IDENTITY } from '../../../../data/site-identity.ts'
+
+/** 站点级元数据（基准站身份，对应上游 `config.*`）——集中定义见 src/data/site-identity.ts。 */
+const site = SITE_IDENTITY
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const entries = await getCollection('posts')
+  const articles = entries.filter((entry) => entry.data.layout !== 'page')
+  // 复用 preparePosts 的年月日语义（站点时区 Asia/Shanghai），避免路由与卡片各算一套
+  const prepared = preparePosts(entries)
+  const entryById = new Map(articles.map((entry) => [entry.id, entry]))
+
+  return prepared
+    .filter((post) => entryById.has(post.id))
+    .map((post) => {
+      const [, year, month, day] = /^(\d{4})\/(\d{2})\/(\d{2})\//.exec(post.path) ?? []
+      const entry = entryById.get(post.id)!
+      // B4：末段 = `abbrlink ?? id`，收口到 site.ts 的 postSlugOf()（与 post-list.ts / _data.ts 共用）。
+      const slug = postSlugOf(entry)
+      return {
+        params: { year, month, day, slug },
+        props: { id: post.id },
+      }
+    })
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+const { id } = Astro.props as Props
+const theme = getThemeConfig()
+
+const entry = await getEntry('posts', id)
+if (!entry) throw new Error(`[post-page] 找不到文章：${id}`)
+
+const entries = await getCollection('posts')
+const page = preparePostPage(entries, entry, {
+  root: site.root,
+  url: site.url,
+  // 基准站 .baseline-work/_config.yml: external_link.enable = true
+  externalLink: { enable: true, exclude: '' },
+  // 文章自身的 path / permalink、上下篇、相关推荐统一走站点 permalink 解析器（P7-4）。
+  resolvePostHref: postHrefOf(site),
+})
+
+/** `page.copyright_url || page.permalink`。 */
+const articleUrl =
+  typeof page.data.copyright_url === 'string' && page.data.copyright_url
+    ? page.data.copyright_url
+    : page.permalink
+
+/** `theme.post_pagination` 为 1/3/4 时交换上下篇（pagination.pug:10-11）。 */
+const paginationSetting = theme.post_pagination
+const swapNeighbours =
+  paginationSetting === 1 || paginationSetting === 3 || paginationSetting === 4
+const prev = swapNeighbours ? page.next : page.prev
+const next = swapNeighbours ? page.prev : page.next
+
+const tagNames = page.current.tags.map((tag) => tag.name)
+const cover = typeof page.current.cover === 'string' ? page.current.cover : undefined
+const description = typeof page.data.description === 'string' ? page.data.description : undefined
+/**
+ * 上游 `get_page_fill_description()` 的等价：优先页面描述，回退渲染后的正文。
+ * `ai-info.pug:1` 用它做门控，为空时整块 AI 摘要不输出。
+ */
+const pageFillDescription = description || page.bodyHtml
+const keywords = page.data.keywords as string | string[] | undefined
+/** B2：page 级开关透传（front-matter 原值；缺省 undefined，见 BaseLayout 的 props 注释）。 */
+const pageSwitch = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
+---
+
+<BaseLayout
+  site={site}
+  title={page.current.title}
+  description={description}
+  content={page.bodyHtml}
+  keywords={keywords}
+  tagNames={tagNames}
+  ogImage={cover}
+  ogType="article"
+  pageUrl={page.permalink}
+  pageType="post"
+  pageTypeValue={typeof page.data.type === 'string' ? page.data.type : undefined}
+  topImg={page.topImg}
+  showToc={page.showToc}
+  headings={page.headings}
+  aside={page.data.aside !== false}
+  postUpdate={page.current.updated.full}
+  postAI={page.data.ai ? String(page.data.ai) : undefined}
+  postMainColor={typeof page.data.main_color === 'string' ? page.data.main_color : undefined}
+  pageComments={pageSwitch(page.data.comments)}
+  pageMathjax={pageSwitch(page.data.mathjax)}
+  pageKatex={pageSwitch(page.data.katex)}
+  pageAplayer={pageSwitch(page.data.aplayer)}
+>
+  <Fragment slot="post-info">
+    <PostInfo
+      post={page.current}
+      data={page.data}
+      site={site}
+      topImg={page.topImg}
+      bgImg={page.bgImg}
+      language={site.language}
+    />
+  </Fragment>
+
+  <div id="post">
+    {/* post.pug:7-8 — 文章顶部 AI 摘要（third-party/ai-info.pug） */}
+    <PostAiDescription ai={page.data.ai} pageFillDescription={pageFillDescription} />
+    <PostContent
+      post={page.current}
+      data={page.data}
+      site={site}
+      articleUrl={articleUrl}
+      bodyHtml={page.bodyHtml}
+      language={site.language}
+    />
+    <PostCopyright
+      post={page.current}
+      data={page.data}
+      site={site}
+      articleUrl={articleUrl}
+      bgImg={page.bgImg}
+      tagCounts={page.tagCounts}
+      categoryCounts={page.categoryCounts}
+      language={site.language}
+    />
+    {Boolean(paginationSetting) && (
+      <PostPagination prev={prev} next={next} language={site.language} />
+    )}
+    <RelatedPosts items={page.related} language={site.language} />
+    {/* post.pug:42-44 — 评论区（#post-comment）：page.comments !== false 且主题启用评论系统 */}
+    {page.data.comments !== false && <CommentsIndex page={{ root: site.root }} />}
+  </div>
+</BaseLayout>

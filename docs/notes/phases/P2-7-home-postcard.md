@@ -4,7 +4,7 @@
 
 > 状态：**主体完成，M1 完成；`#home_top` 未完成（被「快速收尾」指令中断，数据层已就位，组件/插槽未落）**。
 > 报告写完时的构建：`pnpm --filter blog build` 40 页全绿；`pnpm verify` 通过。
-> 本文件不包含 git 操作；工作区未提交部分为 `examples/blog/package.json`、`pnpm-lock.yaml`、
+> 本文件不包含 git 操作；工作区未提交部分为 `package.json`、`pnpm-lock.yaml`、
 > `components/post/post-list.ts` 的 M1 依赖与 home_top 数据层改动。
 
 ---
@@ -27,14 +27,14 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `examples/blog/src/pages/index.astro` | 重写：第 1 页 = `CategoryBar` + `PostCard`×6 + `Pagination` |
-| `examples/blog/src/pages/[...page].astro` | 新增：`/page/2/`（rest 参数 `page/2`），同一套组件 |
-| `packages/astro-theme-anzhiyu/src/components/post/PostCard.astro` | 新增：`+postUI` 卡片 |
-| `packages/astro-theme-anzhiyu/src/components/post/Pagination.astro` | 新增：`pagination.pug` + `paginator()` |
-| `packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro` | 新增：`categoryGroup.pug` |
-| `packages/astro-theme-anzhiyu/src/components/post/post-list.ts` | 新增：Hexo `index_generator` 排序/切页/摘要/标签分类顺序语义 |
-| `examples/blog/astro.config.mjs` | M1：`syntaxHighlight: false` + 自定义处理器 + `figure.highlight` rehype 插件 |
-| `examples/blog/package.json`、`pnpm-lock.yaml` | `highlight.js@^11.12.0`（devDependency，组长已批准） |
+| `src/pages/index.astro` | 重写：第 1 页 = `CategoryBar` + `PostCard`×6 + `Pagination` |
+| `src/pages/[...page].astro` | 新增：`/page/2/`（rest 参数 `page/2`），同一套组件 |
+| `src/components/post/PostCard.astro` | 新增：`+postUI` 卡片 |
+| `src/components/post/Pagination.astro` | 新增：`pagination.pug` + `paginator()` |
+| `src/components/post/CategoryBar.astro` | 新增：`categoryGroup.pug` |
+| `src/components/post/post-list.ts` | 新增：Hexo `index_generator` 排序/切页/摘要/标签分类顺序语义 |
+| `astro.config.mjs` | M1：`syntaxHighlight: false` + 自定义处理器 + `figure.highlight` rehype 插件 |
+| `package.json`、`pnpm-lock.yaml` | `highlight.js@^11.12.0`（devDependency，组长已批准） |
 
 未触碰：`src/components/layout/`、`src/utils/`、`src/i18n/`、归档/分类/标签/404 页面、根 `scripts/`、
 `src/layouts/`（BaseLayout 的 `#home_top` 插槽本次**没有**改，见 §8）。
@@ -249,7 +249,7 @@ index_generator:
    `<pre class="astro-code">` + 内联 style 永远对不上（结构与类名都不同），也没有任何 Shiki 主题配置
    能输出 hljs 类名。
 
-### 5.2 改动（`examples/blog/astro.config.mjs`，本次只改 markdown 段 + 文件头插件块）
+### 5.2 改动（`astro.config.mjs`，本次只改 markdown 段 + 文件头插件块）
 
 ```js
 // 关掉 Shiki；结构由自写 rehype 插件在字符串化前重建
@@ -334,8 +334,8 @@ $ pnpm verify
 命令：
 
 ```powershell
-node scripts/diff-html.mjs .baseline-html/index.html examples/blog/dist/index.html --json
-node scripts/diff-html.mjs .baseline-html/page/2/index.html examples/blog/dist/page/2/index.html --json
+node scripts/diff-html.mjs .baseline-html/index.html dist/index.html --json
+node scripts/diff-html.mjs .baseline-html/page/2/index.html dist/page/2/index.html --json
 ```
 
 | 页面 | 改动前（P2-7 前纯基线产物，19:50 快照） | 改动后（本次，20:26 快照） |
@@ -386,7 +386,7 @@ node scripts/diff-html.mjs .baseline-html/page/2/index.html examples/blog/dist/p
     tags-block, tags-inline, cover-variants，与基线顺序一致）；
   - `resolveImageLazyload()`：统一解析 lazyload 配置（PostCard 目前仍内联同一份逻辑，可后续合并）；
 - **待做**：
-  1. `packages/astro-theme-anzhiyu/src/components/post/HomeTop.astro`：复刻 `top/top.pug`
+  1. `src/components/post/HomeTop.astro`：复刻 `top/top.pug`
      （`#home_top > .swiper_container_card[style] > #bannerGroup > #random-banner(canvas#peoplecanvas + a#random-hover)
      + .categoryGroup(3× categoryItem/categoryButton/categoryButtonText/icon) + .topGroup(6× recent-post-item
      + a#todayCard + `<link rel="stylesheet">`)`）；文案/图标/链接全部来自 `theme.home_top` 默认值

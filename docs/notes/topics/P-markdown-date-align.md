@@ -5,14 +5,14 @@
 - 任务：把 Markdown 渲染行为（smartypants）与日期格式化（时区/格式）对齐 Hexo，
   为 Phase 2 的 HTML diff 扫清已知误报；并把资源路径豁免策略文档化
 - 写范围（实际改动）：
-  - `examples/blog/astro.config.mjs`（+23 行：`unified({ smartypants: false })` + 注释）
-  - `packages/astro-theme-anzhiyu/src/utils/date.ts`（新增，571 行）
-  - `packages/astro-theme-anzhiyu/scripts/check-date.mjs`（新增，验收，59 断言）
+  - `astro.config.mjs`（+23 行：`unified({ smartypants: false })` + 注释）
+  - `src/utils/date.ts`（新增，571 行）
+  - `scripts/check-date.mjs`（新增，验收，59 断言）
   - `packages/astro-theme-anzhiyu/package.json`（+1 script `check:date`）
   - `docs/reference/resource-path-policy.md`（新增）
   - 本文件
-- 未改动：`examples/blog/src/pages/`、`src/components/`、`src/layouts/`（另一组员在改）；
-  `scripts/diff-html.mjs`；`packages/astro-theme-anzhiyu/src/index.ts`
+- 未改动：`src/pages/`、`src/components/`、`src/layouts/`（另一组员在改）；
+  `scripts/diff-html.mjs`；`src/index.ts`
 
 ## 0. 结论速览
 
@@ -44,7 +44,7 @@
 
 ### 1.1 配置片段
 
-`examples/blog/astro.config.mjs`（只改 `markdown.processor` 这一行，其余 56 行原样保留）：
+`astro.config.mjs`（只改 `markdown.processor` 这一行，其余 56 行原样保留）：
 
 ```js
   markdown: {
@@ -106,7 +106,7 @@ export function unified(opts = {}) {
 
 ### 1.3 处理器级 before / after（原始输出）
 
-取 `tests/fixtures/tags-thirdparty.md` 的 mermaid 片段，用**真实 `astro.config.mjs` 的
+取 `src/content/tags-thirdparty.md` 的 mermaid 片段，用**真实 `astro.config.mjs` 的
 processor options** 调 `createMarkdownProcessor` 渲染（和 `astro build` 同一个函数）：
 
 **before（`unified()`，smartypants 未设置 → 默认 true）**：
@@ -121,7 +121,7 @@ processor options** 调 `createMarkdownProcessor` 渲染（和 `astro build` 同
 }
 smartypants 选项值 = undefined
 
---- mermaid 片段（tests/fixtures/tags-thirdparty.md） ---
+--- mermaid 片段（src/content/tags-thirdparty.md） ---
 <h2 id="mermaid">mermaid</h2>
 <p>{% mermaid %}
 graph TD
@@ -157,7 +157,7 @@ C —> D[Astro]
 }
 smartypants 选项值 = false
 
---- mermaid 片段（tests/fixtures/tags-thirdparty.md） ---
+--- mermaid 片段（src/content/tags-thirdparty.md） ---
 <h2 id="mermaid">mermaid</h2>
 <p>{% mermaid %}
 graph TD
@@ -189,7 +189,7 @@ C --> D[Astro]
    before 分支把 `markdown.processor` 换回 `unified()`，after 分支用真实配置；
    `outDir` 分别指向 `.tmp-dist-before` / `.tmp-dist-after`；
 2. 路由用 Astro integration 的 `injectRoute` 注入一个临时页
-   （渲染 `tests/fixtures/tags-thirdparty.md`），**不写 `src/pages/`**；
+   （渲染 `src/content/tags-thirdparty.md`），**不写 `src/pages/`**；
 3. 两次 `astro build --config … --force`。
 
 产物对比（`.tmp-dist-{before,after}/__tmp-probe/index.html`）：
@@ -216,7 +216,7 @@ C --> D[Astro]
 
 ## 2. `date.ts`：Hexo 语义日期格式化
 
-文件：`packages/astro-theme-anzhiyu/src/utils/date.ts`
+文件：`src/utils/date.ts`
 
 ### 2.1 上游语义出处
 
@@ -312,7 +312,7 @@ date_xml(date)               → (date ?? new Date()).toISOString()
 
 ### 3.1 结构
 
-`packages/astro-theme-anzhiyu/scripts/check-date.mjs`，`node scripts/check-date.mjs`（或
+`scripts/check-date.mjs`，`node scripts/check-date.mjs`（或
 `pnpm --filter astro-theme-anzhiyu check:date`）。五段：
 
 | 段 | 内容 |
@@ -349,8 +349,8 @@ date_xml(date)               → (date ?? new Date()).toISOString()
 [check-date] PASS B3 两种解释的日期不同（跨天边界确实存在，差 1 天） — 2025-02-20 vs 2025-02-21
 [check-date] PASS B4 2025-03-05 06:00（+08）→ UTC 前一天 22:00Z — 实际 2025-03-04T22:00:00.000Z / 期望 2025-03-04T22:00:00.000Z
 [check-date] PASS B4 UTC 日历日期是 03-04，+08 日历日期是 03-05（差一天） — 实际 2025-03-04 / 2025-03-05 / 期望 2025-03-04 / 2025-03-05
-[check-date] PASS B5 tests/fixtures/short-note.md：2024-12-15 21:05（+08）→ 13:05Z — 实际 2024-12-15T13:05:00.000Z / 期望 2024-12-15T13:05:00.000Z
-[check-date] PASS B5 tests/fixtures/tags-thirdparty.md：2025-04-20 11:15（+08）→ 03:15Z — 实际 2025-04-20T03:15:00.000Z / 期望 2025-04-20T03:15:00.000Z
+[check-date] PASS B5 src/content/short-note.md：2024-12-15 21:05（+08）→ 13:05Z — 实际 2024-12-15T13:05:00.000Z / 期望 2024-12-15T13:05:00.000Z
+[check-date] PASS B5 src/content/tags-thirdparty.md：2025-04-20 11:15（+08）→ 03:15Z — 实际 2025-04-20T03:15:00.000Z / 期望 2025-04-20T03:15:00.000Z
 [check-date] PASS B6 America/New_York 冬季 2025-01-01 12:00 → 17:00Z（EST，-05:00） — 实际 2025-01-01T17:00:00.000Z / 期望 2025-01-01T17:00:00.000Z
 [check-date] PASS B6 America/New_York 夏季 2025-07-01 12:00 → 16:00Z（EDT，-04:00） — 实际 2025-07-01T16:00:00.000Z / 期望 2025-07-01T16:00:00.000Z
 [check-date] PASS B7 春季跳表空洞 2025-03-09 02:30（不存在）→ 顺延到 03:30 EDT = 07:30Z（moment moveInvalidForward） — 实际 2025-03-09T07:30:00.000Z / 期望 2025-03-09T07:30:00.000Z
@@ -399,10 +399,10 @@ date_xml(date)               → (date ?? new Date()).toISOString()
 
 | 场景 | 正确值（本实现） | 若按 Astro 旧行为（UTC） |
 | --- | --- | --- |
-| `2025-02-20 19:45:00`（`tests/fixtures/cover-variants.md`） | `2025-02-20T11:45:00.000Z` → +08 显示 `2025-02-20 19:45` | 当 `19:45Z` → +08 显示 **`2025-02-21 03:45`（日期 +1 天）** |
+| `2025-02-20 19:45:00`（`src/content/cover-variants.md`） | `2025-02-20T11:45:00.000Z` → +08 显示 `2025-02-20 19:45` | 当 `19:45Z` → +08 显示 **`2025-02-21 03:45`（日期 +1 天）** |
 | `2025-02-20 23:30:00`（任务点名边界） | `2025-02-20T15:30:00.000Z` → +08 显示 `2025-02-20 23:30` | 当 `23:30Z` → +08 显示 **`2025-02-21 07:30`（日期 +1 天）** |
 | `2025-03-05 06:00:00`（反方向） | `2025-03-04T22:00:00.000Z` → UTC 日期 `03-04`，+08 日期 `03-05` | 当 `06:00Z` → +08 `14:00`，日期仍 `03-05`（这类反而不跨天） |
-| `2024-12-15 21:05:00`（`tests/fixtures/short-note.md`） | `2024-12-15T13:05:00.000Z` → +08 显示 `2024-12-15 21:05` | 当 `21:05Z` → +08 `2024-12-16 05:05`（+1 天） |
+| `2024-12-15 21:05:00`（`src/content/short-note.md`） | `2024-12-15T13:05:00.000Z` → +08 显示 `2024-12-15 21:05` | 当 `21:05Z` → +08 `2024-12-16 05:05`（+1 天） |
 
 10 篇 fixtures 的 frontmatter 全是无时区写法，按 `+08` 解释后的 `date_xml` 与基准站
 **逐页一致**（D2 段全部通过；E 段抽 3 页对拍）。
@@ -460,7 +460,7 @@ exit=0
 汇总：48 页 / PASS 0 / FAIL 48 / 差异共 150 条（结构 91 / 文件 47 / 属性 12），缺口 缺 857 / 多 60 节点
 ```
 
-> 构建期间 `examples/blog/src/pages/` 里只有 index/page2/debug-collection 三个页面，
+> 构建期间 `src/pages/` 里只有 index/page2/debug-collection 三个页面，
 > 文章页/归档页仍是 `file-missing`（47 条），所以这个数字不是本次改动的回归指标。
 
 ---

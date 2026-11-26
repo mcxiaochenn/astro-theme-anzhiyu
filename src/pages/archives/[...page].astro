@@ -1,0 +1,73 @@
+---
+/**
+ * P2-9 · 归档首页与分页：`/archives/`、`/archives/page/2/`
+ *
+ * 上游 `layout/archive.pug`（hexo-generator-archive 的首页分支）：
+ *
+ *   #archive
+ *     .article-sort-title= `文章总览 - ${getArchiveLength()}`
+ *     +articleSort(page.posts, page.current)
+ *     include includes/pagination.pug
+ *
+ * 路由参数：rest 参数 `[...page]`（Astro 7 的 rest 参数值是**字符串**，不是数组）。
+ *   - 第 1 页 → `page: undefined` → `/archives/`
+ *   - 第 n 页 → `page: 'page/n'` → `/archives/page/n/`
+ * 与 `pagination_dir: page` 一致；年份/月归档在另两个路由文件里（`[year]`、`[year]/[month]`）。
+ */
+import type { GetStaticPaths } from 'astro'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import ArticleSort from '@/components/archive/ArticleSort.astro'
+import Pagination from '@/components/archive/Pagination.astro'
+import '../../styles/upstream/index.styl'
+import {
+  ARCHIVE_PER_PAGE,
+  BASELINE_SITE,
+  SITE_PER_PAGE,
+  articlesSortTitle,
+  archivesTitle,
+  hexoPageUrl,
+  loadArchiveSite,
+  pageCount,
+  slicePage,
+  toArticleSortPosts,
+  urlFor,
+} from './_data.ts'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const data = await loadArchiveSite()
+  const total = pageCount(data.posts.length, ARCHIVE_PER_PAGE)
+  return Array.from({ length: total }, (_, index) => {
+    const current = index + 1
+    return {
+      params: {
+        // rest 参数：第 1 页为空（`/archives/`），其余是 `page/<n>`
+        page: current === 1 ? undefined : `page/${current}`,
+      },
+      props: { current, total },
+    }
+  })
+}
+
+interface Props {
+  current: number
+  total: number
+}
+
+const { current, total } = Astro.props as Props
+const data = await loadArchiveSite()
+const posts = toArticleSortPosts(slicePage(data.posts, ARCHIVE_PER_PAGE, current))
+---
+
+<BaseLayout
+  site={BASELINE_SITE}
+  title={archivesTitle({}, data)}
+  ogType="website"
+  pageType="page"
+  pageUrl={hexoPageUrl(BASELINE_SITE, Astro.url.pathname)}
+>
+  <div id="archive">
+    <div class="article-sort-title">{articlesSortTitle(data, {})}</div>
+    <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />
+    <Pagination current={current} total={total} basePath={urlFor('/archives/')} />
+  </div>
+</BaseLayout>

@@ -161,7 +161,7 @@ LHCI（路径见 §7.2）。在那之前，任何「四项分数不低于上游�
 | 名称 | 路径 / URL | 说明 |
 | --- | --- | --- |
 | 上游 Hexo 真实站产物（golden） | `D:\Git-project\xcAnzhiyu\public`（只读） | 用户真实站 `hexo g` 产物：Hexo 7.3.0 + hexo-theme-anzhiyu 1.6.14，含用户自定义配置（echarts、字体 CDN、统计、评论插件），首页 HTML 144,847 B |
-| 迁移站（CI 被测） | `examples/blog/dist` | 本仓库参考构建（1.7.1 主题，固定内容/配置），62 页，首页 HTML 59,949 B |
+| 迁移站（CI 被测） | `dist` | 本仓库参考构建（1.7.1 主题，固定内容/配置），62 页，首页 HTML 59,949 B |
 | 现网（已非 Hexo） | `https://blog.mcxiaochen.top/` | 另一个 Astro 站，仅作「现网资源画像」参考（§2.2） |
 
 度量脚本：`node .tmp-p72/static-profile.mjs <root> <html> <label>`、`.tmp-p72/dist-assets.mjs`、
@@ -188,7 +188,7 @@ gzip/brotli 用 `node:zlib` 逐文件算，**不是**浏览器传输入的实测
   扣除后 135 KB raw / 54 KB gzip，迁移站 140 KB raw / 45 KB gzip —— raw 相近，**gzip 反而小 16%**。
   迁移站真正同步加载的只有 6–7 个本地脚本（见 §3.3 明细），没有把 `echarts` 之类带进来。
 - **CSS gzip 基本持平**（79.9 KB vs 79.1 KB），raw 更大（684 KB vs 618 KB）的原因有二：
-  1.7.1 样式比 1.6.14 多，且 `examples/blog/astro.config.mjs` 的 `vite.build.cssMinify: false`
+  1.7.1 样式比 1.6.14 多，且 `astro.config.mjs` 的 `vite.build.cssMinify: false`
   是 Phase 2 验收的硬约束（readmode 笔误 + `docs/reference/baseline.json` 未压缩基线 ±5% 判定），
   不是性能回归。**压缩产物的体积另建预算**，是本文件 §7.1 的第一条优化路径。
 - **HTML 减半**（30.9 KB gzip → 14.1 KB），三方脚本标签从 17 个降到 11 个（且都在
@@ -664,7 +664,7 @@ mkdir .build.lock; pnpm --filter blog build; Remove-Item .build.lock -Recurse -F
 
 # 1) dist 静态资源画像（首屏 JS/CSS 明细）
 node .tmp-p72/dist-assets.mjs          # → .tmp-p72/dist-assets.json
-node .tmp-p72/static-profile.mjs "examples/blog/dist" "index.html" "astro-blog-home"
+node .tmp-p72/static-profile.mjs "dist" "index.html" "astro-blog-home"
 
 # 2) 上游 Hexo 1.6.14 golden 画像（只读）
 node .tmp-p72/static-profile.mjs "D:\Git-project\xcAnzhiyu\public" "index.html" "hexo-golden-home"

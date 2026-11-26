@@ -15,7 +15,7 @@
 | 新增 §6.8（L330–352） | 「Phase 1.5 实测记录（2026-11-23）」：五项结论表 + 附加结论（document 请求 0 / pjax.loadUrl shim / pjax:complete 每次补发）+ 三个前提（`html[data-theme]` 运行时契约、监听幂等、`data-astro-rerun`）+ 环境限制（Playwright 被沙箱阻断，wincu 真实 Edge + 页内 harness，54/54 断言） |
 | 原「## 6. 不做什么」（L354） | 编号改为「## 7. 不做什么」。原文有两个 §6，不加处理会出现「6.8 → 6」自相矛盾；未改任何 ADR 原文，未动 §6.1–§6.7 |
 
-注：Phase 1.5 按任务要求落在 **§6.8**，暂不改 §6 标题「Phase 1 实测记录（2026-11-23）」，以免破坏 `packages/vite-plugin-stylus-hexo-config/README.md` 里指向 `#6-phase-1-实测记录2026-11-23` 的锚点；若后续想把标题改成「Phase 1 / Phase 1.5 实测记录」，需同步改那条 README 链接。
+注：Phase 1.5 按任务要求落在 **§6.8**，暂不改 §6 标题「Phase 1 实测记录（2026-11-23）」，以免破坏 `src/plugins/stylus-hexo-config/README.md` 里指向 `#6-phase-1-实测记录2026-11-23` 的锚点；若后续想把标题改成「Phase 1 / Phase 1.5 实测记录」，需同步改那条 README 链接。
 
 ### docs/notes/phases/P1-5-full-style-build.md
 
@@ -36,8 +36,8 @@
 ## 3. 校验
 
 - 未动 ADR-001…006 原文；未动代码、配置、上游镜像。
-- 锚点：`packages/vite-plugin-stylus-hexo-config/README.md` 指向 `#6-phase-1-实测记录2026-11-23` 仍有效（§6 标题未改）；`docs/plan/03-migration-plan.md` 指向 `#5-待验证清单` 仍有效（§5 标题未改）。
-- `git status --short` 里本任务只产生两处修改（上述两份文档，本文件为新增未跟踪）；工作区同时存在 `packages/vite-plugin-stylus-hexo-config/src/index.mjs` 的并发改动，**不是本任务产出**（疑似 P1-11 正在实施）。
+- 锚点：`src/plugins/stylus-hexo-config/README.md` 指向 `#6-phase-1-实测记录2026-11-23` 仍有效（§6 标题未改）；`docs/plan/03-migration-plan.md` 指向 `#5-待验证清单` 仍有效（§5 标题未改）。
+- `git status --short` 里本任务只产生两处修改（上述两份文档，本文件为新增未跟踪）；工作区同时存在 `src/plugins/stylus-hexo-config/index.mjs` 的并发改动，**不是本任务产出**（疑似 P1-11 正在实施）。
 
 ## 4. 发现的超出写范围的文档不一致（未改，供后续任务处理）
 
@@ -47,7 +47,7 @@
 4. `docs/plan/03-migration-plan.md:211` 仍写「跑通 8 项待验证清单」，现在只剩 #7 待 Phase 7；属 Phase 1 时代的历史计划表述。
 5. `docs/notes/topics/P-upstream-delta.md` §5 文档债：#1（「PLAN D9 仍写未定位/当假」）已随 PLAN 更新失效；#3（「P1-5 §6.4/§8.1 过期」）已被本次勘误解决——该两行可以清掉。
 6. `docs/notes/phases/P1.5-vertical-slice.md` §6.3 第 8 条「文档同步…建议由 Lead 或下一任务执行」已完成，报告自身无需改（历史归档）。
-7. P1-11 完成后产物预期从 686772 → 682990 B（−0.033%），届时 P1-5 报告的 §1/§2/§9 数值记录会再次过期；建议 P1-11 完成时同步更新 P1-5 数值或再补一次勘误（本轮写范围外，属 P1-11 任务）。注：本轮收尾时工作区已有 `packages/vite-plugin-stylus-hexo-config/src/index.mjs` 的并发改动，疑似 P1-11 正在实施。
+7. P1-11 完成后产物预期从 686772 → 682990 B（−0.033%），届时 P1-5 报告的 §1/§2/§9 数值记录会再次过期；建议 P1-11 完成时同步更新 P1-5 数值或再补一次勘误（本轮写范围外，属 P1-11 任务）。注：本轮收尾时工作区已有 `src/plugins/stylus-hexo-config/index.mjs` 的并发改动，疑似 P1-11 正在实施。
 
 ## 5. 最后一句
 

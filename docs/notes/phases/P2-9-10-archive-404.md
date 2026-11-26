@@ -14,17 +14,17 @@
 
 | 文件 | 职责 |
 | --- | --- |
-| `examples/blog/src/pages/archives/[...page].astro` | 归档首页 + 分页：`/archives/`、`/archives/page/N/` |
-| `examples/blog/src/pages/archives/[year]/[...page].astro` | 年归档 + 分页：`/archives/2025/`、`/archives/2025/page/N/` |
-| `examples/blog/src/pages/archives/[year]/[month]/[...page].astro` | 月归档 + 分页：`/archives/2025/04/`、`/archives/2025/04/page/N/` |
-| `examples/blog/src/pages/categories/[...category].astro` | 分类页 + 分页（支持层级分类）：`/categories/前端/`、`/categories/前端/Astro/` |
-| `examples/blog/src/pages/tags/[tag]/[...page].astro` | 标签页 + 分页：`/tags/Astro/` |
-| `examples/blog/src/pages/404.astro` | 404：`/404.html` |
-| `examples/blog/src/pages/archives/_data.ts` | 站点数据适配层：内容集合 → path/date/cover/taxonomy；helper 注入点；分页切片 |
-| `packages/astro-theme-anzhiyu/src/components/archive/ArticleSort.astro` | `article-sort.pug` 的移植（三类页面共用） |
-| `packages/astro-theme-anzhiyu/src/components/archive/Pagination.astro` | `pagination.pug` 非文章页分支（`hexo-paginator` 语义） |
-| `packages/astro-theme-anzhiyu/src/components/archive/LazyImage.astro` | lazyload 插件产物形态（`article-sort` / 404 最近文章共用） |
-| `packages/astro-theme-anzhiyu/src/components/archive/types.ts` | `ArticleSort` 的渲染数据类型（组件/站点层共用，避免从 `.astro` 导类型） |
+| `src/pages/archives/[...page].astro` | 归档首页 + 分页：`/archives/`、`/archives/page/N/` |
+| `src/pages/archives/[year]/[...page].astro` | 年归档 + 分页：`/archives/2025/`、`/archives/2025/page/N/` |
+| `src/pages/archives/[year]/[month]/[...page].astro` | 月归档 + 分页：`/archives/2025/04/`、`/archives/2025/04/page/N/` |
+| `src/pages/categories/[...category].astro` | 分类页 + 分页（支持层级分类）：`/categories/前端/`、`/categories/前端/Astro/` |
+| `src/pages/tags/[tag]/[...page].astro` | 标签页 + 分页：`/tags/Astro/` |
+| `src/pages/404.astro` | 404：`/404.html` |
+| `src/pages/archives/_data.ts` | 站点数据适配层：内容集合 → path/date/cover/taxonomy；helper 注入点；分页切片 |
+| `src/components/archive/ArticleSort.astro` | `article-sort.pug` 的移植（三类页面共用） |
+| `src/components/archive/Pagination.astro` | `pagination.pug` 非文章页分支（`hexo-paginator` 语义） |
+| `src/components/archive/LazyImage.astro` | lazyload 插件产物形态（`article-sort` / 404 最近文章共用） |
+| `src/components/archive/types.ts` | `ArticleSort` 的渲染数据类型（组件/站点层共用，避免从 `.astro` 导类型） |
 
 为什么 `_data.ts` 放在 `pages/archives/`：本次写范围只覆盖 archives / categories / tags 三个页面目录，
 而三个目录都要用同一份数据；文件名以 `_` 开头会被 Astro 路由忽略（`create-manifest.js` 里
@@ -128,7 +128,7 @@ for (const term of data.tags) {
 
 ## 3. 数据来源与 helper
 
-**数据源**：`examples/blog/src/content.config.ts` 的 `posts` 集合（fixtures 10 条，排除
+**数据源**：`src/content.config.ts` 的 `posts` 集合（fixtures 10 条，排除
 `layout: page` 的 about 页 → 9 篇文章），排序 `date` 降序（= Hexo 三个 generator 的
 `sort('date', -1)`）。所有页面共用 `loadArchiveSite()`（模块级缓存，`getStaticPaths` 与
 frontmatter 各调一次也只读一遍集合）。

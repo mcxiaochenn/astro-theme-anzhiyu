@@ -15,9 +15,9 @@
 | --- | --- | --- |
 | 1 | 根因 | 上游 Hexo 把 `themes/anzhiyu/source/` **整目录直通** `public/`；`examples/blog` 是手工把 `js/{main,utils,tw_cn}.js`、`js/{anzhiyu,search}/*`、`css/index.css`、`anzhiyu/random.js` 放进 `public/`。`scripts/migrate-hexo.mjs` 只复制**站点** `source/`，不复制主题 `source/` → 迁移站缺少主题资源 |
 | 2 | 缺口 | 迁移站 94 页 × 6 个本地 URL 缺失（`/js/main.js`、`/js/utils.js`、`/js/tw_cn.js`、`/js/anzhiyu/right_click_menu.js`、`/anzhiyu/random.js`、`/css/index.css`）；`/js/flink.js` 是**假引用**（文章代码块文本），见 §2.4 |
-| 3 | 主题资源归属 | 10 个主题 JS（`main/tw_cn/utils` + `anzhiyu/{ai_abstract,comment_barrage,people,random_friends_post,right_click_menu}` + `search/{algolia,local-search}`）+ `css/index.css` 占位 → 搬进 `packages/astro-theme-anzhiyu/assets/`。`/anzhiyu/random.js` **不进**主题包（站点生成物）；站点 `source/js/*` 的 7 个自定义脚本 **不进**主题包（站点 `public/` 由 migrate-hexo 复制） |
-| 4 | integration | `packages/astro-theme-anzhiyu/integration.mjs`，默认导出 `anzhiyuAssets(options?)`；`astro:build:done` 逐文件复制（已存在则 warn+保留站点侧），`astro:server:setup` 挂 connect 静态中间件（不命中 `next()`→Astro 404）。零第三方依赖 |
-| 5 | 构建产物 | `examples/blog/dist` 中 7 个验收 URL 全部存在且字节数与主题包 assets 一致；`dist/js/**` 10/10 文件 SHA-256 与 assets 相同 |
+| 3 | 主题资源归属 | 10 个主题 JS（`main/tw_cn/utils` + `anzhiyu/{ai_abstract,comment_barrage,people,random_friends_post,right_click_menu}` + `search/{algolia,local-search}`）+ `css/index.css` 占位 → 搬进 `public/`。`/anzhiyu/random.js` **不进**主题包（站点生成物）；站点 `source/js/*` 的 7 个自定义脚本 **不进**主题包（站点 `public/` 由 migrate-hexo 复制） |
+| 4 | integration | `integration.mjs（已删除，由 public/ 原生接管）`，默认导出 `anzhiyuAssets(options?)`；`astro:build:done` 逐文件复制（已存在则 warn+保留站点侧），`astro:server:setup` 挂 connect 静态中间件（不命中 `next()`→Astro 404）。零第三方依赖 |
+| 5 | 构建产物 | `dist` 中 7 个验收 URL 全部存在且字节数与主题包 assets 一致；`dist/js/**` 10/10 文件 SHA-256 与 assets 相同 |
 | 6 | 基线 diff | `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all --json` → **48 页 PASS / diffCount 0 / missingNodes 0 / unexpectedNodes 0**（迁移前同值，未回归） |
 | 7 | 迁移站如何拿到资源 | 主题资源：`integrations: [anzhiyuAssets()]` 一行（migrate-hexo 复制 `astro.config.mjs` 时**自动带上**，重跑 `pnpm install` 后生效）；`/anzhiyu/random.js`：migrate-hexo 在 [6/8] 静态资源阶段按站点文章列表生成；站点自定义 js/css：migrate-hexo 现有复制逻辑已覆盖。详见 §7 |
 | 8 | 可发布性 | `package.json` `files` 追加 `assets`、`integration.mjs`；`exports` 追加 `"./integration": "./integration.mjs"`。`npm pack --dry-run` 清单 172 文件 = `assets/` 11 + `src/` 159 + `integration.mjs` + `package.json` |
@@ -49,7 +49,7 @@ script(async src="/anzhiyu/random.js")          // 由主题 generator 生成（
 
 ### 1.2 Astro 侧现状（迁移前）
 
-- `packages/astro-theme-anzhiyu/src/config/assets.ts` 的 `INTERNAL_SRC` 已经把这 10 个主题 JS 的 URL 算对了（`/js/main.js` 等，P4-1 复刻 `scripts/events/cdn.js`），模板（`AdditionalJs.astro`）也按上游顺序输出 `<script src="/js/...">`；
+- `src/config/assets.ts` 的 `INTERNAL_SRC` 已经把这 10 个主题 JS 的 URL 算对了（`/js/main.js` 等，P4-1 复刻 `scripts/events/cdn.js`），模板（`AdditionalJs.astro`）也按上游顺序输出 `<script src="/js/...">`；
 - 但**文件本身**没人提供：
   - `examples/blog` 靠手工 `public/js/**`（10 个文件）+ `public/css/index.css`（297 B 占位）+ `public/anzhiyu/random.js`；
   - `scripts/migrate-hexo.mjs` 的 [6/8] 只 `walkFiles(<站点>/source)` → `public/`，主题 `source/` 不在复制来源里；
@@ -96,7 +96,7 @@ script(async src="/anzhiyu/random.js")          // 由主题 generator 生成（
 | 代号 | 路径 | 性质 |
 | --- | --- | --- |
 | A | `_research/anzhiyu-upstream/source/js` | 主题 **1.7.1** 源码（本项目的对齐目标） |
-| B | `examples/blog/public/js`（迁移前） | 本仓库 demo 站手工维护版（历史来源） |
+| B | `public/js`（迁移前） | 本仓库 demo 站手工维护版（历史来源） |
 | C | `xcAnzhiyu/themes/anzhiyu/source/js` | 真实源站主题 **1.6.14** 源码 |
 | D | `xcAnzhiyu/public/js` | 真实源站 **构建产物**（1.6.14 源码经 `hexo-all-minifier` 压缩） |
 
@@ -157,7 +157,7 @@ xcAnzhiyu/themes/anzhiyu/source/js/tw_cn.js  19416 B  →  xcAnzhiyu/public/js/t
 | `js/nomyurl.js` | 16257 B | 7496 B | 站点自定义 → 站点 public |
 | `js/twikoo.all.min.js` | 1415610 B | 1389660 B | 站点 vendor（twikoo 自托管副本）→ 站点 public |
 
-判断依据：这 7 个文件**不在**任何一版主题 `source/` 里，也不在主题模板的 `theme.asset.*` 资源表（`packages/astro-theme-anzhiyu/src/config/assets.ts` 的 `INTERNAL_SRC`）里，而是站点 `source/js/` 直接被 Hexo 复制（Hexo 站点 `source/` 的「非 `_` 前缀」目录会原样进 `public/`）。migrate-hexo [6/8] 现有逻辑（`walkFiles(<site>/source)` → `public/`）已经覆盖，且 `.migration-out/xcAnzhiyu/public/js/` 里这 7 个文件**已经在了**（不需要本次改动）。
+判断依据：这 7 个文件**不在**任何一版主题 `source/` 里，也不在主题模板的 `theme.asset.*` 资源表（`src/config/assets.ts` 的 `INTERNAL_SRC`）里，而是站点 `source/js/` 直接被 Hexo 复制（Hexo 站点 `source/` 的「非 `_` 前缀」目录会原样进 `public/`）。migrate-hexo [6/8] 现有逻辑（`walkFiles(<site>/source)` → `public/`）已经覆盖，且 `.migration-out/xcAnzhiyu/public/js/` 里这 7 个文件**已经在了**（不需要本次改动）。
 
 > 注意：`link.js` / `flink_count.js` 在站点根目录，是 Hexo 的 `hexo.extend.generator` 脚本（生成 `link/` 页与 `flink_count.json`），不是资源文件；本次不涉及。
 
@@ -169,9 +169,9 @@ xcAnzhiyu/themes/anzhiyu/source/js/tw_cn.js  19416 B  →  xcAnzhiyu/public/js/t
 2. 它是主题 generator 的产物：`_research/anzhiyu-upstream/scripts/helpers/random.js`
    `hexo.extend.generator.register('random', …)` → `return { path: config.path || 'anzhiyu/random.js', data: result }`，
    `data` 内容 = `var posts=<locals.posts 的 path 列表 JSON>` + `function toRandomPost(){ pjax.loadUrl('/'+posts[随机]) }`（pjax 开）或 `window.location.href=…`（pjax 关），**依赖站点文章集合**，并受 `footer.list.randomFriends` 影响；
-3. 两个站的实际内容不同：`examples/blog/public/anzhiyu/random.js`（384 B）列的是 fixture 文章路径（`2025/04/20/tags-thirdparty/` 等 10 条）；`xcAnzhiyu/public/anzhiyu/random.js`（18909 B，压缩后）列的是源站文章路径。
+3. 两个站的实际内容不同：`public/anzhiyu/random.js`（384 B）列的是 fixture 文章路径（`2025/04/20/tags-thirdparty/` 等 10 条）；`xcAnzhiyu/public/anzhiyu/random.js`（18909 B，压缩后）列的是源站文章路径。
 
-结论：`/anzhiyu/random.js` 属于**站点侧生成资源**，不能塞进主题包（否则每个迁移站都会拿到 fixture 的文章列表 → 随机跳转 404）。本次处理：`examples/blog/public/anzhiyu/random.js` **原地保留**（demo 站自己的生成物，仍进 `dist/anzhiyu/random.js`）；迁移站的生成接线见 §7.3。
+结论：`/anzhiyu/random.js` 属于**站点侧生成资源**，不能塞进主题包（否则每个迁移站都会拿到 fixture 的文章列表 → 随机跳转 404）。本次处理：`public/anzhiyu/random.js` **原地保留**（demo 站自己的生成物，仍进 `dist/anzhiyu/random.js`）；迁移站的生成接线见 §7.3。
 
 ### 2.4 `/js/flink.js`：**假引用**，无资源缺口
 
@@ -192,11 +192,11 @@ CTX=…<span class="string">&#x3C;script</span> <span class="string">src="/js/fl
 | 事实 | 数据 |
 | --- | --- |
 | 上游 / 源站真实产物 | baseline `public/css/index.css` **683218 B**；`xcAnzhiyu/public/css/index.css` **614620 B**（`all_minifier` 压过，只有 4 个换行） |
-| Astro 侧真实样式 | `examples/blog/dist/_astro/upstream.<HASH>.css` ≈ 682990–684087 B（Stylus 经 `vite-plugin-stylus-hexo-config` 编译，`verify-css.mjs` 独立校验 ±5%） |
+| Astro 侧真实样式 | `dist/_astro/upstream.<HASH>.css` ≈ 682990–684087 B（Stylus 经 `vite-plugin-stylus-hexo-config` 编译，`verify-css.mjs` 独立校验 ±5%） |
 | 结构性 `<link>` | `Head` 组件按上游输出 `<link rel="stylesheet" href="/css/index.css">`（48 页 / 94 页全有），Astro 不会把它改写成 `_astro` 路径 |
 | 因此 | 该 URL 必须**有文件**（否则 404，违反策略 §3.4），但不应是真实样式（会重复加载 684 KB，且路径语义归 Vite 打包）。→ 主题包 `assets/css/index.css` 放 **297 B 占位**（内容 < 256 字符，说明「真实样式由 Vite 构建产物提供」） |
 
-占位文件内容（从 `examples/blog/public/css/index.css` 原样搬入）：
+占位文件内容（从 `public/css/index.css` 原样搬入）：
 
 ```css
 /*
@@ -220,16 +220,16 @@ CTX=…<span class="string">&#x3C;script</span> <span class="string">src="/js/fl
 | `/js/anzhiyu/{ai_abstract,comment_barrage,people,random_friends_post,right_click_menu}.js` | 主题 | `assets/js/anzhiyu/` | 同上 |
 | `/js/search/{algolia,local-search}.js` | 主题 | `assets/js/search/` | 同上 |
 | `/css/index.css` | 主题（占位） | `assets/css/index.css` | 同上 |
-| `/anzhiyu/random.js` | 站点生成 | `examples/blog/public/anzhiyu/random.js`（保留） | migrate-hexo [6/8] 生成（§7.3） |
+| `/anzhiyu/random.js` | 站点生成 | `public/anzhiyu/random.js`（保留） | migrate-hexo [6/8] 生成（§7.3） |
 | `/js/{card-welcome,comments,countdown,echarts.min,imgloaded,nomyurl,twikoo.all.min}.js` | 站点自定义 | 站点 `public/js/` | migrate-hexo [6/8] 现有复制逻辑 |
 | `/js/flink.js` | 无（假引用） | — | — |
-| `/img/**` | 主题但**本次不动** | `examples/blog/public/img/` 保留 | 后续任务（`img/` 仍由站点 public 承载，见 §8） |
+| `/img/**` | 主题但**本次不动** | `public/img/` 保留 | 后续任务（`img/` 仍由站点 public 承载，见 §8） |
 
 ---
 
 ## 3. integration 设计
 
-文件：`packages/astro-theme-anzhiyu/integration.mjs`（226 行 / 8608 B，零第三方依赖，仅 `node:fs`、`node:path`、`node:url`）。
+文件：`integration.mjs（已删除，由 public/ 原生接管）`（226 行 / 8608 B，零第三方依赖，仅 `node:fs`、`node:path`、`node:url`）。
 
 ### 3.1 对外契约
 
@@ -293,7 +293,7 @@ anzhiyuAssets(options?: {
 
 ## 4. 迁移前后文件清单（examples/blog）
 
-### 4.1 迁移前 `examples/blog/public/`（本次改动前实测，单位 B）
+### 4.1 迁移前 `public/`（本次改动前实测，单位 B）
 
 ```
 js/main.js                                   64181
@@ -317,10 +317,10 @@ img/**（14 个 fixture 图片，未动）
 | 动作 | 对象 | 命令 |
 | --- | --- | --- |
 | 复制进主题包 | 上面 10 个 `js/**` + `css/index.css` | `Copy-Item`（sha256 三方核对见 §2.1） |
-| 删除 | `examples/blog/public/js/` 整个目录、`examples/blog/public/css/index.css`（空目录一并删） | `Remove-Item`（**没有** `git rm`） |
+| 删除 | `public/js/` 整个目录、`public/css/index.css`（空目录一并删） | `Remove-Item`（**没有** `git rm`） |
 | 保留 | `public/anzhiyu/random.js`（§2.3）、`public/img/**`、`bgm.wav`、`favicon.ico`、`pug-probe.svg`、`slice-harness.js` | — |
 
-### 4.3 迁移后 `examples/blog/public/`（实测）
+### 4.3 迁移后 `public/`（实测）
 
 ```
 bgm.wav 96044   favicon.ico 4286   pug-probe.svg 136   slice-harness.js 26186
@@ -331,7 +331,7 @@ img/friend_404.gif 604315 img/loading.gif 738187
 img/siteicon/{16,32,apple-icon-180,manifest-icon-192.maskable,manifest-icon-512.maskable}.png
 ```
 
-### 4.4 主题包新增 `packages/astro-theme-anzhiyu/assets/`（11 文件 / 206691 B）
+### 4.4 主题包新增 `public/`（11 文件 / 206691 B）
 
 ```
 css/index.css                             297
@@ -349,11 +349,11 @@ js/search/local-search.js                9525
 
 > `assets/anzhiyu/` 目录**故意不建**：上游主题 `source/` 里没有 `anzhiyu/`，唯一会被引用的是站点生成的 `random.js`（§2.3，内容依赖站点文章列表）。把它放进主题包会把 fixture 的文章路径发给所有迁移站。
 
-### 4.5 `examples/blog/astro.config.mjs` 接线
+### 4.5 `astro.config.mjs` 接线
 
 ```js
 // 头部
-import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
+import anzhiyuAssets from '../../integration.mjs（已删除，由 public/ 原生接管）'
 
 export default defineConfig({
   // …（DEPLOY_SITE_ROOT base 之后）
@@ -363,9 +363,9 @@ export default defineConfig({
 
 **关于裸包名**：任务设计写的是 `import anzhiyuAssets from 'astro-theme-anzhiyu/integration'`，实际落地用**相对路径**，原因（可复现）：
 
-- `examples/blog` 的 `package.json` 里**没有** `astro-theme-anzhiyu` 依赖（它历来按源码相对导入主题包：`src/pages/*.astro` 全是 `../../../../packages/astro-theme-anzhiyu/src/...`）；
+- `examples/blog` 的 `package.json` 里**没有** `astro-theme-anzhiyu` 依赖（它历来按源码相对导入主题包：`src/pages/*.astro` 全是 `../../../../src/...`）；
 - 根 `node_modules` 里也没有该包（`node_modules/astro-theme-anzhiyu` 不存在），裸包名会直接 `ERR_MODULE_NOT_FOUND`；
-- 本波禁止在仓库根 `pnpm install` / 改 `pnpm-lock.yaml`，把依赖加进 `examples/blog/package.json` 后在本波内也无法生效（构建会红）；
+- 本波禁止在仓库根 `pnpm install` / 改 `pnpm-lock.yaml`，把依赖加进 `package.json` 后在本波内也无法生效（构建会红）；
 - 相对路径同样是 `migrate-hexo` 已支持的写法：`scripts/migrate-hexo.mjs:681` 会把 `(?:../)+packages/` 重写成迁移产物正确的相对前缀（`packagesSpecifier()`），所以迁移站拿到的配置**自动带这条 import**（§7.1 实测解析）。
 
 迁移站自己的 `package.json` **有** `"astro-theme-anzhiyu": "file:../../packages/astro-theme-anzhiyu"`，所以迁移站也可以写裸包名——§6.4 用「安装后只含发布文件的包副本」验证了 `astro-theme-anzhiyu/integration` 裸说明符可解析、`assets/` 可从安装位置解析。两种写法都对，`examples/blog` 选相对路径只是因为它是 monorepo 内源码引用方。
@@ -531,11 +531,11 @@ assets=11 src=159 integration=1
 
 ### 7.1 主题资源：**重跑 migrate-hexo 即自动生效，但必须重新 `pnpm install`**
 
-`scripts/migrate-hexo.mjs:679-698` 的 [7/8] 阶段是「复制 `examples/blog/astro.config.mjs` → 重写 `packages/` 相对前缀 → 写产物」。本次给 `examples/blog/astro.config.mjs` 加的 import（相对 `packages/`）+ `integrations: [anzhiyuAssets()]` **会被这段逻辑原样带进迁移产物**：
+`scripts/migrate-hexo.mjs:679-698` 的 [7/8] 阶段是「复制 `astro.config.mjs` → 重写 `packages/` 相对前缀 → 写产物」。本次给 `astro.config.mjs` 加的 import（相对 `packages/`）+ `integrations: [anzhiyuAssets()]` **会被这段逻辑原样带进迁移产物**：
 
 ```js
 // .migration-out/<site>/astro.config.mjs（migrate-hexo 自动生成的形态）
-import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
+import anzhiyuAssets from '../../integration.mjs（已删除，由 public/ 原生接管）'
 export default defineConfig({ /* … */ integrations: [anzhiyuAssets()] })
 ```
 
@@ -643,8 +643,8 @@ Get-Item dist/js/main.js,dist/js/utils.js,dist/js/tw_cn.js,dist/js/anzhiyu/right
 | 1 | `/css/index.css` 仍是占位（297 B） | Phase 7 按 `docs/reference/resource-path-policy.md` §5.1 方案 1 把 Stylus 编译产物直接写 `public/css/index.css`，届时删占位、`verify-css.mjs` 的资源定位改到 `dist/css/index.css`。本次**不动** CSS 构建管线（改它会影响 48 页基线里的 CSS 引用与 verify-css） |
 | 2 | 迁移产物旧安装不会自动更新 | pnpm `file:` 是硬链接安装，包内新增文件要 `pnpm install --force` 才出现（§7.1 注意 1） |
 | 3 | `/anzhiyu/random.js` 仍缺 | 本次保留 site 生成物的归属结论；实际生成在 W2 的 migrate-hexo [6/8]（§7.3） |
-| 4 | `/img/**` 未纳入主题包 | 上游 `source/img/` 是主题资源，但本次范围只做 js/css；`examples/blog/public/img/**` 保留原地。迁移站的 `/img/*` 目前依赖站点 `source/img`（源站有）+ 主题兜底图（`404.jpg` 等）仍缺，属下一个资源任务 |
-| 5 | `examples/blog` 裸包名写法 | 需要 Lead 决定是否把 `astro-theme-anzhiyu` 加进 `examples/blog/package.json` 依赖并重装（之后可把相对 import 换成 `'astro-theme-anzhiyu/integration'`）。当前用相对路径，功能完全一致，且 migrate-hexo 自动重写 |
+| 4 | `/img/**` 未纳入主题包 | 上游 `source/img/` 是主题资源，但本次范围只做 js/css；`public/img/**` 保留原地。迁移站的 `/img/*` 目前依赖站点 `source/img`（源站有）+ 主题兜底图（`404.jpg` 等）仍缺，属下一个资源任务 |
+| 5 | `examples/blog` 裸包名写法 | 需要 Lead 决定是否把 `astro-theme-anzhiyu` 加进 `package.json` 依赖并重装（之后可把相对 import 换成 `'astro-theme-anzhiyu/integration'`）。当前用相对路径，功能完全一致，且 migrate-hexo 自动重写 |
 | 6 | `npm pack` 在沙箱内需要 cache 覆盖 | 默认 npm cache 在用户目录被沙箱拒绝（EPERM），用 `npm_config_cache=<仓库内目录>` 可跑通；CI 无此限制 |
 | 7 | 并发构建 | 本次所有 `examples/blog` 构建都在 `.build.lock` 内完成（改动后跑了 **2 次**：首次验证 → 清洗日志文本后重建最终产物；改动前的 diff 用已有 `dist` 直接跑，未重新构建），锁已释放 |
 
@@ -654,12 +654,12 @@ Get-Item dist/js/main.js,dist/js/utils.js,dist/js/tw_cn.js,dist/js/anzhiyu/right
 
 | 文件 | 变化 |
 | --- | --- |
-| `packages/astro-theme-anzhiyu/assets/**`（11 文件 / 206691 B） | 新增 |
-| `packages/astro-theme-anzhiyu/integration.mjs`（226 行 / 8608 B） | 新增 |
+| `public/**`（11 文件 / 206691 B） | 新增 |
+| `integration.mjs（已删除，由 public/ 原生接管）`（226 行 / 8608 B） | 新增 |
 | `packages/astro-theme-anzhiyu/package.json` | `exports` + `files` 各加 1 项 |
-| `examples/blog/astro.config.mjs` | +import、+`integrations: [anzhiyuAssets()]`、注释说明 |
-| `examples/blog/public/js/**`（10 文件） | 删除（搬走） |
-| `examples/blog/public/css/index.css` + 空 `css/` 目录 | 删除（占位搬进主题包） |
+| `astro.config.mjs` | +import、+`integrations: [anzhiyuAssets()]`、注释说明 |
+| `public/js/**`（10 文件） | 删除（搬走） |
+| `public/css/index.css` + 空 `css/` 目录 | 删除（占位搬进主题包） |
 | `docs/notes/phases/P7-6-theme-assets.md` | 本报告 |
 
-未做：任何 git 写操作（`git status`/`diff` 只读）；未改 `docs/plan/PLAN.md`；未改 `examples/blog/public/img/**`、`public/anzhiyu/random.js`；未动 `scripts/migrate-hexo.mjs`（接线约定留给 W2）；**本任务未碰**根 `package.json` / `pnpm-lock.yaml` / `.github/**` / `tests/**`（工作区里这些文件的改动属于并行 W1 其它任务，见 `git status`）。
+未做：任何 git 写操作（`git status`/`diff` 只读）；未改 `docs/plan/PLAN.md`；未改 `public/img/**`、`public/anzhiyu/random.js`；未动 `scripts/migrate-hexo.mjs`（接线约定留给 W2）；**本任务未碰**根 `package.json` / `pnpm-lock.yaml` / `.github/**` / `tests/**`（工作区里这些文件的改动属于并行 W1 其它任务，见 `git status`）。

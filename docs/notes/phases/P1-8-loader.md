@@ -5,9 +5,9 @@
 - 仓库：`D:\Git-project\astro-theme-anzhiyu`（上游参考：`D:\Git-project\_research\anzhiyu-upstream`）
 - 运行环境：Node **v24.22.0**（默认类型剥离）、zod **4.6.7**、yaml **2.9.1**
 - 本次改动（写范围内）：
-  - 新增 `packages/astro-theme-anzhiyu/src/config/loader.ts`（167 行）
-  - 修改 `packages/astro-theme-anzhiyu/src/index.ts`（导出 loader）
-  - 新增 `packages/astro-theme-anzhiyu/scripts/check-loader.mjs`（278 行）
+  - 新增 `src/config/loader.ts`（167 行）
+  - 修改 `src/index.ts`（导出 loader）
+  - 新增 `scripts/check-loader.mjs`（278 行）
   - 新增 `scripts/compare-css-vars.mjs`（仓库根，236 行）
   - `packages/astro-theme-anzhiyu/package.json` 新增 `check:loader`；根 `package.json` 只新增 `compare-vars`
   - 本报告
@@ -74,7 +74,7 @@ return validate(merged)                               // safeParse；失败逐�
 
 ## 2. 改动与导出
 
-`packages/astro-theme-anzhiyu/src/index.ts` 现在导出：
+`src/index.ts` 现在导出：
 
 ```ts
 export { defaults, type ThemeDefaults } from './config/defaults.ts';
@@ -251,7 +251,7 @@ exit 0。
 
 比对口径（与脚本注释一致）：
 
-1. **读取**：`docs/reference/baseline.json` 的 `css.cssVars`（P1-6 产出，69 个键）；产物 CSS 从 `examples/blog/dist/index.html` 的 `<link rel="stylesheet">` 解析，找不到产物时提示先 `pnpm --filter blog build`。
+1. **读取**：`docs/reference/baseline.json` 的 `css.cssVars`（P1-6 产出，69 个键）；产物 CSS 从 `dist/index.html` 的 `<link rel="stylesheet">` 解析，找不到产物时提示先 `pnpm --filter blog build`。
 2. **扫描**：沿用 P1-6 `extract-baseline.mjs` 的同一正则 `/(--anzhiyu-[a-zA-Z0-9-]+)\s*:\s*([^;}]+)/g`，同时记录每个变量的首次声明值与全部声明值。
 3. **严格一致**：产物首次声明值 == baseline 首值（trim 后逐字符）。
 4. **顺序差异**：首值不同，但 baseline 首值仍出现在产物后续声明中；若本机存在上游 CSS（`.baseline-work/public/css/index.css`，gitignore），再核对两边声明值集合是否相同。这类差异只 WARN。

@@ -8,7 +8,7 @@
  * 不写任何文件、不做构建：
  *
  * 1. 上游只读守卫（readmode.styl 笔误不许"顺手修好"）
- *    - examples/blog/src/styles/upstream/_mode/readmode.styl:120 必须仍是
+ *    - src/styles/upstream/_mode/readmode.styl:120 必须仍是
  *      非法写法 `background: var(-highlight-bg) !important`，:104 必须仍是
  *      正确写法 `background: var(--highlight-bg) !important`。
  *      改回正确写法会让 read-mode 代码块背景真的生效、与上游视觉不一致，
@@ -57,14 +57,14 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'reference', 'upstream-delta.md')
 const NOTES_DOC = path.join(REPO_ROOT, 'docs', 'notes', 'topics', 'P-upstream-delta.md')
 const BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
-const UPSTREAM_STYLES = path.join(REPO_ROOT, 'examples', 'blog', 'src', 'styles', 'upstream')
-const THEME_CONFIG = path.join(REPO_ROOT, 'examples', 'blog', 'theme.config.yml')
+const UPSTREAM_STYLES = path.join(REPO_ROOT, 'src', 'styles', 'upstream')
+const THEME_CONFIG = path.join(REPO_ROOT, 'theme.config.yml')
 const BASELINE_WORK = path.join(REPO_ROOT, '.baseline-work')
 const PLUGIN_ENTRY = path.join(
   REPO_ROOT,
-  'packages',
-  'vite-plugin-stylus-hexo-config',
   'src',
+  'plugins',
+  'stylus-hexo-config',
   'index.mjs',
 )
 
@@ -149,7 +149,7 @@ if (missingFields.length) {
 
 // —— 1. 上游只读守卫：readmode.styl 笔误不许被"修好" ——
 
-const readmodeRel = 'examples/blog/src/styles/upstream/_mode/readmode.styl'
+const readmodeRel = 'src/styles/upstream/_mode/readmode.styl'
 const readmodePath = path.join(REPO_ROOT, readmodeRel)
 
 if (!existsSync(readmodePath)) {
@@ -413,7 +413,7 @@ if (!existsSync(PLUGIN_ENTRY)) {
           '插件 define 层注入',
           `展开源码里缺少/值不符：${missingDefines.join('；')}。` +
             '这会让未定义变量在 Stylus 的 if 里当「真」，prismjs 分支回归（+3782 B）。' +
-            '修法是 packages/vite-plugin-stylus-hexo-config 的 hexoDefineLines()。',
+            '修法是 src/plugins/stylus-hexo-config 的 hexoDefineLines()。',
         )
       }
     }

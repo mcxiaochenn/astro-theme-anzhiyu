@@ -1,6 +1,6 @@
 # P3-1 · aside 15 个 widget 卡片
 
-> 范围：`packages/astro-theme-anzhiyu/src/components/widget/**`、`src/data/**`，
+> 范围：`src/components/widget/**`、`src/data/**`，
 > 以及 BaseLayout 中**唯一一行** `<AsideContent … site={site} />` 参数透传。
 > 未改动 HomeTop / post 组件 / `docs/plan/PLAN.md`，未 commit / push。
 
@@ -123,7 +123,7 @@ pnpm --filter blog build
 
 ```bash
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
-  .baseline-html/index.html examples/blog/dist/index.html --limit 120
+  .baseline-html/index.html dist/index.html --limit 120
 ```
 
 ```text
@@ -144,7 +144,7 @@ aside 相关条目：0
 
 ```bash
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
-  .baseline-html/archives/index.html examples/blog/dist/archives/index.html --limit 120
+  .baseline-html/archives/index.html dist/archives/index.html --limit 120
 ```
 
 ```text
@@ -157,7 +157,7 @@ aside 相关条目：0
 ```bash
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
   .baseline-html/2025/01/10/multi-taxonomy/index.html \
-  examples/blog/dist/2025/01/10/multi-taxonomy/index.html --limit 120
+  dist/2025/01/10/multi-taxonomy/index.html --limit 120
 ```
 
 ```text

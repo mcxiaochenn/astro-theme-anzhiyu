@@ -1,0 +1,89 @@
+---
+/**
+ * P2-9 · 标签页与分页：`/tags/Astro/`
+ *
+ * 上游 `layout/tag.pug` 的 default 分支（`theme.tag_ui` 为空 = 与 archives 同款 UI）：
+ *
+ *   #tag
+ *     #tag-page-tags
+ *       != tags_page_list("tags")                 ← 上游 helper：按文章数降序、同数量按名字
+ *     .article-sort-title= page.tag
+ *     +articleSort(page.posts, page.current)
+ *     include includes/pagination.pug
+ *
+ * 路由参数：`[tag]` + rest `[...page]`。标签是平铺的（Hexo 的 tag 没有层级），
+ * 所以单段参数足够；分页段与 `pagination_dir: page` 一致：
+ *   - `/tags/Astro/`        → `{ tag: 'Astro', page: undefined }`
+ *   - `/tags/Astro/page/2/` → `{ tag: 'Astro', page: 'page/2' }`（当前数据无此页）
+ */
+import type { GetStaticPaths } from 'astro'
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import ArticleSort from '@/components/archive/ArticleSort.astro'
+import Pagination from '@/components/archive/Pagination.astro'
+import '../../../styles/upstream/index.styl'
+import {
+  BASELINE_SITE,
+  SITE_PER_PAGE,
+  TAG_PER_PAGE,
+  encodedTermUrl,
+  hexoPageUrl,
+  loadArchiveSite,
+  pageCount,
+  slicePage,
+  tagsPageListHtml,
+  taxonomySlug,
+  toArticleSortPosts,
+} from '../../archives/_data.ts'
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const data = await loadArchiveSite()
+  const paths = []
+  for (const term of data.tags) {
+    const total = pageCount(term.posts.length, TAG_PER_PAGE)
+    for (let current = 1; current <= total; current++) {
+      paths.push({
+        params: {
+          // URL 用 Hexo Tag.slug（slugize：空格→连字符）；数据反查仍按原名。
+          tag: taxonomySlug(term.name),
+          page: current === 1 ? undefined : `page/${current}`,
+        },
+        props: { tagName: term.name, current, total },
+      })
+    }
+  }
+  return paths
+}
+
+interface Props {
+  tagName: string
+  current: number
+  total: number
+}
+
+const { tagName, current, total } = Astro.props as Props
+const data = await loadArchiveSite()
+const term = data.tags.find((tag) => tag.name === tagName)
+if (!term) throw new Error(`未找到标签：${tagName}`)
+
+const posts = toArticleSortPosts(slicePage(term.posts, TAG_PER_PAGE, current))
+/** 标签页 title 由 head.pug 拼成 `标签: <name>`（description 回退到 config.description）。 */
+const pageTitle = `${data.t('page.tag')}: ${term.name}`
+---
+
+<BaseLayout
+  site={BASELINE_SITE}
+  title={pageTitle}
+  description={BASELINE_SITE.description}
+  ogType="website"
+  pageType="page"
+  pageUrl={hexoPageUrl(BASELINE_SITE, Astro.url.pathname)}
+>
+  <div id="tag">
+    <div id="tag-page-tags">
+      <Fragment set:html={tagsPageListHtml(data.tags)} />
+    </div>
+    <div class="article-sort-title">{term.name}</div>
+    <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />
+    <Pagination current={current} total={total} basePath={encodedTermUrl(term)} />
+  </div>
+</BaseLayout>

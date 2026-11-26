@@ -1,8 +1,8 @@
 # Batch D 报告 · 验收假绿堵死（D1–D5）
 
 > 执行：agent-10（Batch D · D1–D5 · 验收假绿堵死）
-> 范围：`scripts/diff-html.mjs`、`scripts/verify-css.mjs`、`scripts/accept-migration.mjs`、`packages/astro-theme-anzhiyu/scripts/check-loader.mjs`、`.github/workflows/ci.yml`、本报告。
-> 约束遵守：零 git 写操作；未跑 astro build / Playwright / Lighthouse；未碰 `examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`；未动 README / PLAN / MIGRATION / 任何文档数字（待 F 清单见 §8）；`scripts/accept-migration.mjs` 未整脚本执行（不在验证白名单），D3/D4 用「%TEMP% 自测载体」跑入库代码的函数级用例（见 §4/§5）。
+> 范围：`scripts/diff-html.mjs`、`scripts/verify-css.mjs`、`scripts/accept-migration.mjs`、`scripts/check-loader.mjs`、`.github/workflows/ci.yml`、本报告。
+> 约束遵守：零 git 写操作；未跑 astro build / Playwright / Lighthouse；未碰 `src/styles/upstream/**`、`theme.config.yml`；未动 README / PLAN / MIGRATION / 任何文档数字（待 F 清单见 §8）；`scripts/accept-migration.mjs` 未整脚本执行（不在验证白名单），D3/D4 用「%TEMP% 自测载体」跑入库代码的函数级用例（见 §4/§5）。
 > 上游只读参照：`D:\Git-project\_research\anzhiyu-upstream`（未做任何写入；D5 的 doctor 试验用 %TEMP% 拷贝）。
 
 ## 0. 逐 ID 状态
@@ -13,7 +13,7 @@
 | D2 (M9) | **done**（SHA 语义取「显式登记」，见 §7 审查修正 1） | `scripts/verify-css.mjs:49-58`（缺失即 FAIL + 豁免 env）、`:142-152`（SHA REGISTRY / 严格开关） | 删 baseline.json → exit 1 ✓；`VERIFY_CSS_ALLOW_MISSING=1` → exit 0 ✓；SHA 不一致默认登记不红、`VERIFY_CSS_REQUIRE_SHA_MATCH=1` → exit 1 ✓ |
 | D3 (M7) | **done** | `scripts/accept-migration.mjs:1688-1765`（checkSearch 重构，前置判断 :1693-1695、:1716） | 「源站启用但产物缺 localSearch」→ gap=1、「缺索引」→ gap=1、「源站未启用」→ SKIP，8 用例自测全绿 ✓ |
 | D4 (M8) | **done** | `scripts/accept-migration.mjs:1798-1816`（gap 条件加 `itemMismatch`） | feed 3≠2、sitemap 5≠3 → gap=1 且带 items/goldenItems ✓；相等不误报 ✓ |
-| D5 (M1+E3) | **done** | `packages/astro-theme-anzhiyu/scripts/check-loader.mjs:36-47`（路径检查）、`:155-165`（deepEqual 直比断言）；接入 `.github/workflows/ci.yml:54-68` | 43 项全绿 ✓；doctored 单值 → 仅新断言红 exit 1 ✓；defaults 侧单值漂移 deepEqual=false ✓；缺路径清晰报错 exit 1 ✓ |
+| D5 (M1+E3) | **done** | `scripts/check-loader.mjs:36-47`（路径检查）、`:155-165`（deepEqual 直比断言）；接入 `.github/workflows/ci.yml:54-68` | 43 项全绿 ✓；doctored 单值 → 仅新断言红 exit 1 ✓；defaults 侧单值漂移 deepEqual=false ✓；缺路径清晰报错 exit 1 ✓ |
 
 ---
 
@@ -207,7 +207,7 @@ D34 EXITCODE=0
 
 ## 5. D5：deepEqual 断言 + 变红证明 + 路径检查 + 接入点
 
-### 5.1 断言实现（`packages/astro-theme-anzhiyu/scripts/check-loader.mjs:155-165`）
+### 5.1 断言实现（`scripts/check-loader.mjs:155-165`）
 
 ```js
   // D5 (M1)：defaults ↔ 上游直比。上面的「合并结果 vs 上游」是恒真的用户值胜出合并——
@@ -275,7 +275,7 @@ CI checkout 里没有本地那份 `_research` 只读副本（脚本默认路径�
       - name: Check config loader (defaults == upstream _config.yml)
         env:
           THEME_UPSTREAM_CONFIG: ${{ github.workspace }}/_research/anzhiyu-upstream/_config.yml
-        run: node packages/astro-theme-anzhiyu/scripts/check-loader.mjs
+        run: node scripts/check-loader.mjs
 ```
 
 `ci.yml` YAML 解析校验（node + yaml）：build 步骤序 `[… "Guard upstream delta","Checkout upstream theme config (pinned 72439d93)","Check config loader (defaults == upstream _config.yml)","Extract baseline HTML","Diff HTML structure against upstream baseline","Assert diff report not skipped","Upload dist artifact"]`，断言步 run 含 `r.skipped` 检查 ✓。
@@ -290,7 +290,7 @@ CI checkout 里没有本地那份 `_research` 只读副本（脚本默认路径�
 | 2 | 同上（BASELINE_HTML_DIR=%TEMP% 不存在路径） | `EXITCODE=2`，`{ok:false,skipped:true,reason:"baseline-missing"}` |
 | 3 | 同上（BASELINE_PATH=不存在） | `EXITCODE=2`，`reason:"baseline-json-missing"` |
 | 4 | 同上（`--filter zzz-no-such-page`） | `EXITCODE=2`，`reason:"filter-no-match"` |
-| 5 | `node scripts/diff-html.mjs <不存在.html> examples/blog/dist/index.html --json`（pair） | `EXITCODE=2`，`{mode:"pair",ok:false,skipped:true}` |
+| 5 | `node scripts/diff-html.mjs <不存在.html> dist/index.html --json`（pair） | `EXITCODE=2`，`{mode:"pair",ok:false,skipped:true}` |
 | 6 | 自比对照（BASELINE=DIST=.baseline-html） | `EXITCODE=0`，`ok=true pages=49 pass=49 fail=0` |
 | 7 | CI 断言行 node -e × {skip,pass,fail} 报告 | `1 / 0 / 1`（报错原文见 §1.3） |
 | 8 | `node scripts/verify-css.mjs` | `EXITCODE=0`，字节 +0.13% / gzip -0.45% PASS，SHA `REGISTRY …` |
@@ -298,7 +298,7 @@ CI checkout 里没有本地那份 `_research` 只读副本（脚本默认路径�
 | 10 | 同上 + `VERIFY_CSS_ALLOW_MISSING=1` | `EXITCODE=0`，`跳过比对（…显式豁免）` |
 | 11 | 同上（doctored SHA）默认 / `VERIFY_CSS_REQUIRE_SHA_MATCH=1` | `EXITCODE=0`（REGISTRY）/ `EXITCODE=1`（FAIL） |
 | 12 | `%TEMP%\d34-selftest.mjs`（D3/D4 8 用例） | `结果: PASS（通过 8 项，失败 0 项）`，`EXITCODE=0` |
-| 13 | `node packages/astro-theme-anzhiyu/scripts/check-loader.mjs` | `EXITCODE=0`，`结果: PASS（通过 43 项，失败 0 项）` |
+| 13 | `node scripts/check-loader.mjs` | `EXITCODE=0`，`结果: PASS（通过 43 项，失败 0 项）` |
 | 14 | 同上（THEME_UPSTREAM_CONFIG=不存在） | `EXITCODE=1`，E3 报错原文（§5.3） |
 | 15 | 同上（doctored 上游单值） | `EXITCODE=1`，`结果: FAIL（通过 42 项，失败 1 项）` |
 | 16 | `node --input-type=module -e "…deepEqual…"`（defaults 侧单值） | `pristine: true / 改一值: false` |

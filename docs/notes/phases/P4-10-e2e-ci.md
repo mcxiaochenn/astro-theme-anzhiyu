@@ -122,8 +122,8 @@ command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --ho
   `Failed to load resource / net::ERR` 这类**资源加载失败**噪音（第三方 CDN、图片 404
   由资源与第三方集成用例负责），其余报错一律 fail。
 
-`page-types.spec.ts` 的 13 个 URL（都是 `examples/blog/dist/<path>/index.html` 真实存在的
-构建产物，12 个 `tests/fixtures/page-*.md` + `tests/fixtures/about-page.md`，选择器口径来自
+`page-types.spec.ts` 的 13 个 URL（都是 `dist/<path>/index.html` 真实存在的
+构建产物，12 个 `src/content/page-*.md` + `src/content/about-page.md`，选择器口径来自
 `docs/notes/phases/P3-2-page-types.md` §6.2）：
 
 | page.type | URL | 断言选择器 |
@@ -152,7 +152,7 @@ command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --ho
 
 ## 4. 搜索用例为什么是 skip（不伪造通过）
 
-demo 站 `examples/blog/theme.config.yml` 的搜索三开关全是 false：
+demo 站 `theme.config.yml` 的搜索三开关全是 false：
 
 ```yaml
 algolia_search.enable: false
@@ -239,7 +239,7 @@ Total: 17 tests in 4 files
 - 本地做了：`npx playwright test --list`（证明 36 条可收集）、
   `pnpm --filter blog exec astro --version`（证明 hoisted 下能解析 astro）、
   `pnpm --filter blog exec astro preview` + 13 个 URL HTTP 200（证明 webServer 的站点侧可用）、
-  以及对 `examples/blog/dist/**.html` 的静态核对（13 个模板根选择器都存在）；
+  以及对 `dist/**.html` 的静态核对（13 个模板根选择器都存在）；
 - 本地没做：浏览器进程启动、真实点击/断言。第一次真实执行只能等 CI。
 - 不把 `--list` 通过当作行为验收通过；`search.spec.ts` 在 demo 上 skip 也不当通过。
 

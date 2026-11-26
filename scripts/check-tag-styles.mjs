@@ -12,7 +12,7 @@
  *     （例如 `.btn-anzhiyu.larger` 里 `larger` 没有独立规则，但 `.btn-anzhiyu` 有）；
  *   - 未命中：以上都不成立 → 退出码 1。
  *
- * 样式源范围：默认扫 `examples/blog/src/styles/upstream/` 全树（含 `_tags`、`_global`、
+ * 样式源范围：默认扫 `src/styles/upstream/` 全树（含 `_tags`、`_global`、
  * `_layout`，以及 `_extra/tag/*.css`、`_page/flink.styl` 这类被 tag 复用的规则）。
  * 上游并非把所有 tag 样式都放在 `_tags/`：link 在 `_extra/tag/link.css`，site 在
  * `_extra/tag/site.css` 与 `_page/flink.styl`，flink 在 `_page/flink.styl`。只扫 `_tags`
@@ -37,10 +37,10 @@ import { fileURLToPath } from 'node:url'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DIST_DIR = process.env.DIST_DIR
   ? path.resolve(process.env.DIST_DIR)
-  : path.join(REPO_ROOT, 'examples', 'blog', 'dist')
+  : path.join(REPO_ROOT, 'dist')
 const STYLE_ROOT = process.env.STYLE_ROOT
   ? path.resolve(process.env.STYLE_ROOT)
-  : path.join(REPO_ROOT, 'examples', 'blog', 'src', 'styles', 'upstream')
+  : path.join(REPO_ROOT, 'src', 'styles', 'upstream')
 
 const log = (...args) => console.log('[check-tag-styles]', ...args)
 const warn = (...args) => console.warn('[check-tag-styles] WARN', ...args)

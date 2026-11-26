@@ -215,7 +215,7 @@ const BASELINE_HTML_DIR = process.env.BASELINE_HTML_DIR
 | --- | --- | --- |
 | 全量模式吃解压目录 | `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all` | 48 页全部读到，exit 1（有 FAIL），113 条差异 |
 | 正对照（解压目录比自身） | `BASELINE_HTML_DIR=.baseline-html DIST_DIR=.baseline-html node scripts/diff-html.mjs --all` | **48 页 / PASS 48 / FAIL 0 / 0 条差异**，exit 0 |
-| 单页 pair 模式 | `node scripts/diff-html.mjs .baseline-html examples/blog/dist` | 解析两侧 `index.html`，66 条差异，exit 1 |
+| 单页 pair 模式 | `node scripts/diff-html.mjs .baseline-html dist` | 解析两侧 `index.html`，66 条差异，exit 1 |
 
 正对照的意义：如果解压坏了（编码、目录层级、换行），同目录自比不会 48/48 PASS。
 它证明「解压目录 = diff 工具能用的 baseline 根目录」，与真实迁移进度无关。
@@ -252,9 +252,9 @@ const BASELINE_HTML_DIR = process.env.BASELINE_HTML_DIR
          uses: actions/upload-artifact@v4
          with:
            name: dist
--          path: examples/blog/dist
+-          path: dist
 +          path: |
-+            examples/blog/dist
++            dist
 +            diff-report.json
            if-no-files-found: error
 ```
@@ -294,7 +294,7 @@ const BASELINE_HTML_DIR = process.env.BASELINE_HTML_DIR
 
 ## 5. 自测完整输出（问题 4 自测）
 
-说明：本机 `examples/blog/dist` 仍是 P1.5 垂直切片（只有 3 个 HTML：
+说明：本机 `dist` 仍是 P1.5 垂直切片（只有 3 个 HTML：
 `index.html` / `debug-collection/index.html` / `page2/index.html`），48 页里只有 `/`
 有对照物。所以当前数字只证明「管线通了」，不证明迁移完成。
 
@@ -356,7 +356,7 @@ $ echo $?
 ### 5.5 单页 pair 模式
 
 ```console
-$ node scripts/diff-html.mjs .baseline-html examples/blog/dist --json > pair.json
+$ node scripts/diff-html.mjs .baseline-html dist --json > pair.json
 $ echo $?
 1
 mode=pair  ok=False  status=FAIL  diffCount=66
@@ -366,7 +366,7 @@ mode=pair  ok=False  status=FAIL  diffCount=66
 
 | 差异来源 | 条数 | 解释 |
 | --- | --- | --- |
-| `file-missing`（文件） | 47 | `examples/blog/dist` 只有 3 个 HTML；`/` 之外 47 页在 dist 里还不存在（Phase 2 才迁） |
+| `file-missing`（文件） | 47 | `dist` 只有 3 个 HTML；`/` 之外 47 页在 dist 里还不存在（Phase 2 才迁） |
 | 首页结构/属性/文本 | 66 | dist 首页是 P1.5 垂直切片，与上游首页差距大（与 P2-13 §7.1 记录的 66 条一致） |
 | 合计 | 113 | P2-13 §7.4 当时记录的「48 页共 113 条」**完全一致**——反证解压出来的 baseline 与当时 `.baseline-work/public` 是同一份内容 |
 
@@ -412,7 +412,7 @@ BASELINE_HTML_DIR=.baseline-html pnpm diff:html --all --verbose
 BASELINE_HTML_DIR=.baseline-html pnpm diff:html --all --limit 100
 
 # 单页（也接受目录，会自动接 index.html）
-node scripts/diff-html.mjs .baseline-html examples/blog/dist
+node scripts/diff-html.mjs .baseline-html dist
 ```
 
 Windows PowerShell 设环境变量（只影响当前终端）：

@@ -43,7 +43,7 @@
 | # | 用例 | 日志行 | 报错 | 归因 |
 | --- | --- | --- | --- | --- |
 | 4 | 点击右侧暗色按钮切换主题并写入 localStorage | 461–519 | `locator.click: Element is outside of the viewport`，`waiting for locator('#darkmode')` | **A（用户路径）**：`#darkmode` 在 `#rightside-config-hide` 里，该组默认 `height:0; opacity:0; transform:translate(45px,0)`（`_layout/rightside.styl:15-24`）；同时 `#rightside` 默认 `right:-48px; opacity:0`，只有 main.js `scrollFn` 在 `scrollY>26` 时给它 `translateX(-58px)` 才进入视口。`force:true` 只跳过可见性检查，**不跳过「元素在视口外」**，所以必然报 outside viewport。真实路径：滚动 → 点 `#rightside-config`（齿轮）→ 点 `#darkmode` |
-| 5 | 右键菜单里的「深色模式」也能切换主题 | 521–589 | `#rightMenu` toBeVisible 10s 超时 | **A（配置未启用）**：demo `examples/blog/theme.config.yml` 的 `rightClickMenu.enable: false`（与上游主题 `_config.yml` 默认一致）→ `AdditionalJs.astro:191` 不输出 `right_click_menu.js` → `window.rm` 不存在、`window.oncontextmenu` 没被接管。菜单静态 DOM 仍在（所以 `菜单项集合齐全` 用例通过），但交互不可能发生。见 §5 |
+| 5 | 右键菜单里的「深色模式」也能切换主题 | 521–589 | `#rightMenu` toBeVisible 10s 超时 | **A（配置未启用）**：demo `theme.config.yml` 的 `rightClickMenu.enable: false`（与上游主题 `_config.yml` 默认一致）→ `AdditionalJs.astro:191` 不输出 `right_click_menu.js` → `window.rm` 不存在、`window.oncontextmenu` 没被接管。菜单静态 DOM 仍在（所以 `菜单项集合齐全` 用例通过），但交互不可能发生。见 §5 |
 | 6 | 刷新后主题与 localStorage 保持一致 | 591–649 | 同 4，`#darkmode` outside viewport | **A**：同 4 |
 | 7 | 站内导航后主题不被重置 | 651–709 | 同 4 | **A**：同 4 |
 
@@ -162,7 +162,7 @@ abort 会让首屏初始化在 DOMContentLoaded 里抛 ReferenceError，反而�
 
 ### 需要 Lead 决策的一处 fixture 配置（不属于本任务写作用域）
 
-`examples/blog/theme.config.yml` 的 `rightClickMenu.enable: false` 使得 4 条右键菜单行为用例只能 skip。
+`theme.config.yml` 的 `rightClickMenu.enable: false` 使得 4 条右键菜单行为用例只能 skip。
 若要在 e2e 里真正覆盖右键菜单运行时，需要 fixture 侧把该开关打开（属 `examples/blog/**`，是并行任务写作用域）；
 本任务不改该文件，改为**运行时检测 + skip**（开关一旦打开，用例会自动开始执行，无需改断言）。
 
@@ -219,7 +219,7 @@ P4-10 用例 = 5+6+2+3+14+4+2 = **36 条**（与 CI 首跑 36 一致，未减；
 OK=14/14
 ```
 
-构建产物断言（`examples/blog/dist` 静态 grep，用于固定 page-types 的期望值）：
+构建产物断言（`dist` 静态 grep，用于固定 page-types 的期望值）：
 
 ```
 about→about   categories→categories   tags→tags        link→link
@@ -310,10 +310,10 @@ Running 38 tests using 2 workers            (line 114)
 ### 9.2 根因：`#recent-posts` 里第一个站内链接是分类条上的 `<a href="/">首页</a>`
 
 上一版 `internalLink()` 是 `page.locator('#recent-posts a[href^="/"]').first()`。而首页 DOM 的
-`#recent-posts` **第一块是分类条，不是文章卡片**（`examples/blog/src/pages/index.astro:49-58`：
+`#recent-posts` **第一块是分类条，不是文章卡片**（`src/pages/index.astro:49-58`：
 `<div id="recent-posts">` → `<CategoryBar />` → `PostCard ×N` → `<Pagination />`）。
 
-构建产物 `examples/blog/dist/index.html`（59949 bytes）原始片段（categoryBar 第一个条目 → 第一张卡片标题）：
+构建产物 `dist/index.html`（59949 bytes）原始片段（categoryBar 第一个条目 → 第一张卡片标题）：
 
 ```html
 <div id="recent-posts" class="recent-posts">
@@ -362,10 +362,10 @@ export function internalLink(page: Page) {
 
 ### 9.4 静态验证（本机无浏览器自动化，PLAN R12）
 
-用 `parse5` 解析 `examples/blog/dist/index.html`，按选择器语义遍历命中：
+用 `parse5` 解析 `dist/index.html`，按选择器语义遍历命中：
 
 ```
-=== dist/index.html: examples/blog/dist/index.html bytes=59949 ===
+=== dist/index.html: dist/index.html bytes=59949 ===
 recent-post-item elements: 6
 article-title(#recent-posts 内、.recent-post-item 外): 0   ← 选择器语义无歧义
 
@@ -391,12 +391,12 @@ article-title(#recent-posts 内、.recent-post-item 外): 0   ← 选择器语�
 - 6 个命中 href 对应的 dist 文件**全部存在**（不存在即 404，会连带打挂 navigation 的 document 请求/内容断言）：
 
 ```
-OK /2025/02/02/sticky-top/      -> examples/blog/dist/2025/02/02/sticky-top/index.html      (49066 bytes)
-OK /2025/04/20/tags-thirdparty/ -> examples/blog/dist/2025/04/20/tags-thirdparty/index.html (60171 bytes)
-OK /2025/04/01/tags-media/      -> examples/blog/dist/2025/04/01/tags-media/index.html      (55278 bytes)
-OK /2025/03/18/tags-block/      -> examples/blog/dist/2025/03/18/tags-block/index.html      (54351 bytes)
-OK /2025/03/05/tags-inline/     -> examples/blog/dist/2025/03/05/tags-inline/index.html     (50211 bytes)
-OK /2025/02/20/cover-variants/  -> examples/blog/dist/2025/02/20/cover-variants/index.html  (48444 bytes)
+OK /2025/02/02/sticky-top/      -> dist/2025/02/02/sticky-top/index.html      (49066 bytes)
+OK /2025/04/20/tags-thirdparty/ -> dist/2025/04/20/tags-thirdparty/index.html (60171 bytes)
+OK /2025/04/01/tags-media/      -> dist/2025/04/01/tags-media/index.html      (55278 bytes)
+OK /2025/03/18/tags-block/      -> dist/2025/03/18/tags-block/index.html      (54351 bytes)
+OK /2025/03/05/tags-inline/     -> dist/2025/03/05/tags-inline/index.html     (50211 bytes)
+OK /2025/02/20/cover-variants/  -> dist/2025/02/20/cover-variants/index.html  (48444 bytes)
 ALL_EXIST: true
 ```
 

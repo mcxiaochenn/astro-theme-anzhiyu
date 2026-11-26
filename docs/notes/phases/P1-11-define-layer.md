@@ -2,7 +2,7 @@
 
 - 状态：**完成**。插件已注入 4 个变量，CSS 收敛到 682990（上游样式子集），三关全绿。
 - 基线：上游 1.7.1 / `72439d93936b63da59a4a1195f64de9f952f6cc1`；参考产物 CSS 683218 B（`docs/reference/baseline.json`）。
-- 写范围：`packages/vite-plugin-stylus-hexo-config/`、`docs/reference/upstream-delta.md`、`scripts/check-upstream-delta.mjs`、本报告。未改 `examples/blog/**`、`docs/reference/baseline.json`、`PLAN.md`、其它 notes（并行任务产物未触碰）。
+- 写范围：`src/plugins/stylus-hexo-config/`、`docs/reference/upstream-delta.md`、`scripts/check-upstream-delta.mjs`、本报告。未改 `examples/blog/**`、`docs/reference/baseline.json`、`PLAN.md`、其它 notes（并行任务产物未触碰）。
 - 权威登记：`docs/reference/upstream-delta.md` U3（本报告是执行记录）。
 
 ## 0. 结论速览
@@ -82,7 +82,7 @@ prismjs: {
 
 ## 2. 必须回答 2：插件怎么实现注入
 
-文件：`packages/vite-plugin-stylus-hexo-config/src/index.mjs`（`enforce: 'pre'` 的 `transform` 钩子）。
+文件：`src/plugins/stylus-hexo-config/index.mjs`（`enforce: 'pre'` 的 `transform` 钩子）。
 
 ### 2.1 新增常量：Hexo 7.3.0 站点级默认值
 
@@ -128,7 +128,7 @@ function hexoDefineLines(config) {
 
 `siteSection()` 做「配置区块是对象就与默认值浅合并」，`lookupRaw()` 用「缺失 → undefined」语义（区别于 `getProperty()` 的「缺失 → `''`」）。`defineLiteral()` 对应 `utils.coerce`：boolean/number/string 原样，null/undefined → `false`（条件语境等价）。
 
-**配置来源**：目前 `examples/blog/astro.config.mjs` 传的是 `theme.config.yml`（主题配置，没有站点级键）→ `syntax_highlighter` 回落 `'highlight.js'`，两个 `line_number` 回落 `true` → 得到基线四个值 `true / true / false / true`。未来 Phase 2 站点配置层把站点 YAML 的 `syntax_highlighter` / `highlight` / `prismjs` 传进同一个 config 对象即可，插件优先用配置值。
+**配置来源**：目前 `astro.config.mjs` 传的是 `theme.config.yml`（主题配置，没有站点级键）→ `syntax_highlighter` 回落 `'highlight.js'`，两个 `line_number` 回落 `true` → 得到基线四个值 `true / true / false / true`。未来 Phase 2 站点配置层把站点 YAML 的 `syntax_highlighter` / `highlight` / `prismjs` 传进同一个 config 对象即可，插件优先用配置值。
 
 ### 2.3 `transform()`：放在展开源码顶部、且不再早退
 
@@ -186,7 +186,7 @@ line_number=false   -> $highlight_enable = true  | $highlight_line_number = fals
 
 `pnpm --filter blog build` 的产物从 P1.5 垂直切片起就混入了 **ClientRouter 自带的 1097 B 样式**（`astro-route-announcer` / `@keyframes astroFadeOut` 等），所以构建总字节不能直接和「上游样式 683218」比。本报告用两个口径：
 
-1. **上游样式子集**：插件 `transform()` 展开 `examples/blog/src/styles/upstream/index.styl` → `stylus.render()`（与 P1-5 同一方法）。修复前对照 = 从展开源码里去掉那 4 行 define（与修复前管线等价，P-upstream-delta §2.2 ④ 已验证该口径与真实 dist 逐字节一致）。
+1. **上游样式子集**：插件 `transform()` 展开 `src/styles/upstream/index.styl` → `stylus.render()`（与 P1-5 同一方法）。修复前对照 = 从展开源码里去掉那 4 行 define（与修复前管线等价，P-upstream-delta §2.2 ④ 已验证该口径与真实 dist 逐字节一致）。
 2. **真实构建产物**：`pnpm --filter blog build` → 从 `/*! normalize.css` 处切开，前缀 = ClientRouter 1097 B，剩余 = 上游样式子集，可直接对 SHA。
 
 ### 3.2 修复前后渲染数据（同机同 stylus 0.64.0）
@@ -299,15 +299,15 @@ PRISM_COUNT: 0 TOKEN_COUNT: 0 LANGUAGE_COUNT: 0
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssBytes 与登记表一致（683218）
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssGzipBytes 与登记表一致（79124）
 [check-upstream-delta] PASS docs/notes/topics/P-upstream-delta.md 记录 baseline.css.indexCssSha256 与登记表一致（7c1b1ec08779d351f146b2120cbff4311c021073c457378b39bdeef074a07f61）
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/index.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/var.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/highlight.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/theme.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/index.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/line-number.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_highlight/prismjs/diff.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/src/styles/upstream/_mode/readmode.styl
-[check-upstream-delta] PASS 上游文件 SHA-256 examples/blog/theme.config.yml
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/index.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/var.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/highlight.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/theme.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/index.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/line-number.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_highlight/prismjs/diff.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 src/styles/upstream/_mode/readmode.styl
+[check-upstream-delta] PASS 上游文件 SHA-256 theme.config.yml
 [check-upstream-delta] PASS 上游 72 个 styl 里 $highlight_enable / $highlight_line_number / $prismjs_enable / $prismjs_line_number 仍然零赋值（它们由 Hexo 模板脚本的 .define() 注入，插件侧的复刻见 4c 守卫）
 [check-upstream-delta] PASS _highlight/highlight.styl 仍有 if $prismjs_enable 守卫（D9 现场保留）
 [check-upstream-delta] PASS 插件展开上游 index.styl 后注入了 4 个 define 变量（$highlight_enable=true / $highlight_line_number=true / $prismjs_enable=false / $prismjs_line_number=true），D9 的 prismjs 分支已被关闭
@@ -341,13 +341,13 @@ PRISM_COUNT: 0 TOKEN_COUNT: 0 LANGUAGE_COUNT: 0
 
 | 文件 | 改动 |
 | --- | --- |
-| `packages/vite-plugin-stylus-hexo-config/src/index.mjs` | 新增 `HEXO_SITE_DEFAULT` / `lookupRaw()` / `siteSection()` / `defineLiteral()` / `hexoDefineLines()`；`transform()` 顶部注入 define 层、取消「无 hexo-config/import 早退」、debug 日志增打 4 个值 |
-| `packages/vite-plugin-stylus-hexo-config/README.md` | 「它做了什么」增第 4 条（define 层 + 互斥规则 + 默认回落）；限制条目同步 |
+| `src/plugins/stylus-hexo-config/index.mjs` | 新增 `HEXO_SITE_DEFAULT` / `lookupRaw()` / `siteSection()` / `defineLiteral()` / `hexoDefineLines()`；`transform()` 顶部注入 define 层、取消「无 hexo-config/import 早退」、debug 日志增打 4 个值 |
+| `src/plugins/stylus-hexo-config/README.md` | 「它做了什么」增第 4 条（define 层 + 互斥规则 + 默认回落）；限制条目同步 |
 | `docs/reference/upstream-delta.md` | U3 标题/决策/修复规则/修复前后数据；§1 总表 U3 行；§3.2 标注历史；§3.3 补修复后行与 dist 切相；§4 第 1/8 条；§5 锚点；§6 检查组（2b/2c/4c） |
 | `scripts/check-upstream-delta.mjs` | 文档头、锚点字段、2b 闭环、4c 守卫、4 组提示文案 |
 | `docs/notes/phases/P1-11-define-layer.md` | 本报告（新增） |
 
-未改：`examples/blog/**`（含 `astro.config.mjs`、`theme.config.yml`、上游镜像）、`docs/reference/baseline.json`、`PLAN.md`、其它 notes/脚本。构建产物 `examples/blog/dist/**` 是被 gitignore 的生成物。
+未改：`examples/blog/**`（含 `astro.config.mjs`、`theme.config.yml`、上游镜像）、`docs/reference/baseline.json`、`PLAN.md`、其它 notes/脚本。构建产物 `dist/**` 是被 gitignore 的生成物。
 
 ---
 

@@ -163,7 +163,7 @@ golden 全站 16 处 dash 形态、0 处空格形态；本产物同样 0 处空�
 ### 4.1 `/todolist/`：移植 1.6.14 `layout/includes/page/todolist.pug`
 
 1.7.1 的 `page.pug` 删掉了 `when 'todolist'` 分支与 `todolist.pug` 模板，但真实站仍有该页面。
-新增 `packages/astro-theme-anzhiyu/src/components/page/TodolistPage.astro`，按 1.6.14 模板逐块移植：
+新增 `src/components/page/TodolistPage.astro`，按 1.6.14 模板逐块移植：
 
 - `#todolist-box` → 顶部卡（`page.top_background` 内联背景）+ `#todolist-main`；
 - `#todolist-left` / `#todolist-right`：按 `site.data.todolist` 的 `seat` 分栏；
@@ -294,7 +294,7 @@ $ node scripts/accept-migration.mjs --out .migration-out/w2a
 
 ## 8. 改动文件清单（本任务）
 
-主题包（`packages/astro-theme-anzhiyu/src/**`）：
+主题包（`src/**`）：
 
 - `layouts/site.ts`：`PostHrefResolver` / `SiteConfig.postHref` / `postHrefOf()`；`createUrlFor()` 伪协议透传
 - `components/post/post-list.ts`：`PrepareOptions.resolvePostHref`；`preparePosts()` path 走解析器；`collectCategoryBarItems()` 逐段 slugize
@@ -306,7 +306,7 @@ $ node scripts/accept-migration.mjs --out .migration-out/w2a
   `components/page/types.ts`（TodoItem/TodoGroup）
 - `config/schema.ts`：`friends_lite: looseObject.optional()`（deprecated 兼容键，`defaults.ts` 未改）
 
-站点侧（`examples/blog/src/**`）：
+站点侧（`src/**`）：
 
 - `pages/index.astro`、`pages/page/[...page].astro`、`pages/[year]/[month]/[day]/[slug].astro`：传 `postHrefOf(site)`
 - `pages/[...path].astro`：categories/tags 总览改用 `loadArchiveSite()` 数据；新增 `todolist` 分发

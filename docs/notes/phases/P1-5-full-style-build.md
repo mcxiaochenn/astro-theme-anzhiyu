@@ -10,7 +10,7 @@
 | 项 | 结果 | 证据 |
 |---|---|---|
 | 构建 | **绿**，exit 0，3.31s，1 page | `pnpm --filter blog build`（下文 §1） |
-| 产物 CSS | `examples/blog/dist/_astro/index.DVFB5Y3m.css`，**686772 字节** | `Get-Item` / `fs.readFileSync` |
+| 产物 CSS | `dist/_astro/index.DVFB5Y3m.css`，**686772 字节** | `Get-Item` / `fs.readFileSync` |
 | gzip(level 9) | **79071 字节**（与 verify 同实现：`node:zlib gzipSync(cssBuffer,{level:9})`） | verify-css.mjs:127 与独立 node 测量一致 |
 | SHA-256 | `1319c726c715d66ed3c7e44f400e94d84d2268a245fa0d95631c1d6001155b07` | `Get-FileHash -Algorithm SHA256` |
 | verify | **PASS 字节数 +0.52% / PASS gzip -0.07% / WARN SHA 不一致（不判失败）** | `node scripts/verify-css.mjs` 原文 §2 |
@@ -97,11 +97,11 @@ lines containing @import: 0
 total @import occurrences: 0
 ```
 
-判定：`examples/blog/astro.config.mjs:32-36` 的 `stylus: { 'include css': true }` 生效，上游 `source/css` 里所有 `.css` 的 `@import` 都被字面内联，产物不存在浏览器运行时才去拉取的 `@import`。与 hexo-renderer-stylus 的 `.set('include css', true)` 行为一致。另查产物中 `@css` 字面量残留也为 0，说明 Stylus 的 literal-CSS 块已被正常展开。
+判定：`astro.config.mjs:32-36` 的 `stylus: { 'include css': true }` 生效，上游 `source/css` 里所有 `.css` 的 `@import` 都被字面内联，产物不存在浏览器运行时才去拉取的 `@import`。与 hexo-renderer-stylus 的 `.set('include css', true)` 行为一致。另查产物中 `@css` 字面量残留也为 0，说明 Stylus 的 literal-CSS 块已被正常展开。
 
 ## 4. 根因与修法（上游 bug 证据）
 
-上游 bug 原文，`examples/blog/src/styles/upstream/_mode/readmode.styl`：
+上游 bug 原文，`src/styles/upstream/_mode/readmode.styl`：
 
 ```text
  104:         background: var(--highlight-bg) !important
@@ -112,19 +112,19 @@ total @import occurrences: 0
 - 104 行正确 `var(--highlight-bg)`；120 行少一个横杠，写成 `var(-highlight-bg)`。
 - 浏览器解析 CSS 自定义属性时遇到非法 token 会**静默丢弃该条声明**，所以上游 `hexo g` 不报错、日志零 WARN/ERROR，视觉上这条 read-mode 代码块背景从来没生效过。
 - 本项目的 CSS 管线在 Vite 里走 lightningcss 严格解析，直接让整个构建失败：`[lightningcss minify] Unexpected token Ident("-highlight-bg")`。
-- **不修上游**的理由：修了会让 read-mode 代码块背景真的生效，与上游实际视觉不一致；P1 验收要求对齐上游（包括上游的 bug）。故改配置，`examples/blog/astro.config.mjs:27` 关掉 CSS 压缩 `cssMinify: false`，并在 :8-26 写了完整长注释说明两个原因（上游笔误 + 基准是未压缩产物 683218 字节，压缩后差 30% 必然超 ±5% 阈值）。
+- **不修上游**的理由：修了会让 read-mode 代码块背景真的生效，与上游实际视觉不一致；P1 验收要求对齐上游（包括上游的 bug）。故改配置，`astro.config.mjs:27` 关掉 CSS 压缩 `cssMinify: false`，并在 :8-26 写了完整长注释说明两个原因（上游笔误 + 基准是未压缩产物 683218 字节，压缩后差 30% 必然超 ±5% 阈值）。
 - 压缩不丢：按 PLAN 挪到 Phase 7，届时比对用未压缩产物、另立「压缩后体积」独立预算。
 
 ## 5. 全量编译数据
 
-入口：`examples/blog/src/pages/index.astro:3` → `import '../styles/upstream/index.styl'`。
+入口：`src/pages/index.astro:3` → `import '../styles/upstream/index.styl'`。
 插件日志（原始）：
 
 ```text
 [stylus-hexo-config] index.styl: 102 个配置键, 展开 150 个文件
 ```
 
-`hexo-config` 覆盖度复核（对 `examples/blog/src/styles/upstream` 下全部 72 个 `.styl` 逐行正则统计）：
+`hexo-config` 覆盖度复核（对 `src/styles/upstream` 下全部 72 个 `.styl` 逐行正则统计）：
 
 ```powershell
 # 总计
@@ -168,7 +168,7 @@ selectors with extra count in astro: 34   in upstream: 2
 - **Astro 独有 34 条**，全部是代码高亮的 prismjs 规则族：
   `#article-container pre[class*='language-'].line-numbers …`（5 条）+
   `pre[class*='language-'] .token.function / .token.comment / .token.punctuation / …`（29 条）。
-  源码定位：`examples/blog/src/styles/upstream/_highlight/prismjs/{index,line-number,diff}.styl`。
+  源码定位：`src/styles/upstream/_highlight/prismjs/{index,line-number,diff}.styl`。
 - **上游独有 2 条**只是同一选择器的空白差异：上游写作
   `#article-container a:not([data-fancybox="gallery"]):not(.headerlink):not(.cf-friends-link):not(.btn-anzhiyu):not( .no-text-decoration )`
   （`:not(` 内多一个空格），Astro 产物里该选择器集合相同、空白归一化后即相等，不算内容差异。
@@ -206,7 +206,7 @@ selectors with extra count in astro: 34   in upstream: 2
 vite WARN（1 条）：
 11. `[WARN] [vite] /img/comment_bg.png referenced in /img/comment_bg.png didn't resolve at build time, it will remain unchanged to be resolved at runtime`
 
-来源定位：`examples/blog/theme.config.yml:335` → `bg: /img/comment_bg.png`（valine 背景），某处 styl 把它拼进 `url()`，而 `examples/blog` 下**没有 `public/` 目录**（本次实测 `Test-Path public` = false），所以构建期解析不到、按 vite 的设计保留原样交给运行时。属资源管线缺口，不属 CSS 编译缺陷。
+来源定位：`theme.config.yml:335` → `bg: /img/comment_bg.png`（valine 背景），某处 styl 把它拼进 `url()`，而 `examples/blog` 下**没有 `public/` 目录**（本次实测 `Test-Path public` = false），所以构建期解析不到、按 vite 的设计保留原样交给运行时。属资源管线缺口，不属 CSS 编译缺陷。
 
 ## 8. 遗留问题
 
@@ -243,7 +243,7 @@ d355201 feat: 全量编译上游 302KB Stylus 并补齐 nib/纯 CSS import 兼�
 
 ```text
  .gitignore                     |  3 +++
- examples/blog/astro.config.mjs | 19 +++++++++++++++++++
+ astro.config.mjs | 19 +++++++++++++++++++
  2 files changed, 22 insertions(+)
 ```
 
@@ -255,9 +255,9 @@ d355201 feat: 全量编译上游 302KB Stylus 并补齐 nib/纯 CSS import 兼�
  158 files changed, 22583 insertions(+), 93 deletions(-)
 ```
 
-插件实现位置：`packages/vite-plugin-stylus-hexo-config/src/index.mjs`，nib 以 vendor 方式内置于 `packages/vite-plugin-stylus-hexo-config/vendor/nib/`（含 `lib/nodes/vendor-helpers.js`，供 nib 的 `@import 'nib'` 与 `add-property` 使用）。
+插件实现位置：`src/plugins/stylus-hexo-config/index.mjs`，nib 以 vendor 方式内置于 `src/plugins/stylus-hexo-config/vendor/nib/`（含 `lib/nodes/vendor-helpers.js`，供 nib 的 `@import 'nib'` 与 `add-property` 使用）。
 
-源体积（`examples/blog/src/styles/upstream` 实测）：
+源体积（`src/styles/upstream` 实测）：
 
 ```text
 styl files=72 bytes=309549  css files=47 bytes=171566
@@ -269,7 +269,7 @@ styl files=72 bytes=309549  css files=47 bytes=171566
 
 | # | 报错族 | 修法 | 落点 |
 |---|---|---|---|
-| 1 | `@import 'nib'` 无法解析（缺 nib 依赖） | vendored nib 随插件发布 | `packages/vite-plugin-stylus-hexo-config/vendor/nib/`（d355201） |
+| 1 | `@import 'nib'` 无法解析（缺 nib 依赖） | vendored nib 随插件发布 | `src/plugins/stylus-hexo-config/vendor/nib/`（d355201） |
 | 2 | 上游 `_third-party/*.css`、`_extra/**/*.css` 纯 CSS `@import` 不内联 | Stylus 选项 `'include css': true`（插件注入 + 配置显式声明） | `astro.config.mjs:32-36`；产物 `@import` 残留 0（§3） |
 | 3 | `[lightningcss minify] Unexpected token Ident("-highlight-bg")`（上游 readmode.styl:120 笔误） | 关 CSS 压缩 | `astro.config.mjs:27` `cssMinify: false`（dcbd4a8） |
 

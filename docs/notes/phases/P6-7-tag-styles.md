@@ -1,6 +1,6 @@
 # P6-7 · Hexo tag 样式命中验证
 
-> 范围：Phase 6 退出验收项。只读 `examples/blog/dist` 与上游样式源，不参加构建，不占构建锁。
+> 范围：Phase 6 退出验收项。只读 `dist` 与上游样式源，不参加构建，不占构建锁。
 >
 > 结论：**42 个 tag 全部可定位；35 个带 class 的 tag 共 186 个 class，覆盖 186/186（100%）——
 > 精确命中 147、仅父级/同元素语境命中 34、上游本身无规则 5；真·未命中 0。**
@@ -30,7 +30,7 @@
 
 ### 1.1 样式源范围
 
-默认扫 `examples/blog/src/styles/upstream/` 整棵树（119 个 `.styl`/`.css`）：
+默认扫 `src/styles/upstream/` 整棵树（119 个 `.styl`/`.css`）：
 `_tags` 20、`_extra` 46、`_layout` 20、`_page` 12、`_global` 4、`_mode` 2、`_search` 3、
 `_third-party` 3、`_highlight` 7、根目录 `index.styl` + `var.styl`。
 

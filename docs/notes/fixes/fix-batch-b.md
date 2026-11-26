@@ -2,7 +2,7 @@
 
 > 执行：agent-6 | 2026-01 | 基准 HEAD `eb3f493`（FIXPLAN）。
 > 约束遵守：零 git 写操作（仅 `git diff/grep/status` 只读）；未跑 astro build / Playwright / Lighthouse；
-> 未触碰 `examples/blog/src/styles/upstream/**` 与 `examples/blog/theme.config.yml`（`check-upstream-delta` 29/29 绿）；
+> 未触碰 `src/styles/upstream/**` 与 `theme.config.yml`（`check-upstream-delta` 29/29 绿）；
 > 文档数字口径与 README/PLAN/MIGRATION 文字一律未改，全部列入「待 F」。
 > 本工作树同时有 C/E/G 等批次的并行未提交改动（git status 可见），本报告只覆盖下表文件。
 
@@ -10,7 +10,7 @@
 
 | # | 事项 | 处置 |
 |---|---|---|
-| R1 | 写范围「examples/blog/src/content/**（新增 fixture）」与代码实际不符：内容集合从**仓库根 `tests/fixtures/`** 加载（`examples/blog/src/content.config.ts:80-83` `base: '../../tests/fixtures'`），`examples/blog/src/content/` 不存在 | 按任务「先看现有 fixture 文章放哪、命名习惯」落位 **`tests/fixtures/abbrlink-post.md`**（与 `short-note.md`/`sticky-top.md` 同目录、kebab-case 命名）。放 `src/content/` 对集合不可见 |
+| R1 | 写范围「src/content/**（新增 fixture）」与代码实际不符：内容集合从**仓库根 `src/content/`** 加载（`src/content.config.ts:80-83` `base: '../../tests/fixtures'`），`src/content/` 不存在 | 按任务「先看现有 fixture 文章放哪、命名习惯」落位 **`src/content/abbrlink-post.md`**（与 `short-note.md`/`sticky-top.md` 同目录、kebab-case 命名）。放 `src/content/` 对集合不可见 |
 | R2 | 写范围「third-party/math/render.mjs」与 B1「render.mjs:480」指代不一：B1 的 480 行在 `third-party/render.mjs`（renderAiInfo），`math/render.mjs` 仅 139 行 | 两个文件都按任务条目各改一处：`third-party/render.mjs:482`（B1 门控）、`math/render.mjs:18-25`（B2 per_page 真值对齐） |
 | R3 | B2 范围冲突：「仅 MathIndex 传参与注释两处」vs「与 aplayer 一起补 page 级开关」。已 send_message 请 Lead 裁决，回执：**裁决 B**——`<Aplayer page={{aplayer}}/>` 授权，:257-259 注释同步，写范围扩为「MathIndex/Aplayer 传参与对应注释」 | 按 B 执行。AdditionalJs 改动 = Props/destructure + MathIndex 传参 + Aplayer 传参 + 3 处注释（文件头 :27-33、MathIndex :220-222、Aplayer :257-260） |
 | R4 | B2 透传要求 front-matter 契约含 `katex`，content schema 只声明了 mathjax/aplayer/comments、漏 `katex`（passthrough 不报错但契约不对称） | `content.config.ts:112-114` 补 `katex: z.boolean().optional()`（B2 的 schema 侧补丁，任务条目未明列） |
@@ -23,7 +23,7 @@
 | B1 (H3) | ✅ 完成 | ai 放宽 `z.union([z.boolean(), z.string()])`；门控改真值判断；postAI 传原值不 `String(true)`（4 文件 + R5 第 5 处同步）；node 断言 5/5 |
 | B2 (H4) | ✅ 完成（代码）/ 文档登记留 F | front-matter → 路由 → BaseLayout → AdditionalJs → `<MathIndex page={…}/>``<Aplayer page={…}/>` 全链打通；per_page:false + mathjax:true 可达（node 断言 4/4）；两条文档登记文本见「待 F」#1/#2 |
 | B3 (H7) | ✅ 完成 | 6 个容缺子键改 `.optional()`；`home_top.category[].icon` 保持必填（BannerGroup.astro:68 依据）；node 断言 7/7 |
-| B4 (H8) | ✅ 完成 | `postSlugOf()` 收口三处调用 + `tests/fixtures/abbrlink-post.md`；node 断言 4/4；链接一致性冒烟待 CI |
+| B4 (H8) | ✅ 完成 | `postSlugOf()` 收口三处调用 + `src/content/abbrlink-post.md`；node 断言 4/4；链接一致性冒烟待 CI |
 | B5 (M14) | ✅ 完成（静态推理）/ 构建验证待 CI | 构建时显式 `configPath=theme.config.yml`，HTML/CSS 双通道收口同文件；证据链见必答 5 |
 | B6 (M18+L2) | ✅ 完成 | `"yaml": "^2.9.1"` 入 dependencies；schema 注释改「133 上游键 + friends_lite 兼容键 = 134」（check-schema 实测）；README 口径留 F |
 | G4 残留 | ✅ 完成 | 删 3 文件 + 2 script；grep 零悬空（余 2 条非悬空说明见必答 7）；tests/artifacts/** 原样保留 |
@@ -34,11 +34,11 @@
 
 | 文件 | 位置 | 改动 |
 |---|---|---|
-| `examples/blog/src/content.config.ts` | :122-124（原 :119） | `ai: z.boolean().optional()` → `ai: z.union([z.boolean(), z.string()]).optional()`（注释注明 ai-info.pug:5 真值门控与 ai_abstract.js local 的 `postAI.split(',')`） |
-| `packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro` | :26-27、:30（原 :23） | `ai={ai === true}`（收窄布尔）→ 真值门控 + 原值透传：`const aiGate = ai ? (ai as boolean) : undefined` → `<AiInfo ai={aiGate} …/>`（ai-info.astro 的 Props 暂收窄 boolean，过界断言，运行时原值） |
-| `packages/astro-theme-anzhiyu/src/components/third-party/render.mjs` | :482（原 :480） | `if (!fill \|\| page.ai !== true)` → `if (!fill \|\| !page.ai)`——真值判断、postAI 传原值（字符串放行，不再只认 `=== true`） |
-| `examples/blog/src/pages/[year]/[month]/[day]/[slug].astro` | :119 | `postAI={page.data.ai ? String(page.data.ai) : undefined}` → `postAI={typeof page.data.ai === 'string' ? page.data.ai : undefined}`——字符串原值，**不 `String(true)`** |
-| （R5 同步）`examples/blog/src/pages/[...path].astro` | :158-159 | 同型 `String(data.ai)` → `typeof data.ai === 'string' ? data.ai : undefined` |
+| `src/content.config.ts` | :122-124（原 :119） | `ai: z.boolean().optional()` → `ai: z.union([z.boolean(), z.string()]).optional()`（注释注明 ai-info.pug:5 真值门控与 ai_abstract.js local 的 `postAI.split(',')`） |
+| `src/components/post/PostAiDescription.astro` | :26-27、:30（原 :23） | `ai={ai === true}`（收窄布尔）→ 真值门控 + 原值透传：`const aiGate = ai ? (ai as boolean) : undefined` → `<AiInfo ai={aiGate} …/>`（ai-info.astro 的 Props 暂收窄 boolean，过界断言，运行时原值） |
+| `src/components/third-party/render.mjs` | :482（原 :480） | `if (!fill \|\| page.ai !== true)` → `if (!fill \|\| !page.ai)`——真值判断、postAI 传原值（字符串放行，不再只认 `=== true`） |
+| `src/pages/[year]/[month]/[day]/[slug].astro` | :119 | `postAI={page.data.ai ? String(page.data.ai) : undefined}` → `postAI={typeof page.data.ai === 'string' ? page.data.ai : undefined}`——字符串原值，**不 `String(true)`** |
+| （R5 同步）`src/pages/[...path].astro` | :158-159 | 同型 `String(data.ai)` → `typeof data.ai === 'string' ? data.ai : undefined` |
 
 静态行为推演（node 断言佐证）：
 
@@ -50,9 +50,9 @@
 
 全链（front-matter → 判断点）：
 
-1. front-matter `mathjax: true` → `examples/blog/src/content.config.ts:111`（mathjax）、:112-114（katex，R4 补）声明 `z.boolean().optional()` → `entry.data.mathjax`
+1. front-matter `mathjax: true` → `src/content.config.ts:111`（mathjax）、:112-114（katex，R4 补）声明 `z.boolean().optional()` → `entry.data.mathjax`
 2. `slug.astro:99`（`pageSwitch` 归一：boolean 原值 / 否则 undefined）→ `slug.astro:121-124`：`pageComments={pageSwitch(page.data.comments)}`、`pageMathjax=…mathjax`、`pageKatex=…katex`、`pageAplayer=…aplayer`（独立页面同：`[...path].astro:162` + :189-192）
-3. `packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro:118-125`（props pageMathjax/pageKatex/pageAplayer，pageComments 为 A 批既有）→ :152（destructure）→ :563-575 `<AdditionalJs … pageMathjax={pageMathjax} pageKatex={pageKatex} pageAplayer={pageAplayer} pageComments={pageComments} />`
+3. `src/layouts/BaseLayout.astro:118-125`（props pageMathjax/pageKatex/pageAplayer，pageComments 为 A 批既有）→ :152（destructure）→ :563-575 `<AdditionalJs … pageMathjax={pageMathjax} pageKatex={pageKatex} pageAplayer={pageAplayer} pageComments={pageComments} />`
 4. `AdditionalJs.astro:65-74`（props）→ :83-85（destructure）→ **:234** `<MathIndex page={{ mathjax: pageMathjax, katex: pageKatex }} />`；**:272** `<Aplayer page={{ aplayer: pageAplayer }} />`（Lead 裁决 B，R3）
 5. `math/index.astro:22` `renderMathIndex(theme, Astro.props)` → `math/render.mjs:128-134` 按上游 index.pug 顺序拼 mathjax→katex→mermaid → `renderMathjax:43`/`renderKatex:30` 各自 `perPageGate(theme, <key>, pageOf(props))` → **`math/render.mjs:18-27 perPageGate`**（判断点）：`theme[key].enable` ✓ → `per_page` false 分支 → `Boolean(page.mathjax)`（:25，B2 按上游 `if page.mathjax` 真值语义对齐）。
 
@@ -72,7 +72,7 @@
 
 ### 必答 3 · B3 子键清单 + reward 兜底 + icon 必填依据
 
-改前必填 → 改后可选（`packages/astro-theme-anzhiyu/src/config/schema.ts`）：
+改前必填 → 改后可选（`src/config/schema.ts`）：
 
 | 子键 | 改前 | 改后 | 位置 |
 |---|---|---|---|
@@ -84,12 +84,12 @@
 | home_top.category `icon` | 必填 | **保持必填** | :224 |
 
 - **`nullableString` 语义不动**：:35 `const nullableString = z.string().nullable()` 未改；link 是 `string | null | undefined`，null（上游默认）与省略都合法。
-- **reward.QR_code 省略 link 的渲染兜底**：`item.link || item.img` 在 `packages/astro-theme-anzhiyu/src/components/post/PostReward.astro:46`（`<a href={urlFor(item.link || item.img)} target="_blank">`）；控制台打赏卡同型兜底 `Console.astro:91`。即省略 link 时二维码图自身当链接，不产出坏 `<a href>`。
-- **icon 保持必填依据**：`packages/astro-theme-anzhiyu/src/components/home/BannerGroup.astro:68` `{item.icon.startsWith('fa') ? …}`（与 :70/:74 连锁）无条件调用 `startsWith`，`icon` 缺省即 TypeError；schema 层挡住。node 断言：省略 icon 的 home_top.category 配置 **校验失败** ✓，带 icon 通过 ✓。
+- **reward.QR_code 省略 link 的渲染兜底**：`item.link || item.img` 在 `src/components/post/PostReward.astro:46`（`<a href={urlFor(item.link || item.img)} target="_blank">`）；控制台打赏卡同型兜底 `Console.astro:91`。即省略 link 时二维码图自身当链接，不产出坏 `<a href>`。
+- **icon 保持必填依据**：`src/components/home/BannerGroup.astro:68` `{item.icon.startsWith('fa') ? …}`（与 :70/:74 连锁）无条件调用 `startsWith`，`icon` 缺省即 TypeError；schema 层挡住。node 断言：省略 icon 的 home_top.category 配置 **校验失败** ✓，带 icon 通过 ✓。
 
 ### 必答 4 · B4 解析函数 + 三处调用点 + fixture + node 断言
 
-最终形态（`packages/astro-theme-anzhiyu/src/layouts/site.ts:65-79`，紧邻 postHrefOf :60-63）：
+最终形态（`src/layouts/site.ts:65-79`，紧邻 postHrefOf :60-63）：
 
 ```ts
 /** 文章 URL 末段解析（B4 收口）：`abbrlink ?? id`。…（注释含上游 abbrlink 插件语义与 0 值说明） */
@@ -105,11 +105,11 @@ export function postSlugOf(entry: { id: string; data: Record<string, unknown> })
 | 调用点 | 位置 | 改前 → 改后 |
 |---|---|---|
 | 文章路由 slug | `slug.astro:49-50` | 手写 abbrlink 三段判空 → `const slug = postSlugOf(entry)` |
-| 列表默认 path | `packages/astro-theme-anzhiyu/src/components/post/post-list.ts:339`（原 :338） | `/${y}/${m}/${d}/${entry.id}/` → `…/${postSlugOf(entry)}/` |
-| 归档链接 | `examples/blog/src/pages/archives/_data.ts:194-195`（原 :193） | `…/${entry.id}/` → `…/${postSlugOf(entry)}/` |
+| 列表默认 path | `src/components/post/post-list.ts:339`（原 :338） | `/${y}/${m}/${d}/${entry.id}/` → `…/${postSlugOf(entry)}/` |
+| 归档链接 | `src/pages/archives/_data.ts:194-195`（原 :193） | `…/${entry.id}/` → `…/${postSlugOf(entry)}/` |
 
 - 附加核实：`post-page.ts:197-203 applyAbbrlink()` 对已含 abbrlink 的 path 幂等（`path.replace(/[^/]+\/$/, slug)` 只换末段），且有站点 resolver 时整段跳过（:319-321），不存在第四处错位。
-- **fixture**：`tests/fixtures/abbrlink-post.md`（新建，与 short-note.md 等同目录同命名习惯）：
+- **fixture**：`src/content/abbrlink-post.md`（新建，与 short-note.md 等同目录同命名习惯）：
 
 ```yaml
 title: abbrlink 覆盖末段样本
@@ -134,12 +134,12 @@ PASS B4 abbrlink:0 是合法值（不落回 id）
 
 **改前各读什么**：
 
-- CSS 通道：`examples/blog/astro.config.mjs:687-691`（现 :696-701）`stylusHexoConfig({ configPath: path.join(root, 'theme.config.yml') })` → Stylus 变量注入 → **读 theme.config.yml**。
+- CSS 通道：`astro.config.mjs:687-691`（现 :696-701）`stylusHexoConfig({ configPath: path.join(root, 'theme.config.yml') })` → Stylus 变量注入 → **读 theme.config.yml**。
 - HTML 通道：组件 → `theme-context.ts:28-29` `getThemeConfig()`（无 env 时 `loadThemeConfig()` 无 configPath）→ `config/loader.ts:37` 按文件名搜索 `anzhiyu.config.yml` / `_config.anzhiyu.yml` → examples/blog 两者皆无 → **静默走 defaults**（`docs/notes/phases/P2-2-3-layout-head.md:435` 曾登记此缺口）。两条通道各读一份 = M14 的静默双通道。
 
 **改后收敛（方案定死：构建时显式传 configPath=theme.config.yml；未重命名、未建副本——git status 中 theme.config.yml 零改动）**：
 
-- `examples/blog/astro.config.mjs:25-31`（新）：
+- `astro.config.mjs:25-31`（新）：
 
 ```js
 // B5（M14）：HTML 与 CSS 必须读同一份主题配置，消灭静默双通道。
@@ -161,7 +161,7 @@ process.env.ANZHIYU_THEME_CONFIG = path.join(root, 'theme.config.yml')
 
 ### 必答 6 · B6 实测总数 + package.json diff
 
-`node packages/astro-theme-anzhiyu/scripts/check-schema.mjs` 实测（原始输出）：
+`node scripts/check-schema.mjs` 实测（原始输出）：
 
 ```
 [check-schema] yaml top-level keys: 133
@@ -175,7 +175,7 @@ process.env.ANZHIYU_THEME_CONFIG = path.join(root, 'theme.config.yml')
 - :826-828（friends_lite 注释块内新增）：「B6（L2）顶层键口径：**133 上游键 + friends_lite 兼容键 = 134**（check-schema.mjs 实测：yaml 133 / schema 134，唯一 declared-not-in-yaml 即本键）」
 - :943（原 :935）：「schema 已声明的顶层 key（= 133 上游键 + friends_lite 兼容键，共 134；check-schema.mjs 实测 yaml 133 / schema 134）」
 
-README「133 顶层键」口径留 F（见待 F #4）。`examples/blog/package.json` diff：
+README「133 顶层键」口径留 F（见待 F #4）。`package.json` diff：
 
 ```diff
    "scripts": {
@@ -194,7 +194,7 @@ README「133 顶层键」口径留 F（见待 F #4）。`examples/blog/package.j
    },
 ```
 
-（`yaml` 对应 `examples/blog/src/data/site-data.ts:23` `import { parse } from 'yaml'`；两 script 删除属 G4。）
+（`yaml` 对应 `src/data/site-data.ts:23` `import { parse } from 'yaml'`；两 script 删除属 G4。）
 
 ### 必答 7 · G4 残留清理
 
@@ -204,7 +204,7 @@ README「133 顶层键」口径留 F（见待 F #4）。`examples/blog/package.j
 |---|---|---|
 | `examples/blog/tests/vertical-slice.mjs` | 528 | P1.5 Playwright harness（首页重写后已失效，G 批报告 fix-batch-g.md:297 建议随本批清） |
 | `examples/blog/tests/serve-and-collect.mjs` | 104 | P1.5 视口代理/收集器 |
-| `examples/blog/src/scripts/pjax-shim.ts` | 48 | 孤儿（唯一引用方 examples 侧 BaseLayout.astro 已在 G 批删除） |
+| `src/scripts/pjax-shim.ts` | 48 | 孤儿（唯一引用方 examples 侧 BaseLayout.astro 已在 G 批删除） |
 
 script 删除：`package.json:9-10` `test:slice` / `test:slice:serve`（见必答 6 diff）。
 
@@ -238,7 +238,7 @@ P5-1 第三方集成组件门控与 DOM 验证通过 ✓
 === check-helpers / check-date / check-slugger / check-i18n EXIT=0 ===
 === upstream-delta EXIT=0 ===
 [check-upstream-delta] 校验通过：PASS 29 / SKIP 0 / FAIL 0
-=== upstream-sync / tag-styles / remark-tags (packages/remark-hexo-tag/test/run.mjs) EXIT=0 ===
+=== upstream-sync / tag-styles / remark-tags (tests/remark-hexo-tag/run.mjs) EXIT=0 ===
 ```
 
 node 静态断言 1（`%TEMP%\b-batch-assert.mjs`，B1/B2/B4），EXIT=0：
@@ -300,7 +300,7 @@ ALL PASS
 
 ## 5. 写范围文件清单（本批实际改动）
 
-改：`examples/blog/src/content.config.ts`、`examples/blog/src/pages/[year]/[month]/[day]/[slug].astro`、`examples/blog/src/pages/[...path].astro`、`examples/blog/src/pages/archives/_data.ts`、`examples/blog/astro.config.mjs`、`examples/blog/package.json`、`packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro`、`packages/astro-theme-anzhiyu/src/components/post/post-list.ts`、`packages/astro-theme-anzhiyu/src/components/third-party/render.mjs`、`packages/astro-theme-anzhiyu/src/components/third-party/math/render.mjs`、`packages/astro-theme-anzhiyu/src/components/head/AdditionalJs.astro`、`packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro`、`packages/astro-theme-anzhiyu/src/layouts/site.ts`、`packages/astro-theme-anzhiyu/src/config/schema.ts`、`packages/astro-theme-anzhiyu/src/config/loader.ts`。
-新增：`tests/fixtures/abbrlink-post.md`（R1）。
-删：`examples/blog/tests/vertical-slice.mjs`、`examples/blog/tests/serve-and-collect.mjs`、`examples/blog/src/scripts/pjax-shim.ts`。
-未动但写范围列出：`examples/blog/src/data/site-data.ts`（B6 只需依赖，代码无需改）、`examples/blog/src/content/**`（R1，实际落位 tests/fixtures/）。
+改：`src/content.config.ts`、`src/pages/[year]/[month]/[day]/[slug].astro`、`src/pages/[...path].astro`、`src/pages/archives/_data.ts`、`astro.config.mjs`、`package.json`、`src/components/post/PostAiDescription.astro`、`src/components/post/post-list.ts`、`src/components/third-party/render.mjs`、`src/components/third-party/math/render.mjs`、`src/components/head/AdditionalJs.astro`、`src/layouts/BaseLayout.astro`、`src/layouts/site.ts`、`src/config/schema.ts`、`src/config/loader.ts`。
+新增：`src/content/abbrlink-post.md`（R1）。
+删：`examples/blog/tests/vertical-slice.mjs`、`examples/blog/tests/serve-and-collect.mjs`、`src/scripts/pjax-shim.ts`。
+未动但写范围列出：`src/data/site-data.ts`（B6 只需依赖，代码无需改）、`src/content/**`（R1，实际落位 src/content/）。

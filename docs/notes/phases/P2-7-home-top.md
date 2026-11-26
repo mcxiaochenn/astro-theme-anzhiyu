@@ -7,7 +7,7 @@
 
 ## 1. 改动清单
 
-只新增/修改 `packages/astro-theme-anzhiyu/src/components/home/`，未改 `BaseLayout.astro`、
+只新增/修改 `src/components/home/`，未改 `BaseLayout.astro`、
 `AsideContent.astro`、post 相关文件与 `docs/plan/PLAN.md`。
 
 | 文件 | 上游对应 | 内容 |
@@ -70,7 +70,7 @@ pnpm --filter blog build
 
 ```bash
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs \
-  .baseline-html/index.html examples/blog/dist/index.html --limit 120
+  .baseline-html/index.html dist/index.html --limit 120
 ```
 
 改造前（仅 `#home_top` 外壳占位）：

@@ -1,0 +1,15 @@
+=== start 2026-11-23T18:40:09.8234719+08:00 path=D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\playwright-browsers ===
+Downloading Chrome Headless Shell 159.0.8154.6 (playwright chromium-headless-shell v1255)[2m from https://cdn.playwright.dev/builds/cft/159.0.8154.6/win64/chrome-headless-shell-win64.zip[22m
+Failed to install browsers
+Error: Failed to download Chrome Headless Shell 159.0.8154.6 (playwright chromium-headless-shell v1255), caused by
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:487:11)
+    at spawn (node:child_process:813:9)
+    at Object.fork (node:child_process:174:10)
+    at downloadBrowserWithProgressBarOutOfProcess (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:34116:28)
+    at downloadBrowserWithProgressBar (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:34092:31)
+    at async Registry._downloadExecutable (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:35406:9)
+    at async Registry.install (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:35283:13)
+    at async installBrowsers (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:72904:5)
+    at async _Command.<anonymous> (D:\Git-project\astro-theme-anzhiyu\node_modules\playwright-core\lib\coreBundle.js:76603:7)
+=== exit 1 at 2026-11-23T18:40:11.1856194+08:00 ===

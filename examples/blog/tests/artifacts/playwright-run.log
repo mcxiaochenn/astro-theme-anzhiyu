@@ -1,0 +1,21 @@
+[slice] piped stdio spawn 被拒（EPERM），退化为 stdio:ignore 重试
+[slice] preview ready: http://127.0.0.1:4399
+[slice] chromium.launch() 失败: browserType.launch: spawn EPERM
+[slice] 手动启动浏览器: D:\Git-project\astro-theme-anzhiyu\node_modules\.cache\playwright-browsers\chromium_headless_shell-1255\chrome-headless-shell-win64\chrome-headless-shell.exe
+[slice] 运行失败: browserType.connectOverCDP: Timeout 30000ms exceeded.
+Call log:
+  - <ws preparing> retrieving websocket url from http://127.0.0.1:9333
+  - <ws connecting> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e
+  - <ws connected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e
+  - <ws disconnected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e code=1006 reason=
+
+    at launchViaCdpFallback (D:\Git-project\astro-theme-anzhiyu\examples\blog\tests\vertical-slice.mjs:167:36)
+    at async main (D:\Git-project\astro-theme-anzhiyu\examples\blog\tests\vertical-slice.mjs:302:24) {
+  log: [
+    '  - <ws preparing> retrieving websocket url from http://127.0.0.1:9333',
+    '  - <ws connecting> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e',
+    '  - <ws connected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e',
+    '  - <ws disconnected> ws://127.0.0.1:9333/devtools/browser/9aed6951-2f60-455e-b113-bcc4aa52206e code=1006 reason='
+  ],
+  name: 'TimeoutError'
+}

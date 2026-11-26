@@ -1,9 +1,9 @@
 /**
  * Phase 4 行为验收：page.type 独立页面冒烟
  *
- * 数据来源：examples/blog 的独立页面 fixture（P3-2，`layout: page`）。
+ * 数据来源：独立页面 fixture（P3-2，`layout: page`）。
  * 路径不是手写的理想值，而是构建产物里真实存在的 13 个 `dist/<path>/index.html`：
- * 12 个 `tests/fixtures/page-*.md` + `tests/fixtures/about-page.md`。
+ * 12 个 `src/content/page-*.md` + `src/content/about-page.md`。
  *
  * 选择器口径见 docs/notes/phases/P3-2-page-types.md §6.2「各 type 的根选择器（构建产物实测）」。
  * 断言只做「HTTP 200 + layout/page.pug 外壳 + 模板根节点存在」。

@@ -38,7 +38,7 @@
 
 ## 1. 必答 1：四个组件各自复刻了哪些 ID / class
 
-下面的 ID/class 清单是从**真实产物**里抓出来的（脚本见 §8，命令 `node $env:TEMP/inv2.cjs examples/blog/dist/archives/index.html`），不是从源码抄的。完整输出：
+下面的 ID/class 清单是从**真实产物**里抓出来的（脚本见 §8，命令 `node $env:TEMP/inv2.cjs dist/archives/index.html`），不是从源码抄的。完整输出：
 
 ```text
 ### HEADER
@@ -235,14 +235,14 @@ const sidebarTags = [...tagCounts.entries()].map(([name, length]) => ({
 ## 3. 必答 3：diff 前后（PASS 页数 / 缺口节点数 / diffCount）
 
 > 并发说明：本次执行期间 P2-7（首页）、P2-9/P2-10（归档/分类/标签/404）在同一个工作区并行改文件，
-> `examples/blog/dist/` 是共享产物。为了给出**只归因于本次改动**的数字，除了集成态测量外，
+> `dist/` 是共享产物。为了给出**只归因于本次改动**的数字，除了集成态测量外，
 > 还做了一个隔离快照：`git archive HEAD` → `D:\Git-project\_p24-verify`（HEAD 的页面 + junction 到主仓库的
 > `node_modules`），先量「改前」，再把本次 7 个新文件 + `BaseLayout.astro` 叠上去量「改后」。
 > 两份测量用同一个 `scripts/diff-html.mjs`、同一份 baseline。
 
 ### 3.1 隔离快照：首页（只归因本次改动）
 
-命令：`node scripts/diff-html.mjs .baseline-work/public/index.html <快照>/examples/blog/dist/index.html`
+命令：`node scripts/diff-html.mjs .baseline-work/public/index.html <快照>/dist/index.html`
 
 | 指标 | 改前（HEAD 页面骨架） | 改后（+ 本次组件） | 变化 |
 |---|---:|---:|---:|
@@ -472,10 +472,10 @@ document.getElementById("rightside").addEventListener("click", function (e) {
 
 ### 7.1 写范围
 
-只改了：`packages/astro-theme-anzhiyu/src/components/layout/`（7 个新文件）、
-`packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro`、本报告。
-**没有**改 `examples/blog/src/pages/`、`src/utils/`、`src/i18n/`、`Head.astro`、根 `scripts/`。
-（`git status` 里的 `examples/blog/src/pages/index.astro`、`404.astro`、`archives/`、`categories/`、`tags/`、
+只改了：`src/components/layout/`（7 个新文件）、
+`src/layouts/BaseLayout.astro`、本报告。
+**没有**改 `src/pages/`、`src/utils/`、`src/i18n/`、`Head.astro`、根 `scripts/`。
+（`git status` 里的 `src/pages/index.astro`、`404.astro`、`archives/`、`categories/`、`tags/`、
 `components/archive/`、`components/post/`、`docs/notes/phases/P2-9-10-archive-404.md` 都是并行组员的改动。）
 
 ### 7.2 需要 Lead 知道的三件事
@@ -487,7 +487,7 @@ document.getElementById("rightside").addEventListener("click", function (e) {
    但上游允许字符串（`index_img: "background: url() top / cover no-repeat"`、`footer_bg: "background: …"`）。
    `Header.astro` / `Footer.astro` 已经按「布尔或字符串」写了防御分支，但**配置校验会先拒绝字符串**。
    `src/config/schema.ts` 不在本次写范围，登记为 config 层问题（建议 P4-1 或 Phase 7 改成 `z.union([z.boolean(), z.string()])` 再实测一次 top_img 分支）。
-3. **404 页已经复用 `components/layout/Header.astro`**（P2-10 组员在本次落地后主动接上了，见 `examples/blog/src/pages/404.astro:27,73`），
+3. **404 页已经复用 `components/layout/Header.astro`**（P2-10 组员在本次落地后主动接上了，见 `src/pages/404.astro:27,73`），
    这是正确的复用方式；不再需要「复制一份 header」。同理 P2-8 的文章页可以直接用 `Header` 的 `post-info` slot。
 
 ### 7.3 未验证项（诚实登记）
@@ -512,8 +512,8 @@ node scripts/extract-baseline-html.mjs
 pnpm --filter blog build
 
 # 2) 单页 diff（首页 / 任一已有页）
-node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html
-node scripts/diff-html.mjs .baseline-work/public/archives/index.html examples/blog/dist/archives/index.html
+node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html
+node scripts/diff-html.mjs .baseline-work/public/archives/index.html dist/archives/index.html
 
 # 3) 全量
 node scripts/diff-html.mjs --all
@@ -523,7 +523,7 @@ node scripts/diff-html.mjs --all --json > $env:TEMP\html-diff.json
 node scripts/verify-css.mjs
 
 # 5) ID/class 清单（从产物抓，本报告 §1 用）
-#    node $env:TEMP\inv2.cjs examples/blog/dist/archives/index.html
+#    node $env:TEMP\inv2.cjs dist/archives/index.html
 ```
 
 隔离快照（§3.1/3.2/3.4 的归因测量）：见 §5.3；快照目录 `D:\Git-project\_p24-verify`（不属于仓库，可随时删）。

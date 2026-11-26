@@ -3,24 +3,24 @@
 > 执行：agent-2 · 2026-11-25（Asia/Shanghai）· 基准 HEAD `eb3f493`
 > 上游真值：`D:\Git-project\_research\anzhiyu-upstream`（只读，1.7.1 / `72439d93`）
 > 约束遵守：无任何 git 写操作（未 commit，留给 Lead 按 Batch 汇总）；无 astro build / playwright / lighthouse；未触碰
-> `examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml` 及写范围外文件。
+> `src/styles/upstream/**`、`theme.config.yml` 及写范围外文件。
 
 ## 0. 逐 ID 状态
 
 | ID | 状态 | 落点 |
 |---|---|---|
-| A1 | done | `packages/astro-theme-anzhiyu/src/components/head/AdditionalJs.astro:198-208`（搜索三件套/local_search，上游 :44-50 位置） |
+| A1 | done | `src/components/head/AdditionalJs.astro:198-208`（搜索三件套/local_search，上游 :44-50 位置） |
 | A2 | done | 同文件 :210-211（colorthief，上游 :52-54 位置） |
 | A3 | done | 同文件 :227-232（comment_barrage，`.js-pjax` 内、`input#page-type` 后，上游 :79-81 位置）+ `pageComments` prop（:64-65） |
 | A4 | done | 同文件 :262-263（busuanzi，上游 :126-127）+ :267-268（`#greetingBox`，上游 :131-132）+ `isCurrentRoot` prop（:62-63） |
-| A5 | done | 新建 `packages/astro-theme-anzhiyu/src/components/layout/ShortcutKey.astro`；挂载 `BaseLayout.astro:396`（Sidebar :387 与 Rightside :399 之间，上游 layout.pug:80-81） |
-| A6 | done | 新建 `packages/astro-theme-anzhiyu/src/components/home/BbTimeList.astro`；挂载 `BaseLayout.astro:364`（main#blog-container 内 HomeTop :367 之前）；`types.ts:44-47` 补 `home_essay?: boolean`；`index.astro` / `page/[...page].astro` 传 `essay` |
+| A5 | done | 新建 `src/components/layout/ShortcutKey.astro`；挂载 `BaseLayout.astro:396`（Sidebar :387 与 Rightside :399 之间，上游 layout.pug:80-81） |
+| A6 | done | 新建 `src/components/home/BbTimeList.astro`；挂载 `BaseLayout.astro:364`（main#blog-container 内 HomeTop :367 之前）；`types.ts:44-47` 补 `home_essay?: boolean`；`index.astro` / `page/[...page].astro` 传 `essay` |
 
 改动面（git diff --stat，只读命令，另含未跟踪的两个新组件）：
 
 ```
- examples/blog/src/pages/index.astro                |  7 +-
- examples/blog/src/pages/page/[...page].astro       |  7 +-
+ src/pages/index.astro                |  7 +-
+ src/pages/page/[...page].astro       |  7 +-
  .../src/components/head/AdditionalJs.astro         | 76 ++++++++++++++++++++--
  .../src/components/page/types.ts                   |  2 +
  .../src/layouts/BaseLayout.astro                   | 30 ++++++++-
@@ -98,16 +98,16 @@ A3 的 `data-pjax` 重执行走 `head/runtime.ts:136-143` shim（`script[data-pj
 
 | 门控 | 基线值 | 证据 |
 |---|---|---|
-| `algolia_search.enable` | `false` | `examples/blog/theme.config.yml:91-92` `algolia_search:\n  enable: false` |
-| `local_search.enable` | `false` | `examples/blog/theme.config.yml:111-112` `local_search:\n  enable: false` |
-| `docsearch` | `enable: false`，且 A1 无 docsearch 脚本块（上游 :44-50 就没有，不加） | `examples/blog/theme.config.yml:103-104` |
-| `mainTone.mode` | `api`（≠ `colorthief`） | `examples/blog/theme.config.yml:195` `mode: api # colorthief/cdn/api/both …` |
-| `comment_barrage_config.enable` | `false` | `examples/blog/theme.config.yml:1125-1126` |
-| `comments.use` | 空（≠ `'Twikoo'`） | `examples/blog/theme.config.yml:315` `use: # Twikoo/Waline` |
-| `busuanzi.site_uv / site_pv / page_pv` | `false / false / false` | `examples/blog/theme.config.yml:852-855` |
-| `greetingBox.enable` | `false` | `examples/blog/theme.config.yml:1164-1165` |
-| `shortcutKey.enable` | `false` | `examples/blog/theme.config.yml:1206-1207` |
-| `essay.yml` 的 `home_essay` | **无此键**（组只有 title/subTitle/tips/buttonLink/buttonText/top_background/limit/essay_list） | `examples/blog/data/essay.yml:3-10` |
+| `algolia_search.enable` | `false` | `theme.config.yml:91-92` `algolia_search:\n  enable: false` |
+| `local_search.enable` | `false` | `theme.config.yml:111-112` `local_search:\n  enable: false` |
+| `docsearch` | `enable: false`，且 A1 无 docsearch 脚本块（上游 :44-50 就没有，不加） | `theme.config.yml:103-104` |
+| `mainTone.mode` | `api`（≠ `colorthief`） | `theme.config.yml:195` `mode: api # colorthief/cdn/api/both …` |
+| `comment_barrage_config.enable` | `false` | `theme.config.yml:1125-1126` |
+| `comments.use` | 空（≠ `'Twikoo'`） | `theme.config.yml:315` `use: # Twikoo/Waline` |
+| `busuanzi.site_uv / site_pv / page_pv` | `false / false / false` | `theme.config.yml:852-855` |
+| `greetingBox.enable` | `false` | `theme.config.yml:1164-1165` |
+| `shortcutKey.enable` | `false` | `theme.config.yml:1206-1207` |
+| `essay.yml` 的 `home_essay` | **无此键**（组只有 title/subTitle/tips/buttonLink/buttonText/top_background/limit/essay_list） | `src/data/essay.yml:3-10` |
 
 补充：A3 还叠加 `pageComments` 严格真值——本批所有路由都未传（Batch B 接线），缺省 undefined 即不输出；
 A4b 叠加 `isCurrentRoot`，基线首页虽然 `isCurrentRoot=true` 但 `greetingBox.enable=false`，仍零输出。
@@ -219,7 +219,7 @@ ALL PASS
 [check-upstream-delta] 登记表：docs/reference/upstream-delta.md（上游 1.7.1 / 72439d93，只读副本不许改）
 ```
 
-3) `node packages/remark-hexo-tag/test/run.mjs`（exit 0）：
+3) `node tests/remark-hexo-tag/run.mjs`（exit 0）：
 
 ```
 remark-hexo-tag: 65/65 通过
@@ -269,5 +269,5 @@ remark-hexo-tag: 65/65 通过
 ## 待 F 同步清单（文档数字口径）
 
 本批（A1–A6）**未产生任何文档数字口径变化**，无需要 F 批改的条目。附带一条非本批产生的观察供 F16 参考：
-`node packages/remark-hexo-tag/test/run.mjs` 实测 **65/65 通过**（FIXPLAN DoD §3.3 写 62/62、F16 目标口径
+`node tests/remark-hexo-tag/run.mjs` 实测 **65/65 通过**（FIXPLAN DoD §3.3 写 62/62、F16 目标口径
 「62/62 或指向 test/run.mjs」；系 G7 在途扩充用例所致，非本批改动）——F 批对齐时以实测或「指向 run.mjs」处理。

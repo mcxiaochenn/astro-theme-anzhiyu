@@ -5,7 +5,7 @@
 - 任务：写 `scripts/diff-html.mjs`，把「上游 hexo 产物 vs 我们的 Astro 产物」的结构差异变成可执行的门禁
 - 写范围：`scripts/diff-html.mjs`（新增 1388 行）、根 `package.json`（+1 条 script）、本文件
 - 上游参考产物：`.baseline-work/public/`（48 页 HTML，2.1 MB；目录 gitignore，本机存在）
-- 我们的产物：`examples/blog/dist/`（当前是 P1.5 垂直切片，只有 `index.html` + `page2/index.html`）
+- 我们的产物：`dist/`（当前是 P1.5 垂直切片，只有 `index.html` + `page2/index.html`）
 
 ## 0. 结论速览
 
@@ -39,10 +39,10 @@
 
 ```bash
 # 单页：<baselineHtmlPath> <distHtmlPath>
-node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html
+node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html
 
 # 也接受目录（自动接 index.html）
-node scripts/diff-html.mjs .baseline-work/public examples/blog/dist
+node scripts/diff-html.mjs .baseline-work/public dist
 
 # 全量：按 docs/reference/baseline.json 的 pages 列表逐页比对
 node scripts/diff-html.mjs --all
@@ -63,7 +63,7 @@ node scripts/diff-html.mjs <a> <b> --dump-normalized /tmp/d.html   # 导出归�
 | 变量 | 默认值 | 作用 |
 | --- | --- | --- |
 | `BASELINE_HTML_DIR` | `.baseline-work/public` | `--all` 的 baseline 根目录 |
-| `DIST_DIR` | `examples/blog/dist` | `--all` 的 dist 根目录 |
+| `DIST_DIR` | `dist` | `--all` 的 dist 根目录 |
 | `BASELINE_PATH` | `docs/reference/baseline.json` | 页面清单来源 |
 
 ### 1.3 退出码
@@ -255,7 +255,7 @@ FAIL .baseline-work\public\index.html ↔ examples\blog\dist\index.html  66 条�
   "mode": "all",
   "ok": false,
   "baselineDir": ".baseline-work/public",
-  "distDir": "examples/blog/dist",
+  "distDir": "dist",
   "summary": {
     "pages": 48, "pass": 0, "fail": 48,
     "diffCount": 113, "missingNodes": 1058, "unexpectedNodes": 30,
@@ -272,7 +272,7 @@ FAIL .baseline-work\public\index.html ↔ examples\blog\dist\index.html  66 条�
 
 ## 6. 自测（原始输出）
 
-测试素材：`docs/reference/baseline.json` 的 48 页 baseline + 当前 `examples/blog/dist`（P1.5 垂直切片）。
+测试素材：`docs/reference/baseline.json` 的 48 页 baseline + 当前 `dist`（P1.5 垂直切片）。
 负向用例的临时副本和归一化变异体都放在系统临时目录，**没有往仓库里写任何产物**。
 下面贴的是真实终端输出，只把临时目录前缀缩成 `…\`（Windows 上那串 `C:\Users\…\AppData\Local\Temp\…`），其余字符未改。
 
@@ -290,8 +290,8 @@ exit=0
 dist 侧同文件自比（覆盖 Astro 产物 + 注释 + `data-astro-*`）：
 
 ```
-$ node scripts/diff-html.mjs examples/blog/dist/index.html examples/blog/dist/index.html
-PASS examples/blog/dist/index.html ↔ examples/blog/dist/index.html  0 条差异
+$ node scripts/diff-html.mjs dist/index.html dist/index.html
+PASS dist/index.html ↔ dist/index.html  0 条差异
 exit=0
 ```
 
@@ -310,7 +310,7 @@ exit=0
 ### 6.2 真实对比：baseline 首页 vs dist 首页（当前应该是大差异）
 
 ```
-$ node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html --limit 5
+$ node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html --limit 5
 [diff-html] baseline: .baseline-work\public\index.html
 [diff-html] dist:     examples\blog\dist\index.html
 FAIL .baseline-work\public\index.html ↔ examples\blog\dist\index.html  66 条差异（结构 57 / 属性 8 / 文本 1），缺口 缺 1058 节点，多 30 节点
@@ -420,7 +420,7 @@ exit=1
 | baseline 目录不存在 | `BASELINE_HTML_DIR=.baseline-work/not-here node scripts/diff-html.mjs --all` | 提示两行 + `exit=0` |
 | baseline 单文件不存在 | `node scripts/diff-html.mjs /nope.html <dist>` | 提示 + `exit=0` |
 | dist 文件不存在 | `node scripts/diff-html.mjs <baseline> /nope.html` | `FAIL … 1 条差异（文件 1）` + `exit=1` |
-| 目录当参数 | `node scripts/diff-html.mjs .baseline-work/public examples/blog/dist` | 自动接 `index.html`，`exit=1`（首页有差异） |
+| 目录当参数 | `node scripts/diff-html.mjs .baseline-work/public dist` | 自动接 `index.html`，`exit=1`（首页有差异） |
 | `--limit 0` | | 只打汇总行 |
 | `--max-diffs 3` | | 打 3 条 + 汇总标「（已截断）」 |
 | `--json` + baseline 缺失 | | stdout 是合法 JSON `{"mode":"pair","ok":true,"skipped":true,"reason":"baseline-missing"}` |
@@ -429,12 +429,12 @@ exit=1
 
 ## 7. 当前 baseline vs dist 的真实差异
 
-**前提**：`examples/blog/dist` 现在只有 P1.5 垂直切片的 2 个页面（`index.html` / `page2/index.html`），不是 Phase 2 产物。下面的数字是**起点基线**，不是缺陷计数。
+**前提**：`dist` 现在只有 P1.5 垂直切片的 2 个页面（`index.html` / `page2/index.html`），不是 Phase 2 产物。下面的数字是**起点基线**，不是缺陷计数。
 
 ### 7.1 首页（有对比物）
 
 ```
-$ node scripts/diff-html.mjs .baseline-work/public/index.html examples/blog/dist/index.html
+$ node scripts/diff-html.mjs .baseline-work/public/index.html dist/index.html
 FAIL …  66 条差异（结构 57 / 属性 8 / 文本 1），缺口 缺 1058 节点，多 30 节点
 ```
 
@@ -449,7 +449,7 @@ FAIL …  66 条差异（结构 57 / 属性 8 / 文本 1），缺口 缺 1058 �
 
 ```
 $ node scripts/diff-html.mjs .baseline-work/public/2024/11/01/longform-hexo-astro/index.html \
-                             examples/blog/dist/2024/11/01/longform-hexo-astro/index.html
+                             dist/2024/11/01/longform-hexo-astro/index.html
 FAIL …  1 条差异（文件 1）
     1. [文件/file-missing] (dist)
        期望: examples\blog\dist\2024\11\01\longform-hexo-astro\index.html
@@ -462,7 +462,7 @@ exit=1
 ### 7.3 归档页（dist 缺页）
 
 ```
-$ node scripts/diff-html.mjs .baseline-work/public/archives/index.html examples/blog/dist/archives/index.html
+$ node scripts/diff-html.mjs .baseline-work/public/archives/index.html dist/archives/index.html
 FAIL …  1 条差异（文件 1）   # (dist) 不存在
 ```
 

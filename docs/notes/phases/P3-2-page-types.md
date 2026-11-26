@@ -27,7 +27,7 @@ const raw = entry.data.permalink || entry.id.replace(/-page$/, '')
 params = { path: raw.replace(/^\/+|\/+$/g, '') }
 ```
 
-- 新增可选 frontmatter `permalink`（`examples/blog/src/content.config.ts`），
+- 新增可选 frontmatter `permalink`（`src/content.config.ts`），
   对应上游「文件位置决定 URL」的语义；
 - 缺省用 `id` 去掉 `-page` 后缀：`about-page` → `/about/`；
 - 生成前检查空路径与重复路径，重复直接抛错（构建期暴露配置错误）；
@@ -53,7 +53,7 @@ params = { path: raw.replace(/^\/+|\/+$/g, '') }
 
 ## 2. 模板清单
 
-目录：`packages/astro-theme-anzhiyu/src/components/page/`。
+目录：`src/components/page/`。
 每个文件的头注释都标注了对应的上游 pug 行号；DOM 的 id / class / 层级 / 文本逐项对齐。
 
 | `page.type` | 组件 | 上游 | 数据 |
@@ -107,7 +107,7 @@ const { Content } = await render(entry)
 ```
 examples/blog/
   data/
-    about.yml        ← 复制 tests/fixtures/about-data.yml（P3-3 用）
+    about.yml        ← 复制 src/content/about-data.yml（P3-3 用）
     essay.yml
     album.yml
     link.yml
@@ -137,14 +137,14 @@ examples/blog/
 
 | 文件 | 动作 |
 | --- | --- |
-| `examples/blog/src/pages/page/[...page].astro` | 由根级 `[...page].astro` 移入，import 深度 +1，params 改为 `'2'..'N'` |
-| `examples/blog/src/pages/[...path].astro` | 新增：独立页面路由 + `page.type` 分发 |
-| `examples/blog/src/data/site-data.ts` | 新增：YAML 站点数据层 |
-| `examples/blog/data/*.yml` | 新增：about/essay/album/link/equipment |
-| `examples/blog/src/content.config.ts` | 新增 `permalink: z.string().optional()` |
-| `tests/fixtures/about-page.md` | 新增 `permalink: /about/` |
-| `packages/astro-theme-anzhiyu/src/components/page/**` | 新增 11 个模板 + 类型 + about 占位 |
-| `tests/fixtures/page-*.md` | 新增 12 个页面 fixture（见 §5） |
+| `src/pages/page/[...page].astro` | 由根级 `[...page].astro` 移入，import 深度 +1，params 改为 `'2'..'N'` |
+| `src/pages/[...path].astro` | 新增：独立页面路由 + `page.type` 分发 |
+| `src/data/site-data.ts` | 新增：YAML 站点数据层 |
+| `src/data/*.yml` | 新增：about/essay/album/link/equipment |
+| `src/content.config.ts` | 新增 `permalink: z.string().optional()` |
+| `src/content/about-page.md` | 新增 `permalink: /about/` |
+| `src/components/page/**` | 新增 11 个模板 + 类型 + about 占位 |
+| `src/content/page-*.md` | 新增 12 个页面 fixture（见 §5） |
 
 未改动：`BaseLayout.astro`、`Head.astro`、`AsideContent.astro`、`docs/plan/PLAN.md`、
 post 组件、`[year]/[month]/[day]/[slug].astro`。

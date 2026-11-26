@@ -1,7 +1,7 @@
 # Batch G · 测试与代码卫生 — 执行报告（G1–G8）
 
 > 执行日期：2026-11-25；基准 HEAD `eb3f493`（FIXPLAN 基线）。任务清单：`docs/plan/FIXPLAN.md` Batch G 表（:87-98）。
-> 写范围遵守：只改任务卡列明的文件；`examples/blog/src/styles/upstream/**` 与 `examples/blog/theme.config.yml` 未触碰（`check-upstream-delta` 绿）；零 git 写操作。
+> 写范围遵守：只改任务卡列明的文件；`src/styles/upstream/**` 与 `theme.config.yml` 未触碰（`check-upstream-delta` 绿）；零 git 写操作。
 > 文档数字口径（README/PLAN 计数）按约束本批一律未改，全部列入文末「待 F 同步清单」。
 
 ## 0. 逐 ID 状态
@@ -68,11 +68,11 @@
 - `docs/notes/phases/P7-1-pwa.md:60`：`precache  84 entries (3465.28 KiB)`（构建日志原文，:150 同值复测）；
 - `docs/notes/phases/P7-1-pwa.md:108`：「预缓存 84 条（62 HTML + JS/CSS + manifest + 图标）」；
 - `docs/notes/phases/P7-1-pwa.md:163-164`：「预缓存清单：84 条，包含 `/`、62 个 HTML、`/_astro/*.js|css`、`manifest.webmanifest`、3 个 manifest 图标」；
-- 当前 dist 枚举（G4 删除前）：**62 HTML + 16 JS + 2 CSS**（`examples/blog/dist` 清点）→ 62+16+2+1(manifest)+3(图标) = **84**，与笔记完全对上；
+- 当前 dist 枚举（G4 删除前）：**62 HTML + 16 JS + 2 CSS**（`dist` 清点）→ 62+16+2+1(manifest)+3(图标) = **84**，与笔记完全对上；
 - G4 删除项对 precache 的影响（`globPatterns: ['**/*.{html,js,css}']`，astro.config.mjs:575）：
   - `debug-collection/index.html`、`page2/index.html` → −2 HTML；
   - `public/slice-harness.js` → −1 JS（.js 命中 glob）；
-  - `examples/blog/src/layouts/BaseLayout.astro` 的 bundled `<script> import '../scripts/pjax-shim.ts'`（原 :83-85）→ 1 个 `BaseLayout.astro_astro_type_script_index_0_lang.*.js` chunk 消失 → −1 JS（dist 里 BBgDs-2V / DQr737PA 两个同名 chunk 各属一个 BaseLayout，P4-4 note:336 证实 BBgDs-2V 是主题侧）；
+  - `src/layouts/BaseLayout.astro` 的 bundled `<script> import '../scripts/pjax-shim.ts'`（原 :83-85）→ 1 个 `BaseLayout.astro_astro_type_script_index_0_lang.*.js` chunk 消失 → −1 JS（dist 里 BBgDs-2V / DQr737PA 两个同名 chunk 各属一个 BaseLayout，P4-4 note:336 证实 BBgDs-2V 是主题侧）；
   - `bgm.wav` / `pug-probe.svg` 不在 glob 内（wav/svg）→ 不影响。
 - **G4 后口径：60 HTML + 14 JS + 2 CSS + manifest + 3 图标 = 80 条**。
 
@@ -82,7 +82,7 @@
 
 **删除前引用面**（全仓 grep `CardNewestComment`）：
 
-- **没有任何组件 import 过它**。`packages/astro-theme-anzhiyu/src/components/widget/` 下 15 个 `Card*.astro` 里，AsideContent.astro:26-37 import 12 张、Console.astro:24-25 import 2 张（CardConsoleTags/CardConsoleArchives），CardNewestComment 是第 15 个、零 import；
+- **没有任何组件 import 过它**。`src/components/widget/` 下 15 个 `Card*.astro` 里，AsideContent.astro:26-37 import 12 张、Console.astro:24-25 import 2 张（CardConsoleTags/CardConsoleArchives），CardNewestComment 是第 15 个、零 import；
 - 文字引用 2 处（都是注释/文档）：`Console.astro:15`（组件头注释）、`Console.astro:102-106`（解释「为什么内联而不复用」的块注释）；`docs/notes/phases/P3-1-aside-widgets.md:37`（历史笔记，记录它「console 页用，不在 aside 挂载」）；
 - 它自己的文件头就写明（原 CardNewestComment.astro:17）：「目前没有 console 挂载点，因此不会进入任何页面产物」——死卡实锤。
 
@@ -122,12 +122,12 @@
 
 | 文件 | 性质 |
 |---|---|
-| `examples/blog/src/pages/debug-collection.astro` | P2-1 临时验证页（文件头自述「临时验证页…Phase 2 后续会被真实页面替换」） |
-| `examples/blog/src/pages/page2.astro` | P1.5 垂直切片第二页 |
-| `examples/blog/src/layouts/BaseLayout.astro` | P1.5 切片布局（注意：packages 主题侧同名文件未动） |
-| `examples/blog/public/slice-harness.js` | P1.5 页内浏览器 harness |
-| `examples/blog/public/bgm.wav` | P1.5 音频样本（96 KB） |
-| `examples/blog/public/pug-probe.svg` | P1.5 pug void 探针素材 |
+| `src/pages/debug-collection.astro` | P2-1 临时验证页（文件头自述「临时验证页…Phase 2 后续会被真实页面替换」） |
+| `src/pages/page2.astro` | P1.5 垂直切片第二页 |
+| `src/layouts/BaseLayout.astro` | P1.5 切片布局（注意：packages 主题侧同名文件未动） |
+| `public/slice-harness.js` | P1.5 页内浏览器 harness |
+| `public/bgm.wav` | P1.5 音频样本（96 KB） |
+| `public/pug-probe.svg` | P1.5 pug void 探针素材 |
 
 **逐文件无悬空引用的 grep 证据**（`grep -n 'slice-harness\|bgm\.wav\|pug-probe\|debug-collection\|layouts/BaseLayout\.astro'`，代码类后缀全仓）：
 
@@ -135,7 +135,7 @@
 |---|---|---|
 | `debug-collection` | 仅 `tests/e2e/pwa.spec.ts:55`（本次 G2 注释里的说明文字） | ✅ 零代码引用 |
 | `page2.astro` / `/page2/` | 生产代码零命中（仅下方残留清单里的历史 harness） | ✅ |
-| `examples/…/layouts/BaseLayout.astro` | 零命中。所有 `layouts/BaseLayout.astro` 命中均指向 `packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro`（如 `examples/blog/src/pages/index.astro:22` 的 `../../../../packages/…`、`packages/astro-theme-anzhiyu/package.json:39` 的 exports） | ✅ |
+| `examples/…/layouts/BaseLayout.astro` | 零命中。所有 `layouts/BaseLayout.astro` 命中均指向 `src/layouts/BaseLayout.astro`（如 `src/pages/index.astro:22` 的 `../../../../packages/…`、`packages/astro-theme-anzhiyu/package.json:39` 的 exports） | ✅ |
 | `slice-harness.js` | 仅 `examples/blog/tests/vertical-slice.mjs:21`（**注释**提及） | ✅ 零加载方 |
 | `bgm.wav` | **零命中**（`#bgm` DOM 查询在下方历史 harness 里，指向已删的 P1.5 `#music-player`） | ✅ |
 | `pug-probe.svg` | 零命中（原唯一引用方 page2.astro:29 同批删除） | ✅ |
@@ -153,7 +153,7 @@
 - 12 独立 fixture 全名单（dist 相对 baseline 的差集）：`/categories/`、`/tags/`、`/album/`、`/album/demo/`、`/album/gallery/`、`/equipment/`、`/essay/`、`/fcircle/`、`/link/`、`/music/`、`/page-default/`、`/room/`；
 - 2 调试页：`/debug-collection/`、`/page2/`（本次删除）。
 
-**残留（写范围外，已核实不进 CI）**：`examples/blog/tests/vertical-slice.mjs`、`tests/serve-and-collect.mjs` 与 `examples/blog/package.json:9-10` 的 `test:slice` / `test:slice:serve` 脚本仍引用 `/page2/`、`#pug-probe`、`#bgm`、slice-harness.js（vertical-slice.mjs:21/211/248/268/402-463 等）。该 harness 是 P1.5 历史证据，**在本次删除前就已失效**（P2-2-3 note:433：首页重写后 `tests/vertical-slice.mjs` 按原断言跑首页会失败），且 `.github/` 零引用（grep 无命中）——CI 不受影响。建议后续批次（非 G）连 npm script 一起清掉，已列入「待 F/后续处理清单」。
+**残留（写范围外，已核实不进 CI）**：`examples/blog/tests/vertical-slice.mjs`、`tests/serve-and-collect.mjs` 与 `package.json:9-10` 的 `test:slice` / `test:slice:serve` 脚本仍引用 `/page2/`、`#pug-probe`、`#bgm`、slice-harness.js（vertical-slice.mjs:21/211/248/268/402-463 等）。该 harness 是 P1.5 历史证据，**在本次删除前就已失效**（P2-2-3 note:433：首页重写后 `tests/vertical-slice.mjs` 按原断言跑首页会失败），且 `.github/` 零引用（grep 无命中）——CI 不受影响。建议后续批次（非 G）连 npm script 一起清掉，已列入「待 F/后续处理清单」。
 
 ## 5. G5 — compare-css-vars 未复核环境输出含「未验证」
 
@@ -173,7 +173,7 @@
 
 ## 6. G6 — 双引号告警去重 + warnOnMissing 统一门控
 
-`packages/vite-plugin-stylus-hexo-config/src/index.mjs:205-218`（原 :205-213）：
+`src/plugins/stylus-hexo-config/index.mjs:205-218`（原 :205-213）：
 
 ```js
       const hasDouble = value.includes('"')
@@ -204,7 +204,7 @@ RESULT = PASS
 
 ## 7. G7 — raw 正文展开 ends===false 块级（checkbox/radio）
 
-**实现方式**（`packages/remark-hexo-tag/src/index.mjs`，renderRaw 段）：
+**实现方式**（`src/plugins/remark-hexo-tag/index.mjs`，renderRaw 段）：
 
 - 判定条件从 `entry && entry.ends === false && entry.string` 放宽为 `entry && entry.ends === false`：自闭合块级一律展开，checkbox / radio（`tags/block/index.mjs:322-323`，`ends: false`、render 返回 **mdast 节点**）不再落 `{% %}` 字面量；
 - 字符串块级（site/cell/bilibili/intCard，`entry.string`）仍走原路径直接拼字符串；checkbox/radio 的 mdast 返回值经新增的 `nodesToRawHtml()` 序列化成 HTML（html 节点直出、paragraph 包 `<p>`、text 转义、emphasis/strong/inlineCode/delete/link/image/break 映射到同名标签、未知节点回退转义不抛错——checkbox 参数是单行文本，只会产出这些形态）；
@@ -214,7 +214,7 @@ RESULT = PASS
 **test/run.mjs 输出**（新增 3 个用例：videos 内嵌 checkbox / btns 内嵌 radio / videos 内嵌 checkbox 含行内 Markdown）：
 
 ```
-$ node packages/remark-hexo-tag/test/run.mjs
+$ node tests/remark-hexo-tag/run.mjs
 remark-hexo-tag: 65/65 通过        （exit=0）
 ```
 
@@ -248,7 +248,7 @@ remark-hexo-tag: 65/65 通过        （exit=0）
 
 | # | 命令 | 结果 | 输出尾部 |
 |---|---|---|---|
-| 1 | `node packages/remark-hexo-tag/test/run.mjs` | exit 0 | `remark-hexo-tag: 65/65 通过` |
+| 1 | `node tests/remark-hexo-tag/run.mjs` | exit 0 | `remark-hexo-tag: 65/65 通过` |
 | 2 | `node scripts/check-upstream-delta.mjs` | exit 0 | `[check-upstream-delta] 校验通过：PASS 29 / SKIP 0 / FAIL 0` |
 | 3 | `node scripts/compare-css-vars.mjs`（仓库真跑） | exit 0 | `结果: 严格一致 68 / 顺序差异 1 / 值不一致 0 / 产物缺失 0（基准共 69）` / `比对通过（1 处为声明顺序差异，取值集合一致）` |
 | 4 | `node scripts/compare-css-vars.mjs`（%TEMP% fixture，无上游） | exit 0 | `比对通过（1 处为声明顺序差异；声明值集合一致性未验证——上游 CSS 不在本机，未做集合复核）` |
@@ -286,13 +286,13 @@ remark-hexo-tag: 65/65 通过        （exit=0）
 | 11 | `docs/plan/PLAN.md:711` | 「验证站 62 页」 | 「验证站 60 页」 |
 | 12 | `docs/notes/phases/P7-2-perf.md:27/162/370/531/653/684` | 「62 页」 | 历史快照，F18 范式处理（加「历史快照」注或不动） |
 | 13 | `packages/remark-hexo-tag/README.md:87` | 「# 62/62」 | 「# 65/65」 |
-| 14 | `packages/remark-hexo-tag/src/parser.mjs:137`（F16 原目标） | 「59/59 单测守护」 | 「65/65 单测守护」或指向 test/run.mjs |
-| 15 | `packages/vite-plugin-stylus-hexo-config/README.md:98`（G6 遗留） | 「## 限制」无值改写说明 | 补：①值同时含单双引号时 `"` 改写为 `'`（Stylus 字符串无转义）；②对象/数组值按 truthy `true` 输出；③缺失键/对象值/双引号改写三类告警由 `warnOnMissing` 统一门控且同键只告警一次 |
-| 16 | `packages/vite-plugin-stylus-hexo-config/README.md:95` | 「`warnOnMissing` … 引用不存在的键时告警」 | 扩义为「缺失/改写类告警总闸（缺失键、对象值、双引号改写）」 |
+| 14 | `src/plugins/remark-hexo-tag/parser.mjs:137`（F16 原目标） | 「59/59 单测守护」 | 「65/65 单测守护」或指向 test/run.mjs |
+| 15 | `src/plugins/stylus-hexo-config/README.md:98`（G6 遗留） | 「## 限制」无值改写说明 | 补：①值同时含单双引号时 `"` 改写为 `'`（Stylus 字符串无转义）；②对象/数组值按 truthy `true` 输出；③缺失键/对象值/双引号改写三类告警由 `warnOnMissing` 统一门控且同键只告警一次 |
+| 16 | `src/plugins/stylus-hexo-config/README.md:95` | 「`warnOnMissing` … 引用不存在的键时告警」 | 扩义为「缺失/改写类告警总闸（缺失键、对象值、双引号改写）」 |
 | 17 | `examples/blog/README.md:14`（F17 原目标） | public/ 目录清单 | G4 后为 `public/{img,anzhiyu}/ + favicon.ico`（bgm.wav / pug-probe.svg / slice-harness.js 已删） |
 | 18 | `packages/remark-hexo-tag/README.md:58-59`（可选） | raw 行为描述 | 可补一句「raw 区域内自闭合块级（checkbox/radio）同样展开」（G7 已实现，非限制项） |
 
 ## 12. 待 F/后续处理清单（非数字口径）
 
-1. `examples/blog/package.json:9-10` 的 `test:slice` / `test:slice:serve` 与 `examples/blog/tests/vertical-slice.mjs`、`tests/serve-and-collect.mjs`：P1.5 历史 harness，本次删除其被测物（page2/slice-harness/bgm/pug-probe）后彻底悬空（此前已因首页重写失效）。零 CI 引用，建议随 F 或独立小批次整体删除。
-2. `examples/blog/src/scripts/pjax-shim.ts`：唯一引用方（P1.5 布局 `<script> import '../scripts/pjax-shim.ts'`）已删，成为孤儿文件；写范围外未动，建议同批清理。
+1. `package.json:9-10` 的 `test:slice` / `test:slice:serve` 与 `examples/blog/tests/vertical-slice.mjs`、`tests/serve-and-collect.mjs`：P1.5 历史 harness，本次删除其被测物（page2/slice-harness/bgm/pug-probe）后彻底悬空（此前已因首页重写失效）。零 CI 引用，建议随 F 或独立小批次整体删除。
+2. `src/scripts/pjax-shim.ts`：唯一引用方（P1.5 布局 `<script> import '../scripts/pjax-shim.ts'`）已删，成为孤儿文件；写范围外未动，建议同批清理。

@@ -1,0 +1,229 @@
+---
+/**
+ * 独立页面路由（P3-2）— 上游 `layout/page.pug` 的入口。
+ *
+ * 上游用 `source/<path>/index.md` 的文件位置决定 URL，并在 frontmatter 写
+ * `layout: page` + `type: <模板名>`；Hexo 生成器把两者组合成独立页面。
+ * Astro 侧改为根级 rest 路由：`getStaticPaths` 只产出 `layout === 'page'` 的条目，
+ * 路径优先取 frontmatter 的 `permalink`（P3-2 新增字段），缺省用 id 去掉 `-page`
+ * 后缀（`src/content/about-page.md` → `/about/` 的兼容写法）。
+ *
+ * 分发严格照抄 `layout/page.pug:4-31`：
+ *
+ *   #page
+ *     if top_img === false && !page.top_single
+ *       h1.page-title= page.title
+ *     case page.type
+ *       tags / link / categories / essay / room / about / album / fcircle /
+ *       album_detail / music / equipment / default
+ *
+ * 注意与 `page/[...page].astro` 的优先级：Astro 的静态段优先于 rest 段，
+ * 所以 `/page/2` 只会命中 `page/[...page].astro`，不会被本文件吞掉；
+ * `/about/` 这类没有其它路由的路径才会落到这里。
+ */
+import BaseLayout from '@/layouts/BaseLayout.astro'
+import DefaultPage from '@/components/page/DefaultPage.astro'
+import TagsPage from '@/components/page/TagsPage.astro'
+import CategoriesPage from '@/components/page/CategoriesPage.astro'
+import EssayPage from '@/components/page/EssayPage.astro'
+import FcirclePage from '@/components/page/FcirclePage.astro'
+import FlinkPage from '@/components/page/FlinkPage.astro'
+import MusicPage from '@/components/page/MusicPage.astro'
+import AlbumPage from '@/components/page/AlbumPage.astro'
+import AlbumDetailPage from '@/components/page/AlbumDetailPage.astro'
+import RoomPage from '@/components/page/RoomPage.astro'
+import EquipmentPage from '@/components/page/EquipmentPage.astro'
+import TodolistPage from '@/components/page/TodolistPage.astro'
+import AboutPage from '@/components/page/about/AboutPage.astro'
+import CommentsIndex from '@/components/third-party/comments/index.astro'
+import { getSiteData } from '../data/site-data.ts'
+import { loadArchiveSite } from './archives/_data.ts'
+import '../styles/upstream/index.styl'
+import { getCollection, render } from 'astro:content'
+import type { GetStaticPaths, InferGetStaticPropsType } from 'astro'
+import type {
+  AlbumGroup,
+  EssayGroup,
+  EquipmentGroup,
+  FlinkGroup,
+  TaxonomyItem,
+  TodoGroup,
+} from '@/components/page/types.ts'
+import { hexoFullDate } from '@/utils/date.ts'
+
+import { SITE_IDENTITY } from '../data/site-identity.ts'
+
+/** 站点级元数据（基准站身份，对应上游 `config.*`）——集中定义见 src/data/site-identity.ts。 */
+const site = SITE_IDENTITY
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const entries = await getCollection('posts')
+  const pages = entries.filter((entry) => entry.data.layout === 'page')
+
+  /** 与模块级同名函数一致；getStaticPaths 会被单独打包，直接内联避免作用域丢失。 */
+  const trim = (value: string): string => value.replace(/^\/+|\/+$/g, '')
+
+  const paths = pages.map((entry) => {
+    const permalink = entry.data.permalink
+    const raw = typeof permalink === 'string' && permalink ? permalink : entry.id.replace(/-page$/, '')
+    return { path: trim(raw), id: entry.id }
+  })
+
+  const seen = new Set<string>()
+  for (const item of paths) {
+    if (!item.path) throw new Error(`[page] 独立页面 ${item.id} 的路径为空`)
+    if (seen.has(item.path)) throw new Error(`[page] 独立页面路径重复：/${item.path}/`)
+    seen.add(item.path)
+  }
+
+  return paths.map((item) => ({
+    params: { path: item.path },
+    props: { id: item.id },
+  }))
+}
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>
+
+/** `posts` 集合（含独立页面）：按 id 反查当前页条目。 */
+const allEntries = await getCollection('posts')
+
+/* ------------------------------------------------------------------ */
+/* 标签 / 分类页的数据（上游 `hexo.locals.get('tags'|'categories')`）    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * 上游 `tags_page_list()` 的入参是 `hexo.locals.get('tags'|'categories')`：
+ * 每个节点自带 `path`（Hexo 的 `Tag.path` / `Category.path`，分类是**完整父级链**且逐段
+ * slug 化，如 `categories/教程/Arch-Linux/`）与 `length`（分类包含子分类下的文章数）。
+ *
+ * 这里直接复用归档/分类/标签路由的同一份数据层（`loadArchiveSite()`），
+ * 保证「列表页链接」与「真实路由」由同一个 `taxonomySlug()` 生成（P7-4：
+ * 真实站曾把 `Arch Linux` 输出成 `/categories/Arch Linux/`、且丢失父级）。
+ */
+const archiveSiteData = await loadArchiveSite()
+const tagItems: TaxonomyItem[] = archiveSiteData.tags.map((term) => ({
+  name: term.name,
+  path: term.path,
+  length: term.posts.length,
+}))
+const categoryItems: TaxonomyItem[] = archiveSiteData.categories.map((term) => ({
+  name: term.name,
+  path: term.path,
+  length: term.posts.length,
+}))
+
+/* ------------------------------------------------------------------ */
+/* 当前页面                                                            */
+/* ------------------------------------------------------------------ */
+
+const { id } = Astro.props as Props
+const entry = allEntries.find((item) => item.id === id)
+if (!entry) throw new Error(`[page] 找不到条目 ${id}`)
+
+const data = entry.data as Record<string, unknown>
+const type = typeof data.type === 'string' ? data.type : ''
+
+/** 上游 `page.title`。 */
+const title = typeof data.title === 'string' ? data.title : ''
+
+/** 上游 `page.top_img`：false 表示显式关闭顶部图（与缺省不同）。 */
+const topImg =
+  typeof data.top_img === 'string' ? data.top_img : data.top_img === false ? false : undefined
+
+/** 上游 `page.top_single`：为真时即使 top_img === false 也不输出 page-title。 */
+const topSingle = data.top_single === true
+
+/** 上游 `page.top_background`（album 页用作卡片背景）。 */
+const topBackground = typeof data.top_background === 'string' ? data.top_background : undefined
+
+/** 上游 `page.aside === false` 时隐藏侧栏。 */
+const aside = data.aside === false ? false : undefined
+
+/** 页面正文：构建期 `entry.rendered.html` 优先，其次用 `render()` 的组件形式。 */
+const renderedHtml = (entry as unknown as { rendered?: { html?: string } }).rendered?.html ?? ''
+const { Content } = await render(entry)
+
+/** 上游 `page_description()` 用 `page.content` 回退，这里传渲染后的 HTML。 */
+const pageDescription = typeof data.description === 'string' ? data.description : undefined
+
+/**
+ * 上游 hexo-renderer-marked 在 `</hN>` 后不带换行，而 Astro 会在块级元素之间插 `\n`；
+ * `page_description()` 会把换行转成空格（`是什么 它` vs `是什么它`），这里先对齐。
+ */
+const contentForDescription = renderedHtml.replace(/(<\/h[1-6]>)\n/g, '$1')
+
+/** 上游 `full_date(page.updated)`：`updated_option: date` 下缺省回退 `page.date`。 */
+const postUpdate = hexoFullDate((data.updated ?? data.date) as Date | undefined)
+
+/** 上游 `escapeQuote(page.ai)` 同形（config_site.pug:2,5）：falsy（含 false / 空串）输出空串，真值 `String(page.ai)`——`ai: true` 必须落 `'true'`（golden 逐字节），与 slug.astro 同步。「'true' 不当摘要」由消费层 ai_abstract.js 守卫。 */
+const postAI = data.ai ? String(data.ai) : undefined
+const postMainColor = typeof data.main_color === 'string' ? data.main_color : undefined
+/** B2：page 级开关透传（front-matter 原值；缺省 undefined，见 BaseLayout 的 props 注释）。 */
+const pageSwitch = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
+
+/* ------------------------------------------------------------------ */
+/* 站点数据（上游 `site.data.*`）                                      */
+/* ------------------------------------------------------------------ */
+
+const essayData = getSiteData<EssayGroup[]>('essay') ?? []
+const albumData = getSiteData<AlbumGroup[]>('album') ?? []
+const linkData = getSiteData<FlinkGroup[]>('link') ?? []
+const equipmentData = getSiteData<EquipmentGroup[]>('equipment') ?? []
+const aboutData = getSiteData<unknown[]>('about') ?? []
+// 1.6.14 的 todolist 页（1.7.1 已移除模板）：数据来自 `source/_data/todolist.yml`（P7-4）。
+const todoData = getSiteData<TodoGroup[]>('todolist') ?? []
+---
+
+<BaseLayout
+  site={site}
+  title={title}
+  description={pageDescription}
+  content={contentForDescription}
+  pageType="page"
+  pageTypeValue={type || undefined}
+  topImg={topImg}
+  aside={aside}
+  postUpdate={postUpdate}
+  postAI={postAI}
+  postMainColor={postMainColor}
+  pageComments={pageSwitch(data.comments)}
+  pageMathjax={pageSwitch(data.mathjax)}
+  pageKatex={pageSwitch(data.katex)}
+  pageAplayer={pageSwitch(data.aplayer)}
+>
+  <div id="page">
+    {topImg === false && !topSingle && <h1 class="page-title">{title}</h1>}
+
+    {type === 'tags' ? (
+      <TagsPage items={tagItems} />
+    ) : type === 'categories' ? (
+      <CategoriesPage items={categoryItems} />
+    ) : type === 'link' ? (
+      <FlinkPage data={linkData} html={renderedHtml} Content={Content} />
+    ) : type === 'essay' ? (
+      <EssayPage data={essayData} />
+    ) : type === 'room' ? (
+      <RoomPage />
+    ) : type === 'about' ? (
+      <AboutPage data={aboutData} html={renderedHtml} />
+    ) : type === 'album' ? (
+      <AlbumPage data={albumData} topBackground={topBackground} />
+    ) : type === 'fcircle' ? (
+      <FcirclePage />
+    ) : type === 'album_detail' ? (
+      <AlbumDetailPage data={albumData} currentPath={Astro.url.pathname} />
+    ) : type === 'music' ? (
+      <MusicPage />
+    ) : type === 'equipment' ? (
+      <EquipmentPage data={equipmentData} />
+    ) : type === 'todolist' ? (
+      // 1.6.14 `layout/includes/page/todolist.pug`：1.7.1 删掉了模板，这里按原结构移植（P7-4）。
+      <TodolistPage data={todoData} topBackground={topBackground} />
+    ) : (
+      <DefaultPage html={renderedHtml} Content={Content} />
+    )}
+
+    {/* page.pug:33-35 — 评论区（#post-comment）：page.comments !== false 且主题启用评论系统 */}
+    {data.comments !== false && <CommentsIndex page={{ root: site.root }} />}
+  </div>
+</BaseLayout>

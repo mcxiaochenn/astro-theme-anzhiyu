@@ -3,7 +3,7 @@
 > 执行：agent-12 · 2026-11-25（Asia/Shanghai）· 基准 HEAD `2fa0bf7`（A–G 已落盘）
 > 范围：FIXPLAN F1–F18 + A–G 六份批报告「待 F 同步清单」全部积压 + `docs/notes/fixes/FIX-2026-11-25.md`（全量执行报告）+ 本报告。
 > 约束遵守：**零 git 写操作**（F commit 留给 Lead）；未跑 astro build / playwright / lighthouse；未触碰
-> `examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`；`docs/reference/upstream-delta.md` §5 锚点 JSON 未动。
+> `src/styles/upstream/**`、`theme.config.yml`；`docs/reference/upstream-delta.md` §5 锚点 JSON 未动。
 > 数字口径：全仓唯一，以 `docs/notes/fixes/FIX-2026-11-25.md` §6 表为准。
 
 ---
@@ -27,7 +27,7 @@
 | F13 (L3) | done | `README.en.md:29`：「83 dictionary entries」→「**4 dictionaries: default 91 / en 165 / zh-CN 165 / zh-TW 165 entries; 83 check-i18n assertions pass**」（实测：locales.ts 摊平块计数 + check-i18n 输出） |
 | F14 (L6) | done | `README.md:52/:200`：「13 个 page.type」→「**12 种标准 page.type + todolist 兼容页共 13 条真实路径**」；`docs/guides/MIGRATION.md:243/:656` 同口径（todolist 覆盖方式 = 1.6.14 模板移植兼容页） |
 | F15 (L9) | done | `README.md:109`：anzhiyuAssets 清单后补「其中 `/css/index.css` 是**结构性空占位**（上游 HTML 固定引用该路径），真实样式走 Vite 产物 `/_astro/*.css`」 |
-| F16 (L10) | done | `packages/remark-hexo-tag/src/parser.mjs:137`：「59/59 单测守护」→「**65/65 单测守护（test/run.mjs）**」；`packages/remark-hexo-tag/README.md:80` 62→65 条、`:87` 62/62→**65/65** |
+| F16 (L10) | done | `src/plugins/remark-hexo-tag/parser.mjs:137`：「59/59 单测守护」→「**65/65 单测守护（test/run.mjs）**」；`packages/remark-hexo-tag/README.md:80` 62→65 条、`:87` 62/62→**65/65** |
 | F17 (L13) | done | `examples/blog/README.md:14`：「public/{js,css,img,anzhiyu}/ 上游 source/js/* 复刻」→「**`public/{img,anzhiyu}/` + favicon.ico**（img 13 个、anzhiyu/random.js、favicon）；JS/CSS 由主题包 `anzhiyuAssets()` integration 构建期注入 dist」 |
 | F18 (L17) | done | `docs/notes/phases/P7-2-perf.md`：文件头「历史快照头注」（62/48/94 页时点数声明）；§6.2（:435-452）按 `docs/reference/baseline.json perf.finalCiRun`（run 45398204980）回填 4 类分数（0.96/0.93/0.95 等），**seo 内联阈值 → 0.82**；§6.3 标「历史快照，未回填」（资源明细不猜数） |
 
@@ -56,7 +56,7 @@
 | fix-batch-g #1-5 | 15 卡片 ×5 | `README.md:200`、`README.en.md:118`、`docs/plan/PLAN.md:81`、`docs/plan/PLAN.md:457`、`docs/plan/03-migration-plan.md:97` → 「15 张卡片（12 aside + 2 中控台 + 1 最新评论）」（03 为 G 报告授权 F 仲裁项，仲裁：回改） |
 | fix-batch-g #6-12 | 62 页口径 ×8 | `README.md:7/:154`、`README.en.md:7/:79`、`docs/plan/PLAN.md:27/:718`、`examples/blog/README.md:3/:26` → 61 页（49+12）；P7-2-perf 6 处归 F18 历史快照头注 |
 | fix-batch-g #13-14 | 62/62、59/59 | `packages/remark-hexo-tag/README.md:87`、`src/parser.mjs:137` → 65/65（F16） |
-| fix-batch-g #15-16 | G6 README ×2 | `packages/vite-plugin-stylus-hexo-config/README.md`：限制节补「值改写三态说明」（双引号→单引号、对象/数组按 truthy、三类告警 `warnOnMissing` 统一门控同键一次）+ `warnOnMissing` 释义扩为「缺失/改写类告警总闸」 |
+| fix-batch-g #15-16 | G6 README ×2 | `src/plugins/stylus-hexo-config/README.md`：限制节补「值改写三态说明」（双引号→单引号、对象/数组按 truthy、三类告警 `warnOnMissing` 统一门控同键一次）+ `warnOnMissing` 释义扩为「缺失/改写类告警总闸」 |
 | fix-batch-g #17 | public 清单 | F17 |
 | fix-batch-g #18 | raw 可选说明 | `packages/remark-hexo-tag/README.md:59-60` 补「raw 区域内自闭合块级（checkbox/radio）同样展开（G7）」 |
 | fix-g §12 | P1.5 残留 | **已清理**（追加项 2）：vertical-slice.mjs / serve-and-collect.mjs / pjax-shim.ts / test:slice scripts 均已不存在（本次复核 `Test-Path` 全 False） |
@@ -69,18 +69,18 @@
 | 命令 | 结果 |
 |---|---|
 | `node scripts/check-upstream-delta.mjs` | exit 0，**PASS 29 / SKIP 0 / FAIL 0**（U9 行加入后仍绿，锚点 JSON 未动） |
-| `node packages/remark-hexo-tag/test/run.mjs` | exit 0，**65/65** |
-| `node packages/astro-theme-anzhiyu/scripts/check-loader.mjs` | exit 0，**43/43** |
-| `node packages/astro-theme-anzhiyu/scripts/check-schema.mjs` | exit 0，yaml 133 / schema **134**（friends_lite） |
+| `node tests/remark-hexo-tag/run.mjs` | exit 0，**65/65** |
+| `node scripts/check-loader.mjs` | exit 0，**43/43** |
+| `node scripts/check-schema.mjs` | exit 0，yaml 133 / schema **134**（friends_lite） |
 | `node scripts/diff-html.mjs --all`（.baseline-html 自比对） | exit 0，**49 页 / PASS 49 / FAIL 0 / 0 条差异** |
 | `node scripts/verify-css.mjs` | exit 0，比对通过（SHA 差异按 D2 显式登记，不判失败） |
 | `node scripts/compare-css-vars.mjs` | exit 0，68 严格一致 / 1 顺序差异 / 0 不一致 |
 | `node scripts/check-tag-styles.mjs` | exit 0，全命中 |
-| `node packages/astro-theme-anzhiyu/scripts/check-i18n.mjs` | exit 0，83 项断言（词典 91/165/165/165） |
+| `node scripts/check-i18n.mjs` | exit 0，83 项断言（词典 91/165/165/165） |
 
 ## 3. 写范围清单（本批实际改动）
 
-改：`README.md`、`README.en.md`、`docs/guides/MIGRATION.md`、`docs/plan/PLAN.md`、`docs/reference/upstream-delta.md`（仅 §1 总表 + U1 验证行，§5 锚点 JSON 零改动）、`docs/notes/phases/P7-4-final-acceptance.md`（:88）、`docs/notes/phases/P7-2-perf.md`（头注 + §6.2/6.3）、`docs/notes/phases/P7-1-pwa.md`（头注）、`docs/notes/fixes/fix-rebaseline.md`（:286/:380 两行）、`docs/plan/FIXPLAN.md`（仅顶部头注）、`packages/remark-hexo-tag/src/parser.mjs`（:137 注释）、`packages/remark-hexo-tag/README.md`、`packages/remark-hexo-tag/src/tags/thirdparty/index.mjs`（仅注释）、`packages/vite-plugin-stylus-hexo-config/README.md`（G6 ×2）、`examples/blog/README.md`、`docs/plan/03-migration-plan.md`（:97 一行，G3 ×5 授权项）、`tests/baseline-html/README.md`（:3 一行）、`tests/e2e/pwa.spec.ts`（仅 precache 数字与注释）。
+改：`README.md`、`README.en.md`、`docs/guides/MIGRATION.md`、`docs/plan/PLAN.md`、`docs/reference/upstream-delta.md`（仅 §1 总表 + U1 验证行，§5 锚点 JSON 零改动）、`docs/notes/phases/P7-4-final-acceptance.md`（:88）、`docs/notes/phases/P7-2-perf.md`（头注 + §6.2/6.3）、`docs/notes/phases/P7-1-pwa.md`（头注）、`docs/notes/fixes/fix-rebaseline.md`（:286/:380 两行）、`docs/plan/FIXPLAN.md`（仅顶部头注）、`src/plugins/remark-hexo-tag/parser.mjs`（:137 注释）、`packages/remark-hexo-tag/README.md`、`src/plugins/remark-hexo-tag/tags/thirdparty/index.mjs`（仅注释）、`src/plugins/stylus-hexo-config/README.md`（G6 ×2）、`examples/blog/README.md`、`docs/plan/03-migration-plan.md`（:97 一行，G3 ×5 授权项）、`tests/baseline-html/README.md`（:3 一行）、`tests/e2e/pwa.spec.ts`（仅 precache 数字与注释）。
 新增：`docs/notes/fixes/FIX-2026-11-25.md`、`docs/notes/fixes/fix-batch-f.md`（本报告）。
 
 ## 4. 待 CI 验证清单

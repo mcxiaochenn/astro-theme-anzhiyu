@@ -80,7 +80,7 @@
 - `private` 删除、`version` → `1.0.0`。
 - `yaml` 从 `devDependencies` 提到 `dependencies`（`devDependencies` 随之删空并移除该字段）。
 - `license` 取 `GPL-3.0` 与仓库根 `LICENSE` / README「许可证」小节一致（SPDX 严格写法应为 `GPL-3.0-only`，但那要改 README 的表述，超出本任务写范围；此处与仓库口径对齐）。
-- `peerDependencies.astro` 取 `^7.0.0`：仓库实际用 `7.4.13`（[examples/blog/package.json](../../../examples/blog/package.json)、迁移产物 `^7.4.13`），主题源码只碰 `astro:content` / `astro:transitions` / `astro:transitions/client` 这几个 7.x 稳定的虚拟模块，不需要锁小版本。
+- `peerDependencies.astro` 取 `^7.0.0`：仓库实际用 `7.4.13`（[package.json](../../../package.json)、迁移产物 `^7.4.13`），主题源码只碰 `astro:content` / `astro:transitions` / `astro:transitions/client` 这几个 7.x 稳定的虚拟模块，不需要锁小版本。
 - `publishConfig.registry` 是为本机环境加的：`npm config get registry` = `https://registry.npmmirror.com`，镜像没有 publish 能力；钉到官方源后 `npm publish --dry-run` 实测输出 `Publishing to https://registry.npmjs.org/ ...`。
 - `exports` 只**新增**两条通配子路径，未动既有条目（见 §1.5）。
 - `files` 保持 `["src", "assets", "integration.mjs"]`：npm 自动附带 `package.json`，所以 tarball = `src/` + `assets/` + `integration.mjs` + `package.json`。
@@ -95,7 +95,7 @@ P7-6 的验收口径是「首个版本」（[PLAN P7-6](../../plan/PLAN.md) 第 
 
 配套：npm dist-tag 用默认 `latest`；git tag 用 `v1.0.0`（见 §5）。后续按 semver 递增：修复 `1.0.1`、新功能 `1.1.0`、破坏性 `2.0.0`。
 
-### 1.4 运行时依赖核对（扫 `packages/astro-theme-anzhiyu/src/**` 的全部 import）
+### 1.4 运行时依赖核对（扫 `src/**` 的全部 import）
 
 非相对导入只有 6 个来源：
 
@@ -108,7 +108,7 @@ P7-6 的验收口径是「首个版本」（[PLAN P7-6](../../plan/PLAN.md) 第 
 
 `integration.mjs` 只用 `node:fs` / `node:path` / `node:url`，零第三方依赖。`assets/js/**` 是浏览器脚本，不参与打包依赖图。
 
-**不**属于主题包依赖、但站点侧必需（版本取自 [examples/blog/package.json](../../../examples/blog/package.json) 与迁移产物 `.migration-out/xcAnzhiyu/package.json`，两边一致）：
+**不**属于主题包依赖、但站点侧必需（版本取自 [package.json](../../../package.json) 与迁移产物 `.migration-out/xcAnzhiyu/package.json`，两边一致）：
 
 | 依赖 | 版本 | 归属 | 说明 |
 | --- | --- | --- | --- |
@@ -235,7 +235,7 @@ export default defineConfig({
 
 > 关于任务里的「删 `node_modules/astro-theme-anzhiyu`」：这里用更严格的做法——复制 consumer 时整棵 `node_modules/` 不复制，安装从零生成，因此不存在任何旧版 `file:` 安装的残留（原 `xcAnzhiyu/node_modules/astro-theme-anzhiyu` 还是个指向旧版 `.pnpm` 快照的 junction，旧 `package.json` 里 `files: ["src"]`、`exports` 也没有 `./integration`，带着它测等于没测）。
 
-> 为什么必须改写：迁移产物原来一律用 `../../../../packages/astro-theme-anzhiyu/src/...` 相对导入，这种写法在原仓库内能跑，但**根本不会读 node_modules**，拿它做冒烟等于没测到 tarball。改成包名子路径后，每一条导入都必须经过 `exports` + node_modules 解析。
+> 为什么必须改写：迁移产物原来一律用 `../../../../src/...` 相对导入，这种写法在原仓库内能跑，但**根本不会读 node_modules**，拿它做冒烟等于没测到 tarball。改成包名子路径后，每一条导入都必须经过 `exports` + node_modules 解析。
 
 ### 3.2 安装结果（resolved 证据）
 
@@ -434,7 +434,7 @@ node scripts/deploy-demo-pages.mjs
 3. **`git tag` / `git push` 未执行**：本会话禁止 git 写操作；tag 策略写在 §5，命令留给人工。
 4. **demo Pages 未推送**：会写另一个仓库，未获授权（§6）。
 5. **两个配套 workspace 包未发布**：`vite-plugin-stylus-hexo-config@0.1.0`、`remark-hexo-tag@0.1.0` 仍是 workspace/`file:` 依赖。仓库外「装主题包 + 接 Hexo tag + 编上游样式」还需要它们先发 npm（或 git/tarball 引用）。这是「`npm i` 直接用起来」的最后一公里，建议 P7-6 收尾时一起发（各自 package.json 已有 `license`/`repository`，缺 `version 1.0.0`/`private` 清理/`publishConfig` 等同类元数据，可以照本笔记 §1.2 的做法照抄）。
-6. **迁移脚本仍生成相对导入**：`scripts/migrate-hexo.mjs` 生成的都是 `../../packages/astro-theme-anzhiyu/src/...`，对「在 monorepo 内构建」没问题，对「只装 npm 包的独立项目」不可用。本任务只补了 `exports` 子路径，没有改迁移脚本（写范围外）。后续应把生成模板改成包名子路径，本笔记 §3.1 的改写脚本（`.migration-out/prepare-p7-6-consumer.mjs`）可以直接作为映射表参考。
+6. **迁移脚本仍生成相对导入**：`scripts/migrate-hexo.mjs` 生成的都是 `../../src/...`，对「在 monorepo 内构建」没问题，对「只装 npm 包的独立项目」不可用。本任务只补了 `exports` 子路径，没有改迁移脚本（写范围外）。后续应把生成模板改成包名子路径，本笔记 §3.1 的改写脚本（`.migration-out/prepare-p7-6-consumer.mjs`）可以直接作为映射表参考。
 7. **`types` 条件导出未加**：`exports` 目前是纯字符串形式，TS 用户靠 `bundler` 解析能拿到 `.ts` 源码类型，但没有显式 `types` condition。加它需要把每个导出写成对象形态，风险大于收益，留作后续。
 8. **包内 `scripts/` 字段指向没进包的文件**：`package.json` 里 7 个 `check:*` / `gen:defaults` 脚本引用 `./scripts/*`，而 `scripts/` 不在 `files` 里。消费者不会执行这些脚本，无实际影响；若在意可把 `scripts` 从发布清单语义里摘掉（本任务保持原样，避免改开发工作流）。
 9. **浏览器 / 性能验证**：本机 DSH 沙箱起不了 Playwright/Chromium/Lighthouse（PLAN R12），demo 页与性能预算（P7-2）只能走 CI。

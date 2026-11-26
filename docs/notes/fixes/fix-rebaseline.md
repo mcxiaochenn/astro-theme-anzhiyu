@@ -1,9 +1,9 @@
 # fix-rebaseline：golden 重基线（abbrlink fixture 并入）——已收尾（Lead 拍板后完成）
 
-- 任务：把 `tests/fixtures/abbrlink-post.md` 并入 `.baseline-work/` 重建 hexo golden（48 页旧 golden → 49 页），重打 `tests/baseline-html/baseline-html.tar.gz` 并同步数字
+- 任务：把 `src/content/abbrlink-post.md` 并入 `.baseline-work/` 重建 hexo golden（48 页旧 golden → 49 页），重打 `tests/baseline-html/baseline-html.tar.gz` 并同步数字
 - 执行日：2026-01-25（Asia/Shanghai，会话时间戳 2026-11-25 07:07–07:3x）；收尾续跑同日（§9）
 - **状态：✅ 已收尾。首跑按「预期外 FAIL 就停」停在 3b（§0-§8 为停机时的历史快照）；Lead 拍板 ①-⑤ 后由 agent-9 续跑完成步骤 4-5 与全部验证（§9）。**
-- 写过的文件：首跑 `.baseline-work/source/_posts/abbrlink-post.md`（新增 fixture 副本）+ 本报告；收尾追加 `tests/baseline-html/baseline-html.tar.gz` / `baseline-html.manifest.json` / `README.md`、`.github/workflows/ci.yml`（仅注释）、`docs/reference/baseline.json`（仅 pages）。`docs/reference/upstream-delta.md` 原样未动。禁改项（examples/blog/**、packages/**、scripts/**、tests/fixtures/**、docs/reference/upstream-delta.md、baseline.json 的 CSS 字段）零改动。
+- 写过的文件：首跑 `.baseline-work/source/_posts/abbrlink-post.md`（新增 fixture 副本）+ 本报告；收尾追加 `tests/baseline-html/baseline-html.tar.gz` / `baseline-html.manifest.json` / `README.md`、`.github/workflows/ci.yml`（仅注释）、`docs/reference/baseline.json`（仅 pages）。`docs/reference/upstream-delta.md` 原样未动。禁改项（examples/blog/**、packages/**、scripts/**、src/content/**、docs/reference/upstream-delta.md、baseline.json 的 CSS 字段）零改动。
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### 1.1 步骤 1：fixture 副本 + front-matter（回读确认）
 
-`tests/fixtures/abbrlink-post.md` → `.baseline-work/source/_posts/abbrlink-post.md`，front-matter 回读（read 工具，行 1–11）：
+`src/content/abbrlink-post.md` → `.baseline-work/source/_posts/abbrlink-post.md`，front-matter 回读（read 工具，行 1–11）：
 
 ```yaml
 ---
@@ -40,7 +40,7 @@ description: 带数字 abbrlink 的 fixture：文章 URL 末段应为 abbrlink �
 ---
 ```
 
-正文与 `tests/fixtures/abbrlink-post.md` 逐字一致（26→27 行仅因 front-matter 多两行）。`slug: 24531` 按任务要求加在 `abbrlink: 24531` 后；`permalink: /2024/11/20/24531/` 是本次补丁（§4）。
+正文与 `src/content/abbrlink-post.md` 逐字一致（26→27 行仅因 front-matter 多两行）。`slug: 24531` 按任务要求加在 `abbrlink: 24531` 后；`permalink: /2024/11/20/24531/` 是本次补丁（§4）。
 
 ### 1.2 步骤 2：hexo generate
 

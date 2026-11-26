@@ -4,7 +4,7 @@
 - 范围：Phase 7 的 P7-3 / P7-4（迁移脚本 + 迁移指南 + 真实站演练）
 - 环境：Windows 11 / Node 24.22.0（`export PATH="/c/Program Files/nodejs:$PATH"`）/ pnpm 9.14.4
 - 源站：`D:/Git-project/xcAnzhiyu`（`hexo-theme-anzhiyu 1.6.14`，**只读**）
-- 1.7.1 基准：`packages/astro-theme-anzhiyu/src/config/defaults.ts`（AUTO-GENERATED from
+- 1.7.1 基准：`src/config/defaults.ts`（AUTO-GENERATED from
   `D:/Git-project/_research/anzhiyu-upstream/_config.yml`）
 
 ---
@@ -133,7 +133,7 @@ A 的完整 stdout 汇总见 §3.2。B 不写任何文件（含报告自身）�
     "staticAssets": 112, "outputFiles": 292
   },
   "configKeyDelta": {
-    "baseline": "packages/astro-theme-anzhiyu/src/config/defaults.ts (AUTO-GENERATED from 1.7.1)",
+    "baseline": "src/config/defaults.ts (AUTO-GENERATED from 1.7.1)",
     "targetKeyCount": 133,
     "siteThemeKeyCount": 136,
     "matchedKeys": 132,
@@ -195,11 +195,11 @@ A 的完整 stdout 汇总见 §3.2。B 不写任何文件（含报告自身）�
 路径重写校验（每个文件独立计算，修复后）：
 
 ```
-src/pages/index.astro                          → '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+src/pages/index.astro                          → '../../../../src/layouts/BaseLayout.astro'
 src/pages/page/[...page].astro                 → '../../../../../packages/...'
 src/pages/[...path].astro                      → '../../../../packages/...'
 src/pages/[year]/[month]/[day]/[slug].astro   → '../../../../../../../packages/...'
-astro.config.mjs                               → '../../packages/remark-hexo-tag/src/index.mjs'
+astro.config.mjs                               → '../../src/plugins/remark-hexo-tag/index.mjs'
 4 个页面里的 const site = {...}                → import { site } from '<相对>/site.config'
 ```
 
@@ -341,7 +341,7 @@ WARN  Local package.json exists, but node_modules missing, did you mean to insta
 临时排除 21 个含 tag 的内容文件后，第一次诊断暴露：
 
 ```
-[UNRESOLVED_IMPORT] Could not resolve '../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
+[UNRESOLVED_IMPORT] Could not resolve '../../src/layouts/BaseLayout.astro'
                     in src/pages/page/[...page].astro
 ```
 
@@ -355,7 +355,7 @@ WARN  Local package.json exists, but node_modules missing, did you mean to insta
 | --- | --- | --- |
 | A | 完整内容 + 独立依赖 | 仍被 `uitest-page.md` 的 `{% tabs %}` 卡住（内容问题，非骨架问题） |
 | B | 排除 21 个 tag 文件 | 配置加载 / content sync / types / 组件解析 / stylus 展开（102 键、150 文件）全部通过，最终 `postcss` 报 `src/styles/upstream/index.styl:16823:3 Unknown word cursor` |
-| C | 排除 21 个 tag 文件 **+ 临时换成 `examples/blog/theme.config.yml` 基准配置** | **成功**：`19 page(s) built in 4.45s`、`[build] Complete!` |
+| C | 排除 21 个 tag 文件 **+ 临时换成 `theme.config.yml` 基准配置** | **成功**：`19 page(s) built in 4.45s`、`[build] Complete!` |
 
 build C 输出的页面（节选）：`/about/`、`/categories/`、`/charts/`、`/cookies/`、`/copyright/`、
 `/disclaimer/`、`/equipment/`、`/essay/`、`/fcircle/`、`/messages/`、`/music/`、`/privacy/`、
@@ -416,7 +416,7 @@ comment-backend-secret 8 / cdn 2 / inject 2 / hexo-only 1 / hexo-plugin 1 = 21`�
 ### 6.3 脚本未覆盖 / 后续工作
 
 1. 归档 / 标签 / 分类 / 404 路由未生成（只给了最小 4 条路由）；要完整站点需从
-   `examples/blog/src/pages/` 复制并替换 `BASELINE_SITE`（`archives/_data.ts` 仍硬编码基准站身份）。
+   `src/pages/` 复制并替换 `BASELINE_SITE`（`archives/_data.ts` 仍硬编码基准站身份）。
 2. 主题配置清洗只处理**顶层键**；区块内子键的类型校验（schema 已展开 17 个区块）仍需逐站验证。
 3. `data/*.json`（本站 `bangumis.json`）不被 `site-data.ts` 的 `glob('*.yml')` 读取。
 4. `siteExtras.external_link.exclude` 未接入 `[slug].astro`（那里仍是硬编码）。

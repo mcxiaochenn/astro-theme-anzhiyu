@@ -1,7 +1,7 @@
 /**
  * Phase 4 行为验收：搜索 UI（P4-8）
  *
- * 现实前提（诚实记录）：demo 站 `examples/blog/theme.config.yml` 里
+ * 现实前提（诚实记录）：demo 站 `theme.config.yml` 里
  * `algolia_search.enable` / `docsearch.enable` / `local_search.enable` 全是 false，
  * 上游 `layout/includes/third-party/search/index.pug` 在三个开关都关时**不输出任何搜索
  * DOM**，站上也没有 `#search-button`。所以 demo 站上这条用例只会 skip，不会伪造通过。

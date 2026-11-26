@@ -37,7 +37,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build blog
-        run: pnpm --filter blog build
+        run: pnpm build
 
       - name: Verify CSS baseline
         run: pnpm verify
@@ -52,13 +52,13 @@ jobs:
         run: pnpm check:upstream-delta
 
       # D5 (M1+E3)：check-loader 的 defaults ↔ 上游 _config.yml 直比断言（值/键漂移红）。
-      # CI 无 _research 只读副本，改用仓内 SHA 守卫镜像 examples/blog/theme.config.yml
+      # CI 无 _research 只读副本，改用仓内 SHA 守卫镜像 theme.config.yml
       # （与上游 _config.yml 字节一致：SHA bd0bd629…，check:upstream-delta 已守卫），
-      # 不再拉外部仓库，消除网络依赖。本地等价命令：node packages/astro-theme-anzhiyu/scripts/check-loader.mjs
+      # 不再拉外部仓库，消除网络依赖。本地等价命令：node scripts/check-loader.mjs
       - name: Check config loader (defaults == upstream _config.yml)
         env:
-          THEME_UPSTREAM_CONFIG: ${{ github.workspace }}/examples/blog/theme.config.yml
-        run: node packages/astro-theme-anzhiyu/scripts/check-loader.mjs
+          THEME_UPSTREAM_CONFIG: ${{ github.workspace }}/theme.config.yml
+        run: node scripts/check-loader.mjs
 
       # CI 上没有 gitignore 的 .baseline-work/，baseline HTML 以归档形式进仓库
       # （tests/baseline-html/baseline-html.tar.gz，49 页 / 490 KB）。解压出来的
@@ -89,7 +89,7 @@ jobs:
         with:
           name: dist
           path: |
-            examples/blog/dist
+            dist
             diff-report.json
           if-no-files-found: error
 
@@ -162,7 +162,7 @@ jobs:
   #   本机 Playwright/Chromium 起不来（DSH Windows 沙箱阻断，PLAN 风险 R12），浏览器
   #   测量只能在 ubuntu runner 真跑，这是唯一能拿到 Lighthouse 真实分数的地方。
   #
-  # 测什么：examples/blog（与迁移站同主题、同 CSS/JS 的验证站）。真实站 94 页需要
+  # 测什么：根站点（与迁移站同主题、同 CSS/JS 的验证站）。真实站 94 页需要
   #   Hexo 源站内容与私有配置，CI 构建不出来；验证站是「同一份产物」的性能代理，
   #   口径差异见 docs/notes/phases/P7-2-perf.md §1。
   #
@@ -204,9 +204,9 @@ jobs:
       # 与 build job 同一条构建命令；默认构建不产出 sw.js/manifest（PWA 只在
       # ANZHIYU_PWA=1 时接线），所以这里测到的就是基线 62 页产物。
       - name: Build blog
-        run: pnpm --filter blog build
+        run: pnpm build
 
-      # 必须 `pnpm exec`：`pnpm --filter blog preview -- --host ...` 会把 `--` 原样传给
+      # 必须 `pnpm exec`：`pnpm preview -- --host ...` 会把 `--` 原样传给
       # astro preview，本机实测报 `Unknown command: astro preview --host`。
       # 后台起在 127.0.0.1:4321（.lighthouserc.json 的三个 URL 都指向它），轮询到
       # HTTP 200 再往下走——直接 sleep 不可靠，CI 冷启动有快有慢。
@@ -218,7 +218,7 @@ jobs:
         run: |
           set -euo pipefail
           PREVIEW_LOG="$RUNNER_TEMP/anzhiyu-preview.log"
-          pnpm --filter blog exec astro preview --host 127.0.0.1 --port 4321 > "$PREVIEW_LOG" 2>&1 &
+          pnpm exec astro preview --host 127.0.0.1 --port 4321 > "$PREVIEW_LOG" 2>&1 &
           for i in $(seq 1 60); do
             if curl -fs -o /dev/null "http://127.0.0.1:4321/"; then
               echo "preview ready after ${i}s"

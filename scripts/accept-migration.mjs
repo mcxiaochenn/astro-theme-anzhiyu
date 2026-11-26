@@ -1601,7 +1601,7 @@ function checkPageTypes({ facts, distIndex, migratedDir, plugins }) {
       }
       if (entry.declaredType === 'todolist') {
         evidence.push(
-          `主题包是否有 TodolistPage.astro：${isFile(path.join(REPO_ROOT, 'packages', 'astro-theme-anzhiyu', 'src', 'components', 'page', 'TodolistPage.astro'))}`,
+          `主题包是否有 TodolistPage.astro：${isFile(path.join(REPO_ROOT, 'src', 'components', 'page', 'TodolistPage.astro'))}`,
         )
       }
       check.gaps.push({

@@ -8,7 +8,7 @@
  *   - 点「回到顶部」会关菜单并滚回顶部。
  *
  * P4-10 归因（CI 首跑 3 条行为用例失败）：
- *   demo 站 `examples/blog/theme.config.yml` 的 `rightClickMenu.enable: false`
+ *   demo 站 `theme.config.yml` 的 `rightClickMenu.enable: false`
  *   （与上游主题默认一致）→ additional-js 不输出 right_click_menu.js →
  *   `window.rm` 不存在，`window.oncontextmenu` 从未被接管。所以「右击后 #rightMenu
  *   仍 hidden」不是产品 bug，是**配置没启用该功能**（静态 DOM 由 BaseLayout 无条件

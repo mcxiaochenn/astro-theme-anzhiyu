@@ -65,7 +65,7 @@
 | P1-8 配置加载层 | ✅ loader + 30/30 用例通过；错误信息含完整键路径；CSS 变量比对 69/69 命中 |
 | Phase 1.5 垂直切片 | ✅ 五项假设全过（详见 §Phase 1.5），Phase 4 原方案成立 |
 | P2-13 HTML diff 工具 | ✅ 21 条归一化规则（N1–N21）+ 忽略机制元素后合并相邻文本节点；48 页全量比对，当前 112 条差异 |
-| P2-1 内容集合 | ✅ 10 篇直接读 `tests/fixtures/`（零复制）、frontmatter 19/19 字段覆盖、unified 处理器生效 |
+| P2-1 内容集合 | ✅ 10 篇直接读 `src/content/`（零复制）、frontmatter 19/19 字段覆盖、unified 处理器生效 |
 | P2-2/P2-3 骨架与 Head | ✅ BaseLayout 26 个挂载点 ID 全命中；Head 32 条 meta/link；首页由真实内容渲染 |
 | P2-6/P2-11 helper 与 i18n | ✅ 12 个 helper 以上游 JS 为 oracle 对拍 269 项全过；4 语言字典 83 项通过 |
 | P2-14 基线归档进 CI | ✅ 48 页基线 HTML 压到 477 KB 进仓库（manifest 逐文件校验），CI 自动解压 + 跑 diff 出报告 |
@@ -115,7 +115,7 @@
 | D4 | 上游参考产物没有产出计划 | 三层验收全部依赖它，缺了等于无法验收 | P1-6 补上 |
 | D5 | 没有示例内容 fixture | HTML diff / 像素 diff 需要同一份内容喂两边 | P1-6 一并产出 |
 | D6 | 插件对 `@import` 做了全局去重 | Stylus 原生 include 语义是重复展开，去重后产物可能不同 | ✅ 已解决：改成按 Stylus 的 `@require`/`@import` 语义分别处理，产物与基准 +0.52% |
-| D7 | 上游自身有非法 CSS：`source/css/_mode/readmode.styl:120` 写成 `var(-highlight-bg)`（104 行是正确的 `--highlight-bg`） | 浏览器静默丢弃该声明；lightningcss 严格解析直接构建失败。修上游会改变视觉，不修则必须关压缩 | 已决策：不改上游，`examples/blog/astro.config.mjs` 关 `cssMinify`，Phase 7 处理压缩时再议 |
+| D7 | 上游自身有非法 CSS：`source/css/_mode/readmode.styl:120` 写成 `var(-highlight-bg)`（104 行是正确的 `--highlight-bg`） | 浏览器静默丢弃该声明；lightningcss 严格解析直接构建失败。修上游会改变视觉，不修则必须关压缩 | 已决策：不改上游，`astro.config.mjs` 关 `cssMinify`，Phase 7 处理压缩时再议 |
 | D8 | 量级纠正：上游 `_config.yml` 不是「约 200 键」，而是 **133 个顶层键 / 662 个递归 mapping key** | P1-7 的工作量估算需上调；schema 还有约 351 个嵌套键是 passthrough | 以 P1-7 报告实测为准，本文件相关表述已改 |
 | D9 | ~~未定位：prismjs 守卫导致 +3.5 KB~~ | **已定位并修复**：上游用 Hexo filter 的 `.define()` 注入 4 个 Stylus 变量，我们插件没复刻；且 **Stylus 未定义变量在 `if` 里当「真」**（P1-5 报告已勘误）。P1-11 复刻后 CSS 686772 → 682990，对基线仅 −228（U6） | ✅ 关闭 |
 | D10 | [02 §ADR-003](../analysis/02-astro-mapping.md) 的风险段仍写「`#web_bg` 会被重建、音乐可能需要独立持久层」 | Phase 1.5 实测已推翻：同节点、音频不中断 | ADR 冻结不改，以 §6.8 实测记录为准 |
@@ -297,8 +297,8 @@ node scripts/check-upstream-delta.mjs  # 上游差异守卫（29 项）
 | P1-3 | Stylus 管线（变量层） | `var.styl` 编译成功 | 63 处 `hexo-config` 求值正确（02 §6.6） | 0.5 | ✅ |
 | P1-4 | `vite-plugin-stylus-hexo-config` | 230 行插件 + README | import 展开、调用点变量化、引号规则、缺失键告警 | 1 | ✅ |
 | P1-5 | **上游完整样式全量编译** | 上游 `source/css/` 全量进 `examples/blog`，产物 686772 B | 见 docs/notes/phases/P1-5-full-style-build.md | 1 | ✅ |
-| P1-6 | 基准固化 + 内容 fixture | `docs/reference/baseline.json`（CSS 683218 B / 48 页）、`tests/fixtures/` 10 篇覆盖 42 tag | 上游 `hexo g` 跑通，4 次构建逐字节可复现 | 0.5 | ✅ |
-| P1-7 | 配置 schema | `packages/astro-theme-anzhiyu/src/config/schema.ts`（133 顶层，31 区块精确类型） | 上游 `_config.yml` 校验零错误、unknown key 0 | 1.5 | ◐ |
+| P1-6 | 基准固化 + 内容 fixture | `docs/reference/baseline.json`（CSS 683218 B / 48 页）、`src/content/` 10 篇覆盖 42 tag | 上游 `hexo g` 跑通，4 次构建逐字节可复现 | 0.5 | ✅ |
+| P1-7 | 配置 schema | `src/config/schema.ts`（133 顶层，31 区块精确类型） | 上游 `_config.yml` 校验零错误、unknown key 0 | 1.5 | ◐ |
 | P1-8 | 配置加载层 | `loader.ts`：YAML → 深合并默认值 → 校验 → 类型导出 | ✅ 30/30 用例通过；类型错误报完整键路径（`highlight_copy（期望 boolean）`） | 1 | ✅ |
 | P1-11 | **复刻 Hexo define 层**（D9 修复） | 插件按上游 `scripts/events/stylus.js` 逻辑注入 4 个 Stylus 变量 | ✅ CSS 686772 → 682990，prismjs 规则族清零；verify PASS +0.13% | 0.5 | ✅ |
 | P1-12 | schema 收紧与 strict 顶层 | 顶层 `.strict()`；17 区块 +143 键展开 | ✅ 未知顶层键报错并列出键名；42/42 自检通过 | 1 | ✅ |
@@ -638,7 +638,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: examples/blog/dist
+          path: dist
 ```
 
 实际落盘的 `.github/workflows/ci.yml` 比上面多两处修正：不写 `with.version`（否则与 `packageManager: pnpm@10.29.3` 冲突报 `Multiple versions of pnpm specified`）；加 `permissions: contents: read`、`timeout-minutes: 15`、`if-no-files-found: error`。

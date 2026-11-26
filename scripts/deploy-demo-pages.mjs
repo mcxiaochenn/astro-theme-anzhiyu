@@ -31,7 +31,7 @@
  *   DEMO_PAGES_URL     默认 https://anzhiyu.example.mcxiaochen.top
  *   DEMO_PAGES_CNAME   自定义域名（写入 CNAME 文件）；缺省从 DEMO_PAGES_URL 主机名推导，
  *                      *.github.io 不写
- *   DEMO_THEME_CONFIG  默认 examples/blog/theme.config.demo-delta.yml（功能全开 delta）
+ *   DEMO_THEME_CONFIG  默认 theme.config.demo-delta.yml（功能全开 delta）
  */
 
 import { spawnSync, execSync } from 'node:child_process'
@@ -51,7 +51,7 @@ import { parse, stringify } from 'yaml'
 
 const here = fileURLToPath(import.meta.url)
 const repoRoot = resolve(here, '..', '..')
-const blogDir = join(repoRoot, 'examples', 'blog')
+const blogDir = repoRoot
 const distDir = join(blogDir, 'dist')
 
 const PAGES_REPO = process.env.DEMO_PAGES_REPO || 'mcxiaochenn/astro-theme-anzhiyu'
@@ -75,8 +75,8 @@ const DEMO_DELTA = process.env.DEMO_THEME_CONFIG
   : join(blogDir, 'theme.config.demo-delta.yml')
 const BASELINE_CONFIG = join(blogDir, 'theme.config.yml')
 const MERGED_CONFIG = join(blogDir, '.tmp-demo-theme.config.yml')
-const ESSAY_FILE = join(blogDir, 'data', 'essay.yml')
-const FIXTURES_DIR = join(repoRoot, 'tests/fixtures')
+const ESSAY_FILE = join(blogDir, 'src', 'data', 'essay.yml')
+const FIXTURES_DIR = join(repoRoot, 'src/content')
 
 /** 带输出地执行 shell 命令；失败即退出。 */
 function run(command, options = {}) {
@@ -188,7 +188,7 @@ console.log('[2/5] demo 构建（site.url=%s, root=/%s, Astro base=/%s）', PAGE
 // 根路径部署时 DEPLOY_SITE_ROOT 传 '/'（site-identity 归一化后即 root=/）。
 let buildStatus = -1
 try {
-  const build = spawnSync('pnpm', ['--filter', 'blog', 'build'], {
+  const build = spawnSync('pnpm', ['build'], {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -215,7 +215,7 @@ if (buildStatus !== 0) fail(`demo 构建失败（exit ${buildStatus}）`)
 /* 3. 生成 search.xml + HTML 后处理                                     */
 /* ------------------------------------------------------------------ */
 
-// search.xml：local_search 索引，按 tests/fixtures/*.md 生成（hexo-generator-search 只收文章，
+// search.xml：local_search 索引，按 src/content/*.md 生成（hexo-generator-search 只收文章，
 // layout: page 的独立页面不进索引）。content 为正文原文（空白归一），
 // local-search.js 拿它剥标签后做关键词匹配。
 const urlPrefix = PAGES_PATH ? `/${PAGES_PATH}` : ''

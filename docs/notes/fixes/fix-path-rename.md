@@ -11,8 +11,8 @@
 | `src/layouts/theme-context.ts` | `src/config/theme-context.ts` | 与 loader/schema/defaults 同居；layouts/ 只剩 BaseLayout.astro |
 | `src/components/layout/` | `src/components/chrome/` | 消掉与 `src/layouts/` 撞名（fuwari 无此双重含义目录） |
 | `examples/blog` 69 处 `../../packages/…/src/…` 深相对导入 | `astro-theme-anzhiyu/…` 等包名 specifier | examples/blog 补 `astro-theme-anzhiyu` / `remark-hexo-tag` workspace 依赖；走包 exports（新增 `./config/*`、`./types/*`）；**按真实用户用法写示例** |
-| `examples/blog/theme.config.demo.yml` | `theme.config.demo-delta.yml` | 名副其实：它是 deploy-demo-pages 深合并用的 delta，不是完整配置 |
-| `fixtures/` | `tests/fixtures/` | 归测试目录；`content.config.ts` base、deploy-demo-pages、render-fixtures 同步 |
+| `theme.config.demo-delta.yml` | `theme.config.demo-delta.yml` | 名副其实：它是 deploy-demo-pages 深合并用的 delta，不是完整配置 |
+| `fixtures/` | `src/content/` | 归测试目录；`content.config.ts` base、deploy-demo-pages、render-fixtures 同步 |
 
 不动（有明确理由）：`assets/{js,css}`、`src/styles/upstream/`、`data/*.yml`（上游 `source/{js,css}` 对照轴 + Hexo `_data` 心智）；路由 `[year]/[month]/[day]/[slug]`（上游 permalink，基线锁死）；monorepo 形态（转模板仓是发布形态决策，另行拍板）。
 
@@ -27,4 +27,4 @@ remark-hexo-tag 76/76；check:schema/loader(43)/i18n(83)/helpers(272)/date(46+2s
 
 ## 残留
 
-- `tests/fixtures/about-page.md` 正文里 `仓库 fixtures/ 下`（第 23 行）**有意不改**：该文字渲染进 `/about/` 页、被 HTML 基线锁死，改了 diff-html 即 FAIL；性质是内容快照而非代码路径引用。
+- `src/content/about-page.md` 正文里 `仓库 fixtures/ 下`（第 23 行）**有意不改**：该文字渲染进 `/about/` 页、被 HTML 基线锁死，改了 diff-html 即 FAIL；性质是内容快照而非代码路径引用。

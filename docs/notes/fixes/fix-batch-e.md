@@ -1,8 +1,8 @@
 # Batch E · 依赖与工程门槛 — 修复报告
 
 > 执行：agent-4（Batch E · E1–E5）｜日期：2026-11-25｜基准 HEAD `eb3f493`
-> 范围：`packages/remark-hexo-tag/package.json`、`packages/astro-theme-anzhiyu/scripts/gen-defaults.mjs`、`packages/astro-theme-anzhiyu/scripts/check-schema.mjs`、根 `package.json`、`packages/astro-theme-anzhiyu/package.json`、`.gitignore`、本报告。
-> 约束遵守：零 git 写操作；未跑 build/Playwright/Lighthouse/npm pack；未碰 `examples/blog/src/styles/upstream/**`、`examples/blog/theme.config.yml`、`check-loader.mjs`（D5 所有）及任何范围外文件。
+> 范围：`packages/remark-hexo-tag/package.json`、`scripts/gen-defaults.mjs`、`scripts/check-schema.mjs`、根 `package.json`、`packages/astro-theme-anzhiyu/package.json`、`.gitignore`、本报告。
+> 约束遵守：零 git 写操作；未跑 build/Playwright/Lighthouse/npm pack；未碰 `src/styles/upstream/**`、`theme.config.yml`、`check-loader.mjs`（D5 所有）及任何范围外文件。
 
 ## 0. 状态总览
 
@@ -20,8 +20,8 @@
  M .gitignore
  M package.json
  M packages/astro-theme-anzhiyu/package.json
- M packages/astro-theme-anzhiyu/scripts/check-schema.mjs
- M packages/astro-theme-anzhiyu/scripts/gen-defaults.mjs
+ M scripts/check-schema.mjs
+ M scripts/gen-defaults.mjs
  M packages/remark-hexo-tag/package.json
 ```
 
@@ -49,7 +49,7 @@
   },
 ```
 
-依据：`packages/remark-hexo-tag/src/tags/thirdparty/index.mjs:20` `import { parse as parseYaml } from 'yaml'`（flink tag 解析 YAML 正文），此前未声明依赖，仅靠 `vite-plugin-stylus-hexo-config` 传递 + `node-linker=hoisted` 蒙混。
+依据：`src/plugins/remark-hexo-tag/tags/thirdparty/index.mjs:20` `import { parse as parseYaml } from 'yaml'`（flink tag 解析 YAML 正文），此前未声明依赖，仅靠 `vite-plugin-stylus-hexo-config` 传递 + `node-linker=hoisted` 蒙混。
 
 **import 验证**（在 `packages/remark-hexo-tag/` 目录执行，node -e 等价形式）：
 
@@ -104,7 +104,7 @@ engines match: true
 `gen-defaults.mjs`（报错原文，无 ENOENT 栈）：
 
 ```console
-> $env:THEME_UPSTREAM_CONFIG='D:\nonexistent-no-research\_config.yml'; node packages/astro-theme-anzhiyu/scripts/gen-defaults.mjs
+> $env:THEME_UPSTREAM_CONFIG='D:\nonexistent-no-research\_config.yml'; node scripts/gen-defaults.mjs
 [gen-defaults] 上游配置不存在: D:\nonexistent-no-research\_config.yml
 [gen-defaults] 默认读 _research/anzhiyu-upstream/_config.yml；上游副本在别处时用 THEME_UPSTREAM_CONFIG=<path>（或第一个命令行参数 [configPath]）指向真实 _config.yml。
 EXIT=1
@@ -113,7 +113,7 @@ EXIT=1
 `check-schema.mjs`（同环境续跑，报错原文）：
 
 ```console
-> $env:THEME_UPSTREAM_CONFIG='D:\nonexistent-no-research\_config.yml'; node packages/astro-theme-anzhiyu/scripts/check-schema.mjs
+> $env:THEME_UPSTREAM_CONFIG='D:\nonexistent-no-research\_config.yml'; node scripts/check-schema.mjs
 [check-schema] 上游配置不存在: D:\nonexistent-no-research\_config.yml
 [check-schema] 默认读 _research/anzhiyu-upstream/_config.yml；上游副本在别处时用 THEME_UPSTREAM_CONFIG=<path>（或第一个命令行参数 [configPath]）指向真实 _config.yml。
 EXIT=1
@@ -121,8 +121,8 @@ EXIT=1
 
 存在性检查落点：
 
-- `packages/astro-theme-anzhiyu/scripts/gen-defaults.mjs:28-33`（`if (!existsSync(configPath))` → 两行 `console.error` → `process.exit(1)`）；`existsSync` 并入 :13 的 `node:fs` import。
-- `packages/astro-theme-anzhiyu/scripts/check-schema.mjs:34-40`（同构）；`existsSync`/`createRequire` 并入 :18-19。
+- `scripts/gen-defaults.mjs:28-33`（`if (!existsSync(configPath))` → 两行 `console.error` → `process.exit(1)`）；`existsSync` 并入 :13 的 `node:fs` import。
+- `scripts/check-schema.mjs:34-40`（同构）；`existsSync`/`createRequire` 并入 :18-19。
 
 **zod 解析路径改法**（`check-schema.mjs:64-68`，原 :55-57 是 `resolve(PKG_ROOT, '../../node_modules/zod/package.json')` 硬拼 hoisted 布局）：
 
@@ -167,12 +167,12 @@ const zodVersion = JSON.parse(
 
 | # | 命令 | 结果 |
 |---|---|---|
-| 1 | `node packages/remark-hexo-tag/test/run.mjs` | 62/62，EXIT=0 |
+| 1 | `node tests/remark-hexo-tag/run.mjs` | 62/62，EXIT=0 |
 | 2 | `node --input-type=module -e "import('yaml')…"`（包目录） | 可解析，EXIT=0 |
 | 3 | `node -e` manifest/engines/pin 断言 | 全部相符，EXIT=0 |
 | 4 | `THEME_UPSTREAM_CONFIG=<不存在> node …/gen-defaults.mjs` | 清晰报错，EXIT=1 |
 | 5 | `THEME_UPSTREAM_CONFIG=<不存在> node …/check-schema.mjs` | 清晰报错，EXIT=1 |
-| 6 | `node packages/astro-theme-anzhiyu/scripts/check-schema.mjs`（真上游配置 happy path） | PASS，EXIT=0 |
+| 6 | `node scripts/check-schema.mjs`（真上游配置 happy path） | PASS，EXIT=0 |
 | 7 | `node scripts/check-upstream-delta.mjs` | PASS 29 / SKIP 0 / FAIL 0，EXIT=0 |
 | 8 | `git diff` / `git status --porcelain`（只读） | 仅 6 个范围内文件被改 |
 
@@ -223,7 +223,7 @@ EXIT=0
 
 1. `README.md:67` 「…用 [remark-hexo-tag](../../../packages/remark-hexo-tag/)（纯 ESM、零依赖）承接…」→ 「纯 ESM，唯一运行时依赖 `yaml`（^2.9.1）」（去「零依赖」）
 2. `README.en.md:62` "(pure ESM, zero dependencies)" → "(pure ESM; one runtime dep: yaml)" （同款英文改写）
-3. 附带过时文本（同根因，建议 F 顺带）：`packages/remark-hexo-tag/README.md:63-65` 「用工作区已有的 `yaml` 包解析…**不是本插件新增的依赖**」→ 改「本包已声明 `yaml` 依赖」；`packages/remark-hexo-tag/src/tags/thirdparty/index.mjs:13-15` 注释同款表述（代码注释，超本批写范围）
+3. 附带过时文本（同根因，建议 F 顺带）：`packages/remark-hexo-tag/README.md:63-65` 「用工作区已有的 `yaml` 包解析…**不是本插件新增的依赖**」→ 改「本包已声明 `yaml` 依赖」；`src/plugins/remark-hexo-tag/tags/thirdparty/index.mjs:13-15` 注释同款表述（代码注释，超本批写范围）
 
 **E2（engines / Node 版本描述）**
 
@@ -250,4 +250,4 @@ EXIT=0
 ## 10. 遗留事项（需要 Lead 决策/接力）
 
 1. **pnpm-lock.yaml 未同步（重要）**：E1 给 `remark-hexo-tag` 新增依赖、E4 把 `playwright` spec 从 `^1.65.1` 收成 `1.65.1`，两者都会让根 `pnpm-lock.yaml` 与 package.json 失配；CI 三处 `pnpm install --frozen-lockfile`（`.github/workflows/ci.yml:37/105/185`）在 lockfile 刷新前会报 `ERR_PNPM_OUTDATED_LOCKFILE`。`pnpm-lock.yaml` 不在本批写范围（约束 3）**未动**——请 Lead 在合并前跑一次 `pnpm install` 刷新 lockfile 一并提交（B6 给 examples/blog 加 yaml 后同理）。
-2. gen-defaults happy path 未本地复跑（避免写范围外的 `defaults.ts`）；如需字节级回归确认，可在 CI 或授权后本地跑 `node packages/astro-theme-anzhiyu/scripts/gen-defaults.mjs` 比对 git diff 应为空。
+2. gen-defaults happy path 未本地复跑（避免写范围外的 `defaults.ts`）；如需字节级回归确认，可在 CI 或授权后本地跑 `node scripts/gen-defaults.mjs` 比对 git diff 应为空。
