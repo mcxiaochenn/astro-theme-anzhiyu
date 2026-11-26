@@ -140,3 +140,8 @@ footer:
       - link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
         shields: https://img.shields.io/badge/Theme-AnZhiYu%20Astro-2E67D3?style=flat
         message: 本站使用 AnZhiYu 主题的 Astro 移植版
+
+# 侧栏「建站天数」与 footer 运行时间同源（上游默认 4/1/2021 是占位）
+runtimeshow:
+  enable: true
+  publish_date: 07/17/2025 00:00:00
