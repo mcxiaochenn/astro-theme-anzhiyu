@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 用 P6-1 的 remark 插件渲染 `src/content/tags-{inline,block}.md`，与上游基准
- * （`.baseline-html/…`）的文章正文做对比。这是 `test/run.mjs` 之外的整页级验收：
+ * （`.baseline-html/…`）的文章正文做对比。这是同目录 `run.mjs` 之外的整页级验收：
  *
  *   - 渲染产物里不允许再出现 `{%`（tag 必须全部被消费）；
  *   - 正文 **文本** 必须与基准完全一致（白空格归一化后比较）；

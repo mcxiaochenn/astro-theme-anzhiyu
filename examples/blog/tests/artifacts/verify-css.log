@@ -1,6 +1,0 @@
-[verify-css] baseline: docs\baseline.json（commit 72439d93）
-[verify-css] CSS 源: examples\blog\dist\_astro\BaseLayout.D9R8sZw3.css
-[verify-css] PASS 字节数: 实际 687869 / baseline 683218（+0.68%，阈值 ±5%）
-[verify-css] PASS gzip 体积: 实际 79377 / baseline 79124（+0.32%，阈值 ±5%）
-[verify-css] WARN SHA256 不一致（记录，不判失败）：实际 0496a078b4866f63ea222bf737002c46e4ded7db3e0a8f503c0b863fa669419e / baseline 7c1b1ec08779d351f146b2120cbff4311c021073c457378b39bdeef074a07f61
-[verify-css] 比对通过

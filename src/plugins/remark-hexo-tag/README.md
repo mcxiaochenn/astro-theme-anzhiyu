@@ -77,19 +77,24 @@ src/tags/inline/index.mjs  行内 tag（13，含 hideInline）
 src/tags/block/index.mjs   块级容器 tag（11）
 src/tags/media/index.mjs   媒体与卡片（11）
 src/tags/thirdparty/index.mjs 第三方嵌入（7）
-test/run.mjs               65 条 oracle 对拍
-test/render-fixtures.mjs   4 篇 fixture 与 `.baseline-html` 做正文文本对比
+```
+
+测试在仓库根的 `tests/remark-hexo-tag/`：
+
+```
+tests/remark-hexo-tag/run.mjs               76 条 oracle 对拍
+tests/remark-hexo-tag/render-fixtures.mjs   4 篇 fixture 与 `.baseline-html` 做正文文本对比
 ```
 
 ## 测试
 
 ```bash
-node packages/remark-hexo-tag/test/run.mjs              # 65/65
-node packages/remark-hexo-tag/test/render-fixtures.mjs  # 4 篇 fixture 文本 diff
+node tests/remark-hexo-tag/run.mjs              # 76/76
+node tests/remark-hexo-tag/render-fixtures.mjs  # 4 篇 fixture 文本 diff
 ```
 
-测试从 `examples/blog` 解析 `@astrojs/markdown-remark`；`render-fixtures.mjs` 直接
-import `examples/blog/astro.config.mjs` 并用它导出的真实 processor。
+测试从仓库根解析 `@astrojs/markdown-remark`；`render-fixtures.mjs` 直接
+import 根 `astro.config.mjs` 并用它导出的真实 processor。
 
 ## 已知限制
 

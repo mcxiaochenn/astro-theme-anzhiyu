@@ -8,7 +8,7 @@
 
 **更新规则**：每完成一个任务改它的状态并写一句验收结果；进度快照（§1）跟着改。不更新进度的计划没有意义。
 
-> **数字口径约定（Batch F）**：带日期的时点记录（§1.2 / §1.2.1 / §4 各阶段任务叙述 / §8.1）保留当时实测数字（48 页、48/48、112、59/59、62/62、94 页等），属**历史快照**，不逐处改写；现行唯一口径以 §1.1 当前状态表与 `docs/notes/fixes/FIX-2026-11-25.md` 为准（验证站 61 页 / diff 49/49 / remark 65/65 / 迁移站 97 页）。
+> **数字口径约定（Batch F）**：带日期的时点记录（§1.2 / §1.2.1 / §4 各阶段任务叙述 / §8.1）保留当时实测数字（48 页、48/48、112、59/59、62/62、94 页等），属**历史快照**，不逐处改写；现行唯一口径以 §1.1 当前状态表与 `docs/notes/fixes/FIX-2026-11-25.md` 为准（验证站 61 页 / diff 49/49 / remark 76/76 / 迁移站 97 页）。
 
 ---
 
@@ -26,7 +26,7 @@
 | CI | **三 job 全绿**：build（结构 diff 硬门禁）/ e2e（38 条：29 passed / 9 skipped / 0 failed + PWA 离线 2/2）/ lighthouse（四项分数 + 7 条资源预算全过，artifact 已上传） |
 | 产物规模 | **61 页**验证站（49 页 golden 基线 + 12 独立 fixture，以 CI 构建实测为准）+ **97 页**真实站迁移产物（96 Astro + go.html） |
 | 全量 diff | 49 页 / **PASS 49 / FAIL 0**、差异 **0** 条、缺 0 / 多 0 节点（归一化豁免 N1–N24，口径见 docs/reference/upstream-delta.md；C4 收紧 N21 后的 CI 复核值以 CI 为准） |
-| 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 / remark 65/65 / accept-migration **EXIT=0 gap=0** |
+| 验收命令 | verify-css PASS（+0.13%）/ compare-vars PASS（69 项）/ upstream-delta PASS（29 项）/ check-tag-styles PASS（186/186）/ check-third-party 110/0 / remark 76/76 / accept-migration **EXIT=0 gap=0** |
 
 ### 1.2 已完成（2026-11-24 新增）
 
@@ -738,7 +738,7 @@ jobs:
 6. **prismjs 组件未接线**：站点配置模型无 `prismjs` 键（hexo-only），基线用 highlight.js 恒为关；迁移 prismjs 站点需单独处理
 7. **page 级开关已透传（Batch B）**：`page.mathjax` / `page.katex` / `page.aplayer` 由路由层 front-matter 透传进 BaseLayout → AdditionalJs → `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；`per_page: false` 时按上游 `math/index.pug` 语义读 `page.mathjax` / `page.katex`。内容侧公式管线缺口见 MIGRATION.md §13.2。
 
-**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `node examples/blog/node_modules/astro/bin/astro.mjs build`（cwd `examples/blog`；改过 remark/rehype 插件先 `rm -rf examples/blog/node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。并行构建须持 `.build.lock` 并设 `CODEBUDDY_SAFE_DELETE_ENABLED=0`。（2026-11-24 更新：本机无浏览器，e2e/Lighthouse 只在 CI 实跑；实现走 agent team，Lead 只做方向与验收。）
+**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `pnpm build`（改过 remark/rehype 插件先 `rm -rf node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。（2026-11-27 更新：模板化后根即站点，不再有 `examples/blog`；2026-11-24 注记仍有效：本机无浏览器，e2e/Lighthouse 只在 CI 实跑；实现走 agent team，Lead 只做方向与验收。）
 
 ---
 

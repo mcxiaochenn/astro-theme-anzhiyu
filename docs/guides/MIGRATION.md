@@ -222,7 +222,7 @@ friends_lite:              # 轻量友链圈          →  friends_vue（需核�
 - frontmatter 不做任何改写（`schema` 用 `.passthrough()`，自定义字段不会丢）。
 - 文章路由是 `/YYYY/MM/DD/(abbrlink || id)/`：`abbrlink` 优先。本站 22/22 篇都有 `abbrlink`，
   所以子目录不会造成嵌套 URL；**没有 abbrlink 的文章**要补 `abbrlink`，或把文章扁平化到 `posts/` 根。
-- `content.config.ts` 的 schema 复用 `examples/blog`，`date` / `updated` 按 Hexo 时区语义归一化（见 FAQ「时区」）。
+- `content.config.ts` 随模板拷贝进输出站（schema 同源），`date` / `updated` 按 Hexo 时区语义归一化（见 FAQ「时区」）。
 
 ### 5.2 独立页面
 
@@ -272,7 +272,7 @@ album_detail / music / equipment / fcircle / default
 
 - `import.meta.glob('./*.yml')` **只匹配 `.yml`**；本站 `bangumis.json` 被复制过去但不会被读取，
   需要自己在页面里 `import` 或改 glob 模式。
-- `examples/blog` 基准站有 `album.yml`，本站没有 → `album` 页数据为空。
+- 模板 demo 数据（`src/data/`）有 `album.yml`，本站没有 → `album` 页数据为空。
 - `widget.yml` / `creativity.yml` 在现有页面组件里没有消费者，属于待接入数据（`todolist.yml` 已由 `todolist` 兼容页消费）。
 
 ---
@@ -355,8 +355,8 @@ Astro 没有插件机制，`migrate-hexo.mjs` 的 `[7.x/8]` 阶段按插件源�
 - 完整验证证据（产物字节数 / DOM 抽样对照 / JS 功能断言 / accept 报告）见
   `docs/notes/phases/P7-4-fix-plugin-pages.md`。
 
-> 改了 `packages/astro-theme-anzhiyu/**` 之后重跑迁移站：pnpm 把 `file:` 依赖快照进
-> `node_modules/.pnpm/`，旧产物仍指向旧主题代码。必须先清掉再装（见 §9.1）。
+> 输出站的 `src/` 是模板**拷贝**而非链接：改了模板源码之后重跑迁移站，必须重跑
+> `scripts/migrate-hexo.mjs`（或手动同步改动），旧输出不会自动跟着变。
 
 ---
 
@@ -483,28 +483,17 @@ export default defineConfig({
 export PATH="/c/Program Files/nodejs:$PATH"
 cd .migration-out/xcAnzhiyu
 
-# 9.1 独立安装（file: 依赖会链接到本仓库 packages/*）
+# 9.1 独立安装（输出站自包含：普通 registry 依赖 + 拷贝进来的 src/）
 CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm install --ignore-workspace
 ```
 
-> **改了主题包之后必须强制重装（常见坑）**：`file:../../packages/astro-theme-anzhiyu` 这类依赖
-> 被 pnpm 在安装时**快照**进 `<目标站>/node_modules/.pnpm/astro-theme-anzhiyu@file+.../`（`.pnpm`
-> 里是 store 的硬链接，不是指向源码的符号链接）。改了 `packages/astro-theme-anzhiyu/**` 后，
-> 目标站构建读到的仍是**旧主题代码**，表现为「明明改了主题，迁移站页面没变」。
+> **改了模板源码后迁移站不会自动跟着变（常见坑）**：输出站的 `src/` 是迁移时的**拷贝**，
+> 不是指向本仓库的链接。改了模板 `src/**` 之后，目标站构建读到的仍是**旧代码**，
+> 表现为「明明改了模板，迁移站页面没变」。重跑 `scripts/migrate-hexo.mjs` 重新生成输出
+> （脚本拒绝覆盖非空目录，先清理），或手动把改动同步进 `<out>/migrated/src/`。
 >
-> ```bash
-> # 目标站里必须做（两种任选其一，推荐 ①）
-> # ① 删主题链接后强制重装（最快，保留其它依赖）
-> CODEBUDDY_SAFE_DELETE_ENABLED=0 rm -rf node_modules/astro-theme-anzhiyu
-> CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm install --ignore-workspace --force
-> # ② 彻底清掉 node_modules 重装（最稳）
-> CODEBUDDY_SAFE_DELETE_ENABLED=0 rm -rf node_modules && pnpm install --ignore-workspace
-> ```
->
-> `scripts/accept-migration.mjs --reuse` 复用已有 `migrated/node_modules` 时**不做**这一步：
-> 主题改动后要重跑 accept 前先删 `<out>/migrated/node_modules/astro-theme-anzhiyu` 并
-> `pnpm install --ignore-workspace --force`，否则验收结果基于旧主题。本任务（W2-B1）只改
-> 迁移脚本、不改主题包；B2 之后如果动主题，务必按本节处理。
+> `scripts/accept-migration.mjs --reuse` 复用已有 `migrated/` 时**不做**这一步：
+> 模板改动后要重跑 accept 前先同步输出站源码，否则验收结果基于旧模板。
 
 ```bash
 # 9.2 构建（多 agent 并行时先抢仓库根的构建锁）
@@ -520,8 +509,8 @@ CODEBUDDY_SAFE_DELETE_ENABLED=0 pnpm build
 #     环境变量: 见第 7 节
 ```
 
-若目标站要**脱离本仓库独立存在**，把 `package.json` 里的 `file:../../packages/...` 换成已发布的
-npm 包名与版本，并把 `astro.config.mjs` / `src/pages/*` 里指向 `packages/` 的 import 改成包名导入。
+输出站是**自包含**的（依赖全部来自 registry、`src/` 为模板拷贝），脱离本仓库直接可建；
+想跟进模板更新时，重跑 `scripts/migrate-hexo.mjs` 重新生成，或手动同步 `src/` 改动。
 
 ---
 
@@ -661,7 +650,7 @@ for (const f of fs.readdirSync('src/content/posts').filter(f=>f.endsWith('.md')&
 ### tag 语法（`{% ... %}`）
 
 真实站点大量使用 Hexo tag 插件。`astro.config.mjs` 挂了 `remark-hexo-tag`，**42 个 tag 全实现**
-（65/65 单测），且迁移产物默认注入 **`lenient: true` 宽松语义**：未闭合的块级容器自动补齐、
+（76/76 单测），且迁移产物默认注入 **`lenient: true` 宽松语义**：未闭合的块级容器自动补齐、
 未知/脏 tag 原样透传（保留 `{% … %}` 字面量）并逐条 warning，**不会因内容里的 tag 语法错误
 中断构建**（严格模式仍会报 `文件:行:列`，供新内容使用）。
 

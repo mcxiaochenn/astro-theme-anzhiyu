@@ -51,7 +51,7 @@ process.env.ANZHIYU_THEME_CONFIG = themeConfigPath
  *   - 本 rehype 插件在字符串化之前把它改写成上面的 `figure.highlight` DOM。
  *
  * highlight.js 依赖：它是「词法着色」的唯一正确实现（上游用的就是同一个库、同一套类名）。
- * 2026-11 这一轮 P2-7 的写范围没有 `examples/blog/package.json`，依赖仍待组长批准加入；
+ * 依赖 `highlight.js`（^11）已声明在根 `package.json` 的 dependencies；
  * 未安装时本插件**降级为结构等价**（figure/table/gutter/行号/`span.line`/`br` 全部一致，
  * 只是行内没有 token span），并在构建日志里警告一次。装上 `highlight.js`（^11）后
  * 无需改代码即自动补齐 token span，证据见 docs/notes/phases/P2-7-home-postcard.md §5。
@@ -371,7 +371,7 @@ const hexoMarkdownProcessor = {
       // `rehypeHexoInlineP`：把句中的 `{% p %}` 从外层段落里拆成兄弟节点。
       // 用户 rehype 插件在 `rehype-raw`（parse5）**之前**执行，此时 tag 的 HTML
       // 还是 raw 节点；不拆的话 parse5 会在末尾凭空补一个空 `<p></p>`，
-      // 与基准归一化结果对不上（见 packages/remark-hexo-tag/src/rehype-inline-p.mjs）。
+      // 与基准归一化结果对不上（见 src/plugins/remark-hexo-tag/src/rehype-inline-p.mjs）。
       rehypePlugins: [rehypeHexoHighlight, rehypeHexoInlineP],
     })
     return {
@@ -531,7 +531,7 @@ const BASE_URL = (() => {
   return base.endsWith('/') ? base : `${base}/`
 })()
 
-/** 上游 theme.config.yml 的 pwa.manifest 指向的图标（都在 examples/blog/public/img/siteicon/）。 */
+/** 上游 theme.config.yml 的 pwa.manifest 指向的图标（都在 public/img/siteicon/）。 */
 const PWA_MANIFEST = {
   // 站点身份暂时与 src/data/site-identity.ts 的默认值保持一致（Phase 7 之前没有站点配置层）
   name: 'AnZhiYu Baseline',

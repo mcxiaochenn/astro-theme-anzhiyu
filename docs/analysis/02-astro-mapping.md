@@ -156,7 +156,7 @@ examples/
 ```
 
 用户路径：
-- 想快：`npm create astro -- --template mcxiaochenn/astro-theme-anzhiyu`（把 `examples/blog` 当模板）
+- 想快：`npm create astro -- --template mcxiaochenn/astro-theme-anzhiyu`（本仓库现已是模板形态，根即站点）
 - 想可控：`npm i astro-theme-anzhiyu`，在自己的 `astro.config` 里注册
 
 **理由**：42 个 tag 的 remark 插件和 Stylus 兼容层都有独立价值，埋在主题包里别人用不上，拆出来才合理。示例站则是唯一的验收手段——没有真实页面，所有"支持"都是空话。
@@ -329,7 +329,7 @@ expected "indent", got "?"
 
 ### 6.8 Phase 1.5 实测记录（2026-11-23）
 
-验证载体：`examples/blog` 最小双页站（`/` + `/page2/`）套上游全量 Stylus + `<ClientRouter />` + pjax shim；真实浏览器完成 4 个页面状态（首页 → 第二页 → 首页 → `pjax.loadUrl` 第二页），页内 harness **54/54 断言 PASS**。完整报告与原始证据见 [`docs/notes/phases/P1.5-vertical-slice.md`](../notes/phases/P1.5-vertical-slice.md)，产物在 `examples/blog/tests/artifacts/`。
+验证载体：`examples/blog` 最小双页站（`/` + `/page2/`）套上游全量 Stylus + `<ClientRouter />` + pjax shim；真实浏览器完成 4 个页面状态（首页 → 第二页 → 首页 → `pjax.loadUrl` 第二页），页内 harness **54/54 断言 PASS**。完整报告与原始证据见 [`docs/notes/phases/P1.5-vertical-slice.md`](../notes/phases/P1.5-vertical-slice.md)；当时的产物在 `examples/blog/tests/artifacts/`（已随模板化清理，可从 git 历史取回）。
 
 | # | 假设 | 结论 | 实测关键证据 |
 | --- | --- | --- | --- |

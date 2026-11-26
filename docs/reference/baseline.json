@@ -357,7 +357,7 @@
         "http://127.0.0.1:4321/2024/11/01/longform-hexo-astro/",
         "http://127.0.0.1:4321/about/"
       ],
-      "target": "examples/blog CI 构建产物（astro preview 127.0.0.1:4321）",
+      "target": "仓库根 CI 构建产物（astro preview 127.0.0.1:4321）",
       "thirdParty": "14 条 blockedUrlPatterns 全部拦截 → 分数 = 自有资源口径，不含第三方 CDN",
       "transferEncoding": "gzip（preview server，无 brotli）",
       "scope": "自有资源口径的回归基线；不等价于真实站 / PSI（含第三方 CDN + brotli）的现场分数",
