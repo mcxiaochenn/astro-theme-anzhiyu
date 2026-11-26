@@ -22,6 +22,8 @@
   let summaryID = null;
 
   const post_ai = document.querySelector(".post-ai-description");
+  // 没有 AI 摘要块的页面直接退出（本脚本 data-pjax 换页后会重执行）
+  if (!post_ai) return;
   const aiTitleRefreshIcon = post_ai.querySelector(".ai-title .anzhiyufont.anzhiyu-icon-arrow-rotate-right");
   let aiReadAloudIcon = post_ai.querySelector(".anzhiyu-icon-circle-dot");
   const explanation = post_ai.querySelector(".ai-explanation");
@@ -45,12 +47,35 @@
     });
   });
 
-  document.getElementById("ai-tag").addEventListener("click", onAiTagClick);
-  aiTitleRefreshIcon.addEventListener("click", onAiTitleRefreshIconClick);
-  document.getElementById("go-tianli-blog").addEventListener("click", () => {
-    window.open(btnLink, "_blank");
-  });
-  aiReadAloudIcon.addEventListener("click", readAloud);
+  document.getElementById("ai-tag") && document.getElementById("ai-tag").addEventListener("click", onAiTagClick);
+  aiTitleRefreshIcon && aiTitleRefreshIcon.addEventListener("click", onAiTitleRefreshIconClick);
+  document.getElementById("go-tianli-blog") &&
+    document.getElementById("go-tianli-blog").addEventListener("click", () => {
+      window.open(btnLink, "_blank");
+    });
+  aiReadAloudIcon && aiReadAloudIcon.addEventListener("click", readAloud);
+
+  // ── 生命周期（fix-plan 3.3.3）──────────────────────────────────────────
+  // 本脚本带 data-pjax 会随换页重执行：上一实例的音频/定时器/观察器必须在
+  // 离开页面（astro:before-swap / pjax:send）或新实例启动时收掉，防止泄漏叠加。
+  function destroy() {
+    animationRunning = false;
+    clearTimeouts();
+    observer.disconnect();
+    if (audio) {
+      audio.pause();
+      if (audio.src && audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
+      audio = null;
+    }
+    isPaused = false;
+    if (window.__anzhiyuAiAbstractCleanup === destroy) window.__anzhiyuAiAbstractCleanup = null;
+  }
+  if (typeof window.__anzhiyuAiAbstractCleanup === "function") {
+    window.__anzhiyuAiAbstractCleanup();
+  }
+  window.__anzhiyuAiAbstractCleanup = destroy;
+  window.addEventListener("astro:before-swap", destroy, { once: true });
+  document.addEventListener("pjax:send", destroy, { once: true });
 
   async function readAloud() {
     if (!summaryID) {
@@ -114,7 +139,7 @@
       console.error("请求发生错误❎");
     }
   }
-  if (switchBtn) {
+  if (switchBtn && document.getElementById("ai-Toggle")) {
     document.getElementById("ai-Toggle").addEventListener("click", changeShowMode);
   }
 
@@ -356,7 +381,7 @@
     startAI("正在前往博客主页...", false);
     timeouts[2] = setTimeout(() => {
       if (window.pjax) {
-        pjax.loadUrl("/");
+        pjax.loadUrl(anzhiyu.rootUrl("/"));
       } else {
         location.href = location.origin;
       }
@@ -424,7 +449,7 @@
     } else {
       aiReadAloudIcon.style.opacity = "0";
       aiReadAloudIcon.style.cursor = "auto";
-      if ((document.getElementById("go-tianli-blog").style.display = "block")) {
+      if (document.getElementById("go-tianli-blog").style.display === "block") {
         document.querySelectorAll(".ai-btn-item").forEach(item => (item.style.display = "block"));
         document.getElementById("go-tianli-blog").style.display = "none";
       }

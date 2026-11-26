@@ -1,6 +1,20 @@
 // 初始化函数
 rm = {};
 
+// 右键菜单相关节点可能整块 / 个别缺失：显隐、取尺寸、绑事件统一走空值安全包装
+// （fix-plan 3.2.5），任何一个 id 缺失都不允许抛 TypeError 打断 refreshFn。
+function rmSetDisplay(el, value) {
+  if (el) el.style.display = value;
+}
+function rmBindById(id, type, handler) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(type, handler);
+  return el;
+}
+function rmGet(id) {
+  return document.getElementById(id);
+}
+
 //禁止图片与超链接拖拽
 let aElements = document.getElementsByTagName("a");
 for (let i = 0; i < aElements.length; i++) {
@@ -14,7 +28,8 @@ for (let i = 0; i < aElements.length; i++) {
 // 显示菜单
 rm.showRightMenu = function (isTrue, x = 0, y = 0) {
   console.info(x, y);
-  let rightMenu = document.getElementById("rightMenu");
+  let rightMenu = rmGet("rightMenu");
+  if (!rightMenu) return;
   rightMenu.style.top = x + "px";
   rightMenu.style.left = y + "px";
   if (isTrue) {
@@ -29,20 +44,22 @@ rm.showRightMenu = function (isTrue, x = 0, y = 0) {
 rm.hideRightMenu = function () {
   rm.showRightMenu(false);
   let rightMenuMask = document.querySelector("#rightmenu-mask");
-  rightMenuMask.style.display = "none";
+  if (rightMenuMask) rightMenuMask.style.display = "none";
 };
 
 // 尺寸
-let rmWidth = document.getElementById("rightMenu").offsetWidth;
-let rmHeight = document.getElementById("rightMenu").offsetHeight;
+let rmWidth = rmGet("rightMenu") ? rmGet("rightMenu").offsetWidth : 0;
+let rmHeight = rmGet("rightMenu") ? rmGet("rightMenu").offsetHeight : 0;
 
 // 重新定义尺寸
 rm.reloadrmSize = function () {
+  const rightMenu = rmGet("rightMenu");
+  if (!rightMenu) return;
   rightMenu.style.visibility = "hidden";
   rightMenu.style.display = "block";
   // 获取宽度和高度
-  rmWidth = document.getElementById("rightMenu").offsetWidth;
-  rmHeight = document.getElementById("rightMenu").offsetHeight;
+  rmWidth = rightMenu.offsetWidth;
+  rmHeight = rightMenu.offsetHeight;
   rightMenu.style.visibility = "visible";
 };
 
@@ -91,78 +108,79 @@ var oncontextmenuFunction = function (event) {
 
     // 判断模式 扩展模式为有事件
     let pluginMode = false;
-    $rightMenuOther.style.display = "block";
+    rmSetDisplay($rightMenuOther, "block");
     globalEvent = event;
 
     // 检查是否需要复制 是否有选中文本
     if (selectTextNow && window.getSelection()) {
       pluginMode = true;
-      $rightMenuCopyText.style.display = "block";
-      $rightMenuCommentText.style.display = "block";
-      $rightMenuSearch.style.display = "block";
-      $rightMenuSearchBaidu.style.display = "block";
+      rmSetDisplay($rightMenuCopyText, "block");
+      rmSetDisplay($rightMenuCommentText, "block");
+      rmSetDisplay($rightMenuSearch, "block");
+      rmSetDisplay($rightMenuSearchBaidu, "block");
     } else {
-      $rightMenuCopyText.style.display = "none";
-      $rightMenuCommentText.style.display = "none";
-      $rightMenuSearchBaidu.style.display = "none";
-      $rightMenuSearch.style.display = "none";
+      rmSetDisplay($rightMenuCopyText, "none");
+      rmSetDisplay($rightMenuCommentText, "none");
+      rmSetDisplay($rightMenuSearchBaidu, "none");
+      rmSetDisplay($rightMenuSearch, "none");
     }
 
     //检查是否右键点击了链接a标签
     if (href) {
       pluginMode = true;
-      $rightMenuNewWindow.style.display = "block";
-      $rightMenuCopyLink.style.display = "block";
+      rmSetDisplay($rightMenuNewWindow, "block");
+      rmSetDisplay($rightMenuCopyLink, "block");
       domhref = href;
     } else {
-      $rightMenuNewWindow.style.display = "none";
-      $rightMenuCopyLink.style.display = "none";
+      rmSetDisplay($rightMenuNewWindow, "none");
+      rmSetDisplay($rightMenuCopyLink, "none");
     }
 
     //检查是否需要复制图片
     if (imgsrc) {
       pluginMode = true;
-      $rightMenuCopyImg.style.display = "block";
-      $rightMenuDownloadImg.style.display = "block";
-      $rightMenuNewWindowImg.style.display = "block";
-      document.getElementById("rightMenu").style.width = "12rem";
+      rmSetDisplay($rightMenuCopyImg, "block");
+      rmSetDisplay($rightMenuDownloadImg, "block");
+      rmSetDisplay($rightMenuNewWindowImg, "block");
+      const $rightMenuEl = rmGet("rightMenu");
+      if ($rightMenuEl) $rightMenuEl.style.width = "12rem";
       domImgSrc = imgsrc;
     } else {
-      $rightMenuCopyImg.style.display = "none";
-      $rightMenuDownloadImg.style.display = "none";
-      $rightMenuNewWindowImg.style.display = "none";
+      rmSetDisplay($rightMenuCopyImg, "none");
+      rmSetDisplay($rightMenuDownloadImg, "none");
+      rmSetDisplay($rightMenuNewWindowImg, "none");
     }
 
     // 判断是否为输入框
     if (event.target.tagName.toLowerCase() === "input" || event.target.tagName.toLowerCase() === "textarea") {
       pluginMode = true;
-      $rightMenuPasteText.style.display = "block";
+      rmSetDisplay($rightMenuPasteText, "block");
     } else {
-      $rightMenuPasteText.style.display = "none";
+      rmSetDisplay($rightMenuPasteText, "none");
     }
     const navMusicEl = document.querySelector("#nav-music");
     //判断是否是音乐
     if (navMusicEl && navMusicEl.contains(event.target)) {
       pluginMode = true;
-      $rightMenuMusicToggle.style.display = "block";
-      $rightMenuMusicBack.style.display = "block";
-      $rightMenuMusicForward.style.display = "block";
-      $rightMenuMusicPlaylist.style.display = "block";
-      $rightMenuMusicCopyMusicName.style.display = "block";
+      rmSetDisplay($rightMenuMusicToggle, "block");
+      rmSetDisplay($rightMenuMusicBack, "block");
+      rmSetDisplay($rightMenuMusicForward, "block");
+      rmSetDisplay($rightMenuMusicPlaylist, "block");
+      rmSetDisplay($rightMenuMusicCopyMusicName, "block");
     } else {
-      $rightMenuMusicToggle.style.display = "none";
-      $rightMenuMusicBack.style.display = "none";
-      $rightMenuMusicForward.style.display = "none";
-      $rightMenuMusicPlaylist.style.display = "none";
-      $rightMenuMusicCopyMusicName.style.display = "none";
+      rmSetDisplay($rightMenuMusicToggle, "none");
+      rmSetDisplay($rightMenuMusicBack, "none");
+      rmSetDisplay($rightMenuMusicForward, "none");
+      rmSetDisplay($rightMenuMusicPlaylist, "none");
+      rmSetDisplay($rightMenuMusicCopyMusicName, "none");
     }
 
     // 如果不是扩展模式则隐藏扩展模块
     if (pluginMode) {
-      $rightMenuOther.style.display = "none";
-      $rightMenuPlugin.style.display = "block";
+      rmSetDisplay($rightMenuOther, "none");
+      rmSetDisplay($rightMenuPlugin, "block");
     } else {
-      $rightMenuPlugin.style.display = "none";
+      rmSetDisplay($rightMenuPlugin, "none");
     }
 
     rm.reloadrmSize();
@@ -176,7 +194,7 @@ var oncontextmenuFunction = function (event) {
     }
 
     rm.showRightMenu(true, pageY, pageX);
-    document.getElementById("rightmenu-mask").style.display = "flex";
+    rmSetDisplay(rmGet("rightmenu-mask"), "flex");
     return false;
   }
 };
@@ -270,6 +288,10 @@ rm.copyUrl = function (id) {
 };
 
 function stopMaskScroll() {
+  // fix-plan 3.3.4：showRightMenu 每次弹菜单都会调进来，listener 只绑一次，
+  // 否则 wheel 监听逐次叠加（hideRightMenu 被连环触发）。
+  if (stopMaskScroll.bound) return;
+  stopMaskScroll.bound = true;
   if (document.getElementById("rightmenu-mask")) {
     let xscroll = document.getElementById("rightmenu-mask");
     xscroll.addEventListener(
@@ -367,13 +389,18 @@ rm.pasteText = function () {
 rm.rightMenuCommentText = function (txt) {
   rm.hideRightMenu();
   const postCommentDom = document.getElementById("post-comment");
+  if (!postCommentDom) return;
   var domTop = postCommentDom.offsetTop;
   window.scrollTo(0, domTop - 80);
   if (txt == "undefined" || txt == "null") txt = "好棒！";
-  function setText() {
+  function setText(retries = 0) {
     setTimeout(() => {
       var input = document.getElementsByClassName("el-textarea__inner")[0];
-      if (!input) setText();
+      if (!input) {
+        // 评论框可能还没挂载：有限重试，不能无限 setTimeout 自我循环
+        if (retries < 20) setText(retries + 1);
+        return;
+      }
       let evt = document.createEvent("HTMLEvents");
       evt.initEvent("input", true, true);
       let inputValue = replaceAll(txt, "\n", "\n> ");
@@ -410,27 +437,27 @@ rm.copyLink = function () {
 };
 
 function addRightMenuClickEvent() {
-  // 添加点击事件
-  document.getElementById("menu-backward").addEventListener("click", function () {
+  // 添加点击事件（所有菜单项逐一判空后绑定，缺节点不抛错）
+  rmBindById("menu-backward", "click", function () {
     window.history.back();
     rm.hideRightMenu();
   });
 
-  document.getElementById("menu-forward").addEventListener("click", function () {
+  rmBindById("menu-forward", "click", function () {
     window.history.forward();
     rm.hideRightMenu();
   });
 
-  document.getElementById("menu-refresh").addEventListener("click", function () {
+  rmBindById("menu-refresh", "click", function () {
     window.location.reload();
   });
 
-  document.getElementById("menu-top").addEventListener("click", function () {
+  rmBindById("menu-top", "click", function () {
     anzhiyu.scrollToDest(0, 500);
     rm.hideRightMenu();
   });
 
-  document.getElementById("menu-translate").addEventListener("click", function () {
+  rmBindById("menu-translate", "click", function () {
     window.translateFn.translatePage();
     rm.hideRightMenu();
   });
@@ -440,31 +467,30 @@ function addRightMenuClickEvent() {
     link.addEventListener("click", rm.hideRightMenu);
   });
 
-  document.getElementById("menu-home") &&
-    document.getElementById("menu-home").addEventListener("click", function () {
-      window.location.href = window.location.origin;
-    });
+  rmBindById("menu-home", "click", function () {
+    window.location.href = window.location.origin;
+  });
 
-  document.getElementById("menu-randomPost").addEventListener("click", function () {
+  rmBindById("menu-randomPost", "click", function () {
     toRandomPost();
   });
 
-  document.getElementById("menu-commentBarrage").addEventListener("click", anzhiyu.switchCommentBarrage);
+  rmBindById("menu-commentBarrage", "click", anzhiyu.switchCommentBarrage);
 
-  document.getElementById("rightmenu-mask").addEventListener("click", rm.hideRightMenu);
+  rmBindById("rightmenu-mask", "click", rm.hideRightMenu);
 
-  document.getElementById("rightmenu-mask").addEventListener("contextmenu", function (event) {
+  rmBindById("rightmenu-mask", "contextmenu", function (event) {
     rm.hideRightMenu();
     event.preventDefault(); // Prevent the default context menu from appearing
   });
 
-  document.getElementById("menu-copy").addEventListener("click", () => {
+  rmBindById("menu-copy", "click", () => {
     rm.copyPageUrl();
   });
 
-  document.getElementById("menu-pastetext").addEventListener("click", rm.pasteText);
+  rmBindById("menu-pastetext", "click", rm.pasteText);
 
-  document.getElementById("menu-copytext").addEventListener("click", function () {
+  rmBindById("menu-copytext", "click", function () {
     rm.rightmenuCopyText(selectTextNow);
     const copyright = GLOBAL_CONFIG.copyright;
     if (copyright.copy) {
@@ -472,40 +498,40 @@ function addRightMenuClickEvent() {
     }
   });
 
-  document.getElementById("menu-commenttext").addEventListener("click", function () {
+  rmBindById("menu-commenttext", "click", function () {
     rm.rightMenuCommentText(selectTextNow);
   });
 
-  document.getElementById("menu-newwindow").addEventListener("click", function () {
+  rmBindById("menu-newwindow", "click", function () {
     window.open(domhref, "_blank");
     rm.hideRightMenu();
   });
 
-  document.getElementById("menu-copylink").addEventListener("click", rm.copyLink);
+  rmBindById("menu-copylink", "click", rm.copyLink);
 
-  document.getElementById("menu-downloadimg").addEventListener("click", function () {
+  rmBindById("menu-downloadimg", "click", function () {
     anzhiyu.downloadImage(domImgSrc, "anzhiyu");
   });
 
-  document.getElementById("menu-newwindowimg").addEventListener("click", function () {
+  rmBindById("menu-newwindowimg", "click", function () {
     window.open(domImgSrc, "_blank");
     rm.hideRightMenu();
   });
 
-  document.getElementById("menu-copyimg").addEventListener("click", function () {
+  rmBindById("menu-copyimg", "click", function () {
     rm.writeClipImg(domImgSrc);
   });
 
-  document.getElementById("menu-searchBaidu").addEventListener("click", rm.searchBaidu);
+  rmBindById("menu-searchBaidu", "click", rm.searchBaidu);
 
   //音乐
-  document.getElementById("menu-music-toggle").addEventListener("click", anzhiyu.musicToggle);
+  rmBindById("menu-music-toggle", "click", anzhiyu.musicToggle);
 
-  document.getElementById("menu-music-back").addEventListener("click", anzhiyu.musicSkipBack);
+  rmBindById("menu-music-back", "click", anzhiyu.musicSkipBack);
 
-  document.getElementById("menu-music-forward").addEventListener("click", anzhiyu.musicSkipForward);
+  rmBindById("menu-music-forward", "click", anzhiyu.musicSkipForward);
 
-  document.getElementById("menu-music-copyMusicName").addEventListener("click", function () {
+  rmBindById("menu-music-copyMusicName", "click", function () {
     rm.rightmenuCopyText(anzhiyu.musicGetName());
     anzhiyu.snackbarShow("复制歌曲名称成功", false, 3000);
   });

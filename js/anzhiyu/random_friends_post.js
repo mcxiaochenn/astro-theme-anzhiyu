@@ -108,8 +108,6 @@ function fetchRandomPost() {
       randomPostLevel = "愿者上钩";
     } else if (randomPostTimes > 1000) {
       randomPostLevel = "俯览天下";
-    } else if (randomPostTimes > 1000) {
-      randomPostLevel = "超越神了";
     } else if (randomPostTimes > 100) {
       randomPostLevel = "绝世渔夫";
     } else if (randomPostTimes > 75) {
@@ -159,22 +157,29 @@ function fetchRandomPost() {
           var author = json.author;
           if (document.getElementById("random-post")) {
             window.setTimeout(function () {
+              // 外部 API 数据进 innerHTML：转义 + URL 协议校验
+              const safeLink = anzhiyu.isSafeUrl(link) ? link : "#";
               document.getElementById("random-post").innerHTML =
                 randomPostTipsItem +
                 `来自友链 <b>` +
-                author +
+                anzhiyu.escapeHtml(author) +
                 `</b> 的文章：<a class="random-friends-post" onclick="randomClickLink()" target="_blank" href="` +
-                link +
+                anzhiyu.escapeHtml(safeLink) +
                 `" rel="external nofollow">` +
-                title +
+                anzhiyu.escapeHtml(title) +
                 `</a>`;
               randomPostTimes += 1;
               localStorage.setItem("randomPostTimes", randomPostTimes);
               document.querySelector(".random-post-start").style.opacity = "1";
             }, randomTime);
           }
+        })
+        .catch(err => {
+          console.error("随机友链文章获取失败:", err);
+        })
+        .finally(() => {
+          randomPostWorking = false;
         });
-      randomPostWorking = false;
     }
   }
 }
@@ -183,8 +188,8 @@ function fetchRandomPost() {
 function initRandomPost() {
   // 获取已经存储的数据
   if (localStorage.randomPostTimes) {
-    randomPostTimes = parseInt(localStorage.randomPostTimes);
-    randomPostClick = parseInt(localStorage.randomPostClick);
+    randomPostTimes = parseInt(localStorage.randomPostTimes) || 0;
+    randomPostClick = parseInt(localStorage.randomPostClick) || 0;
     document.querySelector(".random-post-start").style.transitionDuration = "0.3s";
     document.querySelector(".random-post-start").style.transform = "rotate(" + 360 * randomPostTimes + "deg)";
   }

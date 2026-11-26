@@ -85,22 +85,43 @@ if (document.querySelector(".comment-barrage")) {
     }
   }
 
+  // Twikoo 返回的是已渲染评论 HTML：白名单消毒（去脚本/事件/危险协议），
+  // 保留正文排版与 tk-owo-emotion 图片（下方还会做【代码】/【图片】替换）。
+  function sanitizeCommentHtml(html) {
+    const doc = new DOMParser().parseFromString(String(html ?? ""), "text/html");
+    doc.body.querySelectorAll("script, style, iframe, object, embed, link, meta, form").forEach(el => el.remove());
+    doc.body.querySelectorAll("*").forEach(el => {
+      for (const attr of [...el.attributes]) {
+        const name = attr.name.toLowerCase();
+        const isUrlAttr = name === "href" || name === "src" || name === "xlink:href";
+        const value = String(attr.value).replace(/[\u0000-\u0020\u00a0]+/g, "").toLowerCase();
+        if (name.startsWith("on") || (isUrlAttr && /^(?:javascript|vbscript|data:text\/html)/.test(value))) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    });
+    return doc.body.innerHTML;
+  }
+
   function popCommentBarrage(data) {
+    const esc = str => anzhiyu.escapeHtml(str);
+    const mailMd5 = esc(String(data.mailMd5 ?? "").replace(/[^a-fA-F0-9]/g, ""));
+    const isBlogger = data.mailMd5 === commentBarrageConfig.mailMd5;
     let barrage = document.createElement("div");
     barrage.className = "comment-barrage-item";
     barrage.innerHTML = `
           <div class="barrageHead">
             <a class="barrageTitle ${
-              data.mailMd5 === commentBarrageConfig.mailMd5 ? "barrageBloggerTitle" : ""
-            }" href="javascript:anzhiyu.scrollTo('#post-comment')"">
-              ${data.mailMd5 === commentBarrageConfig.mailMd5 ? "博主" : "热评"}
+              isBlogger ? "barrageBloggerTitle" : ""
+            }" href="javascript:anzhiyu.scrollTo('#post-comment')">
+              ${isBlogger ? "博主" : "热评"}
             </a>
-            <div class="barrageNick">${data.nick}</div>
-            <img class="nolazyload barrageAvatar" src="https://cravatar.cn/avatar/${data.mailMd5}"/>
+            <div class="barrageNick">${esc(data.nick)}</div>
+            <img class="nolazyload barrageAvatar" src="https://cravatar.cn/avatar/${mailMd5}"/>
             <a class="comment-barrage-close" href="javascript:anzhiyu.switchCommentBarrage()"><i class="anzhiyufont anzhiyu-icon-xmark"></i></a>
           </div>
-          <anzhiyu class="barrageContent" onClick="window.location.hash = '${data.id}'">
-            ${data.comment}
+          <anzhiyu class="barrageContent" onClick="window.location.hash = '${String(data.id ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/</g, "&lt;")}'">
+            ${sanitizeCommentHtml(data.comment)}
           </anzhiyu>
         `;
 
@@ -173,7 +194,24 @@ if (document.querySelector(".comment-barrage")) {
     document.querySelector(".menu-commentBarrage-text").textContent = "显示热评";
   }
 
-  document.addEventListener("pjax:send", function () {
-    clearInterval(commentInterval);
-  });
+  // ── 生命周期（fix-plan 3.3.3）──────────────────────────────────────────
+  // 本脚本 data-pjax 换页重执行：var commentInterval 会被重新初始化成 null，
+  // 旧 interval 直接泄漏。换页（astro:before-swap / pjax:send）与新实例启动时
+  // 统一收掉 interval 与 IntersectionObserver。
+  function destroyCommentBarrage() {
+    if (commentInterval) {
+      clearInterval(commentInterval);
+      commentInterval = null;
+    }
+    observer.disconnect();
+    if (window.__anzhiyuCommentBarrageCleanup === destroyCommentBarrage) {
+      window.__anzhiyuCommentBarrageCleanup = null;
+    }
+  }
+  if (typeof window.__anzhiyuCommentBarrageCleanup === "function") {
+    window.__anzhiyuCommentBarrageCleanup();
+  }
+  window.__anzhiyuCommentBarrageCleanup = destroyCommentBarrage;
+  window.addEventListener("astro:before-swap", destroyCommentBarrage, { once: true });
+  document.addEventListener("pjax:send", destroyCommentBarrage, { once: true });
 }

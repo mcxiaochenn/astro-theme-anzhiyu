@@ -168,12 +168,16 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     if (init) {
-      const blogInfoWidth = getAllWidth(document.querySelector("#blog_name > a").children);
-      const menusWidth = getAllWidth(document.getElementById("menus").children);
-      headerContentWidth = blogInfoWidth + menusWidth;
+      const blogNameLink = document.querySelector("#blog_name > a");
+      const menus = document.getElementById("menus");
       $nav = document.getElementById("nav");
+      if (!blogNameLink || !menus || !$nav) return;
+      const blogInfoWidth = getAllWidth(blogNameLink.children);
+      const menusWidth = getAllWidth(menus.children);
+      headerContentWidth = blogInfoWidth + menusWidth;
     }
 
+    if (!$nav) return;
     const hideMenuIndex = window.innerWidth <= 768 || headerContentWidth > $nav.offsetWidth - 120;
     $nav.classList.toggle("hide-menu", hideMenuIndex);
   };
@@ -181,15 +185,17 @@ document.addEventListener("DOMContentLoaded", function () {
   // 初始化右键菜单文本
   const initRightMenu = () => {
     $rightMenu = document.getElementById("rightMenu");
+    if (!$rightMenu) return;
     const mode = document.documentElement.getAttribute('data-theme');
     const menuDarkmodeText = $rightMenu.querySelector(".menu-darkmode-text");
+    if (!menuDarkmodeText) return;
     menuDarkmodeText.textContent = mode === "light" ? "深色模式" : "浅色模式";
   }
   
   // 初始化header
   const initAdjust = () => {
     adjustMenu(true);
-    $nav.classList.add("show");
+    $nav && $nav.classList.add("show");
   };
 
   // sidebar menus
@@ -248,7 +254,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const highlightShrinkClass = isHighlightShrink === true ? "closed" : "";
     const highlightShrinkEle =
       isHighlightShrink !== undefined
-        ? '<i class="anzhiyufont anzhiyu-icon-angle-down expand ${highlightShrinkClass}"></i>'
+        ? `<i class="anzhiyufont anzhiyu-icon-angle-down expand ${highlightShrinkClass}"></i>`
         : "";
     const highlightCopyEle = highlightCopy
       ? '<div class="copy-notice"></div><i class="anzhiyufont anzhiyu-icon-paste copy-button"></i>'
@@ -503,7 +509,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const innerHeight = window.innerHeight + 56;
     let lastScrollTop = 0;
 
-    if (document.body.scrollHeight <= innerHeight) {
+    if ($rightside && document.body.scrollHeight <= innerHeight) {
       $rightside.style.cssText = "opacity: 1; transform: translateX(-58px)";
     }
 
@@ -558,7 +564,9 @@ document.addEventListener("DOMContentLoaded", function () {
         return top <= viewPortHeight;
       }
 
-      if (isInViewPortOfOneNoDis(pageBottomDomFlag || percentage > 90) && currentTop > 20) {
+      // 注意：原来是 isInViewPortOfOneNoDis(pageBottomDomFlag || percentage > 90)，
+      // 会把布尔值当元素传进去（getComputedStyle(true) 直接抛）。
+      if ((isInViewPortOfOneNoDis(pageBottomDomFlag) || percentage > 90) && currentTop > 20) {
         $navTotop.classList.add("long");
         $percentBtn.textContent = "返回顶部";
       } else {
@@ -582,6 +590,21 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
+    // 滚动后延迟1s关闭弹窗 —— 节流函数必须建在回调外层：
+    // 每次滚动 tick 现造一个 throttle 等于没节流（旧写法的问题）。
+    const closePopupThrottled = anzhiyu.throttle(() => {
+      if (popupWindowTimer) clearTimeout(popupWindowTimer);
+      popupWindowTimer = setTimeout(() => {
+        if (!$popupWindow.classList.contains("popup-hide")) {
+          $popupWindow.classList.add("popup-hide");
+        }
+        setTimeout(() => {
+          $popupWindow.classList.remove("popup-hide");
+          $popupWindow.classList.remove("show-popup-window");
+        }, 1000);
+      }, 1000);
+    }, 1000);
+
     const scrollTask = anzhiyu.throttle(() => {
       const currentTop = window.scrollY || document.documentElement.scrollTop;
       const isDown = scrollDirection(currentTop);
@@ -598,31 +621,19 @@ document.addEventListener("DOMContentLoaded", function () {
         delta > 20 &&
         lastScrollTop != 0
       ) {
-        // 滚动后延迟1s关闭弹窗
-        anzhiyu.throttle(() => {
-          if (popupWindowTimer) clearTimeout(popupWindowTimer);
-          popupWindowTimer = setTimeout(() => {
-            if (!$popupWindow.classList.contains("popup-hide")) {
-              $popupWindow.classList.add("popup-hide");
-            }
-            setTimeout(() => {
-              $popupWindow.classList.remove("popup-hide");
-              $popupWindow.classList.remove("show-popup-window");
-            }, 1000);
-          }, 1000);
-        }, 1000)();
+        closePopupThrottled();
       }
       lastScrollTop = currentTop;
 
       if (currentTop > 26) {
         if (isDown) {
-          if ($header.classList.contains("nav-visible")) $header.classList.remove("nav-visible");
+          if ($header && $header.classList.contains("nav-visible")) $header.classList.remove("nav-visible");
           if (isChatBtnShow && isChatShow === true) {
             chatBtnHide();
             isChatShow = false;
           }
         } else {
-          if (!$header.classList.contains("nav-visible")) $header.classList.add("nav-visible");
+          if ($header && !$header.classList.contains("nav-visible")) $header.classList.add("nav-visible");
           if (isChatBtnHide && isChatShow === false) {
             chatBtnShow();
             isChatShow = true;
@@ -630,24 +641,26 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         requestAnimationFrame(() => {
           anzhiyu.initThemeColor();
-          $header.classList.add("nav-fixed");
+          $header && $header.classList.add("nav-fixed");
         });
-        if (window.getComputedStyle($rightside).getPropertyValue("opacity") === "0") {
+        if ($rightside && window.getComputedStyle($rightside).getPropertyValue("opacity") === "0") {
           $rightside.style.cssText = "opacity: 0.8; transform: translateX(-58px)";
         }
       } else {
         if (currentTop <= 5) {
           requestAnimationFrame(() => {
-            $header.classList.remove("nav-fixed");
-            $header.classList.remove("nav-visible");
+            if ($header) {
+              $header.classList.remove("nav-fixed");
+              $header.classList.remove("nav-visible");
+            }
             // 修改顶栏颜色
             anzhiyu.initThemeColor();
           });
         }
-        $rightside.style.cssText = "opacity: ''; transform: ''";
+        if ($rightside) $rightside.style.cssText = "opacity: ''; transform: ''";
       }
 
-      if (document.body.scrollHeight <= innerHeight) {
+      if ($rightside && document.body.scrollHeight <= innerHeight) {
         $rightside.style.cssText = "opacity: 0.8; transform: translateX(-58px)";
       }
 
@@ -692,7 +705,9 @@ document.addEventListener("DOMContentLoaded", function () {
     let $tocLink, $cardToc, autoScrollToc, isExpand;
     if (isToc) {
       const $cardTocLayout = document.getElementById("card-toc");
+      if (!$cardTocLayout) return;
       $cardToc = $cardTocLayout.querySelector(".toc-content");
+      if (!$cardToc) return;
       $tocLink = $cardToc.querySelectorAll(".toc-link");
       isExpand = $cardToc.classList.contains("is-expand");
 
@@ -702,10 +717,15 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!target) return;
 
         e.preventDefault();
-        anzhiyu.scrollToDest(
-          anzhiyu.getEleTop(document.getElementById(decodeURI(target.getAttribute("href")).replace("#", ""))) - 60,
-          300
-        );
+        let targetEle = null;
+        try {
+          targetEle = document.getElementById(decodeURI(target.getAttribute("href")).replace("#", ""));
+        } catch {
+          targetEle = null;
+        }
+        if (targetEle) {
+          anzhiyu.scrollToDest(anzhiyu.getEleTop(targetEle) - 60, 300);
+        }
         if (window.innerWidth < 900) {
           $cardTocLayout.classList.remove("open");
         }
@@ -756,6 +776,7 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
         const currentActive = $tocLink[currentIndex];
+        if (!currentActive) return;
         currentActive.classList.add("active");
 
         setTimeout(() => {
@@ -765,7 +786,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (isExpand) return;
         let parent = currentActive.parentNode;
 
-        for (; !parent.matches(".toc"); parent = parent.parentNode) {
+        for (; parent && !parent.matches(".toc"); parent = parent.parentNode) {
           if (parent.matches("li")) parent.classList.add("active");
         }
       }
@@ -794,11 +815,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     rm && rm.hideRightMenu();
 
-    const menuDarkmodeText = $rightMenu.querySelector(".menu-darkmode-text");
-    if (mode === "light") {
-      menuDarkmodeText.textContent = "深色模式";
-    } else {
-      menuDarkmodeText.textContent = "浅色模式";
+    const menuDarkmodeText = $rightMenu && $rightMenu.querySelector(".menu-darkmode-text");
+    if (menuDarkmodeText) {
+      if (mode === "light") {
+        menuDarkmodeText.textContent = "深色模式";
+      } else {
+        menuDarkmodeText.textContent = "浅色模式";
+      }
     }
 
     if (!GLOBAL_CONFIG_SITE.isPost) {
@@ -1146,10 +1169,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   };
 
-  const relativeDate = function (selector) {
+  const relativeDate = function (selector, simple = false) {
     selector.forEach(item => {
       const timeVal = item.getAttribute("datetime");
-      item.textContent = anzhiyu.diffDate(timeVal, true);
+      // simple 与 more 互斥：simple 分支要单独走 diffDate 的第三参
+      item.textContent = anzhiyu.diffDate(timeVal, !simple, simple);
       item.style.display = "inline";
     });
   };
@@ -1166,6 +1190,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 表情放大
   const owoBig = function () {
+    // refreshFn 每次换页都会进来：#owo-big 已存在就不再插盒子/重挂观察器
+    if (document.getElementById("owo-big")) return;
     let flag = 1, // 设置节流阀
       owo_time = "", // 设置计时器
       m = 3; // 设置放大倍数
@@ -1512,28 +1538,43 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 监听nav是否被其他音频暂停⏸️
   const listenNavMusicPause = function () {
-    const timer = setInterval(() => {
-      if (navMusicEl && navMusicEl.querySelector("#nav-music meting-js").aplayer) {
+    let timer = setInterval(() => {
+      const metingJs = navMusicEl && navMusicEl.querySelector("meting-js");
+      // meting-js 可能不存在/未就绪：.aplayer 直接取会把16ms 轮询打崩
+      if (metingJs && metingJs.aplayer) {
         clearInterval(timer);
+        timer = null;
         let msgPlay = '<i class="anzhiyufont anzhiyu-icon-play"></i><span>播放音乐</span>';
         let msgPause = '<i class="anzhiyufont anzhiyu-icon-pause"></i><span>暂停音乐</span>';
-        navMusicEl.querySelector("#nav-music meting-js").aplayer.on("pause", function () {
+        const menuMusicToggle = document.getElementById("menu-music-toggle");
+        const navMusicHoverTips = document.getElementById("nav-music-hoverTips");
+        const consoleMusic = document.querySelector("#consoleMusic");
+        metingJs.aplayer.on("pause", function () {
           navMusicEl.classList.remove("playing");
-          document.getElementById("menu-music-toggle").innerHTML = msgPlay;
-          document.getElementById("nav-music-hoverTips").innerHTML = "音乐已暂停";
-          document.querySelector("#consoleMusic").classList.remove("on");
+          if (menuMusicToggle) menuMusicToggle.innerHTML = msgPlay;
+          if (navMusicHoverTips) navMusicHoverTips.innerHTML = "音乐已暂停";
+          if (consoleMusic) consoleMusic.classList.remove("on");
           anzhiyu_musicPlaying = false;
           navMusicEl.classList.remove("stretch");
         });
-        navMusicEl.querySelector("#nav-music meting-js").aplayer.on("play", function () {
+        metingJs.aplayer.on("play", function () {
           navMusicEl.classList.add("playing");
-          document.getElementById("menu-music-toggle").innerHTML = msgPause;
-          document.querySelector("#consoleMusic").classList.add("on");
+          if (menuMusicToggle) menuMusicToggle.innerHTML = msgPause;
+          if (consoleMusic) consoleMusic.classList.add("on");
           anzhiyu_musicPlaying = true;
           // navMusicEl.classList.add("stretch");
         });
       }
     }, 16);
+    // 换页清理：播放器一直没就绪时这个16ms 轮询会永远跑下去
+    const cleanupNavMusicTimer = () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    document.addEventListener("pjax:send", cleanupNavMusicTimer, { once: true });
+    window.addEventListener("astro:before-swap", cleanupNavMusicTimer, { once: true });
   };
 
   // 开发者工具键盘监听
@@ -1625,6 +1666,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
     filteredinputs.forEach(input => {
+      // 常驻节点换页后会再跑一遍：dataset 防叠加
+      if (input.dataset.focusBound) return;
+      input.dataset.focusBound = "1";
       input.addEventListener("focus", () => {
         anzhiyu_intype = true;
       });
@@ -1684,19 +1728,19 @@ document.addEventListener("DOMContentLoaded", function () {
               toRandomPost();
               break;
             case 72:
-              pjax.loadUrl("/");
+              pjax.loadUrl(anzhiyu.rootUrl("/"));
               break;
             case 68:
               rightSideFn.darkmode();
               break;
             case 70:
-              pjax.loadUrl("/fcircle/");
+              pjax.loadUrl(anzhiyu.rootUrl("/fcircle/"));
               break;
             case 76:
-              pjax.loadUrl("/link/");
+              pjax.loadUrl(anzhiyu.rootUrl("/link/"));
               break;
             case 80:
-              pjax.loadUrl("/about/");
+              pjax.loadUrl(anzhiyu.rootUrl("/about/"));
               break;
             default:
               break;
@@ -1750,17 +1794,26 @@ document.addEventListener("DOMContentLoaded", function () {
     const element = document.getElementById(elementId);
     if (element && childSelector) {
       const childElement = element.querySelector(childSelector);
-      childElement && childElement.addEventListener("click", rightSideFn.darkmode);
+      if (childElement) {
+        // 常驻节点换页会重绑：先 removeEventListener 再 addEventListener 防叠加
+        childElement.removeEventListener("click", rightSideFn.darkmode);
+        childElement.addEventListener("click", rightSideFn.darkmode);
+      }
     } else if (element) {
+      element.removeEventListener("click", rightSideFn.darkmode);
       element.addEventListener("click", rightSideFn.darkmode);
     }
   }
 
   const unRefreshFn = function () {
-    window.addEventListener("resize", () => {
-      adjustMenu(false);
-      mobileSidebarOpen && anzhiyu.isHidden(document.getElementById("toggle-menu")) && sidebarFn.close();
-    });
+    // resize 频率高：加节流，别每个像素的拖拽都跑一遍 adjustMenu
+    window.addEventListener(
+      "resize",
+      anzhiyu.throttle(() => {
+        adjustMenu(false);
+        mobileSidebarOpen && anzhiyu.isHidden(document.getElementById("toggle-menu")) && sidebarFn.close();
+      }, 100),
+    );
 
     // 处理右键
     $rightMenu = document.getElementById("rightMenu");

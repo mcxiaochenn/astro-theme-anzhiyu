@@ -1,4 +1,32 @@
 const anzhiyu = {
+  // HTML 文本转义：所有把外部数据拼进 innerHTML 的地方都必须先过这里。
+  escapeHtml: str =>
+    String(str ?? "").replace(/[&<>"']/g, ch => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[ch]),
+
+  // URL 安全校验：拦截 javascript: / vbscript: / data:（data:image/ 除外）。
+  // 浏览器会忽略协议里的空白与控制字符，检测前先归一化。
+  isSafeUrl: url => {
+    const probe = String(url ?? "")
+      .trim()
+      .replace(/[\u0000-\u0020\u00a0]+/g, "")
+      .toLowerCase();
+    if (/^(?:javascript|vbscript):/.test(probe)) return false;
+    if (/^data:/.test(probe)) return /^data:image\//.test(probe);
+    return true;
+  },
+
+  // 站内路径拼 GLOBAL_CONFIG.root（子路径部署兼容）：rootUrl('/about/') → '/blog/about/'
+  rootUrl: path => {
+    const root = (typeof GLOBAL_CONFIG !== "undefined" && GLOBAL_CONFIG.root) || "/";
+    return root.replace(/\/+$/, "") + (String(path).startsWith("/") ? path : "/" + path);
+  },
+
   debounce: (func, wait = 0, immediate = false) => {
     let timeout;
     return (...args) => {
@@ -296,7 +324,8 @@ const anzhiyu = {
   //更改主题色
   changeThemeMetaColor: function (color) {
     // console.info(`%c ${color}`, `font-size:36px;color:${color};`);
-    if (themeColorMeta !== null) {
+    // themeColorMeta 是 main.js 的全局（可能未赋值 / meta 不存在），真值检查
+    if (themeColorMeta) {
       themeColorMeta.setAttribute("content", color);
     }
   },
@@ -317,10 +346,10 @@ const anzhiyu = {
           .replace('"', "")
           .replace('"', "");
       }
-      if (themeColorMeta.getAttribute("content") === themeColor) return;
+      if (themeColorMeta && themeColorMeta.getAttribute("content") === themeColor) return;
       this.changeThemeMetaColor(themeColor);
     } else {
-      if (themeColorMeta.getAttribute("content") === themeColor) return;
+      if (themeColorMeta && themeColorMeta.getAttribute("content") === themeColor) return;
       this.changeThemeMetaColor(themeColor);
     }
   },
@@ -657,17 +686,20 @@ const anzhiyu = {
     }
     let msgPlay = '<i class="anzhiyufont anzhiyu-icon-play"></i><span>播放音乐</span>';
     let msgPause = '<i class="anzhiyufont anzhiyu-icon-pause"></i><span>暂停音乐</span>';
+    const menuMusicToggle = document.getElementById("menu-music-toggle");
+    const navMusicHoverTips = document.getElementById("nav-music-hoverTips");
+    const consoleMusic = document.querySelector("#consoleMusic");
     if (anzhiyu_musicPlaying) {
       navMusicEl.classList.remove("playing");
-      document.getElementById("menu-music-toggle").innerHTML = msgPlay;
-      document.getElementById("nav-music-hoverTips").innerHTML = "音乐已暂停";
-      document.querySelector("#consoleMusic").classList.remove("on");
+      if (menuMusicToggle) menuMusicToggle.innerHTML = msgPlay;
+      if (navMusicHoverTips) navMusicHoverTips.innerHTML = "音乐已暂停";
+      if (consoleMusic) consoleMusic.classList.remove("on");
       anzhiyu_musicPlaying = false;
       navMusicEl.classList.remove("stretch");
     } else {
       navMusicEl.classList.add("playing");
-      document.getElementById("menu-music-toggle").innerHTML = msgPause;
-      document.querySelector("#consoleMusic").classList.add("on");
+      if (menuMusicToggle) menuMusicToggle.innerHTML = msgPause;
+      if (consoleMusic) consoleMusic.classList.add("on");
       anzhiyu_musicPlaying = true;
       navMusicEl.classList.add("stretch");
     }
@@ -775,8 +807,12 @@ const anzhiyu = {
   },
   // 播放音乐
   playMusic(songs) {
+    // 歌曲池 <= 1 时「随机到已播过的就换一首」无解，while 会死循环/空转
+    if (!Array.isArray(songs) || songs.length <= 1) return;
     const anMusicPage = document.getElementById("anMusic-page");
-    const metingAplayer = anMusicPage.querySelector("meting-js").aplayer;
+    const metingJs = anMusicPage && anMusicPage.querySelector("meting-js");
+    const metingAplayer = metingJs && metingJs.aplayer;
+    if (!metingAplayer) return;
     const randomIndex = Math.floor(Math.random() * songs.length);
     const randomSong = songs[randomIndex];
     const allAudios = metingAplayer.list.audios;
@@ -859,7 +895,7 @@ const anzhiyu = {
   },
   // 获取自定义播放列表
   getCustomPlayList: function () {
-    if (!window.location.pathname.startsWith("/music/")) {
+    if (!window.location.pathname.startsWith(anzhiyu.rootUrl("/music/"))) {
       return;
     }
     const urlParams = new URLSearchParams(window.location.search);
@@ -871,7 +907,13 @@ const anzhiyu = {
     if (urlParams.get("id") && urlParams.get("server")) {
       const id = urlParams.get("id");
       const server = urlParams.get("server");
-      anMusicPageMeting.innerHTML = `<meting-js id="${id}" server=${server} type="playlist" type="playlist" mutex="true" preload="auto" theme="var(--anzhiyu-main)" order="list" list-max-height="calc(100vh - 169px)!important"></meting-js>`;
+      // query 参数直接拼进 innerHTML：白名单校验，非法值回落默认歌单。
+      const SAFE_PLAYLIST_RE = /^[a-zA-Z0-9_-]+$/;
+      if (SAFE_PLAYLIST_RE.test(id) && SAFE_PLAYLIST_RE.test(server)) {
+        anMusicPageMeting.innerHTML = `<meting-js id="${id}" server="${server}" type="playlist" mutex="true" preload="auto" theme="var(--anzhiyu-main)" order="list" list-max-height="calc(100vh - 169px)!important"></meting-js>`;
+      } else {
+        anMusicPageMeting.innerHTML = `<meting-js id="${userId}" server="${userServer}" type="playlist" mutex="true" preload="auto" theme="var(--anzhiyu-main)" order="list" list-max-height="calc(100vh - 169px)!important"></meting-js>`;
+      }
     } else {
       anMusicPageMeting.innerHTML = `<meting-js id="${userId}" server="${userServer}" type="playlist" mutex="true" preload="auto" theme="var(--anzhiyu-main)" order="list" list-max-height="calc(100vh - 169px)!important"></meting-js>`;
     }
@@ -1342,14 +1384,17 @@ const anzhiyu = {
     if (!$categoryBar) return;
 
     if (urlinfo === "/") {
-      $categoryBar.querySelector("#首页").classList.add("select");
+      const $home = $categoryBar.querySelector(`#${CSS.escape("首页")}`);
+      $home && $home.classList.add("select");
     } else {
       const pattern = /\/categories\/.*?\//;
       const patbool = pattern.test(urlinfo);
       if (!patbool) return;
 
       const nowCategorie = urlinfo.split("/")[2];
-      $categoryBar.querySelector(`#${nowCategorie}`).classList.add("select");
+      // 分类名来自 URL：选择器要 CSS.escape，查不到也不能抛
+      const $now = $categoryBar.querySelector(`#${CSS.escape(nowCategorie)}`);
+      $now && $now.classList.add("select");
     }
   },
   topCategoriesBarScroll: function () {
@@ -1366,6 +1411,7 @@ const anzhiyu = {
   switchRightClickMenuHotReview: function () {
     const postComment = document.getElementById("post-comment");
     const menuCommentBarrageDom = document.getElementById("menu-commentBarrage");
+    if (!menuCommentBarrageDom) return;
     if (postComment) {
       menuCommentBarrageDom.style.display = "flex";
     } else {
@@ -1377,10 +1423,11 @@ const anzhiyu = {
     const greetings = GLOBAL_CONFIG.authorStatus.skills;
 
     const authorInfoSayHiElement = document.getElementById("author-info__sayhi");
+    if (!authorInfoSayHiElement) return;
 
-    // 如果只有一个问候语，设置为默认值
-    if (greetings.length === 1) {
-      authorInfoSayHiElement.textContent = greetings[0];
+    // 如果只有一个（或没有）问候语，设置为默认值；长度 <= 1 时 while 挑「不同于上一句」会死循环
+    if (!Array.isArray(greetings) || greetings.length <= 1) {
+      authorInfoSayHiElement.textContent = (greetings && greetings[0]) || authorInfoSayHiElement.textContent;
       return;
     }
 

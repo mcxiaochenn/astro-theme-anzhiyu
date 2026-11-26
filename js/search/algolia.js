@@ -12,20 +12,20 @@ window.addEventListener("load", () => {
     return div.innerHTML;
   };
 
+  // shortcut: ESC —— 命名 handler：openSearch 反复打开不叠加，closeSearch 统一摘除
+  const onSearchEscKeydown = event => {
+    if (event.code === "Escape") closeSearch();
+  };
+
   const openSearch = () => {
     anzhiyu.animateIn(searchMask(), "to_show 0.5s");
     searchDialog().style.display = "block";
     setTimeout(() => {
-      document.querySelector("#algolia-search .ais-SearchBox-input").focus();
+      const $input = document.querySelector("#algolia-search .ais-SearchBox-input");
+      $input && $input.focus();
     }, 100);
 
-    // shortcut: ESC
-    document.addEventListener("keydown", function f(event) {
-      if (event.code === "Escape") {
-        closeSearch();
-        document.removeEventListener("keydown", f);
-      }
-    });
+    document.addEventListener("keydown", onSearchEscKeydown);
 
     fixSafariHeight();
     window.addEventListener("resize", fixSafariHeight);
@@ -57,6 +57,7 @@ window.addEventListener("load", () => {
     anzhiyu.animateOut(searchDialog(), "search_close .5s");
     anzhiyu.animateOut(searchMask(), "to_hide 0.5s");
     window.removeEventListener("resize", fixSafariHeight);
+    document.removeEventListener("keydown", onSearchEscKeydown);
   };
 
   // fix safari
