@@ -861,8 +861,10 @@ const looseTopLevel = {
   highlight_shrink: z.boolean(),
   code_word_wrap: z.boolean(),
   disable_top_img: z.boolean(),
-  index_img: z.boolean(),
-  default_top_img: z.boolean(),
+  // false 或 background 样式串（theme.config.yml: `index_img: false # "background: url() top / cover no-repeat"`）
+  index_img: z.union([z.boolean(), z.string()]),
+  // false 或图片 URL（页面未设 top_img 时的默认顶部图）
+  default_top_img: z.union([z.boolean(), z.string()]),
   anchor: z.boolean(),
   photofigcaption: z.boolean(),
   chat_btn: z.boolean(),
