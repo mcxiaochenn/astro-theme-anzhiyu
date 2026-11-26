@@ -23,8 +23,8 @@
  * `nav.menu` 里的外站链接（`https://…`）按 Hexo 站点级 `external_link` 补
  * `target="_blank" rel="noopener"`，见 `utils/external-link.ts`。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import { externalLinkAttrs } from '../../utils/external-link.ts'
 import { cloudTags, type CloudTagLike } from '../../utils/helpers.ts'

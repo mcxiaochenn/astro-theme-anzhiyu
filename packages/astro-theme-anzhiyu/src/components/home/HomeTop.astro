@@ -17,8 +17,8 @@
  *
  * 不实现的分支：top.pug:98-135 的 `initBlogSlider()` 脚本（P4 客户端脚本阶段）。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { postHrefOf, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import { postHrefOf, type SiteConfig } from '../../utils/url-utils.ts'
 import { preparePosts, selectTopGroupPosts } from '../post/post-list.ts'
 import { selectSwiperPosts } from './home-top-data.ts'
 import BannerGroup from './BannerGroup.astro'

@@ -6,7 +6,7 @@
  * 且 Head.astro:209-215 / :314-316 已内联等价实现 —— 接线时必须二选一，避免重复 meta。
  * 接线建议：直接沿用 Head.astro 现有实现（本组件作为主题包可复用单元保留）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderSiteVerification } from './render.mjs'
 
 interface Props {

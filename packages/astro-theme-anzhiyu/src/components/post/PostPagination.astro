@@ -11,10 +11,10 @@
  * `theme.post_pagination` 为 1/3/4 时上游交换 prev/next；解析发生在页面层
  * （`preparePostPage` 给出的 prev/next 已按配置对齐），这里只负责渲染。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
-import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { lazyImageAttrs } from '../chrome/lazyload.ts'
 import type { PreparedPost } from './post-list.ts'
 
 interface Props {

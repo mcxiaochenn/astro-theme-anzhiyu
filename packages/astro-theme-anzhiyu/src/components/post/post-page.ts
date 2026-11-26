@@ -25,8 +25,8 @@ import {
   type PostEntryLike,
   type PreparedPost,
 } from './post-list.ts'
-import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { createUrlFor, type PostHrefResolver } from '../../utils/url-utils.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { rewriteHeadings, SWALLOWED_HEADING_RE, type HeadingInfo } from '../../utils/slugger.ts'
 
 // 子路径部署跟随 Astro base（import.meta.env.BASE_URL），与页面侧 urlFor 同口径
@@ -101,7 +101,7 @@ export interface PreparePostPageOptions {
    */
   externalLink?: { enable?: boolean; exclude?: string | string[] }
   /**
-   * 文章 permalink 解析器（站点配置提供，见 `layouts/site.ts`）。
+   * 文章 permalink 解析器（站点配置提供，见 `utils/url-utils.ts`）。
    *
    * 传入时：`current.path / prev / next / related / permalink` 全部按它算，
    * 不再套 `applyAbbrlink()`（解析器已经包含 abbrlink 语义）。

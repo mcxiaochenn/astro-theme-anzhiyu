@@ -10,7 +10,7 @@
  * 上游对应物：
  *   - hexo-generator-archive / category / tag：负责分页与 `page.current`；
  *   - `scripts/helpers/catalog_list.js` / `tags_page_list.js` / `findArchiveLength.js`
- *     / page.js 的 `findArchivesTitle`：直接调用 `packages/astro-theme-anzhiyu/src/utils/helpers.ts`
+ *     / page.js 的 `findArchivesTitle`：直接调用 `astro-theme-anzhiyu/utils/helpers.ts`
  *     里已经与上游 oracle 对拍过的移植，不在这里重写业务规则。
  *
  * 为什么放在 `pages/archives/` 下：本阶段的写范围只覆盖 archives / categories / tags 三个页面目录，
@@ -27,11 +27,11 @@ import {
   getArchiveLength,
   tagsPageList,
   type Translate,
-} from '../../../../../packages/astro-theme-anzhiyu/src/utils/helpers.ts'
-import { createSiteDateFormatter } from '../../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
-import { postSlugOf } from '../../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
-import { t } from '../../../../../packages/astro-theme-anzhiyu/src/i18n/index.ts'
-import type { ArticleSortPost } from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/types.ts'
+} from 'astro-theme-anzhiyu/utils/helpers.ts'
+import { createSiteDateFormatter } from 'astro-theme-anzhiyu/utils/date.ts'
+import { postSlugOf } from 'astro-theme-anzhiyu/utils/url-utils.ts'
+import { t } from 'astro-theme-anzhiyu/i18n/index.ts'
+import type { ArticleSortPost } from 'astro-theme-anzhiyu/components/archive/types.ts'
 import { SITE_IDENTITY } from '../../data/site-identity.ts'
 
 /* ==================================================================== */

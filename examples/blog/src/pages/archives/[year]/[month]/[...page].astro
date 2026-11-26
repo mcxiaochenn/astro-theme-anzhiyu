@@ -12,9 +12,9 @@
  * 月份补零是 URL 约定（`archive_generator` 的路径格式），与 frontmatter 的 `MM` 对齐。
  */
 import type { GetStaticPaths } from 'astro'
-import BaseLayout from '../../../../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import ArticleSort from '../../../../../../../packages/astro-theme-anzhiyu/src/components/archive/ArticleSort.astro'
-import Pagination from '../../../../../../../packages/astro-theme-anzhiyu/src/components/archive/Pagination.astro'
+import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
+import ArticleSort from 'astro-theme-anzhiyu/components/archive/ArticleSort.astro'
+import Pagination from 'astro-theme-anzhiyu/components/archive/Pagination.astro'
 import '../../../../styles/upstream/index.styl'
 import {
   ARCHIVE_PER_PAGE,

@@ -8,7 +8,7 @@
  * 输出 prismjs_js / prismjs_autoloader（line_number 时再加 prism-line-numbers）。
  * 接线建议：BaseLayout.astro:500 `<AdditionalJs>` 之后（上游 additional-js.pug:83）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderPrismjs } from './render.mjs'
 
 interface Props {

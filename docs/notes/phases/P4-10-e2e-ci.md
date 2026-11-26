@@ -123,7 +123,7 @@ command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --ho
   由资源与第三方集成用例负责），其余报错一律 fail。
 
 `page-types.spec.ts` 的 13 个 URL（都是 `examples/blog/dist/<path>/index.html` 真实存在的
-构建产物，12 个 `fixtures/page-*.md` + `fixtures/about-page.md`，选择器口径来自
+构建产物，12 个 `tests/fixtures/page-*.md` + `tests/fixtures/about-page.md`，选择器口径来自
 `docs/notes/phases/P3-2-page-types.md` §6.2）：
 
 | page.type | URL | 断言选择器 |

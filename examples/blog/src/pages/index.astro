@@ -19,17 +19,17 @@
  * 站点元数据仍以页面常量传入（Phase 7 的迁移脚本把 Hexo `_config.yml` 落成站点配置层后，
  * 这份常量应删除；`[...page].astro` 里有一份同样的常量，届时一并删）。
  */
-import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import PostCard from '../../../../packages/astro-theme-anzhiyu/src/components/post/PostCard.astro'
-import Pagination from '../../../../packages/astro-theme-anzhiyu/src/components/post/Pagination.astro'
-import CategoryBar from '../../../../packages/astro-theme-anzhiyu/src/components/post/CategoryBar.astro'
+import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
+import PostCard from 'astro-theme-anzhiyu/components/post/PostCard.astro'
+import Pagination from 'astro-theme-anzhiyu/components/post/Pagination.astro'
+import CategoryBar from 'astro-theme-anzhiyu/components/post/CategoryBar.astro'
 import {
   collectCategoryBarItems,
   paginatePosts,
   preparePosts,
-} from '../../../../packages/astro-theme-anzhiyu/src/components/post/post-list.ts'
-import { postHrefOf } from '../../../../packages/astro-theme-anzhiyu/src/layouts/site.ts'
-import type { EssayGroup } from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
+} from 'astro-theme-anzhiyu/components/post/post-list.ts'
+import { postHrefOf } from 'astro-theme-anzhiyu/utils/url-utils.ts'
+import type { EssayGroup } from 'astro-theme-anzhiyu/components/page/types.ts'
 import '../styles/upstream/index.styl'
 import { getCollection } from 'astro:content'
 

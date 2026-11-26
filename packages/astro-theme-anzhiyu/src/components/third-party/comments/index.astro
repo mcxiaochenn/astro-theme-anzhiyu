@@ -6,7 +6,7 @@
  * 上游挂载点：post.pug:44 与 page.pug:35（`#post-comment` 整块）。
  * use 为空时输出 0 节点；use 为数组（双系统）时额外产出 .comment-switch。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderCommentsIndex } from './render.mjs'
 
 interface Props {

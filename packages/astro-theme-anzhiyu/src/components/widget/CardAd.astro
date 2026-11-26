@@ -10,7 +10,7 @@
  *
  * `theme.ad` 在主题配置里是松散对象；`ad.aside` 为空时不输出任何节点。
  */
-import { getThemeConfig, readString } from '../../layouts/theme-context.ts'
+import { getThemeConfig, readString } from '../../config/theme-context.ts'
 
 const theme = getThemeConfig()
 const asideAd = readString(theme.ad, 'aside')

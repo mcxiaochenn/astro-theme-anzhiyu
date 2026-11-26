@@ -6,13 +6,13 @@
  *     见 `components/archive/LazyImage.astro` 的说明）；
  *  3. `_p()`（文案只在 `languages/*.yml` 里，基准站语言是 zh-CN）。
  *
- * 站点语言目前没有从 BaseLayout 透传到子组件（见 `layouts/site.ts` 的注释），
+ * 站点语言目前没有从 BaseLayout 透传到子组件（见 `utils/url-utils.ts` 的注释），
  * 与 `FlinkPage` / `FcirclePage` 一致，这里按基准站的 zh-CN 取词。
  */
-import { getThemeConfig, readString } from '../../../layouts/theme-context.ts'
-import { createUrlFor } from '../../../layouts/site.ts'
+import { getThemeConfig, readString } from '../../../config/theme-context.ts'
+import { createUrlFor } from '../../../utils/url-utils.ts'
 import { resolveAssets } from '../../../config/assets.ts'
-import { lazyImageAttrs } from '../../layout/lazyload.ts'
+import { lazyImageAttrs } from '../../chrome/lazyload.ts'
 import { tp } from '../../../i18n/index.ts'
 
 const theme = getThemeConfig()

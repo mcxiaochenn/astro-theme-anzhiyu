@@ -6,7 +6,7 @@
  * mixins/post-ui.pug:78 / additional-js.pug:66-67 的 needLoadCountJs）。
  * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 之后、`.js-pjax` 内。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderCardPostCountIndex } from './render.mjs'
 
 interface Props {

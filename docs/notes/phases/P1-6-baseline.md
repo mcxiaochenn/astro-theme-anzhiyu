@@ -33,8 +33,8 @@
 
 | 路径 | 内容 |
 | --- | --- |
-| `fixtures/*.md`（10 个） | 9 篇文章 + 1 个独立页（about 类） |
-| `fixtures/about-data.yml` | `about` 模板需要的 `source/_data/about.yml` 数据（支撑文件，不计入 10 篇） |
+| `tests/fixtures/*.md`（10 个） | 9 篇文章 + 1 个独立页（about 类） |
+| `tests/fixtures/about-data.yml` | `about` 模板需要的 `source/_data/about.yml` 数据（支撑文件，不计入 10 篇） |
 | `docs/reference/baseline.json` | 基准摘要（schema 见 §4） |
 | `docs/notes/phases/P1-6-baseline.md` | 本报告 |
 | `.baseline-work/` | 临时 Hexo 工程（已加入 `.gitignore`，产物不进仓库） |
@@ -57,8 +57,8 @@ D:\Git-project\astro-theme-anzhiyu\.baseline-work\
 ├── tools\hash-manifest.mjs     # 产物 SHA-256 清单（确定性验证）
 ├── themes\anzhiyu\             # 上游主题整棵拷贝（不含 .git）
 ├── source\_posts\*.md          # fixtures 中 9 篇文章
-├── source\about\index.md       # fixtures/about-page.md
-├── source\_data\about.yml      # fixtures/about-data.yml
+├── source\about\index.md       # tests/fixtures/about-page.md
+├── source\_data\about.yml      # tests/fixtures/about-data.yml
 └── public\                     # hexo g 产物（不提交）
 ```
 
@@ -249,7 +249,7 @@ hexo.extend.helper.register('fragment_cache', function (id, fn) {
 //                  public/foo/index.html    → "/foo/"
 //                  public/404.html          → "/404.html"
 //                  每项 { path, bytes, sha256 }
-// fixtures       = 仓库 fixtures/ 下 *.md 文件名（按码点升序，10 个）
+// fixtures       = 仓库 tests/fixtures/ 下 *.md 文件名（按码点升序，10 个）
 // baseline       = { commit: "72439d93", version: "1.7.1", generatedAt: new Date().toISOString() }
 // 输出 ../docs/reference/baseline.json（2 空格缩进 + 末尾换行）
 ```
@@ -271,10 +271,10 @@ npm install --ignore-scripts --no-audit --no-fund
 
 # 3. 同步 fixture 内容
 New-Item -ItemType Directory -Force source\_posts, source\about, source\_data | Out-Null
-Get-ChildItem ..\fixtures\*.md | Where-Object Name -ne 'about-page.md' |
+Get-ChildItem ..\tests\fixtures\*.md | Where-Object Name -ne 'about-page.md' |
   ForEach-Object { Copy-Item $_.FullName "source\_posts\$($_.Name)" -Force }
-Copy-Item ..\fixtures\about-page.md source\about\index.md -Force
-Copy-Item ..\fixtures\about-data.yml source\_data\about.yml -Force
+Copy-Item ..\tests\fixtures\about-page.md source\about\index.md -Force
+Copy-Item ..\tests\fixtures\about-data.yml source\_data\about.yml -Force
 
 # 4. 构建（权威序列）
 npx hexo clean
@@ -406,7 +406,7 @@ node tools/hash-manifest.mjs public manifest-B.json
 
 `fixtures`（按码点升序）：`about-page.md`、`cover-variants.md`、`longform-hexo-astro.md`、`multi-taxonomy.md`、`short-note.md`、`sticky-top.md`、`tags-block.md`、`tags-inline.md`、`tags-media.md`、`tags-thirdparty.md`。
 
-站点内映射：9 篇 → `source/_posts/*.md`（文章），`about-page.md` → `source/about/index.md`（页面，路径 `/about/`）；`fixtures/about-data.yml` → `source/_data/about.yml`（about 模板数据，不属于 10 篇内容，不进 `fixtures` 数组）。
+站点内映射：9 篇 → `source/_posts/*.md`（文章），`about-page.md` → `source/about/index.md`（页面，路径 `/about/`）；`tests/fixtures/about-data.yml` → `source/_data/about.yml`（about 模板数据，不属于 10 篇内容，不进 `fixtures` 数组）。
 
 ---
 
@@ -510,7 +510,7 @@ manifest-D.json  aeeb4340701c8b8c8c081c1a1fb3b048209ede708546ac2ed27dd7a7be60bf5
 | `tags-block.md` | 文章 | — | 块级 12 tag：`note`(4 种样式+图标) `subnote` `tabs`(激活第 2 页) `subtabs` `subsubtabs` `hideInline` `hideBlock` `hideToggle` `folding` `checkbox` `radio` `timeline` |
 | `tags-media.md` | 文章 | — | 媒体/卡片 11 tag：`image` `inlineimage` `audio` `video` `videos`(col=2) `gallery`(3 图 data 模式) `galleryGroup` `site` `sitegroup` `btns` `cell` |
 | `tags-thirdparty.md` | 文章 | `cover: false` `top_img` | 第三方 7 tag：`bilibili` `dogeplayer` `mermaid` `link` `flink`(两种 flink_style) `tip` `intCard` |
-| `about-page.md` | 独立页（`layout: page` `type: about`） | `title` `date` `layout: page` `type: about` `top_img` | about 模板（23 KB pug）全块渲染：作者卡、技能、历程、地图/个人信息、人格、座右铭、游戏/追番/音乐/偏好、页面正文；数据来自 `fixtures/about-data.yml` |
+| `about-page.md` | 独立页（`layout: page` `type: about`） | `title` `date` `layout: page` `type: about` `top_img` | about 模板（23 KB pug）全块渲染：作者卡、技能、历程、地图/个人信息、人格、座右铭、游戏/追番/音乐/偏好、页面正文；数据来自 `tests/fixtures/about-data.yml` |
 
 站点里由生成器额外产出的页面（不在 fixture 里，但 baseline 收录）：首页分页 `page/2`、归档（年/月/分页）、7 个分类页、17 个标签页、404。共 48 个 HTML。
 
@@ -519,7 +519,7 @@ manifest-D.json  aeeb4340701c8b8c8c081c1a1fb3b048209ede708546ac2ed27dd7a7be60bf5
 ## 8. 覆盖不足与遗留问题
 
 1. **`/tags/`、`/categories/` 索引页未覆盖**（`page.type: tags/categories` 模板）。它们需要额外的 `source/tags/index.md`、`source/categories/index.md`，不属于 10 篇 fixture 范围；`/tags/` 的 `tags_page_list` 与 `/categories/` 的 `catalog_list` 逻辑目前只有侧栏/导航入口在用，索引页本身待 P3 补 fixture 后再进 baseline。
-2. **`about` 模板的完整数据**：about.pug 依赖 `site.data.about` 的 40+ 字段，已用 `fixtures/about-data.yml` 提供最小可用数据（覆盖 all-blocks 渲染），但不是上游 demo 的真实内容；如果 P3-6 需要逐块视觉比对，建议后续把该 YAML 扩充为真实 demo 数据。
+2. **`about` 模板的完整数据**：about.pug 依赖 `site.data.about` 的 40+ 字段，已用 `tests/fixtures/about-data.yml` 提供最小可用数据（覆盖 all-blocks 渲染），但不是上游 demo 的真实内容；如果 P3-6 需要逐块视觉比对，建议后续把该 YAML 扩充为真实 demo 数据。
 3. **其余 11 种 `page.type` 模板**（`essay` `album` `album_detail` `flink` `music` `fcircle` `room` `equipment` `default` `tags` `categories`）没有 fixture，baseline 不含这些页面，P3 需要补。
 4. **依赖真实后端的特性**（评论 5 种、分析 5 种、搜索 3 种、音乐、AI 摘要远端模式）在本次构建里全部是关闭/静态配置，HTML 里只有占位；它们的「行为基线」属于 §3.3 运行时录制，不在 P1-6 范围。
 5. **`gallery` 的 url 模式**、`audio/video` 的真实资源、`bilibili` 的远端 API 只在静态 HTML 层面验证，没有真实资源/网络行为。

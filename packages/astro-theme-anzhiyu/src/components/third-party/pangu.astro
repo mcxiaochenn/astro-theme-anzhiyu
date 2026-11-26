@@ -7,7 +7,7 @@
  * 接线时二选一，避免重复脚本。
  * 挂载建议：BaseLayout.astro:500（上游 additional-js.pug:22-23）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderPangu } from './render.mjs'
 
 interface Props {

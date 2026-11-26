@@ -8,9 +8,9 @@
  * 本组件只负责把上游的 `url_for(page.cover || theme.avatar.img)` 算好传进去
  * （third-party 的 renderShareJs 本身不做 url_for）。
  */
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import ShareIndex from '../third-party/share/index.astro'
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import type { PreparedPost } from './post-list.ts'
 
 interface Props {

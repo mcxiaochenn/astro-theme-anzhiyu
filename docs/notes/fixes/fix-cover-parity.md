@@ -58,7 +58,7 @@ related-cover : {"class":"cover","alt":"cover","src":"data:image/gif;base64,R0lG
 next-cover    : {"class":"next-cover","alt":"cover of next post","src":"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7","onerror":"this.onerror=null,this.src=\"/img/404.jpg\"","data-lazy-src":"/img/512.png"}
 ```
 
-frontmatter 佐证：`fixtures/abbrlink-post.md`（title「abbrlink 覆盖末段样本」，`abbrlink: 24531`）**无 `cover` 键** → cover-less；`fixtures/multi-taxonomy.md:16` `cover: /img/512.png` → next 卡对照组。
+frontmatter 佐证：`tests/fixtures/abbrlink-post.md`（title「abbrlink 覆盖末段样本」，`abbrlink: 24531`）**无 `cover` 键** → cover-less；`tests/fixtures/multi-taxonomy.md:16` `cover: /img/512.png` → next 卡对照组。
 
 ## 3. 一致 / 不一致结论
 

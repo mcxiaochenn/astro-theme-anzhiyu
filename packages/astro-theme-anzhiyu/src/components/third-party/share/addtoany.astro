@@ -5,7 +5,7 @@
  * 门控：`theme.addtoany.enable`（且 sharejs 未启用，与 index.pug:3-6 的 else-if 一致）；
  * 读 `addtoany.item`（逗号分隔）生成 `.a2a_button_*`，并加载 addtoany page.js。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderAddtoany } from './render.mjs'
 
 interface Props {

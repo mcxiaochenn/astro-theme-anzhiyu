@@ -23,6 +23,12 @@ importers:
       astro:
         specifier: ^7.4.13
         version: 7.4.13(@astrojs/markdown-remark@7.3.10)(stylus@0.64.0)(yaml@2.9.1)
+      astro-theme-anzhiyu:
+        specifier: workspace:*
+        version: link:../../packages/astro-theme-anzhiyu
+      remark-hexo-tag:
+        specifier: workspace:*
+        version: link:../../packages/remark-hexo-tag
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -54,12 +60,18 @@ importers:
 
   packages/remark-hexo-tag:
     dependencies:
+      unified:
+        specifier: '>=11.0.0'
+        version: 11.0.5
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
 
   packages/vite-plugin-stylus-hexo-config:
     dependencies:
+      stylus:
+        specifier: '>=0.62.0'
+        version: 0.64.0
       vite:
         specifier: '>=8.0.0'
         version: 8.3.8(stylus@0.64.0)(yaml@2.9.1)

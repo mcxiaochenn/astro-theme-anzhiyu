@@ -17,11 +17,11 @@
  *   - 标签云 / 归档：`CardConsoleTags` / `CardConsoleArchives`（P3-1 已实现，
  *     与 aside 同名卡片共用 `getSiteStats()` 缓存）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, type PostHrefResolver } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import { getSiteStats } from '../../data/site-stats.ts'
-import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { lazyImageAttrs } from '../chrome/lazyload.ts'
 import CardConsoleTags from '../widget/CardConsoleTags.astro'
 import CardConsoleArchives from '../widget/CardConsoleArchives.astro'
 

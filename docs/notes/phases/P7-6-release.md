@@ -385,7 +385,7 @@ git tag -l            # 本机当前没有任何 tag（git tag -l 实测为空�
 
 ## 6. demo 站部署：命令与授权边界
 
-脚本：`scripts/deploy-demo-pages.mjs`（**本轮未执行**；2026-11-25 已另行部署上线：`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`，旧 `mcxiaochenn.github.io/blog` 子路径部署已移除。脚本已支持 `DEMO_PAGES_PATH` 传 `''`/`'-'` 走根路径部署与 `DEMO_PAGES_CNAME` 写 CNAME，见根 README「demo 站部署」。**2026-11-25 晚改版**：部署形态换成本仓库 `demo-pages` 产物分支 + 同一 CNAME，`mcxiaochenn/anzhiyu-demo` 已删除；脚本重写为「基线 + `theme.config.demo.yml` delta 深合并」的可复现 demo 构建）。
+脚本：`scripts/deploy-demo-pages.mjs`（**本轮未执行**；2026-11-25 已另行部署上线：`mcxiaochenn/anzhiyu-demo` 根路径 + CNAME `anzhiyu.example.mcxiaochen.top`，旧 `mcxiaochenn.github.io/blog` 子路径部署已移除。脚本已支持 `DEMO_PAGES_PATH` 传 `''`/`'-'` 走根路径部署与 `DEMO_PAGES_CNAME` 写 CNAME，见根 README「demo 站部署」。**2026-11-25 晚改版**：部署形态换成本仓库 `demo-pages` 产物分支 + 同一 CNAME，`mcxiaochenn/anzhiyu-demo` 已删除；脚本重写为「基线 + `theme.config.demo-delta.yml` delta 深合并」的可复现 demo 构建）。
 
 ```bash
 # 默认目标：https://mcxiaochenn.github.io/blog/ ，仓库 mcxiaochenn/mcxiaochenn.github.io @ main

@@ -26,8 +26,8 @@
  * 头像的 `onerror` 用 `theme.error_img.flink`（不是 `post_page`），这是上游这一行的
  * 固定取值，见 `card_author.pug:6`。
  */
-import { getThemeConfig, readString } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readString } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { resolveImageLazyload } from '../post/post-list.ts'
 
 interface Props {

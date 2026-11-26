@@ -22,8 +22,8 @@
  * :1686 remove("show")、:1693-1694 querySelector + remove("show")。
  * 注意 main.js:1752 的注册前提还有 `#consoleKeyboard`（Console 面板键盘开关）。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 
 interface Props {

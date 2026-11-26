@@ -8,7 +8,7 @@
  * push demo-pages 不触发 CI（ci.yml 只跑 main / PR）。
  *
  * demo 构建 = 基线 + 功能全开 delta，全程不改动守卫文件：
- *   1. 读 theme.config.yml（SHA 守卫基线）+ theme.config.demo.yml（delta），按 loader
+ *   1. 读 theme.config.yml（SHA 守卫基线）+ theme.config.demo-delta.yml（delta），按 loader
  *      同款语义深合并（对象递归、数组整体替换）→ 写临时完整配置（构建后删除），
  *      经 ANZHIYU_THEME_CONFIG 指向它——HTML 与 CSS 两条通道收口同一文件（B5 不变）；
  *   2. data/essay.yml 第一组临时补 `home_essay: true`（首页即刻短文条 #bbTimeList，
@@ -31,7 +31,7 @@
  *   DEMO_PAGES_URL     默认 https://anzhiyu.example.mcxiaochen.top
  *   DEMO_PAGES_CNAME   自定义域名（写入 CNAME 文件）；缺省从 DEMO_PAGES_URL 主机名推导，
  *                      *.github.io 不写
- *   DEMO_THEME_CONFIG  默认 examples/blog/theme.config.demo.yml（功能全开 delta）
+ *   DEMO_THEME_CONFIG  默认 examples/blog/theme.config.demo-delta.yml（功能全开 delta）
  */
 
 import { spawnSync, execSync } from 'node:child_process'
@@ -72,11 +72,11 @@ const PAGES_CNAME =
 // theme.config.yml，互不影响。
 const DEMO_DELTA = process.env.DEMO_THEME_CONFIG
   ? resolve(repoRoot, process.env.DEMO_THEME_CONFIG)
-  : join(blogDir, 'theme.config.demo.yml')
+  : join(blogDir, 'theme.config.demo-delta.yml')
 const BASELINE_CONFIG = join(blogDir, 'theme.config.yml')
 const MERGED_CONFIG = join(blogDir, '.tmp-demo-theme.config.yml')
 const ESSAY_FILE = join(blogDir, 'data', 'essay.yml')
-const FIXTURES_DIR = join(repoRoot, 'fixtures')
+const FIXTURES_DIR = join(repoRoot, 'tests/fixtures')
 
 /** 带输出地执行 shell 命令；失败即退出。 */
 function run(command, options = {}) {
@@ -215,7 +215,7 @@ if (buildStatus !== 0) fail(`demo 构建失败（exit ${buildStatus}）`)
 /* 3. 生成 search.xml + HTML 后处理                                     */
 /* ------------------------------------------------------------------ */
 
-// search.xml：local_search 索引，按 fixtures/*.md 生成（hexo-generator-search 只收文章，
+// search.xml：local_search 索引，按 tests/fixtures/*.md 生成（hexo-generator-search 只收文章，
 // layout: page 的独立页面不进索引）。content 为正文原文（空白归一），
 // local-search.js 拿它剥标签后做关键词匹配。
 const urlPrefix = PAGES_PATH ? `/${PAGES_PATH}` : ''

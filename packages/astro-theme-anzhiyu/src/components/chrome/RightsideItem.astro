@@ -15,9 +15,9 @@
  *   chat      → `theme.chat_btn && (chatra|tidio|daovoice|crisp).enable`
  *   comment   → `commentsJsLoad` 出 #to_comment；`comment_barrage_config.enable` 另出 #switch-commentBarrage
  */
-import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
+import { getThemeConfig, readFlag, readString } from '../../config/theme-context.ts'
 import { tp } from '../../i18n/index.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 
 interface Props {
   /** `rightside_item_order` 里的一个值：readmode/translate/darkmode/hideAside/toc/chat/comment */

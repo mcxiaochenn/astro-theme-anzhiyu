@@ -20,16 +20,16 @@
  *
  * 关于 header：`BaseLayout` 的 `is404` 分支只提供 `<slot name="404" />` 占位（上游 layout.pug 的 404
  * 分支不渲染 main/footer，但仍然 include header/index.pug）。这里直接复用 P2-4 抽出的
- * `components/layout/Header.astro`，与其它页面同源；`topImg={false}` 对应 404 generator 给页面数据塞的
+ * `components/chrome/Header.astro`，与其它页面同源；`topImg={false}` 对应 404 generator 给页面数据塞的
  * `top_img: false`（所以 `#page-header` 是 `not-top-img`）。
  */
-import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import Header from '../../../../packages/astro-theme-anzhiyu/src/components/layout/Header.astro'
-import LazyImage from '../../../../packages/astro-theme-anzhiyu/src/components/archive/LazyImage.astro'
+import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
+import Header from 'astro-theme-anzhiyu/components/chrome/Header.astro'
+import LazyImage from 'astro-theme-anzhiyu/components/archive/LazyImage.astro'
 import {
   getThemeConfig,
   readString,
-} from '../../../../packages/astro-theme-anzhiyu/src/layouts/theme-context.ts'
+} from 'astro-theme-anzhiyu/config/theme-context.ts'
 import '../styles/upstream/index.styl'
 import { BASELINE_SITE, hexoNotFoundPageUrl, loadArchiveSite } from './archives/_data.ts'
 

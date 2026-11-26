@@ -1,8 +1,8 @@
 /**
- * P2-1 · 内容集合（单一数据源：仓库根 `fixtures/`，不复制）
+ * P2-1 · 内容集合（单一数据源：仓库根 `tests/fixtures/`，不复制）
  *
  * 约定：
- * - 10 篇 fixture 全部进一个 `posts` 集合，用 glob loader 直接读 `../../fixtures`。
+ * - 10 篇 fixture 全部进一个 `posts` 集合，用 glob loader 直接读 `../../tests/fixtures`。
  *   `base` 相对 Astro 项目根（examples/blog）解析，因此指向仓库根，而不是 `src/content`。
  * - 文章与独立页面共用一个集合，靠 frontmatter 的 `layout` / `type` 区分：
  *   about 页是 `layout: page` + `type: about`，Phase 3 的 page.type 分发读这两个字段。
@@ -68,18 +68,18 @@ const hexoDate = z.union([z.date(), z.string()]).transform((value, ctx) => {
 
 /**
  * Hexo 的 categories 允许嵌套：`categories: [[前端, Astro], 工程实践]`
- * （见 fixtures/multi-taxonomy.md），这里按递归的 string | string[] 校验。
+ * （见 tests/fixtures/multi-taxonomy.md），这里按递归的 string | string[] 校验。
  */
 const categoryPath: z.ZodType<unknown> = z.lazy(() => z.union([z.string(), z.array(categoryPath)]))
 
-/** `cover` / `top_img` 允许 `false` 显式关闭（见 fixtures/cover-variants.md）。 */
+/** `cover` / `top_img` 允许 `false` 显式关闭（见 tests/fixtures/cover-variants.md）。 */
 const imageOrDisabled = z.union([z.string(), z.boolean()])
 
 const posts = defineCollection({
   loader: glob({
     // fixtures 是扁平目录；`**/` 为将来允许子目录留余地（子目录会成为 id 前缀）
     pattern: '**/*.md',
-    base: '../../fixtures',
+    base: '../../tests/fixtures',
   }),
   schema: z
     .object({

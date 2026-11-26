@@ -17,8 +17,8 @@
  * 注意 `.item-headline` 是空节点（上游在这张卡里没有标题文字），
  * 「卡片外壳 `.card-widget`」由 `widget/index.pug` 的页分支统一提供。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { cloudTags } from '../../utils/helpers.ts'
 import type { SiteTagItem } from '../../data/site-stats.ts'
 

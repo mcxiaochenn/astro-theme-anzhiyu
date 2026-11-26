@@ -15,7 +15,7 @@
  * 注意属性值里的双引号：上游 `onerror` 的值是 `this.onerror=null,this.src="/img/404.jpg"`
  * （lazyload 注入的第一份），Astro 会转义成 `&quot;`，与上游字节级一致。
  */
-import { getThemeConfig, readString } from '../../layouts/theme-context.ts'
+import { getThemeConfig, readString } from '../../config/theme-context.ts'
 
 interface Props {
   /** `data-lazy-src`，即真实图片地址（上游 `url_for(cover)`）。 */

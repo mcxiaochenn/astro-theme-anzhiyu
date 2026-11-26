@@ -13,7 +13,7 @@
  * `space_class: 'space'`、`prev_class: 'extend prev'`、`next_class: 'extend next'`、
  * `force_prev_next: false`。文案「上页/下页」在上游是硬编码，不走 i18n。
  */
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 
 interface Props {
   /** 当前页（从 1 开始）。 */

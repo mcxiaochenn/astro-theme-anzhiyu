@@ -41,8 +41,8 @@
  *   - `theme.asset` 的取值走 `config/assets.ts`：internal=local（`/js/...`），
  *     third_party=cbd（`https://cdn.cbd.int/...`）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { resolveAssets } from '../../config/assets.ts'
 import { buildLogJs } from './log-js.ts'
 import { escapeJsString } from './global-config.ts'

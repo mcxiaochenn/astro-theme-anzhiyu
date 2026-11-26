@@ -22,8 +22,8 @@
  *  2. 这里取的是 **frontmatter 原始 cover**，不能套 `cover.default_cover`
  *     （上游最近文章卡没有默认封面回退）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { resolveImageLazyload } from '../post/post-list.ts'
 import { tp } from '../../i18n/index.ts'
 import type { RecentPostItem } from '../../data/site-stats.ts'

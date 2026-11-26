@@ -15,9 +15,9 @@
  * 与 `pagination_dir: page` 一致；年份/月归档在另两个路由文件里（`[year]`、`[year]/[month]`）。
  */
 import type { GetStaticPaths } from 'astro'
-import BaseLayout from '../../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import ArticleSort from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/ArticleSort.astro'
-import Pagination from '../../../../../packages/astro-theme-anzhiyu/src/components/archive/Pagination.astro'
+import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
+import ArticleSort from 'astro-theme-anzhiyu/components/archive/ArticleSort.astro'
+import Pagination from 'astro-theme-anzhiyu/components/archive/Pagination.astro'
 import '../../styles/upstream/index.styl'
 import {
   ARCHIVE_PER_PAGE,

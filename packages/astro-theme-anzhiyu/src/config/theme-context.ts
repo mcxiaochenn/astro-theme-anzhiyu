@@ -12,8 +12,8 @@
  *   主题配置是「整站一份」的构建期数据，逐层透传会让每个组件的签名都膨胀；
  *   而 Astro 组件只在服务端渲染阶段执行，模块级缓存不会跨请求泄漏状态。
  */
-import { loadThemeConfig } from '../config/loader.ts';
-import type { ThemeConfig } from '../config/schema.ts';
+import { loadThemeConfig } from './loader.ts';
+import type { ThemeConfig } from './schema.ts';
 
 let cached: ThemeConfig | null = null;
 

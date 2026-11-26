@@ -19,12 +19,12 @@
  *
  * 已知限制（Phase 7 站点配置层接管后消除）：
  *   - `per_page` / `timezone` / `date_format` / `time_format` 现在取基准站 `_config.yml` 的值；
- *   - `url_for()` 只实现 root 前缀，不含 CDN 解析（与 `layouts/site.ts` 同口径）。
+ *   - `url_for()` 只实现 root 前缀，不含 CDN 解析（与 `utils/url-utils.ts` 同口径）。
  */
 import { stripHtml, sortAttrPost } from '../../utils/helpers.ts'
 import { createSiteDateFormatter, type SiteDateConfig } from '../../utils/date.ts'
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, postSlugOf, type PostHrefResolver } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, postSlugOf, type PostHrefResolver } from '../../utils/url-utils.ts'
 
 /* ------------------------------------------------------------------ */
 /* 常量                                                                */
@@ -130,7 +130,7 @@ export interface PrepareOptions extends SiteDateConfig {
   /** 站点时区，缺省 `Asia/Shanghai`（基准站 `_config.yml`）。 */
   timezone?: string
   /**
-   * 文章 permalink 解析器（站点配置提供，见 `layouts/site.ts`）。
+   * 文章 permalink 解析器（站点配置提供，见 `utils/url-utils.ts`）。
    *
    * 不传时沿用基准站 Hexo 默认 permalink `/:year/:month/:day/:id/`（fixture 站点）；
    * 迁移站传入 `src/data/post-permalink.ts` 的 `postHref`，使卡片 / 上下篇 / 侧栏

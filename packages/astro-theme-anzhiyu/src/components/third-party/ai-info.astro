@@ -9,7 +9,7 @@
  * 注意：`post/PostAiDescription.astro` 已实现同块（少 switchBtn），接线时二选一。
  * 挂载建议：文章页内容最前（上游 post.pug:7-8）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderAiInfo } from './render.mjs'
 
 interface Props {

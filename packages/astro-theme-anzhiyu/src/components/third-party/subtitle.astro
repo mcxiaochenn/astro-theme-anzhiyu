@@ -8,7 +8,7 @@
  * 站点副标题由 page.siteSubtitle 注入（上游 config.subtitle）。
  * 接线建议：BaseLayout.astro:500 `<AdditionalJs>` 的 .js-pjax（上游 additional-js.pug:69-70）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderSubtitle } from './render.mjs'
 
 interface Props {

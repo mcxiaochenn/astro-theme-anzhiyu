@@ -12,8 +12,8 @@
  * 与 tags/archives 不同，这张卡自带 `.card-widget` 外壳（它不在页分支的
  * `.card-widget` 包装里，而是和作者卡同级的独立卡片）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { asideCategories } from '../../utils/helpers.ts'
 import { tp } from '../../i18n/index.ts'
 import type { SiteCategoryItem } from '../../data/site-stats.ts'

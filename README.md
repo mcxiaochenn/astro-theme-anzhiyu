@@ -95,7 +95,7 @@ export default defineConfig({
 本主题**沿用与原版 `hexo-theme-anzhiyu` 一致的 YAML 配置结构与键名**。你可以直接参考 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) 进行个性化配置，或将原 Hexo 站点的 `_config.anzhiyu.yml` 内容直接迁移过来：
 
 - 示例站点配置文件：[examples/blog/theme.config.yml](examples/blog/theme.config.yml)
-- 功能全开参考配置：[examples/blog/theme.config.demo.yml](examples/blog/theme.config.demo.yml)
+- 功能全开参考配置：[examples/blog/theme.config.demo-delta.yml](examples/blog/theme.config.demo-delta.yml)
 
 主题内置了基于 Zod 的配置校验，修改配置后在开发或构建时会自动合并默认值并校验结构。
 

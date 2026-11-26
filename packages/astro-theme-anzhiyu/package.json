@@ -32,6 +32,8 @@
     "./integration": "./integration.mjs",
     "./schema": "./src/config/schema.ts",
     "./defaults": "./src/config/defaults.ts",
+    "./config/*": "./src/config/*",
+    "./types/*": "./src/types/*",
     "./utils/*": "./src/utils/*",
     "./i18n/*": "./src/i18n/*",
     "./components/Head.astro": "./src/components/Head.astro",

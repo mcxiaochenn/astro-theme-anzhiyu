@@ -7,28 +7,28 @@ import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 // Phase 6：Hexo `{% tag %}` 语法。P6-1 交付行内 12 + 块级 12（含 hideInline）。
 // 放在 packages/ 里按源码相对导入：插件是纯 ESM `.mjs`，没有构建步骤，
 // Astro 配置在 Node 侧直接 import 即可（见 docs/notes/phases/P6-1-hexo-tags.md）。
-import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag/src/index.mjs'
+import remarkHexoTag, { rehypeHexoInlineP } from 'remark-hexo-tag'
 // P7-6：主题自有静态资源（/js/main.js、/js/utils.js、/js/tw_cn.js、/js/anzhiyu/*、
 // /js/search/*、/css/index.css 占位）过去是手工放在 examples/blog/public/ 里的，
 // 迁移站拿不到 → 全站 JS 404。现在资源收进主题包 assets/，由 integration 在
 // build 时复制进 dist、dev 时用 connect 中间件直出，站点不再需要 public/js。
 //
-// 这里用**相对路径**而不是 `astro-theme-anzhiyu/integration`：examples/blog 没有
-// 声明 astro-theme-anzhiyu 依赖（它一直都是按源码相对导入主题包的），根 node_modules
-// 里也没有这个包，裸包名会 ERR_MODULE_NOT_FOUND。迁移产物 package.json 里有
-// `"astro-theme-anzhiyu": "file:../../packages/astro-theme-anzhiyu"`，所以
-// migrate-hexo 把这一行改写成相对路径后两种站都能解析（见 docs/notes/phases/P7-6-theme-assets.md §5）。
-import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
+// 这里用包名 specifier（`astro-theme-anzhiyu/integration`）：examples/blog 已声明
+// `astro-theme-anzhiyu: workspace:*` 依赖，裸包名经包 exports map 解析到源码。
+// 迁移产物 package.json 里是 `"astro-theme-anzhiyu": "file:…/packages/astro-theme-anzhiyu"`，
+// 同一 specifier 两种站都能解析；migrate-hexo 也不再需要改写这一行
+// （见 docs/notes/phases/P7-6-theme-assets.md §5）。
+import anzhiyuAssets from 'astro-theme-anzhiyu/integration'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
 
 // B5（M14）：HTML 与 CSS 必须读同一份主题配置，消灭静默双通道。
 //   - CSS 通道：下方 vite.plugins 的 stylusHexoConfig({ configPath: theme.config.yml })；
-//   - HTML 通道：组件经 layouts/theme-context.ts 的 getThemeConfig() → config/loader.ts，
+//   - HTML 通道：组件经 config/theme-context.ts 的 getThemeConfig() → config/loader.ts，
 //     显式 configPath 由 ANZHIYU_THEME_CONFIG 提供（theme-context.ts:28-29）。
 // 构建时显式传 configPath = theme.config.yml（严禁重命名 theme.config.yml / 新建同内容
 // 副本），两条通道收口到同一文件；此前 HTML 侧按文件名搜索找不到配置、静默走 defaults。
-// 外部已设 ANZHIYU_THEME_CONFIG 时以之为准（demo 构建指向 theme.config.demo.yml，
+// 外部已设 ANZHIYU_THEME_CONFIG 时以之为准（demo 构建指向 theme.config.demo-delta.yml，
 // 见 scripts/deploy-demo-pages.mjs），两条通道仍收口到同一文件。
 const themeConfigPath = process.env.ANZHIYU_THEME_CONFIG || path.join(root, 'theme.config.yml')
 process.env.ANZHIYU_THEME_CONFIG = themeConfigPath
@@ -282,7 +282,7 @@ function unwrapFigureTbody(html) {
  * `^( *|\\)\n` 吞掉）。CommonMark/remark 把软换行留在 mdast text 节点的 `\n` 里，
  * mdast-util-to-hast 的 text handler 再把 `\n` 折叠成空格——golden
  * （.baseline-html/2024/11/20/24531/index.html）p[1] 两处 + p[2] 一处 `<br>`
- * 就是这么丢的（fixtures/abbrlink-post.md 的段内换行）。
+ * 就是这么丢的（tests/fixtures/abbrlink-post.md 的段内换行）。
  *
  * remarkHexoSoftBreaks：把 text 节点里的 `\n` 拆成 `text + break` 节点序列，
  * remark-rehype 渲染 `<br>`。零依赖、纯 mdast 变换：
@@ -750,7 +750,7 @@ export default defineConfig({
     // 这个差异不是「样式好看不好看」的问题，它有两处硬后果：
     //  1. `{% mermaid %}` 块里的 `A --> B` 会被改写成 `A —> B`，Phase 6 的 tag 解析器
     //     按字面量取块内容时拿到的就不是 Mermaid 语法，图直接画不出来
-    //     （实测 fixtures/tags-thirdparty.md 3 条 `-->` 全被替换，见
+    //     （实测 tests/fixtures/tags-thirdparty.md 3 条 `-->` 全被替换，见
     //      docs/notes/topics/P-markdown-date-align.md §1）。
     //  2. HTML diff 里凡是正文出现 `--` / `...` / 引号的段落都会报假文本差异。
     //
@@ -798,7 +798,7 @@ export default defineConfig({
       stylusHexoConfig({
         // 直接复用上游 Hexo 主题的 _config.yml，不做任何改写。
         // B5：与 HTML 通道（ANZHIYU_THEME_CONFIG，见文件头）指向同一文件 themeConfigPath
-        //（默认 theme.config.yml；demo 构建指向 theme.config.demo.yml）。
+        //（默认 theme.config.yml；demo 构建指向 theme.config.demo-delta.yml）。
         configPath: themeConfigPath,
         debug: true,
       }),

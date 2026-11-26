@@ -8,7 +8,7 @@
  * bubble 分支输出 `data-pjax` 脚本（验收断言锚点）。
  * 接线建议：BaseLayout.astro:500 `<AdditionalJs>` 之后（上游 additional-js.pug:113）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderEffect } from './render.mjs'
 
 interface Props {

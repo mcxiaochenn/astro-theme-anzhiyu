@@ -5,8 +5,8 @@
  * 与 `card_archives.pug` 结构相同，只是读 `theme.centerConsole.card_archives`
  * （中控台页面的归档卡），且外面没有 `.card-widget` 包装。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { asideArchives } from '../../utils/helpers.ts'
 import { tp } from '../../i18n/index.ts'
 import { SITE_LANGUAGE, SITE_TIME_ZONE } from '../../data/site-stats.ts'

@@ -44,7 +44,9 @@
  *   identity     首页/文章页/about 的 title、html lang、canonical、og:url、og:type
  *                是否使用 site.config.ts 的源站身份与**当前路由**
  *   page-types   17 个独立页面逐个断言存在且含该 page.type 的根选择器
- *   tag-residue  产物不得残留 Hexo tag / EJS 标记，title 不得出现 undefined/NaN
+ *   tag-residue  产物不得残留 Hexo tag / EJS 标记，title 不得出现 undefined/NaN；
+ *                pre/code 里被示例出来的语法文本不算残留（计入 ignoredCodeSamples，
+ *                与 links 检查同一语义——golden 在代码块里同样保留这些字面量）
  *   search       解析首页 GLOBAL_CONFIG.localSearch；enabled 时断言索引文件存在
  *   feed         源站 hexo-generator-feed / sitemap / baidu 配置的等价产物存在且非空
  *   structure    抽样复用 scripts/diff-html.mjs 的单页模式，只报数字（INFO，不判罚）
@@ -1655,19 +1657,35 @@ function checkTagResidue(distDir) {
   const check = makeCheck('tag-residue', '残留：Hexo tag / EJS 标记 / undefined·NaN 标题')
   const htmlFiles = walkFiles(distDir, (name) => name.toLowerCase().endsWith('.html'))
   const hits = []
+  const ignoredCodeSamples = []
+  let ignoredCodeSampleCount = 0
   for (const file of htmlFiles) {
     const html = readText(path.join(distDir, file))
+    // pre/code 里的 `{% … %}` / `<% … %}` 是**被示例出来的语法文本**（uitest 这类
+    // 渲染测试页的代码块示例），与 links 检查的 ignoredCodeSamples 同一语义：
+    // golden（源站 Hexo 权威产物）同样在代码块里保留这些字面量（实测 golden uitest
+    // 466 处 vs dist 446 处，均 100% 位于 pre/code 内），上游行为就是不渲染它们。
+    // 因此只判 pre/code **外**的真实残留；代码块内命中单独计数列样本，不掩盖。
+    const codeMasked = html
+      .replace(/<pre\b[^>]*>[\s\S]*?<\/pre>/gi, (m) => '\u0000'.repeat(m.length))
+      .replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, (m) => '\u0000'.repeat(m.length))
     for (const pattern of TAG_RESIDUE) {
       pattern.re.lastIndex = 0
       let match
       while ((match = pattern.re.exec(html))) {
-        hits.push({
+        const inCode = codeMasked[match.index] === '\u0000'
+        const item = {
           file,
           marker: pattern.id,
           label: pattern.label,
           context: contextSnippet(html, match.index),
-        })
-        if (hits.length >= 200) break
+        }
+        if (inCode) {
+          ignoredCodeSampleCount += 1
+          if (ignoredCodeSamples.length < 200) ignoredCodeSamples.push(item)
+        } else {
+          hits.push(item)
+        }
       }
     }
   }
@@ -1680,8 +1698,14 @@ function checkTagResidue(distDir) {
       owner: CLASS_OWNER.other,
     })
   }
-  check.counts = { htmlFiles: htmlFiles.length, hits: hits.length, markersChecked: TAG_RESIDUE.length }
+  check.counts = {
+    htmlFiles: htmlFiles.length,
+    hits: hits.length,
+    ignoredCodeSamples: ignoredCodeSampleCount,
+    markersChecked: TAG_RESIDUE.length,
+  }
   check.samples = hits.slice(0, 8)
+  check.ignoredCodeSampleSamples = ignoredCodeSamples.slice(0, 8)
   return finalizeCheck(check)
 }
 
@@ -2160,7 +2184,10 @@ function renderMarkdown(report) {
   push()
   const residue = checks.find((check) => check.id === 'tag-residue')
   if (residue) {
-    push(`扫描 ${residue.counts.htmlFiles} 个 HTML、${residue.counts.markersChecked} 类标记，命中 ${residue.counts.hits} 处。（0 = 干净）`)
+    push(`扫描 ${residue.counts.htmlFiles} 个 HTML、${residue.counts.markersChecked} 类标记，pre/code 外命中 ${residue.counts.hits} 处。（0 = 干净）`)
+    if (residue.counts.ignoredCodeSamples) {
+      push(`代码块内被示例出来的 tag/EJS 语法文本共 ${residue.counts.ignoredCodeSamples} 处已按语义排除（golden 同样保留这些字面量）。`)
+    }
   }
   push()
   push('## 11. 结构抽样（INFO）')

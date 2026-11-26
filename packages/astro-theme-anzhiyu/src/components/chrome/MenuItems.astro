@@ -23,8 +23,8 @@
  * 菜单值里的外站链接按 Hexo 站点级 `external_link` 补
  * `target="_blank" rel="noopener"`，见 `utils/external-link.ts`。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { externalLinkAttrs } from '../../utils/external-link.ts'
 
 interface Props {

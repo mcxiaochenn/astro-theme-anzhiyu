@@ -150,7 +150,7 @@ $ pnpm --filter blog build
 
 构建成功、页数不减。这一次构建时 `post-page` 的文章详情路由在场，所以是 49 页
 （基线 48 页 + debug 页）。构建日志里只出现 media / thirdparty 的透传 warning
-（18 个 tag，均带 `fixtures/tags-*.md` 的 `行:列`），**没有** `Unknown Hexo tag`。
+（18 个 tag，均带 `tests/fixtures/tags-*.md` 的 `行:列`），**没有** `Unknown Hexo tag`。
 
 该次构建产出的两篇文章页：
 

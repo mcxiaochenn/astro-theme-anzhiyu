@@ -1,4 +1,4 @@
-# theme.config.demo.yml — 功能全开演示配置 delta（2026-11-25）
+# theme.config.demo-delta.yml — 功能全开演示配置 delta（2026-11-25）
 #
 # 用途：本地/线上演示主题全部功能，与 SHA 守卫的 theme.config.yml（上游
 # 1.7.1 冻结基线，diff 硬门禁参照）并存互不影响。使用方法：

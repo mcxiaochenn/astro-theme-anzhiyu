@@ -6,7 +6,7 @@
  * 读 `js` / `client` / `enable_page_level_ads`。
  * 接线建议：Head.astro:348 之后（上游 head.pug:74-75，紧邻 analytics 之前）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderGoogleAdsense } from './render.mjs'
 
 interface Props {

@@ -18,8 +18,8 @@
  * `span.blog-slider__code` 的日期口径：`timemode === 'updated'` 用 updated，否则 date。
  * `.blog-slider__text` 的上游口径是 `description || strip_html(content).substring(0, length)`。
  */
-import { getThemeConfig, readNumber, readString } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig, readNumber, readString } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { stripHtml } from '../../utils/helpers.ts'
 import { resolveImageLazyload, type PreparedPost } from '../post/post-list.ts'
 

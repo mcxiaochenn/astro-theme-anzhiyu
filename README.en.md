@@ -95,7 +95,7 @@ export default defineConfig({
 This theme **keeps the exact YAML structure and key names of `hexo-theme-anzhiyu`**. You can follow the [AnZhiYu Official Docs](https://docs.anheyu.com/) directly or reuse your existing `_config.anzhiyu.yml`:
 
 - Default starter config: [examples/blog/theme.config.yml](examples/blog/theme.config.yml)
-- Full-featured demo config: [examples/blog/theme.config.demo.yml](examples/blog/theme.config.demo.yml)
+- Full-featured demo config: [examples/blog/theme.config.demo-delta.yml](examples/blog/theme.config.demo-delta.yml)
 
 Built-in Zod validation automatically merges defaults and checks your config during dev and build.
 

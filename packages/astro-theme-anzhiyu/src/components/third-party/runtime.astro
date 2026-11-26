@@ -5,7 +5,7 @@
  * 门控：`theme.footer.runtime.enable`（上游 additional-js.pug:41-42，默认 false）。
  * 读 `launch_time` / `offduty_img` / `offduty_description`，输出 `#runtime` 计时脚本。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderRuntime } from './render.mjs'
 
 interface Props {

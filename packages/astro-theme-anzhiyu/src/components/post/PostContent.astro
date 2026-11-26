@@ -13,8 +13,8 @@
  *       time × 1|2                      post_meta.post.date_type
  *     != page.content                  → props.bodyHtml（已在 post-page.ts 改写标题）
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import { categoryHref } from './post-page.ts'
 import type { PreparedPost } from './post-list.ts'

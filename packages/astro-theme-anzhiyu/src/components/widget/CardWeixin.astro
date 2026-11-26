@@ -13,7 +13,7 @@
  * `onclick`：上游 pug 里是 `window.open("/")`，嵌套双引号会让 pug 解析成 `null`
  * （baseline 产物即 `onclick="null"`）。这里按产物对齐，不修上游的笔误。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 
 const theme = getThemeConfig()
 const enabled = theme.aside.card_weixin.enable

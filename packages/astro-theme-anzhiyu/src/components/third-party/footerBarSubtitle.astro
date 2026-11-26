@@ -6,7 +6,7 @@
  * 与 subtitle.pug 同源逻辑，目标 selector 为 `#footer-type-tips`。
  * 接线建议：BaseLayout.astro:335 `<Footer>` 附近（上游 footer.pug:81-84）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
 import { renderFooterBarSubtitle } from './render.mjs'
 
 interface Props {

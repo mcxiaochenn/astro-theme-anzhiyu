@@ -17,8 +17,8 @@
  *
  * 数据只算一次：`getSiteStats()` 内部用模块级 Promise 缓存。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { postHrefOf, resolveSite, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { postHrefOf, resolveSite, type SiteConfig } from '../../utils/url-utils.ts'
 import { getSiteStats } from '../../data/site-stats.ts'
 import type { TocHeading } from './toc.ts'
 import type { WidgetDataItem } from '../../data/widget-data.ts'

@@ -22,7 +22,7 @@
  *   是最贴近上游语义的做法）记在 P2-4 报告的「Phase 4 注意」里。
  */
 
-import { readFlag, readString } from '../../layouts/theme-context.ts'
+import { readFlag, readString } from '../../config/theme-context.ts'
 import type { ThemeConfig } from '../../config/schema.ts';
 
 /** 上游 `post_lazyload.js` 的默认占位图（`theme.lazyload.placeholder` 为空时）。 */

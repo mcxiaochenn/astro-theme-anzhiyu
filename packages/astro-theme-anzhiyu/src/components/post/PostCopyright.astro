@@ -22,10 +22,10 @@
  * 关闭条件：`theme.post_copyright.enable === false` 或 `page.copyright === false`
  * （short-note 就是后者，整块不输出）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
-import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { lazyImageAttrs } from '../chrome/lazyload.ts'
 import { categoryHref } from './post-page.ts'
 import { escapeJsString } from '../head/global-config.ts'
 import type { PreparedPost } from './post-list.ts'

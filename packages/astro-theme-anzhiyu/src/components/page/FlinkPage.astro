@@ -18,7 +18,7 @@
  * 文案走上游 `_p('flink.*')`（languages/zh-CN.yml），这里固定 zh-CN。
  * 外链跳转 / fancybox / 脚本由 Phase 4/5 接管；本组件只输出静态 DOM 与配置门控。
  */
-import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
+import { getThemeConfig, readFlag, readString } from '../../config/theme-context.ts'
 import type { FlinkGroup, FlinkItem, PageContentSlot } from './types.ts'
 
 interface Props extends PageContentSlot {

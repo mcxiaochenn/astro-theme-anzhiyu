@@ -107,7 +107,7 @@ const { Content } = await render(entry)
 ```
 examples/blog/
   data/
-    about.yml        ← 复制 fixtures/about-data.yml（P3-3 用）
+    about.yml        ← 复制 tests/fixtures/about-data.yml（P3-3 用）
     essay.yml
     album.yml
     link.yml
@@ -142,9 +142,9 @@ examples/blog/
 | `examples/blog/src/data/site-data.ts` | 新增：YAML 站点数据层 |
 | `examples/blog/data/*.yml` | 新增：about/essay/album/link/equipment |
 | `examples/blog/src/content.config.ts` | 新增 `permalink: z.string().optional()` |
-| `fixtures/about-page.md` | 新增 `permalink: /about/` |
+| `tests/fixtures/about-page.md` | 新增 `permalink: /about/` |
 | `packages/astro-theme-anzhiyu/src/components/page/**` | 新增 11 个模板 + 类型 + about 占位 |
-| `fixtures/page-*.md` | 新增 12 个页面 fixture（见 §5） |
+| `tests/fixtures/page-*.md` | 新增 12 个页面 fixture（见 §5） |
 
 未改动：`BaseLayout.astro`、`Head.astro`、`AsideContent.astro`、`docs/plan/PLAN.md`、
 post 组件、`[year]/[month]/[day]/[slug].astro`。

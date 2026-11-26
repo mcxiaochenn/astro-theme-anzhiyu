@@ -14,8 +14,8 @@
  *   - `icon*`    → `<svg class="icon"><use xlink:href="#{icon}"></use></svg>`
  *   - `anzhiyu*` → `<i class="anzhiyufont {icon}">`
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import TagsGroupAll from './TagsGroupAll.astro'
 
 interface Props {

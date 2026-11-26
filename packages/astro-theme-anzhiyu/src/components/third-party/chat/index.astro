@@ -5,7 +5,7 @@
  * else-if 链：chatra > tidio > daovoice > crisp，只输出第一个 `enable: true` 的后端。
  * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 之后（上游 additional-js.pug:115）。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderChatIndex } from './render.mjs'
 
 interface Props {

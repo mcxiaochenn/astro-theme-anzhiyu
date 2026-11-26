@@ -13,7 +13,7 @@
  *
  * 模板与上游逐行一致（P2-2 的 themeBootstrap 是过渡实现，本文件接管后删除）。
  */
-import type { SiteConfig } from '../../layouts/site.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 import type { ThemeConfig } from '../../config/schema.ts'
 
 function obj(section: unknown): Record<string, unknown> {

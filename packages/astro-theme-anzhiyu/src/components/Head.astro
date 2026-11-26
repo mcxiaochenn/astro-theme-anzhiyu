@@ -16,8 +16,8 @@
  * `<html lang>` 不在本组件里：Astro 的 `<html>` 只能由布局组件声明，
  * 所以 lang 由 BaseLayout 从同一份 site 数据写出（见 BaseLayout.astro）。
  */
-import { getThemeConfig } from '../layouts/theme-context.ts'
-import { createUrlFor, fullUrlFor, type SiteConfig } from '../layouts/site.ts'
+import { getThemeConfig } from '../config/theme-context.ts'
+import { createUrlFor, fullUrlFor, type SiteConfig } from '../utils/url-utils.ts'
 import { getPageFillDescription, pageDescription, urlNoIndex } from '../utils/helpers.ts'
 import { normalizeFootnoteSectionForDescription, stripSwallowedHeadings } from '../utils/slugger.ts'
 import { resolveAssets } from '../config/assets.ts'

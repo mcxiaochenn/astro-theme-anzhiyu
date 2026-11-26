@@ -22,9 +22,9 @@ import {
   readFlag,
   readNumber,
   readString,
-} from '../../layouts/theme-context.ts'
+} from '../../config/theme-context.ts'
 import { escapeJsString } from '../head/global-config.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 
 const theme = getThemeConfig()
 /** 站内链接前缀（子路径部署跟随 Astro base）。 */

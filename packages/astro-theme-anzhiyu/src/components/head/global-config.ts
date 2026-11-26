@@ -21,7 +21,7 @@
  * `theme.highlight_theme === false` 时视为关闭。
  */
 import { tp } from '../../i18n/index.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 import type { ThemeConfig } from '../../config/schema.ts'
 import type { AssetMap } from '../../config/assets.ts'
 

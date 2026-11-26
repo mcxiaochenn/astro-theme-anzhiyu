@@ -6,7 +6,7 @@
  * per_page=false 时需页面 props 传 `mathjax: true` / `katex: true`。
  * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 的 `.js-pjax`（上游 additional-js.pug:72）。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderMathIndex } from './render.mjs'
 
 interface Props {

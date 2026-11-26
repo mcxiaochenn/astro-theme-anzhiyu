@@ -9,10 +9,10 @@
  *
  * 排序与截断在 `post-page.ts` 的 `buildRelated()` 里完成（按权重降序、limit 截断）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
-import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { lazyImageAttrs } from '../chrome/lazyload.ts'
 import type { RelatedPostItem } from './post-page.ts'
 
 interface Props {

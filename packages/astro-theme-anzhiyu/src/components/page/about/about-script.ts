@@ -16,7 +16,7 @@
  *   - `theme.asset.gsap_js`（`getScript(url_for(...))`，走 asset 解析层）
  */
 import type { AboutItem } from './types.ts'
-import { getThemeConfig, readFlag, readString } from '../../../layouts/theme-context.ts'
+import { getThemeConfig, readFlag, readString } from '../../../config/theme-context.ts'
 import { escapeJsString } from '../../head/global-config.ts'
 import { _p, assetUrl } from './shared.ts'
 

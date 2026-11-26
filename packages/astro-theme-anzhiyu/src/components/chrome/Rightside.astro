@@ -23,8 +23,8 @@
  *   - `#go-up` 的显示由 main.js 的 scroll 监听 toggle `display`/`.show` 类（见 source/js/main.js
  *     `rightsideScroll`），静态 DOM 只出按钮。
  */
-import { getThemeConfig, readFlag, readString } from '../../layouts/theme-context.ts'
-import type { SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag, readString } from '../../config/theme-context.ts'
+import type { SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import RightsideItem from './RightsideItem.astro'
 

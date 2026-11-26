@@ -27,8 +27,8 @@
  *     在输出 `<a>` 时按同一口径补齐（见 `utils/external-link.ts`）。
  *     作者链接 / 徽标的 `target="_blank"` 是 pug 自己写死的，保持原样不动。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import { externalLinkAttrs } from '../../utils/external-link.ts'
 import { lazyImageAttrs } from './lazyload.ts'

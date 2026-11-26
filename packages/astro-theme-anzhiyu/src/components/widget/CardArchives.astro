@@ -13,8 +13,8 @@
  * `asideArchives` 已经包含 `.item-headline`（归档标题 + 可选「查看更多」）和
  * `.card-archive-list`，所以这里只包一层 `.card-archives`。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { asideArchives } from '../../utils/helpers.ts'
 import { tp } from '../../i18n/index.ts'
 import { SITE_LANGUAGE, SITE_TIME_ZONE } from '../../data/site-stats.ts'

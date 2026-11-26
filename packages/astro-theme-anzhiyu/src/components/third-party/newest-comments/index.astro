@@ -6,7 +6,7 @@
  * 以及 `theme.pjax.enable`（false 时仅非文章页，上游 additional-js.pug:85-89）。
  * 挂载建议：BaseLayout.astro:500 `<AdditionalJs>` 之后。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderNewestCommentsIndex } from './render.mjs'
 
 interface Props {

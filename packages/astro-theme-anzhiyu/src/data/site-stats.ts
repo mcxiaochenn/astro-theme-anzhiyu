@@ -23,7 +23,7 @@ import {
   type PreparedPost,
 } from '../components/post/post-list.ts'
 import { flattenCategories } from '../components/post/post-list.ts'
-import { createUrlFor, type PostHrefResolver } from '../layouts/site.ts'
+import { createUrlFor, type PostHrefResolver } from '../utils/url-utils.ts'
 import { stripHtml } from '../utils/helpers.ts'
 import { DEFAULT_SITE_TIMEZONE } from '../utils/date.ts'
 
@@ -72,7 +72,7 @@ export interface SiteStats {
   totalWordCount: number
 }
 
-/** 站点统计的入参：文章 permalink 解析器（见 `layouts/site.ts`，可缺省）。 */
+/** 站点统计的入参：文章 permalink 解析器（见 `utils/url-utils.ts`，可缺省）。 */
 export interface SiteStatsOptions {
   resolvePostHref?: PostHrefResolver
 }

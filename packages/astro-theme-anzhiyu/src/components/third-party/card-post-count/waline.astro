@@ -5,7 +5,7 @@
  * 门控：`theme.comments.card_post_count` + use 含 Waline；
  * 读 `theme.waline.serverURL`（去尾斜杠），写 `.waline-comment-count`。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderCardPostCountWaline } from './render.mjs'
 
 interface Props {

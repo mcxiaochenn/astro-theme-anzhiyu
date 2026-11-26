@@ -8,10 +8,10 @@
  * 二维码图片走 lazyload 改写：`post_lazyload.js` 会改写所有 `<img src>`，
  * 与首页卡片用同一个 `lazyImageAttrs()`。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
-import { lazyImageAttrs } from '../layout/lazyload.ts'
+import { lazyImageAttrs } from '../chrome/lazyload.ts'
 
 interface Props {
   language?: string | null

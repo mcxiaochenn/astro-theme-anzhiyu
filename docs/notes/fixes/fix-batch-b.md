@@ -10,7 +10,7 @@
 
 | # | 事项 | 处置 |
 |---|---|---|
-| R1 | 写范围「examples/blog/src/content/**（新增 fixture）」与代码实际不符：内容集合从**仓库根 `fixtures/`** 加载（`examples/blog/src/content.config.ts:80-83` `base: '../../fixtures'`），`examples/blog/src/content/` 不存在 | 按任务「先看现有 fixture 文章放哪、命名习惯」落位 **`fixtures/abbrlink-post.md`**（与 `short-note.md`/`sticky-top.md` 同目录、kebab-case 命名）。放 `src/content/` 对集合不可见 |
+| R1 | 写范围「examples/blog/src/content/**（新增 fixture）」与代码实际不符：内容集合从**仓库根 `tests/fixtures/`** 加载（`examples/blog/src/content.config.ts:80-83` `base: '../../tests/fixtures'`），`examples/blog/src/content/` 不存在 | 按任务「先看现有 fixture 文章放哪、命名习惯」落位 **`tests/fixtures/abbrlink-post.md`**（与 `short-note.md`/`sticky-top.md` 同目录、kebab-case 命名）。放 `src/content/` 对集合不可见 |
 | R2 | 写范围「third-party/math/render.mjs」与 B1「render.mjs:480」指代不一：B1 的 480 行在 `third-party/render.mjs`（renderAiInfo），`math/render.mjs` 仅 139 行 | 两个文件都按任务条目各改一处：`third-party/render.mjs:482`（B1 门控）、`math/render.mjs:18-25`（B2 per_page 真值对齐） |
 | R3 | B2 范围冲突：「仅 MathIndex 传参与注释两处」vs「与 aplayer 一起补 page 级开关」。已 send_message 请 Lead 裁决，回执：**裁决 B**——`<Aplayer page={{aplayer}}/>` 授权，:257-259 注释同步，写范围扩为「MathIndex/Aplayer 传参与对应注释」 | 按 B 执行。AdditionalJs 改动 = Props/destructure + MathIndex 传参 + Aplayer 传参 + 3 处注释（文件头 :27-33、MathIndex :220-222、Aplayer :257-260） |
 | R4 | B2 透传要求 front-matter 契约含 `katex`，content schema 只声明了 mathjax/aplayer/comments、漏 `katex`（passthrough 不报错但契约不对称） | `content.config.ts:112-114` 补 `katex: z.boolean().optional()`（B2 的 schema 侧补丁，任务条目未明列） |
@@ -23,7 +23,7 @@
 | B1 (H3) | ✅ 完成 | ai 放宽 `z.union([z.boolean(), z.string()])`；门控改真值判断；postAI 传原值不 `String(true)`（4 文件 + R5 第 5 处同步）；node 断言 5/5 |
 | B2 (H4) | ✅ 完成（代码）/ 文档登记留 F | front-matter → 路由 → BaseLayout → AdditionalJs → `<MathIndex page={…}/>``<Aplayer page={…}/>` 全链打通；per_page:false + mathjax:true 可达（node 断言 4/4）；两条文档登记文本见「待 F」#1/#2 |
 | B3 (H7) | ✅ 完成 | 6 个容缺子键改 `.optional()`；`home_top.category[].icon` 保持必填（BannerGroup.astro:68 依据）；node 断言 7/7 |
-| B4 (H8) | ✅ 完成 | `postSlugOf()` 收口三处调用 + `fixtures/abbrlink-post.md`；node 断言 4/4；链接一致性冒烟待 CI |
+| B4 (H8) | ✅ 完成 | `postSlugOf()` 收口三处调用 + `tests/fixtures/abbrlink-post.md`；node 断言 4/4；链接一致性冒烟待 CI |
 | B5 (M14) | ✅ 完成（静态推理）/ 构建验证待 CI | 构建时显式 `configPath=theme.config.yml`，HTML/CSS 双通道收口同文件；证据链见必答 5 |
 | B6 (M18+L2) | ✅ 完成 | `"yaml": "^2.9.1"` 入 dependencies；schema 注释改「133 上游键 + friends_lite 兼容键 = 134」（check-schema 实测）；README 口径留 F |
 | G4 残留 | ✅ 完成 | 删 3 文件 + 2 script；grep 零悬空（余 2 条非悬空说明见必答 7）；tests/artifacts/** 原样保留 |
@@ -109,7 +109,7 @@ export function postSlugOf(entry: { id: string; data: Record<string, unknown> })
 | 归档链接 | `examples/blog/src/pages/archives/_data.ts:194-195`（原 :193） | `…/${entry.id}/` → `…/${postSlugOf(entry)}/` |
 
 - 附加核实：`post-page.ts:197-203 applyAbbrlink()` 对已含 abbrlink 的 path 幂等（`path.replace(/[^/]+\/$/, slug)` 只换末段），且有站点 resolver 时整段跳过（:319-321），不存在第四处错位。
-- **fixture**：`fixtures/abbrlink-post.md`（新建，与 short-note.md 等同目录同命名习惯）：
+- **fixture**：`tests/fixtures/abbrlink-post.md`（新建，与 short-note.md 等同目录同命名习惯）：
 
 ```yaml
 title: abbrlink 覆盖末段样本
@@ -301,6 +301,6 @@ ALL PASS
 ## 5. 写范围文件清单（本批实际改动）
 
 改：`examples/blog/src/content.config.ts`、`examples/blog/src/pages/[year]/[month]/[day]/[slug].astro`、`examples/blog/src/pages/[...path].astro`、`examples/blog/src/pages/archives/_data.ts`、`examples/blog/astro.config.mjs`、`examples/blog/package.json`、`packages/astro-theme-anzhiyu/src/components/post/PostAiDescription.astro`、`packages/astro-theme-anzhiyu/src/components/post/post-list.ts`、`packages/astro-theme-anzhiyu/src/components/third-party/render.mjs`、`packages/astro-theme-anzhiyu/src/components/third-party/math/render.mjs`、`packages/astro-theme-anzhiyu/src/components/head/AdditionalJs.astro`、`packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro`、`packages/astro-theme-anzhiyu/src/layouts/site.ts`、`packages/astro-theme-anzhiyu/src/config/schema.ts`、`packages/astro-theme-anzhiyu/src/config/loader.ts`。
-新增：`fixtures/abbrlink-post.md`（R1）。
+新增：`tests/fixtures/abbrlink-post.md`（R1）。
 删：`examples/blog/tests/vertical-slice.mjs`、`examples/blog/tests/serve-and-collect.mjs`、`examples/blog/src/scripts/pjax-shim.ts`。
-未动但写范围列出：`examples/blog/src/data/site-data.ts`（B6 只需依赖，代码无需改）、`examples/blog/src/content/**`（R1，实际落位 fixtures/）。
+未动但写范围列出：`examples/blog/src/data/site-data.ts`（B6 只需依赖，代码无需改）、`examples/blog/src/content/**`（R1，实际落位 tests/fixtures/）。

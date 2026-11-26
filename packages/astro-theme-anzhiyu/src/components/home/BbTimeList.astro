@@ -36,8 +36,8 @@
  * 消费链：utils.js:459/472（`initIndexEssay`，Swiper 竖向轮播，脚本由 :17 提供）、
  * main.js:215-217（scroll-down 箭头优先滚到 #bbTimeList）。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import { createUrlFor, type SiteConfig } from '../../utils/url-utils.ts'
 
 interface Props {
   /** 站点元数据（`url_for` 需要 root）。 */

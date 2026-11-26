@@ -28,8 +28,8 @@
  *   - `theme.nav.clock`（和风天气 widget，clock.pug）→ P4-1 资源层（外部 css/js）。
  *   - 搜索框本体（三套搜索的弹层）→ P4-8；本组件只出 `#search-button` 入口。
  */
-import { getThemeConfig, readFlag } from '../../layouts/theme-context.ts'
-import { createUrlFor, postHrefOf, type SiteConfig } from '../../layouts/site.ts'
+import { getThemeConfig, readFlag } from '../../config/theme-context.ts'
+import { createUrlFor, postHrefOf, type SiteConfig } from '../../utils/url-utils.ts'
 import { tp } from '../../i18n/index.ts'
 import MenuItems from './MenuItems.astro'
 import { lazyImageAttrs } from './lazyload.ts'

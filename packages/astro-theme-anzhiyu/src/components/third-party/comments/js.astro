@@ -5,7 +5,7 @@
  * 按 `theme.comments.use` 顺序分发 Valine/Twikoo/Waline/Artalk/Giscus 的初始化脚本
  * （每个后端自身也带同名门控）。上游挂载点：additional-js.pug:74-75 的 `.js-pjax` 内。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderCommentsJs } from './render.mjs'
 
 interface Props {

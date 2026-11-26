@@ -24,8 +24,8 @@
  *   - 评论数块（`theme.comments.card_post_count`，默认 false + 评论系统未接）→ P4/P5 接评论时加；
  *   - 广告位 `.recent-post-item.ads-wrap`（`theme.ad.index`，基准配置没有 ad 段）。
  */
-import { getThemeConfig } from '../../layouts/theme-context.ts'
-import { createUrlFor } from '../../layouts/site.ts'
+import { getThemeConfig } from '../../config/theme-context.ts'
+import { createUrlFor } from '../../utils/url-utils.ts'
 import { t } from '../../i18n/index.ts'
 import { LAZYLOAD_PLACEHOLDER, type PreparedPost } from './post-list.ts'
 

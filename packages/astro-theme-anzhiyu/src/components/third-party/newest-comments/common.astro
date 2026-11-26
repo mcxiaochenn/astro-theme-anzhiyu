@@ -8,7 +8,7 @@
  * 注意：上游 layout 未直接 include common.pug（疑似遗留/外部注入），接线时应与
  * newest-comments/index.astro 一同挂在 additional-js 段并置于其之前。
  */
-import { getThemeConfig } from '../../../layouts/theme-context.ts'
+import { getThemeConfig } from '../../../config/theme-context.ts'
 import { renderNewestCommentsCommon } from './render.mjs'
 
 interface Props {

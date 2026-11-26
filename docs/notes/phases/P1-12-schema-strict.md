@@ -123,7 +123,7 @@ throw new Error(
 
 - **`pinned_post` 在上游配置里不存在。** `_research/anzhiyu-upstream/_config.yml`（133 键，基线 72439d9 /
   主题 1.7.1）没有 `pinned_post`，schema 也没有。置顶在上游是**文章 frontmatter**
-  （`sticky: 10` / `top: true` / `swiper_index` / `top_group_index`，见 `fixtures/sticky-top.md`），
+  （`sticky: 10` / `top: true` / `swiper_index` / `top_group_index`，见 `tests/fixtures/sticky-top.md`），
   不是主题配置。所以任务建议里的 `pinned_post` 无键可展开，也不该为一个不存在的键编造 schema
   （否则 `KNOWN_TOP_LEVEL_KEYS` 会多出幻影键）。用 Phase 2 同样高频的 `footer` 和文章页 5 个小块补位。
 - **顶层 `menu` 是上游 11 个 null 键之一**，按任务要求 #4 保持 `z.unknown()`。真正被 `nav.pug` /

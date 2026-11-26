@@ -6,7 +6,7 @@
  * `layout: page` + `type: <模板名>`；Hexo 生成器把两者组合成独立页面。
  * Astro 侧改为根级 rest 路由：`getStaticPaths` 只产出 `layout === 'page'` 的条目，
  * 路径优先取 frontmatter 的 `permalink`（P3-2 新增字段），缺省用 id 去掉 `-page`
- * 后缀（`fixtures/about-page.md` → `/about/` 的兼容写法）。
+ * 后缀（`tests/fixtures/about-page.md` → `/about/` 的兼容写法）。
  *
  * 分发严格照抄 `layout/page.pug:4-31`：
  *
@@ -21,21 +21,21 @@
  * 所以 `/page/2` 只会命中 `page/[...page].astro`，不会被本文件吞掉；
  * `/about/` 这类没有其它路由的路径才会落到这里。
  */
-import BaseLayout from '../../../../packages/astro-theme-anzhiyu/src/layouts/BaseLayout.astro'
-import DefaultPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/DefaultPage.astro'
-import TagsPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/TagsPage.astro'
-import CategoriesPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/CategoriesPage.astro'
-import EssayPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EssayPage.astro'
-import FcirclePage from '../../../../packages/astro-theme-anzhiyu/src/components/page/FcirclePage.astro'
-import FlinkPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/FlinkPage.astro'
-import MusicPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/MusicPage.astro'
-import AlbumPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/AlbumPage.astro'
-import AlbumDetailPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/AlbumDetailPage.astro'
-import RoomPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/RoomPage.astro'
-import EquipmentPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/EquipmentPage.astro'
-import TodolistPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/TodolistPage.astro'
-import AboutPage from '../../../../packages/astro-theme-anzhiyu/src/components/page/about/AboutPage.astro'
-import CommentsIndex from '../../../../packages/astro-theme-anzhiyu/src/components/third-party/comments/index.astro'
+import BaseLayout from 'astro-theme-anzhiyu/layouts/BaseLayout.astro'
+import DefaultPage from 'astro-theme-anzhiyu/components/page/DefaultPage.astro'
+import TagsPage from 'astro-theme-anzhiyu/components/page/TagsPage.astro'
+import CategoriesPage from 'astro-theme-anzhiyu/components/page/CategoriesPage.astro'
+import EssayPage from 'astro-theme-anzhiyu/components/page/EssayPage.astro'
+import FcirclePage from 'astro-theme-anzhiyu/components/page/FcirclePage.astro'
+import FlinkPage from 'astro-theme-anzhiyu/components/page/FlinkPage.astro'
+import MusicPage from 'astro-theme-anzhiyu/components/page/MusicPage.astro'
+import AlbumPage from 'astro-theme-anzhiyu/components/page/AlbumPage.astro'
+import AlbumDetailPage from 'astro-theme-anzhiyu/components/page/AlbumDetailPage.astro'
+import RoomPage from 'astro-theme-anzhiyu/components/page/RoomPage.astro'
+import EquipmentPage from 'astro-theme-anzhiyu/components/page/EquipmentPage.astro'
+import TodolistPage from 'astro-theme-anzhiyu/components/page/TodolistPage.astro'
+import AboutPage from 'astro-theme-anzhiyu/components/page/about/AboutPage.astro'
+import CommentsIndex from 'astro-theme-anzhiyu/components/third-party/comments/index.astro'
 import { getSiteData } from '../data/site-data.ts'
 import { loadArchiveSite } from './archives/_data.ts'
 import '../styles/upstream/index.styl'
@@ -48,8 +48,8 @@ import type {
   FlinkGroup,
   TaxonomyItem,
   TodoGroup,
-} from '../../../../packages/astro-theme-anzhiyu/src/components/page/types.ts'
-import { hexoFullDate } from '../../../../packages/astro-theme-anzhiyu/src/utils/date.ts'
+} from 'astro-theme-anzhiyu/components/page/types.ts'
+import { hexoFullDate } from 'astro-theme-anzhiyu/utils/date.ts'
 
 import { SITE_IDENTITY } from '../data/site-identity.ts'
 
