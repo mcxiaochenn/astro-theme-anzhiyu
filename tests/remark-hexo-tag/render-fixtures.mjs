@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 用 P6-1 的 remark 插件渲染 `src/content/tags-{inline,block}.md`，与上游基准
+ * 用 P6-1 的 remark 插件渲染 `tests/baseline-content/tags-{inline,block}.md`，与上游基准
  * （`.baseline-html/…`）的文章正文做对比。这是同目录 `run.mjs` 之外的整页级验收：
  *
  *   - 渲染产物里不允许再出现 `{%`（tag 必须全部被消费）；
@@ -112,7 +112,7 @@ mkdirSync(outDir, { recursive: true })
 let failed = 0
 
 for (const page of PAGES) {
-  const fixturePath = path.join(repoRoot, 'src/content', `${page.slug}.md`)
+  const fixturePath = path.join(repoRoot, 'tests/baseline-content', `${page.slug}.md`)
   const baselinePath = path.join(repoRoot, '.baseline-html', page.date, page.slug, 'index.html')
 
   const markdown = stripFrontmatter(readFileSync(fixturePath, 'utf8'))

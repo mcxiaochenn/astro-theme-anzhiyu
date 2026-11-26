@@ -2653,7 +2653,15 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
  * date/updated 的 Hexo 时区语义见下方 hexoDate 注释。
  */
 `)
-  contentConfig = contentConfig.replace("base: './src/content'", "base: './src/content/posts'")
+  // CONTENT_BASE 常量整体替换（2026-11-27 内容分层后 base 不再是字面量行）：
+  // 模板的 env 分支对输出站无意义，收敛为固定指向 src/content/posts/。
+  contentConfig = contentConfig.replace(
+    /\r?\n\/\*\* 内容根：[\s\S]*?const CONTENT_BASE = process\.env\.ANZHIYU_CONTENT_BASE \|\| '\.\/src\/content'/,
+    `\n/** 内容根：源站文章与独立页面（src/content/posts/）。 */\nconst CONTENT_BASE = './src/content/posts'`,
+  )
+  if (contentConfig.includes('ANZHIYU_CONTENT_BASE')) {
+    fail('content.config.ts 的 CONTENT_BASE 替换失败（模板结构已变，检查 migrate 替换点）')
+  }
   const tz = siteCfg.data.timezone
   const offset = timezoneOffsetMinutes(tz)
   // DST 检测（C1）：冬/夏各采一次，偏移不同即为夏令时时区。裸 GMT 已记 0，UTC 站 offset=0 不再平移 8 小时。

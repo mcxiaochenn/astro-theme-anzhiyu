@@ -165,7 +165,7 @@ checkThrows('A13 date_xml 对非法日期抛 TypeError（构建期就炸，不�
 
 log('=== B. 跨天边界 ===')
 
-// B1/B2：src/content/cover-variants.md 的真实值 2025-02-20 19:45
+// B1/B2：tests/baseline-content/cover-variants.md 的真实值 2025-02-20 19:45
 checkEq(
   'B1 正确语义：2025-02-20 19:45（+08）→ UTC 11:45Z，日期不变',
   D.parseHexoDate('2025-02-20 19:45:00').toISOString(),
@@ -222,12 +222,12 @@ checkEq(
 
 // B5：真实 fixture 值抽查（10 篇 fixtures 的完整清单见 docs/notes/topics/P-markdown-date-align.md）
 checkEq(
-  'B5 src/content/short-note.md：2024-12-15 21:05（+08）→ 13:05Z',
+  'B5 tests/baseline-content/short-note.md：2024-12-15 21:05（+08）→ 13:05Z',
   D.hexoDateXml('2024-12-15 21:05:00', SITE),
   '2024-12-15T13:05:00.000Z',
 )
 checkEq(
-  'B5 src/content/tags-thirdparty.md：2025-04-20 11:15（+08）→ 03:15Z',
+  'B5 tests/baseline-content/tags-thirdparty.md：2025-04-20 11:15（+08）→ 03:15Z',
   D.hexoDateXml('2025-04-20 11:15:00', SITE),
   '2025-04-20T03:15:00.000Z',
 )

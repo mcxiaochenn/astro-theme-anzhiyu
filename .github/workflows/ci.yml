@@ -36,8 +36,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build blog
-        run: pnpm build
+      - name: Build blog (baseline fixtures)
+        run: pnpm build:baseline
 
       - name: Verify CSS baseline
         run: pnpm verify
@@ -203,8 +203,8 @@ jobs:
 
       # 与 build job 同一条构建命令；默认构建不产出 sw.js/manifest（PWA 只在
       # ANZHIYU_PWA=1 时接线），所以这里测到的就是基线 62 页产物。
-      - name: Build blog
-        run: pnpm build
+      - name: Build blog (baseline fixtures)
+        run: pnpm build:baseline
 
       # 必须 `pnpm exec`：`pnpm preview -- --host ...` 会把 `--` 原样传给
       # astro preview，本机实测报 `Unknown command: astro preview --host`。

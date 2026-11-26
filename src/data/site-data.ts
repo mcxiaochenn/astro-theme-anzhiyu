@@ -33,11 +33,19 @@ export type SiteDataName =
   /** 1.6.14 兼容页（todolist / fcircle lite）用到的站点数据（P7-4）。 */
   | 'todolist'
 
-const modules = import.meta.glob('./*.yml', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
+const modules = process.env.ANZHIYU_CONTENT_BASE
+  ? // 基线验收构建（pnpm build:baseline）：数据层随内容层一起切到字节锁定的基线数据
+    (import.meta.glob('../../tests/baseline-content/data/*.yml', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>)
+  : // 默认（demo 内容 / 迁移输出站）：本目录即数据层
+    (import.meta.glob('./*.yml', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    }) as Record<string, string>)
 
 /** 文件名（不含扩展名）→ 原始 YAML 文本。 */
 const sources = new Map<string, string>()

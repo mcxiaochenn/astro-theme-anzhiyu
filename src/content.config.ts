@@ -1,8 +1,13 @@
 /**
- * P2-1 · 内容集合（单一数据源：`src/content/`，demo 文章即测试语料，不复制）
+ * P2-1 · 内容集合（单一数据源，见下方 CONTENT_BASE 分层）
+ *
+ * 内容分层（2026-11-27 demo 观感改造）：
+ * - 默认 `src/content/` = demo 展示内容（模板 clone / pnpm build / demo 站所见）；
+ * - `ANZHIYU_CONTENT_BASE` 指向 `tests/baseline-content/` 时 = HTML 基线验收 fixture
+ *   （diff-html 49 页的渲染输入，字节锁定；`pnpm build:baseline` 自动带上）。
  *
  * 约定：
- * - 10 篇 fixture 全部进一个 `posts` 集合，用 glob loader 直接读 `src/content/`。
+ * - 文章与独立页面共用一个 `posts` 集合，用 glob loader 直接读内容根。
  *   `base` 相对 Astro 项目根（仓库根）解析。
  * - 文章与独立页面共用一个集合，靠 frontmatter 的 `layout` / `type` 区分：
  *   about 页是 `layout: page` + `type: about`，Phase 3 的 page.type 分发读这两个字段。
@@ -75,11 +80,14 @@ const categoryPath: z.ZodType<unknown> = z.lazy(() => z.union([z.string(), z.arr
 /** `cover` / `top_img` 允许 `false` 显式关闭（见 src/content/cover-variants.md）。 */
 const imageOrDisabled = z.union([z.string(), z.boolean()])
 
+/** 内容根：默认 demo 内容；`ANZHIYU_CONTENT_BASE` 覆盖为基线 fixture（pnpm build:baseline）。 */
+const CONTENT_BASE = process.env.ANZHIYU_CONTENT_BASE || './src/content'
+
 const posts = defineCollection({
   loader: glob({
-    // src/content/ 是扁平目录；`**/` 为将来允许子目录留余地（子目录会成为 id 前缀）
+    // 内容根是扁平目录；`**/` 为将来允许子目录留余地（子目录会成为 id 前缀）
     pattern: '**/*.md',
-    base: './src/content',
+    base: CONTENT_BASE,
   }),
   schema: z
     .object({

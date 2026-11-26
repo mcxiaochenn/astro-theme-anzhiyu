@@ -29,6 +29,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:baseline": "node scripts/build-baseline.mjs",
     "preview": "astro preview",
     "verify": "node scripts/verify-css.mjs",
     "compare-vars": "node scripts/compare-css-vars.mjs",
