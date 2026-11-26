@@ -5,6 +5,12 @@ window.addEventListener("load", () => {
   // 每次现查；首屏缓存旧节点会让换页后遮罩永远显示不出来（animateIn 到已丢弃节点）。
   const searchMask = () => document.getElementById("search-mask");
 
+  // shortcut: ESC —— 命名 handler 统一绑定/解绑，openSearch 反复打开不叠加，
+  // closeSearch（点 X / 点 mask / 换页）都要把 document 上的监听摘掉。
+  const onSearchEscKeydown = event => {
+    if (event.code === "Escape") closeSearch();
+  };
+
   const openSearch = () => {
     const bodyStyle = document.body.style;
     bodyStyle.width = "100%";
@@ -12,19 +18,14 @@ window.addEventListener("load", () => {
     anzhiyu.animateIn(searchMask(), "to_show 0.5s");
     anzhiyu.animateIn(document.querySelector("#local-search .search-dialog"), "titleScale 0.5s");
     setTimeout(() => {
-      document.querySelector("#local-search-input input").focus();
+      const $input = document.querySelector("#local-search-input input");
+      $input && $input.focus();
     }, 100);
     if (!loadFlag) {
       search();
       loadFlag = true;
     }
-    // shortcut: ESC
-    document.addEventListener("keydown", function f(event) {
-      if (event.code === "Escape") {
-        closeSearch();
-        document.removeEventListener("keydown", f);
-      }
-    });
+    document.addEventListener("keydown", onSearchEscKeydown);
   };
 
   const closeSearch = () => {
@@ -33,6 +34,7 @@ window.addEventListener("load", () => {
     bodyStyle.overflow = "";
     anzhiyu.animateOut(document.querySelector("#local-search .search-dialog"), "search_close .5s");
     anzhiyu.animateOut(searchMask(), "to_hide 0.5s");
+    document.removeEventListener("keydown", onSearchEscKeydown);
   };
 
   const searchClickFn = () => {
@@ -95,8 +97,8 @@ window.addEventListener("load", () => {
         if (arr) {
           for (let i = 0; i < arr.length; i++) {
             let src = arr[i].match(srcReg);
-            // 获取图片地址
-            if (!src[1].indexOf("http")) srcArr.push(src[1]);
+            // 获取图片地址（正则没匹配到时 src 为 null，不能直接取 [1]）
+            if (src && !src[1].indexOf("http")) srcArr.push(src[1]);
           }
         }
 
@@ -117,16 +119,28 @@ window.addEventListener("load", () => {
     return data;
   };
 
-  const search = () => {
-    if (!GLOBAL_CONFIG.localSearch.preload) {
-      dataObj = fetchData(GLOBAL_CONFIG.localSearch.path);
-    }
+  // 输入框绑定：换页后 #local-search-input 可能是新节点，pjax:complete /
+  // astro:page-load 重跑；dataset 防叠加；input 加防抖（每次按键全文检索）。
+  const bindSearchInput = () => {
     const $input = document.querySelector("#local-search-input input");
     const $resultContent = document.getElementById("local-search-results");
     const $loadingStatus = document.getElementById("loading-status");
+    if (!$input || !$resultContent) return;
 
-    $input.addEventListener("input", function () {
-      const keywords = this.value.trim().toLowerCase().split(/[\s]+/);
+    // 结果区点击走事件委托（替代内联 onclick），常驻节点只绑一次
+    if ($resultContent && !$resultContent.dataset.clickBound) {
+      $resultContent.dataset.clickBound = "1";
+      $resultContent.addEventListener("click", event => {
+        const item = event.target.closest("p.search-result[data-url]");
+        if (!item) return;
+        const url = item.dataset.url;
+        if (window.pjax && window.pjax.loadUrl) window.pjax.loadUrl(url);
+        else window.location.href = url;
+      });
+    }
+
+    const doSearch = function () {
+      const keywords = $input.value.trim().toLowerCase().split(/[\s]+/);
       if (keywords[0] !== "")
         $loadingStatus.innerHTML = '<i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-pulse-icon"></i>';
 
@@ -200,33 +214,42 @@ window.addEventListener("load", () => {
 
               let matchContent = dataContent.substring(start, end);
 
-              // highlight all keywords
+              // 先转义再高亮：关键词里的正则元字符先转义，否则 new RegExp 会被
+              // `(` `*` 之类的输入打崩或产生 ReDoS。
+              matchContent = anzhiyu.escapeHtml(matchContent);
+              const altText = anzhiyu.escapeHtml(dataTitle);
+              dataTitle = anzhiyu.escapeHtml(dataTitle);
               keywords.forEach(keyword => {
-                const regS = new RegExp(keyword, "gi");
-                matchContent = matchContent.replace(regS, '<span class="search-keyword">' + keyword + "</span>");
-                dataTitle = dataTitle.replace(regS, '<span class="search-keyword">' + keyword + "</span>");
+                const safeKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const regS = new RegExp(safeKeyword, "gi");
+                const mark = '<span class="search-keyword">' + anzhiyu.escapeHtml(keyword) + "</span>";
+                matchContent = matchContent.replace(regS, mark);
+                dataTitle = dataTitle.replace(regS, mark);
               });
 
+              const safeUrl = anzhiyu.isSafeUrl(dataUrl) ? dataUrl : "#";
+              const safeImage = anzhiyu.isSafeUrl(oneImage) ? oneImage : "";
+
               str += '<div class="local-search__hit-item">';
-              if (oneImage) {
-                str += `<div class="search-left"><img src=${oneImage} alt=${dataTitle} data-fancybox='gallery'>`;
+              if (safeImage) {
+                str += `<div class="search-left"><img src="${anzhiyu.escapeHtml(safeImage)}" alt="${altText}" data-fancybox='gallery'>`;
               } else {
                 str += '<div class="search-left" style="width:0">';
               }
 
               str += "</div>";
 
-              if (oneImage) {
+              if (safeImage) {
                 str +=
                   '<div class="search-right"><a href="' +
-                  dataUrl +
+                  anzhiyu.escapeHtml(safeUrl) +
                   '" class="search-result-title">' +
                   dataTitle +
                   "</a>";
               } else {
                 str +=
                   '<div class="search-right" style="width: 100%"><a href="' +
-                  dataUrl +
+                  anzhiyu.escapeHtml(safeUrl) +
                   '" class="search-result-title">' +
                   dataTitle +
                   "</a>";
@@ -235,10 +258,11 @@ window.addEventListener("load", () => {
               count += 1;
 
               if (dataContent !== "") {
+                // 内联 onclick 拼 URL 会把引号/反引号注入事件代码：改为 data-url + 事件委托
                 str +=
-                  '<p class="search-result" onclick="pjax.loadUrl(`' +
-                  dataUrl +
-                  '`)">' +
+                  '<p class="search-result" data-url="' +
+                  anzhiyu.escapeHtml(safeUrl) +
+                  '">' +
                   pre +
                   matchContent +
                   post +
@@ -251,10 +275,10 @@ window.addEventListener("load", () => {
                   const element = dataTags[i].trim();
 
                   str +=
-                    '<a class="tag-list" href="/tags/' +
-                    element +
-                    '/" data-pjax-state="" one-link-mark="yes">#' +
-                    element +
+                    '<a class="tag-list" href="' +
+                    anzhiyu.escapeHtml(anzhiyu.rootUrl("/tags/" + element + "/")) +
+                    '" data-pjax-state="" one-link-mark="yes">#' +
+                    anzhiyu.escapeHtml(element) +
                     "</a>";
                 }
 
@@ -267,7 +291,10 @@ window.addEventListener("load", () => {
         if (count === 0) {
           str +=
             '<div id="local-search__hits-empty">' +
-            GLOBAL_CONFIG.localSearch.languages.hits_empty.replace(/\$\{query}/, this.value.trim()) +
+            // 用户输入进 HTML：转义；用函数式替换避开 $& 等替换模式
+            GLOBAL_CONFIG.localSearch.languages.hits_empty.replace(/\$\{query}/, () =>
+              anzhiyu.escapeHtml($input.value.trim()),
+            ) +
             "</div>";
         }
         str += "</div>";
@@ -275,7 +302,19 @@ window.addEventListener("load", () => {
         if (keywords[0] !== "") $loadingStatus.innerHTML = "";
         window.pjax && window.pjax.refresh($resultContent);
       });
-    });
+    };
+
+    if (!$input.dataset.searchBound) {
+      $input.dataset.searchBound = "1";
+      $input.addEventListener("input", anzhiyu.debounce(doSearch, 200));
+    }
+  };
+
+  const search = () => {
+    if (!GLOBAL_CONFIG.localSearch.preload) {
+      dataObj = fetchData(GLOBAL_CONFIG.localSearch.path);
+    }
+    bindSearchInput();
   };
 
   searchClickFn();
@@ -292,5 +331,11 @@ window.addEventListener("load", () => {
   window.addEventListener("pjax:complete", () => {
     searchClickFn();
     searchDialogFn();
+    bindSearchInput();
+  });
+  window.addEventListener("astro:page-load", () => {
+    searchClickFn();
+    searchDialogFn();
+    bindSearchInput();
   });
 });

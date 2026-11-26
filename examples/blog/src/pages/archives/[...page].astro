@@ -30,6 +30,7 @@ import {
   pageCount,
   slicePage,
   toArticleSortPosts,
+  urlFor,
 } from './_data.ts'
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -67,6 +68,6 @@ const posts = toArticleSortPosts(slicePage(data.posts, ARCHIVE_PER_PAGE, current
   <div id="archive">
     <div class="article-sort-title">{articlesSortTitle(data, {})}</div>
     <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />
-    <Pagination current={current} total={total} basePath="/archives/" />
+    <Pagination current={current} total={total} basePath={urlFor('/archives/')} />
   </div>
 </BaseLayout>

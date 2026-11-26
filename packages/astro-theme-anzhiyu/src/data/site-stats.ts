@@ -27,7 +27,8 @@ import { createUrlFor, type PostHrefResolver } from '../layouts/site.ts'
 import { stripHtml } from '../utils/helpers.ts'
 import { DEFAULT_SITE_TIMEZONE } from '../utils/date.ts'
 
-const urlFor = createUrlFor('/')
+// 子路径部署跟随 Astro base（import.meta.env.BASE_URL），与页面侧 urlFor 同口径
+const urlFor = createUrlFor(import.meta.env.BASE_URL || '/')
 
 /** 标签云需要的最小投影（`site.tags`）。 */
 export interface SiteTagItem {

@@ -23,9 +23,10 @@
 export function isExternalLink(href: string, siteUrl?: string): boolean {
   if (!/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(href)) return false
   try {
-    const host = new URL(href).hostname
+    // 协议相对（//example.com）没有 base 时 new URL 会抛，先给一个假 base 再比 host。
+    const host = new URL(href, 'https://example.invalid').hostname
     if (!siteUrl) return Boolean(host)
-    return Boolean(host) && host !== new URL(siteUrl).hostname
+    return Boolean(host) && host !== new URL(siteUrl, 'https://example.invalid').hostname
   } catch {
     return false
   }

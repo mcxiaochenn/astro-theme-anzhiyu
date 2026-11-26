@@ -17,7 +17,7 @@
  * @module remark-hexo-tag/tags/media
  */
 
-import { commaArgs, urlFor } from '../../runtime.mjs'
+import { commaArgs, escapeHtml, escapeHtmlAttr, safeUrl, urlFor } from '../../runtime.mjs'
 
 /**
  * `{% image url, alt=, width=, height=, bg= %}`
@@ -40,15 +40,15 @@ function image({ args }) {
     else if (item.includes('bg=')) bg = item.substring(3)
   }
 
-  let img = `<img class="img" src="${url}"`
-  if (alt.length > 0) img += ` alt="${alt}"`
-  if (style.length > 0) img += ` style="${style}"`
+  let img = `<img class="img" src="${escapeHtmlAttr(safeUrl(url))}"`
+  if (alt.length > 0) img += ` alt="${escapeHtmlAttr(alt)}"`
+  if (style.length > 0) img += ` style="${escapeHtmlAttr(style)}"`
   img += '/>'
 
   let output = '<div class="img-wrap"><div class="img-bg"'
-  if (bg.length > 0) output += ` style="background:${bg}"`
+  if (bg.length > 0) output += ` style="background:${escapeHtmlAttr(bg)}"`
   output += `>${img}</div>`
-  if (alt.length > 0) output += `<span class="image-caption">${alt}</span>`
+  if (alt.length > 0) output += `<span class="image-caption">${escapeHtml(alt)}</span>`
   output += '</div>'
   return output
 }
@@ -69,19 +69,19 @@ function inlineimage({ args }) {
   }
 
   const styleAttr = style.length > 0 ? style : 'height:1.5em'
-  return `<img no-lazy class="inline" src="${url}" style="${styleAttr}"/>`
+  return `<img no-lazy class="inline" src="${escapeHtmlAttr(safeUrl(url))}" style="${escapeHtmlAttr(styleAttr)}"/>`
 }
 
 /** `{% audio src %}` */
 function audio({ args }) {
   const src = (args[0] || '').trim()
-  return `<div class="audio"><audio controls preload><source src='${src}' type='audio/mp3'>Your browser does not support the audio tag.</audio></div>`
+  return `<div class="audio"><audio controls preload><source src='${escapeHtmlAttr(safeUrl(src))}' type='audio/mp3'>Your browser does not support the audio tag.</audio></div>`
 }
 
 /** `{% video src %}` */
 function video({ args }) {
   const src = (args[0] || '').trim()
-  return `<div class="video"><video controls preload><source src='${src}' type='video/mp4'>Your browser does not support the video tag.</video></div>`
+  return `<div class="video"><video controls preload><source src='${escapeHtmlAttr(safeUrl(src))}' type='video/mp4'>Your browser does not support the video tag.</video></div>`
 }
 
 /**
@@ -144,11 +144,17 @@ function gallery(ctx) {
   const lazyloadClass = lazyload === 'true' ? 'lazyload btn_album_detail_lazyload' : ''
   const pageImgLazyloadClass = lazyloadBtn == true ? '' : 'page_img_lazyload '
 
+  // gallery-data 是 JSON 文本：`<` 会提前开标签、`&` 会被当 HTML 实体解码，
+  // 都会破坏 JSON.parse，前者转义成 \u003c，后者走 HTML 实体。
+  const safeDataStr = String(dataStr ?? '')
+    .replace(/</g, '\\u003c')
+    .replace(/&/g, '&amp;')
+
   const html = `<div class="gallery">
-  <div class="fj-gallery ${pageImgLazyloadClass + lazyloadClass + resolvedType}" data-rowHeight="${rowHeight}" data-limit="${limit}">
-    <span class="gallery-data">${dataStr}</span>
+  <div class="fj-gallery ${escapeHtmlAttr(pageImgLazyloadClass + lazyloadClass + resolvedType)}" data-rowHeight="${escapeHtmlAttr(rowHeight)}" data-limit="${escapeHtmlAttr(limit)}">
+    <span class="gallery-data">${safeDataStr}</span>
   </div><button class="gallery-load-more" style="${!lazyloadBtn ? 'opacity:0' : ''}">
-  <span>${ctx.options.loadMoreText || '加载更多'}</span>
+  <span>${escapeHtml(ctx.options.loadMoreText || '加载更多')}</span>
   <i class="anzhiyufont anzhiyu-icon-arrow-down"></i>
   </button></div>`
 
@@ -164,16 +170,16 @@ function gallery(ctx) {
 function galleryGroup({ args }) {
   const name = args[0]
   const descr = args[1]
-  const url = urlFor(args[2])
-  const img = urlFor(args[3])
+  const url = urlFor(safeUrl(args[2]))
+  const img = urlFor(safeUrl(args[3]))
 
   return `
   <figure class="gallery-group">
-  <img class="gallery-group-img no-lightbox" src='${img}' alt="Group Image Gallery">
+  <img class="gallery-group-img no-lightbox" src='${escapeHtmlAttr(img)}' alt="Group Image Gallery">
   <figcaption>
-  <div class="gallery-group-name">${name}</div>
-  <p>${descr}</p>
-  <a href='${url}'></a>
+  <div class="gallery-group-name">${escapeHtml(name)}</div>
+  <p>${escapeHtml(descr)}</p>
+  <a href='${escapeHtmlAttr(url)}'></a>
   </figcaption>
   </figure>
   `
@@ -203,11 +209,11 @@ function site({ args }) {
     else if (item.includes('description=')) description = item.substring(12)
   }
 
-  let output = `<a class="site-card" href="${url}" data-title=${description}>`
-  output += `<div class="wrapper cover"><img class="cover fadeIn" src="${screenshot}"/></div>`
+  let output = `<a class="site-card" href="${escapeHtmlAttr(safeUrl(url))}" data-title="${escapeHtmlAttr(description)}">`
+  output += `<div class="wrapper cover"><img class="cover fadeIn" src="${escapeHtmlAttr(safeUrl(screenshot))}"/></div>`
   output += '<div class="info">'
-  if (avatar.length > 0) output += `<img class="flink-avatar" src="${avatar}"/>`
-  output += `<span class="site-title">${title}</span>`
+  if (avatar.length > 0) output += `<img class="flink-avatar" src="${escapeHtmlAttr(safeUrl(avatar))}"/>`
+  output += `<span class="site-title">${escapeHtml(title)}</span>`
   output += '</div></a>'
   return output
 }
@@ -253,7 +259,7 @@ function cell({ args }) {
   const parts = args.join(' ').split(',')
   const text = (parts[0] || '').trim()
   let url = (parts[1] || '').trim()
-  if (url.length > 0) url = `href='${url}'`
+  if (url.length > 0) url = `href='${escapeHtmlAttr(safeUrl(url))}'`
 
   let icon = ''
   let img = 'https://npm.elemecdn.com/hexo-butterfly-tag-plugins-plus/lib/assets/default.svg'
@@ -262,10 +268,11 @@ function cell({ args }) {
     else img = parts[2].trim()
   }
 
+  const safeText = escapeHtmlAttr(text)
   if (icon.length > 0) {
-    return `<a class="button no-text-decoration" ${url} title='${text}'><i class='${icon}'></i>${text}</a>`
+    return `<a class="button no-text-decoration" ${url} title='${safeText}'><i class='${escapeHtmlAttr(icon)}'></i>${escapeHtml(text)}</a>`
   }
-  return `<a class="button no-text-decoration" ${url} title='${text}'><img src='${img}'>${text}</a>`
+  return `<a class="button no-text-decoration" ${url} title='${safeText}'><img src='${escapeHtmlAttr(safeUrl(img))}'>${escapeHtml(text)}</a>`
 }
 
 /** 行内（自闭合）媒体与卡片 tag。 */

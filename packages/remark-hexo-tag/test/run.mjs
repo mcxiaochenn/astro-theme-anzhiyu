@@ -738,6 +738,64 @@ await expectError('未知 tag 报错带行号', 'a\nb\n{% nope x %}', /Unknown H
 await expectError('未闭合容器报错', '{% note info %}\ntext', /Unclosed Hexo tag/)
 await expectError('错配 end tag 报错', '{% note info %}\ntext\n{% endtabs %}', /Mismatched/)
 
+// ── 代码块 / 行内代码里的 tag 是字面量（不解析、不报错） ────────────────────
+async function expectRender(name, input, check) {
+  try {
+    const html = await render(input)
+    if (check(html)) passed += 1
+    else {
+      failed += 1
+      console.error(`\n✗ ${name}`)
+      console.error(`  实际: ${html.slice(0, 500)}`)
+    }
+  } catch (error) {
+    failed += 1
+    console.error(`\n✗ ${name}：预期不抛错但抛了 ${error.message}`)
+  }
+}
+
+await expectRender('围栏代码块里的 Hexo tag 不解析', '```md\n{% note info %}\n示例\n{% endnote %}\n```', (html) =>
+  html.includes('{% note info %}') && html.includes('{% endnote %}') && !html.includes('note info flat'),
+)
+await expectRender('波浪围栏代码块里的 Hexo tag 不解析', '~~~\n{% p red, hi %}\n~~~', (html) =>
+  html.includes('{% p red, hi %}') && !html.includes('class="p red"'),
+)
+await expectRender('行内代码里的 Hexo tag 不解析', '行内：`{% p red, hi %}` 完', (html) =>
+  html.includes('<code>{% p red, hi %}</code>') && !html.includes('class="p red"'),
+)
+await expectRender('缩进代码块里的 Hexo tag 不解析', '文本\n\n    {% p red, indented %}\n', (html) =>
+  html.includes('{% p red, indented %}') && !html.includes('class="p red"'),
+)
+await expectRender('代码区之外的 tag 照常解析', '{% p red, ok %}\n\n```\n{% p blue, no %}\n```', (html) =>
+  html.includes('class="p red"') && html.includes('{% p blue, no %}'),
+)
+
+// ── 缺参 / 非法输入不崩 ─────────────────────────────────────────────────────
+await expectRender('缺参 {% p red %} 不抛 TypeError', '{% p red %}', (html) =>
+  html.includes('class="p red"'),
+)
+await expectRender('缺参 {% span x %} 不抛 TypeError', 'a {% span x %} b', (html) => html.includes('class="p x"'))
+await expectRender('非法 YAML 的 {% flink %} 不崩', '{% flink %}\n- a: [broken\n{% endflink %}', (html) =>
+  html.includes('class="flink"'),
+)
+await expectRender('非数组 YAML 的 {% flink %} 不崩', '{% flink %}\njust a scalar\n{% endflink %}', (html) =>
+  html.includes('class="flink"'),
+)
+await expectRender('flink link_list 混入非对象项被过滤', [
+  '{% flink %}',
+  '- class_name: 组',
+  '  link_list:',
+  '    - ',
+  '    - name: 站',
+  '      link: https://example.com',
+  '{% endflink %}',
+].join('\n'), (html) => html.includes('cf-friends-name') && html.includes('https://example.com'))
+
+// ── 引号内的 %} 不当结束符 ──────────────────────────────────────────────────
+await expectRender('引号内的 %} 不截断 tag', '{% p red, 文本"%}"尾巴 %}', (html) =>
+  html.includes('class="p red"') && html.includes('%}'),
+)
+
 // ── 汇总 ────────────────────────────────────────────────────────────────────
 const total = passed + failed
 if (warnings.length > 0) {

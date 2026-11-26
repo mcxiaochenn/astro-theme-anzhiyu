@@ -11,7 +11,8 @@ const CSS_RE = /\.css$/i
 // 匹配 @import / @require。后者是 Stylus 的「只展开一次」语义（见 evaluator.js 的
 // importFile：requireHistory 按文件路径记账），上游 _highlight/highlight.styl 用它。
 const IMPORT_RE = /@(import|require)[ \t]+(['"])([^'"]+)\2[ \t]*;?/g
-const USE_RE = /\buse\(\s*(['"])([^'"]+)\1\s*\)/g
+// 负向lookbehind：`my-use(...)` / `foo.use(...)` 里的 use( 不是 Stylus 内置调用。
+const USE_RE = /(?<![\w$.-])use\(\s*(['"])([^'"]+)\1\s*\)/g
 const MAGIC_RE = /[*?]/
 
 // Hexo 7.3.0 的站点级默认值（hexo/dist/hexo/default_config.js）。上游主题脚本
@@ -145,7 +146,8 @@ export function stylusHexoConfig(options = {}) {
     if (!configPath) return cachedConfig
     const stat = fs.statSync(configPath)
     if (stat.mtimeMs !== cachedMtime) {
-      cachedConfig = YAML.parse(fs.readFileSync(configPath, 'utf8'))
+      // 空 YAML 解析出来是 null，兜底成 {}，别把 null 传进 getProperty。
+      cachedConfig = YAML.parse(fs.readFileSync(configPath, 'utf8')) ?? {}
       cachedMtime = stat.mtimeMs
     }
     return cachedConfig
@@ -165,8 +167,9 @@ export function stylusHexoConfig(options = {}) {
     const len = split.length
 
     if (!len) {
-      if (result === 0) return result
-      return result || ''
+      // 显式 false / 0 要原样返回（`result || ''` 会把 false 吞成 ''），
+      // 只有 null / undefined 才回落 ''。
+      return result ?? ''
     }
     if (typeof result !== 'object') return ''
 
@@ -198,14 +201,16 @@ export function stylusHexoConfig(options = {}) {
     if (typeof value === 'boolean') return value ? 'true' : 'false'
     if (typeof value === 'number') return String(value)
     if (typeof value === 'string') {
+      // 值里的换行会生成跨行未闭合的 Stylus 字符串，先转义成字面 \n / \r。
+      const flat = value.replace(/\r/g, '\\r').replace(/\n/g, '\\n')
       // 引号要与 Hexo 下一致：hexo-config 返回 JS string，Stylus 的 utils.coerce
       // 会包成 nodes.String，而 nodes.String 默认 quote 是单引号（见
       // stylus/lib/nodes/string.js 的 constructor 与 compiler.js visitString），
       // 所以产物里字符串值默认是单引号。
-      const hasSingle = value.includes("'")
-      if (!hasSingle) return `'${value}'`
-      const hasDouble = value.includes('"')
-      if (!hasDouble) return `"${value}"`
+      const hasSingle = flat.includes("'")
+      if (!hasSingle) return `'${flat}'`
+      const hasDouble = flat.includes('"')
+      if (!hasDouble) return `"${flat}"`
       // 同键告警只打一次，且与 missing/object 告警共用 warnOnMissing 总闸（G6）。
       if (warnOnMissing && !warnedKeys.has(`quote:${key}`)) {
         warnedKeys.add(`quote:${key}`)
@@ -213,7 +218,7 @@ export function stylusHexoConfig(options = {}) {
           `[stylus-hexo-config] hexo-config('${key}') 的值同时含单双引号，双引号已替换为单引号：${value}`,
         )
       }
-      return `"${value.replace(/"/g, "'")}"`
+      return `"${flat.replace(/"/g, "'")}"`
     }
     // 对象 / 数组：Hexo 下 getProperty 原样返回，Stylus 把 JS 值 coerce 成
     // 表达式（utils.coerceObject / coerceArray），在布尔上下文里恒为真。
@@ -336,16 +341,19 @@ export function stylusHexoConfig(options = {}) {
     return name
   }
 
-  /** 把调用点换成变量名，并生成变量定义 */
+  /** 把调用点换成变量名，并生成变量定义（注释 / 字符串里的调用点不动） */
   function rewriteConfigCalls(code) {
     const config = loadConfig()
     const registry = new Map()
 
-    const body = code.replace(CONFIG_CALL_RE, (_match, _quote, key) =>
-      // 加括号：上游有 `hexo-config('x') is a 'unit' ? ... : ...` 这种行首表达式，
-      // 换成裸变量后 Stylus 会把行首标识符当属性名，报 expected "indent", got "is a"
-      `(${varNameFor(key, registry)})`,
-    )
+    const body = replaceInCode(code, [
+      {
+        re: new RegExp(CONFIG_CALL_RE.source, 'y'),
+        // 加括号：上游有 `hexo-config('x') is a 'unit' ? ... : ...` 这种行首表达式，
+        // 换成裸变量后 Stylus 会把行首标识符当属性名，报 expected "indent", got "is a"
+        replace: (m) => `(${varNameFor(m[2], registry)})`,
+      },
+    ])
 
     if (registry.size === 0) return { prelude: '', body, count: 0 }
 
@@ -381,6 +389,17 @@ export function stylusHexoConfig(options = {}) {
 
   function toPosix(p) {
     return p.split(path.sep).join('/')
+  }
+
+  /**
+   * 路径比较键：`path.resolve` 归一后再转 POSIX 斜杠，Windows 下统一小写。
+   * `state.stack` / `state.requires` / `state.files` 全部用它做成员判断，
+   * 消除 `./x.styl` vs `x.styl`、反斜杠 vs 斜杠、盘符大小写带来的
+   * 循环 import 检测失效 / require 重复展开。
+   */
+  function pathKey(p) {
+    const resolved = toPosix(path.resolve(p))
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved
   }
 
   function globToRegExp(pattern) {
@@ -483,6 +502,64 @@ export function stylusHexoConfig(options = {}) {
   }
 
   /**
+   * 只在「代码上下文」里做正则替换：块注释、行注释、字符串字面量里的内容
+   * 原样跳过，避免把注释 / 字符串里的 `@import`、`use()`、`hexo-config()`
+   * 当真改写。Stylus 的字符串不做反斜杠转义（见文件头「字符串引号」），
+   * 所以闭引号就是下一个同类引号。
+   *
+   * @param {string} code
+   * @param {Array<{ re: RegExp, replace: (match: RegExpExecArray, offset: number) => string }>} jobs
+   *   re 必须带 `y`（sticky）标志；replace 收到绝对 offset（inlineImports 的
+   *   缩进计算要用）。
+   * @returns {string}
+   */
+  function replaceInCode(code, jobs) {
+    let out = ''
+    let i = 0
+    const len = code.length
+    while (i < len) {
+      const char = code[i]
+      if (char === '/' && code[i + 1] === '/') {
+        const nl = code.indexOf('\n', i)
+        const end = nl === -1 ? len : nl
+        out += code.slice(i, end)
+        i = end
+        continue
+      }
+      if (char === '/' && code[i + 1] === '*') {
+        const close = code.indexOf('*/', i + 2)
+        const end = close === -1 ? len : close + 2
+        out += code.slice(i, end)
+        i = end
+        continue
+      }
+      if (char === "'" || char === '"') {
+        const close = code.indexOf(char, i + 1)
+        const end = close === -1 ? len : close + 1
+        out += code.slice(i, end)
+        i = end
+        continue
+      }
+      let matched = false
+      for (const job of jobs) {
+        job.re.lastIndex = i
+        const m = job.re.exec(code)
+        if (m && m.index === i) {
+          out += job.replace(m, i)
+          i += m[0].length
+          matched = true
+          break
+        }
+      }
+      if (!matched) {
+        out += char
+        i += 1
+      }
+    }
+    return out
+  }
+
+  /**
    * Stylus 的 `use('x.js')` 内置函数会 `require()` 指定 JS 插件（nib 的
    * lib/nib/vendor.styl 用 `use('../nodes/vendor-helpers.js')` 定义 normalize()）。
    *
@@ -492,32 +569,39 @@ export function stylusHexoConfig(options = {}) {
    */
   function rewriteUseCalls(code, dirStack) {
     if (!code.includes('use(')) return code
-    return code.replace(USE_RE, (match, _quote, spec) => {
-      let found = null
-      if (path.isAbsolute(spec)) {
-        try {
-          if (fs.statSync(spec).isFile()) found = spec
-        } catch {
-          /* not found */
-        }
-      }
-      if (!found) {
-        for (let i = dirStack.length - 1; i >= 0; i--) {
-          const full = path.resolve(dirStack[i], spec)
-          try {
-            if (fs.statSync(full).isFile()) {
-              found = full
-              break
+    return replaceInCode(code, [
+      {
+        re: new RegExp(USE_RE.source, 'y'),
+        replace: (m) => {
+          const match = m[0]
+          const spec = m[2]
+          let found = null
+          if (path.isAbsolute(spec)) {
+            try {
+              if (fs.statSync(spec).isFile()) found = spec
+            } catch {
+              /* not found */
             }
-          } catch {
-            /* not found */
           }
-        }
-      }
-      if (!found) return match
-      // Stylus 字符串不做转义处理；Windows 路径用正斜杠，反斜杠会被原样保留
-      return `use("${toPosix(found)}")`
-    })
+          if (!found) {
+            for (let i = dirStack.length - 1; i >= 0; i--) {
+              const full = path.resolve(dirStack[i], spec)
+              try {
+                if (fs.statSync(full).isFile()) {
+                  found = full
+                  break
+                }
+              } catch {
+                /* not found */
+              }
+            }
+          }
+          if (!found) return match
+          // Stylus 字符串不做转义处理；Windows 路径用正斜杠，反斜杠会被原样保留
+          return `use("${toPosix(found)}")`
+        },
+      },
+    ])
   }
 
   /**
@@ -533,7 +617,8 @@ export function stylusHexoConfig(options = {}) {
    * @param {string} text
    */
   function stripRootComments(text) {
-    return text.replace(/^\/\*(?!\!)[\s\S]*?\*\/[^\n]*\n?/gm, '')
+    // `[^\n]*` 会把 `*/` 同一行后面的代码一起吞掉，只允许吃掉尾随空白。
+    return text.replace(/^\/\*(?!\!)[\s\S]*?\*\/[ \t]*\n?/gm, '')
   }
 
   /**
@@ -589,94 +674,115 @@ export function stylusHexoConfig(options = {}) {
     const stackSet = state.stack
     const source = rewriteUseCalls(neutralizeSlashComments(code), dirStack)
 
-    return source.replace(IMPORT_RE, (match, keyword, _quote, spec, offset) => {
-      // .css 的 @import 在文本层展开：按 hexo-renderer-stylus 的
-      // `.set('include css', true)` 语义，把 CSS 原文内联进产物（不是留给浏览器）。
-      // 用 Stylus 的 `@css { ... }` 字面量块承载，等价于 stylus 的 literal 导入。
-      if (CSS_RE.test(spec)) {
-        const cssFiles = find(spec, dirStack)
-        if (!cssFiles.length) {
-          if (!warnedImports.has(spec)) {
-            warnedImports.add(spec)
-            console.warn(
-              `[stylus-hexo-config] 无法解析 @${keyword} '${spec}'（来自 ${filePath}）`,
-            )
+    return replaceInCode(source, [
+      {
+        re: new RegExp(IMPORT_RE.source, 'y'),
+        replace: (m, offset) => {
+          const match = m[0]
+          const keyword = m[1]
+          const spec = m[3]
+          // .css 的 @import 在文本层展开：按 hexo-renderer-stylus 的
+          // `.set('include css', true)` 语义，把 CSS 原文内联进产物（不是留给浏览器）。
+          // 用 Stylus 的 `@css { ... }` 字面量块承载，等价于 stylus 的 literal 导入。
+          if (CSS_RE.test(spec)) {
+            const cssFiles = find(spec, dirStack)
+            if (!cssFiles.length) {
+              if (!warnedImports.has(spec)) {
+                warnedImports.add(spec)
+                console.warn(
+                  `[stylus-hexo-config] 无法解析 @${keyword} '${spec}'（来自 ${filePath}）`,
+                )
+              }
+              return match
+            }
+            const blocks = []
+            for (const file of cssFiles) {
+              state.files.add(pathKey(file))
+              const block = cssLiteralBlock(file)
+              if (block) blocks.push(block)
+            }
+            if (!blocks.length) return ''
+            const lineStart = source.lastIndexOf('\n', offset - 1) + 1
+            const prefix = source.slice(lineStart, offset)
+            const indent = /^[ \t]*$/.test(prefix) ? prefix : ''
+            const joined = blocks.join('\n')
+            return joined
+              .split('\n')
+              .map((line, i) => (i === 0 || line === '' ? line : indent + line))
+              .join('\n')
           }
-          return match
-        }
-        const blocks = []
-        for (const file of cssFiles) {
-          state.files.add(file)
-          const block = cssLiteralBlock(file)
-          if (block) blocks.push(block)
-        }
-        if (!blocks.length) return ''
-        const lineStart = source.lastIndexOf('\n', offset - 1) + 1
-        const prefix = source.slice(lineStart, offset)
-        const indent = /^[ \t]*$/.test(prefix) ? prefix : ''
-        const joined = blocks.join('\n')
-        return joined
-          .split('\n')
-          .map((line, i) => (i === 0 || line === '' ? line : indent + line))
-          .join('\n')
-      }
 
-      let resolved = resolveImport(spec, dirStack)
-      if (!resolved.length) {
-        if (!warnedImports.has(spec)) {
-          warnedImports.add(spec)
-          console.warn(
-            `[stylus-hexo-config] 无法解析 @${keyword} '${spec}'（来自 ${filePath}），保持原样交给 Stylus`,
-          )
-        }
-        return match
-      }
+          let resolved = resolveImport(spec, dirStack)
+          if (!resolved.length) {
+            if (!warnedImports.has(spec)) {
+              warnedImports.add(spec)
+              console.warn(
+                `[stylus-hexo-config] 无法解析 @${keyword} '${spec}'（来自 ${filePath}），保持原样交给 Stylus`,
+              )
+            }
+            return match
+          }
 
-      if (keyword === 'require') {
-        const remaining = []
-        for (const file of resolved) {
-          if (state.requires.has(file)) continue
-          state.requires.add(file)
-          remaining.push(file)
-        }
-        if (!remaining.length) return ''
-        resolved = remaining
-      }
+          if (keyword === 'require') {
+            const remaining = []
+            for (const file of resolved) {
+              if (state.requires.has(pathKey(file))) continue
+              state.requires.add(pathKey(file))
+              remaining.push(file)
+            }
+            if (!remaining.length) return ''
+            resolved = remaining
+          }
 
-      const lineStart = source.lastIndexOf('\n', offset - 1) + 1
-      const prefix = source.slice(lineStart, offset)
-      const indent = /^[ \t]*$/.test(prefix) ? prefix : ''
+          const lineStart = source.lastIndexOf('\n', offset - 1) + 1
+          const prefix = source.slice(lineStart, offset)
+          const indent = /^[ \t]*$/.test(prefix) ? prefix : ''
 
-      const parts = []
-      for (const file of resolved) {
-        if (stackSet.has(file)) {
-          console.warn(`[stylus-hexo-config] 检测到 import 循环，跳过：${file}`)
-          continue
-        }
-        state.files.add(file)
-        const childSource = stripRootComments(fs.readFileSync(file, 'utf8').replace(/\r\n?/g, '\n'))
-        stackSet.add(file)
-        try {
-          parts.push(
-            inlineImports(childSource, file, {
-              dirStack: [...dirStack, path.dirname(file)],
-              stack: stackSet,
-              files: state.files,
-              requires: state.requires,
-            }),
-          )
-        } finally {
-          stackSet.delete(file)
-        }
-      }
+          const parts = []
+          for (const file of resolved) {
+            const fileKey = pathKey(file)
+            if (stackSet.has(fileKey)) {
+              console.warn(`[stylus-hexo-config] 检测到 import 循环，跳过：${file}`)
+              continue
+            }
+            state.files.add(fileKey)
+            const childSource = stripRootComments(fs.readFileSync(file, 'utf8').replace(/\r\n?/g, '\n'))
+            stackSet.add(fileKey)
+            try {
+              parts.push(
+                inlineImports(childSource, file, {
+                  dirStack: [...dirStack, path.dirname(file)],
+                  stack: stackSet,
+                  files: state.files,
+                  requires: state.requires,
+                }),
+              )
+            } finally {
+              stackSet.delete(fileKey)
+            }
+          }
 
-      const joined = parts.join('\n')
-      // 保留 import 行的缩进：写在 if 分支里的 import 展开后仍然留在同一分支
-      return joined
-        .split('\n')
-        .map((line, i) => (i === 0 || line === '' ? line : indent + line))
-        .join('\n')
-    })
+          const joined = parts.join('\n')
+          // 保留 import 行的缩进：写在 if 分支里的 import 展开后仍然留在同一分支
+          return joined
+            .split('\n')
+            .map((line, i) => (i === 0 || line === '' ? line : indent + line))
+            .join('\n')
+        },
+      },
+    ])
+  }
+
+  // 依赖文件 → 依赖它的入口 .styl 文件（handleHotUpdate 反查用）。
+  /** @type {Map<string, Set<string>>} */
+  const depToEntries = new Map()
+
+  /** 配置状态变更后清缓存，让下一次 transform 重新读配置、重新收警告。 */
+  function resetConfigState() {
+    cachedConfig = options.config ?? null
+    cachedMtime = 0
+    warnedKeys.clear()
+    warnedImports.clear()
   }
 
   return {
@@ -684,8 +790,16 @@ export function stylusHexoConfig(options = {}) {
     enforce: 'pre',
 
     transform(code, rawId) {
-      const id = rawId.split('?')[0]
+      const id = path.resolve(rawId.split('?')[0])
       if (!STYL_RE.test(id)) return null
+
+      // 裸调 transform（脚本 / 测试）没有 Vite 插件上下文，watch 是可选能力。
+      const watch = (file) => {
+        if (this && typeof this.addWatchFile === 'function') this.addWatchFile(file)
+      }
+
+      // 配置文件与所有被内联的 .styl / .css 都要进 watch：否则 dev 改它们不触发重编。
+      if (configPath) watch(configPath)
 
       // 注意：不能像以前那样「没有 hexo-config()/import 就早退」——上游的
       // stylus:renderer filter 对每次样式渲染都会注入 4 个 define 变量，
@@ -697,12 +811,27 @@ export function stylusHexoConfig(options = {}) {
       if (hasImport) {
         const state = {
           dirStack: [...includePaths.map((p) => path.resolve(p)), path.dirname(id)],
-          stack: new Set([id]),
+          stack: new Set([pathKey(id)]),
           files: new Set(),
           requires: new Set(),
         }
         body = inlineImports(code, id, state)
         fileCount = state.files.size + 1
+        const entryKey = pathKey(id)
+        for (const depKey of state.files) {
+          watch(depKey)
+          if (depKey === entryKey) continue
+          let entries = depToEntries.get(depKey)
+          if (!entries) depToEntries.set(depKey, (entries = new Set()))
+          // 记录原始大小写路径：moduleGraph.getModulesByFile 按 Vite 记录的
+          // 文件路径精确匹配，Windows 小写键会查不到。
+          entries.add(id)
+        }
+        if (configPath) {
+          let entries = depToEntries.get(pathKey(configPath))
+          if (!entries) depToEntries.set(pathKey(configPath), (entries = new Set()))
+          entries.add(id)
+        }
       }
 
       // Hexo define 层（上游主题脚本 stylus:renderer filter）与 hexo-config 变量
@@ -725,6 +854,35 @@ export function stylusHexoConfig(options = {}) {
       }
 
       return out === code ? null : { code: out, map: null }
+    },
+
+    /**
+     * 依赖文件（configPath / 被内联的 .styl / .css）变更时：
+     * 清掉配置缓存与告警去重表，并让所有依赖它的入口 .styl 模块失效重编。
+     */
+    handleHotUpdate({ file, server }) {
+      const key = pathKey(file)
+      const entries = depToEntries.get(key)
+      const isConfig = Boolean(configPath) && key === pathKey(configPath)
+      if (!entries && !isConfig) return
+
+      resetConfigState()
+      /** @type {Set<object>} */
+      const affected = new Set()
+      const invalidateEntry = (entryFile) => {
+        for (const mod of server.moduleGraph.getModulesByFile(entryFile) ?? []) {
+          server.moduleGraph.invalidateModule(mod)
+          affected.add(mod)
+        }
+      }
+      for (const entryFile of entries ?? []) invalidateEntry(entryFile)
+      // 配置文件影响所有已记录入口
+      if (isConfig) {
+        for (const entryKeys of depToEntries.values()) {
+          for (const entryFile of entryKeys) invalidateEntry(entryFile)
+        }
+      }
+      return [...affected]
     },
   }
 }

@@ -154,10 +154,25 @@ const mergedConfig = deepMerge(
 )
 writeFileSync(MERGED_CONFIG, stringify(mergedConfig))
 
+// essay.yml 的临时改写用「临时副本 + 启动恢复」兜底：原文先落盘到
+// essay.yml.deploy-tmp（不带 .yml 后缀，不会被 site-data 的 glob 扫进构建），
+// 进程中途被打死时副本仍在，下次启动先恢复，避免受版本控制的 data/essay.yml
+// 长期停在改写状态。
+const ESSAY_TMP = `${ESSAY_FILE}.deploy-tmp`
+if (existsSync(ESSAY_TMP)) {
+  writeFileSync(ESSAY_FILE, readFileSync(ESSAY_TMP, 'utf8'))
+  rmSync(ESSAY_TMP, { force: true })
+  console.log('  检测到上次残留的 essay.yml 临时副本，已先恢复原始内容')
+}
+
 const essayOriginal = readFileSync(ESSAY_FILE, 'utf8')
+writeFileSync(ESSAY_TMP, essayOriginal)
 const essayLines = essayOriginal.split('\n')
 const firstGroup = essayLines.findIndex((line) => line.startsWith('- '))
-if (firstGroup < 0) fail('essay.yml 未找到顶层分组（以 "- " 开头的行）')
+if (firstGroup < 0) {
+  rmSync(ESSAY_TMP, { force: true })
+  fail('essay.yml 未找到顶层分组（以 "- " 开头的行）')
+}
 essayLines.splice(firstGroup + 1, 0, '  home_essay: true')
 const essayPatched = essayLines.join('\n')
 
@@ -188,8 +203,9 @@ try {
   buildStatus = build.status ?? -1
 } finally {
   // 无论构建成败都恢复守卫文件（golden diff 依赖 essay.yml 不含 home_essay；
-  // 临时合并配置也在此清理）。
+  // 临时合并配置与 essay 临时副本也在此清理）。
   writeFileSync(ESSAY_FILE, essayOriginal)
+  rmSync(ESSAY_TMP, { force: true })
   rmSync(MERGED_CONFIG, { force: true })
   console.log('  已恢复 essay.yml 并清理临时合并配置（home_essay / demo 开关仅本次构建生效）')
 }
@@ -254,11 +270,16 @@ if (!prefix) {
   for (const file of htmlFiles) {
     const before = readFileSync(file, 'utf8')
     const after = before.replace(
-      /(\s(?:href|src)=")(\/[^"#?]*?)(")/g,
+      /(\s(?:href|src)=")(\/[^"]*?)(")/g,
       (match, head, url, tail) => {
-        if (!shouldPrefix(url)) return match
+        // 查询串 / 锚点不动，只给路径部分补前缀（/page/2/#content-inner 这类也要命中：
+        // 旧正则 [^"#?] 把 ? # 卡在字符类外，带锚点的 href 会整条漏改）。
+        const cut = url.search(/[?#]/)
+        const pathname = cut === -1 ? url : url.slice(0, cut)
+        const suffix = cut === -1 ? '' : url.slice(cut)
+        if (!shouldPrefix(pathname)) return match
         rewritten += 1
-        return `${head}${prefix}${url}${tail}`
+        return `${head}${prefix}${pathname}${suffix}${tail}`
       },
     )
     if (after !== before) writeFileSync(file, after)

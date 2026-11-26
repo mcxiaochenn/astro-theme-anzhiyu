@@ -42,9 +42,36 @@ function num(section: unknown, key: string, fallback = 0): number {
   return typeof value === 'number' ? value : fallback
 }
 
+/**
+ * `JSON.stringify` + 内联 `<script>` 安全转义：`<` 转成 `\u003c`（防 `</script>`
+ * 提前闭合脚本），U+2028 / U+2029 转成转义序列（防 JS 词法断行）。
+ */
+export function safeJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+/**
+ * JS 字符串字面量内容转义（单双引号通用）：反斜杠 / 引号 / 换行 /
+ * `</`（`<` → `\u003c`）/ U+2028 / U+2029。防语法崩溃与脚本逃逸。
+ */
+export function escapeJsString(value: string | undefined): string {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
 /** `JSON.stringify`；`undefined` 原样写成 JS 的 `undefined`（与 pug 一致）。 */
 function j(value: unknown): string {
-  return value === undefined ? 'undefined' : JSON.stringify(value)
+  return value === undefined ? 'undefined' : safeJson(value)
 }
 
 export function buildGlobalConfigScript(
@@ -218,10 +245,10 @@ export function buildGlobalConfigScript(
   diytitle: ${j(diytitle)},
   LA51: ${j(LA51)},
   greetingBox: ${j(greetingBox)},
-  twikooEnvId: '${str(theme.twikoo, 'envId')}',
+  twikooEnvId: '${escapeJsString(str(theme.twikoo, 'envId'))}',
   commentBarrageConfig:${j(commentBarrageConfig)},
   music_page_default: ${j(musicPageDefault)},
-  root: '${site.root ?? '/'}',
+  root: '${escapeJsString(site.root ?? '/')}',
   preloader: ${j(preloader)},
   friends_vue_info: ${j(friendsVueInfo)},
   navMusic: ${flag(theme.nav_music, 'enable')},
@@ -233,30 +260,30 @@ export function buildGlobalConfigScript(
   noticeOutdate: ${j(noticeOutdate)},
   highlight: ${j(highlight)},
   copy: {
-    success: '${_p('copy.success')}',
-    error: '${_p('copy.error')}',
-    noSupport: '${_p('copy.noSupport')}'
+    success: '${escapeJsString(_p('copy.success'))}',
+    error: '${escapeJsString(_p('copy.error'))}',
+    noSupport: '${escapeJsString(_p('copy.noSupport'))}'
   },
   relativeDate: {
     homepage: ${pageDateFormat === 'relative'},
     simplehomepage: ${pageDateFormat === 'simple'},
     post: ${postDateFormat === 'relative'}
   },
-  runtime: '${runtime}',
+  runtime: '${escapeJsString(runtime)}',
   date_suffix: {
-    just: '${_p('date_suffix.just')}',
-    min: '${_p('date_suffix.min')}',
-    hour: '${_p('date_suffix.hour')}',
-    day: '${_p('date_suffix.day')}',
-    month: '${_p('date_suffix.month')}'
+    just: '${escapeJsString(_p('date_suffix.just'))}',
+    min: '${escapeJsString(_p('date_suffix.min'))}',
+    hour: '${escapeJsString(_p('date_suffix.hour'))}',
+    day: '${escapeJsString(_p('date_suffix.day'))}',
+    month: '${escapeJsString(_p('date_suffix.month'))}'
   },
   copyright: ${j(copy)},
-  lightbox: '${lightbox}',
+  lightbox: '${escapeJsString(lightbox)}',
   Snackbar: ${j(snackbar)},
   source: {
     justifiedGallery: {
-      js: '${assets.flickr_justified_gallery_js}',
-      css: '${assets.flickr_justified_gallery_css}'
+      js: '${escapeJsString(assets.flickr_justified_gallery_js)}',
+      css: '${escapeJsString(assets.flickr_justified_gallery_css)}'
     }
   },
   isPhotoFigcaption: ${flag(theme, 'photofigcaption')},
@@ -293,9 +320,9 @@ export interface GlobalConfigSiteInput {
   postMainColor?: string
 }
 
-/** config_site.pug 的转义规则：反斜杠 / 单引号 / 双引号。 */
+/** config_site.pug 的转义规则：反斜杠 / 引号 / 换行 / `</` / 行分隔符。 */
 function escapeQuote(value: string | undefined): string {
-  return value ? String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"') : ''
+  return value ? escapeJsString(value) : ''
 }
 
 export function buildGlobalConfigSiteScript(input: GlobalConfigSiteInput): string {

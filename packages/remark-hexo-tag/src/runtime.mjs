@@ -80,7 +80,7 @@ export function toHtml(value) {
 
 /**
  * 复刻 hexo-util 的 `escapeHTML()`：只转义 `& < > " '`，用于 `{% mermaid %}`
- * 把源码放进 `<pre>` 时保持字面量。
+ * 把源码放进 `<pre>` 时保持字面量；也用于把用户内容写进 HTML 文本/属性。
  *
  * @param {unknown} value
  * @returns {string}
@@ -92,4 +92,26 @@ export function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+/** 属性值转义（与 escapeHtml 同一套字符，语义上区分用途）。 */
+export function escapeHtmlAttr(value) {
+  return escapeHtml(value)
+}
+
+/**
+ * URL 协议白名单：过滤 `javascript:` / `vbscript:` / `data:` 这类可执行
+ * 协议（浏览器会忽略协议里的空白与控制字符，检测前先归一化）。
+ * 命中时返回 `fallback`（默认空串），其余原样返回。
+ *
+ * @param {unknown} value
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function safeUrl(value, fallback = '') {
+  const url = String(value ?? '').trim()
+  if (!url) return fallback
+  const probe = url.replace(/[\u0000-\u0020\u00a0]+/g, '').toLowerCase()
+  if (/^(?:javascript|vbscript|data):/.test(probe)) return fallback
+  return url
 }

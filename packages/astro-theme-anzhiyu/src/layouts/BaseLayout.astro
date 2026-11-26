@@ -56,6 +56,7 @@ import Search from '../components/third-party/search/index.astro'
 import { resolveAssets } from '../config/assets.ts'
 import { getThemeConfig, readFlag, readNumber, readString } from './theme-context.ts'
 import { createUrlFor, resolveSite, type SiteConfig } from './site.ts'
+import { slugize } from '../utils/slugger.ts'
 
 interface Props {
   /** 站点级元数据；缺省用主题包的中性默认值。 */
@@ -125,6 +126,15 @@ interface Props {
   essay?: unknown
 }
 
+/** 与 Head.astro 的 routePath 同口径：剥掉 Astro base 前缀后的路由路径（root 页为 `/`）。 */
+const astroBasePath = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL
+const routePathname = (() => {
+  const pathname = Astro.url.pathname
+  if (!astroBasePath) return pathname
+  const rest = pathname.slice(astroBasePath.length)
+  return rest.startsWith('/') ? rest : `/${rest}`
+})()
+
 const {
   site: siteInput,
   title,
@@ -135,7 +145,7 @@ const {
   ogImage,
   ogType,
   isHome = false,
-  isCurrentRoot = Astro.url.pathname === '/',
+  isCurrentRoot = routePathname === '/',
   is404 = false,
   aside,
   pageUrl,
@@ -156,6 +166,8 @@ const {
 } = Astro.props
 
 const site = resolveSite(siteInput)
+/** 站内链接前缀（子路径部署跟随 site.root）。 */
+const urlFor = createUrlFor(site.root ?? '/')
 const theme = getThemeConfig()
 
 /* ------------------------------------------------------------------ */
@@ -231,7 +243,7 @@ for (const post of posts) {
 /** 上游 `site.tags` 的等价投影：cloudTags 需要的 `{ name, path, length }`。 */
 const sidebarTags = [...tagCounts.entries()].map(([name, length]) => ({
   name,
-  path: `tags/${encodeURIComponent(name)}/`,
+  path: `tags/${encodeURI(slugize(name))}/`,
   length,
 }))
 
@@ -527,11 +539,11 @@ const rightMenuTranslateText = translateConfig.rightMenuMsgDefault
           <i class="anzhiyufont anzhiyu-icon-shuffle"></i>
           <span>随便逛逛</span>
         </a>
-        <a class="rightMenu-item menu-link" href="/categories/">
+        <a class="rightMenu-item menu-link" href={urlFor('/categories/')}>
           <i class="anzhiyufont anzhiyu-icon-cube"></i>
           <span>博客分类</span>
         </a>
-        <a class="rightMenu-item menu-link" href="/tags/">
+        <a class="rightMenu-item menu-link" href={urlFor('/tags/')}>
           <i class="anzhiyufont anzhiyu-icon-tags"></i>
           <span>文章标签</span>
         </a>

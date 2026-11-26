@@ -406,6 +406,8 @@ function parseStartTag(html, lt, stats) {
 //   N17 上游 pjax 库   → 被 ClientRouter 取代的 pjax.min.js 与 `new Pjax(...)` 初始化
 //   N18 主 CSS 路径    → /css/index.css ↔ /_astro/*.css（内容由 verify-css 单独比）
 //   N19 中文空白       → 两侧含 CJK 且去掉空白后相等时放行
+//   N25 微博分享 URL   → share.php 查询参数 percent-encoding 归一（U11）
+//   N26 CountUp 参数   → selfInfo-content-year 非数字第 3 参归一成 0（U10，SyntaxError 修复）
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ASTRO_ATTR_PREFIX = /^data-astro[-:]/
@@ -514,6 +516,17 @@ function originOf(value) {
 function normalizeUrl(value, ctx) {
   if (!value) return value
   let out = value
+
+  // N25：微博分享链接的查询参数编码（U11）——encodeURIComponent 与裸写对
+  // weibo 是同一个分享 URL；两侧统一 decodeURIComponent 归一后再比。
+  // 非法百分号序列保持原样，不影响其余归一化。
+  if (/^https?:\/\/service\.weibo\.com\/share\/share\.php/i.test(out)) {
+    try {
+      out = decodeURIComponent(out)
+    } catch {
+      /* 保持原样 */
+    }
+  }
 
   for (const origin of ctx.siteOrigins) {
     if (out.toLowerCase().startsWith(origin)) {
@@ -1257,11 +1270,23 @@ function excerptEquivalent(a, b) {
 
 /** script/style 内容归一化：换行 + 缩进折叠成单个空格；行内空格保留 */
 function normalizeScriptBody(text) {
-  return text
-    .replace(/\r\n?/g, '\n')
-    .replace(/[ \t]*\n[\s]*/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .trim()
+  return (
+    text
+      .replace(/\r\n?/g, '\n')
+      .replace(/[ \t]*\n[\s]*/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .trim()
+      // N26：about 页 CountUp 参数修复（U10）——上游把非数字的 selfInfoContentYear
+      // 原样插进数值参数位（如 `1.7.1`，整段脚本是 SyntaxError）；修复后兜底成 0。
+      // 两侧统一把「非数字字面量的第 3 参」归一成 0，只影响 selfInfo-content-year 这一处。
+      .replace(
+        /new CountUp\("selfInfo-content-year", 0, ([^,]+), 0, 2,/g,
+        (all, arg) =>
+          /^-?\d+(\.\d+)?$/.test(arg.trim())
+            ? all
+            : 'new CountUp("selfInfo-content-year", 0, 0, 0, 2,',
+      )
+  )
 }
 
 function formatAttr(name, value) {
@@ -1488,6 +1513,12 @@ function parseArgv(argv) {
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
+    /** 取选项值；缺值时给友好报错（外层 catch → exit 2），别让 undefined 流进 Number/path.resolve。 */
+    const needValue = (name) => {
+      const value = argv[++i]
+      if (value === undefined) throw new Error(`${name} 缺少参数值（用法见 --help）`)
+      return value
+    }
     switch (arg) {
       case '--all':
         options.mode = 'all'
@@ -1499,16 +1530,16 @@ function parseArgv(argv) {
         options.verbose = true
         break
       case '--limit':
-        options.limit = Number(argv[++i])
+        options.limit = Number(needValue('--limit'))
         break
       case '--max-diffs':
-        options.maxDiffs = Number(argv[++i])
+        options.maxDiffs = Number(needValue('--max-diffs'))
         break
       case '--filter':
-        options.filter = argv[++i]
+        options.filter = needValue('--filter')
         break
       case '--dump-normalized':
-        options.dumpNormalized = path.resolve(argv[++i])
+        options.dumpNormalized = path.resolve(needValue('--dump-normalized'))
         break
       case '-h':
       case '--help':

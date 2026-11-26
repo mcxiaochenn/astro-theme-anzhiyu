@@ -124,6 +124,123 @@ function tagError(message, source, offset, fileLabel) {
 }
 
 /**
+ * 计算 Markdown 里的「代码区域」：围栏代码块（``` / ~~~）、缩进代码块与行内
+ * 反引号 span 的 `[start, end)` 列表（升序、不重叠）。
+ *
+ * `scanTags` 遇到落在区域内的 `{%` 一律跳过：示例代码里的 `{% tag %}` 只是
+ * 字面量，不该被解析，更不该因为「未知 tag / 未闭合」在严格模式下把构建打断。
+ *
+ * @param {string} source
+ * @returns {Array<[number, number]>}
+ */
+function computeCodeRegions(source) {
+  /** @type {Array<[number, number]>} */
+  const regions = []
+
+  // 行信息：每行的 [start, end)，end 含换行符。
+  /** @type {Array<{ start: number, end: number, text: string }>} */
+  const lines = []
+  {
+    let start = 0
+    for (;;) {
+      const nl = source.indexOf('\n', start)
+      const end = nl === -1 ? source.length : nl + 1
+      lines.push({ start, end, text: source.slice(start, end).replace(/\r?\n$/, '') })
+      if (nl === -1) break
+      start = end
+    }
+  }
+  const isBlankLine = (line) => /^\s*$/.test(line.text)
+  const isIndentedLine = (line) => /^(?: {4}|\t)/.test(line.text)
+  const inRegion = (pos) => regions.some(([s, e]) => pos >= s && pos < e)
+
+  // 1. 围栏代码块：``` / ~~~ 开头（可带 info string），同类且不短于开栏的闭栏结束；
+  //    没有闭栏就延伸到文末。backtick 围栏的 info string 不能含反引号（CommonMark）。
+  for (let i = 0; i < lines.length; i += 1) {
+    const openMatch = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(lines[i].text)
+    if (!openMatch) continue
+    const fence = openMatch[1]
+    if (fence[0] === '`' && openMatch[2].includes('`')) continue
+    let j = i + 1
+    while (j < lines.length) {
+      const closeMatch = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(lines[j].text)
+      if (closeMatch && closeMatch[1][0] === fence[0] && closeMatch[1].length >= fence.length) break
+      j += 1
+    }
+    const end = j < lines.length ? lines[j].end : source.length
+    regions.push([lines[i].start, end])
+    i = j
+  }
+
+  // 2. 缩进代码块：4 空格 / tab 开头的行，块首必须跟在空行或文首之后
+  //    （缩进代码块不能打断段落），块内允许空行，到非缩进非空行为止。
+  for (let i = 0; i < lines.length; i += 1) {
+    if (inRegion(lines[i].start)) continue
+    if (!isIndentedLine(lines[i]) || isBlankLine(lines[i])) continue
+    if (i > 0 && !isBlankLine(lines[i - 1])) continue
+    let last = i
+    let j = i
+    while (j < lines.length && (isBlankLine(lines[j]) || isIndentedLine(lines[j]))) {
+      if (!isBlankLine(lines[j])) last = j
+      j += 1
+    }
+    regions.push([lines[i].start, lines[last].end])
+    i = last
+  }
+
+  // 3. 行内反引号 span：等长反引号串配对才算 span；配不上就按字面量处理。
+  {
+    const skipTaken = (pos) => {
+      for (const [s, e] of regions) if (pos >= s && pos < e) return e
+      return -1
+    }
+    let i = 0
+    while (i < source.length) {
+      const takenEnd = skipTaken(i)
+      if (takenEnd !== -1) {
+        i = takenEnd
+        continue
+      }
+      if (source[i] !== '`') {
+        i += 1
+        continue
+      }
+      let runLen = 0
+      while (i + runLen < source.length && source[i + runLen] === '`') runLen += 1
+      let j = i + runLen
+      let closeEnd = -1
+      while (j < source.length) {
+        const skipEnd = skipTaken(j)
+        if (skipEnd !== -1) {
+          j = skipEnd
+          continue
+        }
+        if (source[j] === '`') {
+          let len = 0
+          while (j + len < source.length && source[j + len] === '`') len += 1
+          if (len === runLen) {
+            closeEnd = j + len
+            break
+          }
+          j += len
+          continue
+        }
+        j += 1
+      }
+      if (closeEnd === -1) {
+        i += runLen
+        continue
+      }
+      regions.push([i, closeEnd])
+      i = closeEnd
+    }
+  }
+
+  regions.sort((a, b) => a[0] - b[0])
+  return regions
+}
+
+/**
  * 扫描整段 Markdown。
  *
  * 默认（严格模式）：未知 tag / 未闭合容器 / 错配 end tag 一律抛错，带
@@ -154,6 +271,44 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>', lenien
   let textStart = 0
   let cursor = 0
 
+  /** 代码区域：落在里面的 `{%` 是示例字面量，跳过不解析。 */
+  const codeRegions = computeCodeRegions(source)
+
+  /**
+   * 查找 tag 的结束 `%}`：跳过单/双引号包裹的字符串内部（与 parseArgs 的引号
+   * 语义一致：任意位置的引号都开一段字符串，支持 `\` 转义）。但字符串必须在
+   * **同一行**内闭合：`don't` 这类撇号、跨行引号都按字面量处理，绝不误吞后续
+   * 的 `%}`（找不到就回退普通 `indexOf`，保持旧有行为）。
+   */
+  const findTagClose = (from) => {
+    let index = from
+    while (index < source.length) {
+      const char = source[index]
+      if (char === '"' || char === "'") {
+        let scan = index + 1
+        let closedAt = -1
+        while (scan < source.length && source[scan] !== '\n') {
+          if (source[scan] === '\\' && scan + 1 < source.length && source[scan + 1] !== '\n') {
+            scan += 2
+            continue
+          }
+          if (source[scan] === char) {
+            closedAt = scan
+            break
+          }
+          scan += 1
+        }
+        if (closedAt !== -1) {
+          index = closedAt + 1
+          continue
+        }
+      }
+      if (char === '%' && source[index + 1] === '}') return index
+      index += 1
+    }
+    return -1
+  }
+
   /** 宽松模式下的 warning（带 文件:行:列），由插件工厂注入的回调去重后输出。 */
   const warn = (message, offset) => {
     if (typeof onWarning !== 'function') return
@@ -171,10 +326,18 @@ export function scanTags(source, { resolve, fileLabel = '<unknown file>', lenien
     const open = source.indexOf('{%', cursor)
     if (open === -1) break
 
+    // 代码块 / 行内代码里的 `{%` 是字面量，跳过整个代码区域。
+    const codeRegion = codeRegions.find(([s, e]) => open >= s && open < e)
+    if (codeRegion) {
+      cursor = codeRegion[1]
+      continue
+    }
+
     let innerStart = open + 2
     if (source[innerStart] === '-') innerStart += 1
 
-    const close = source.indexOf('%}', innerStart)
+    const quoteAwareClose = findTagClose(innerStart)
+    const close = quoteAwareClose === -1 ? source.indexOf('%}', innerStart) : quoteAwareClose
     if (close === -1) {
       if (!lenient) throw tagError('Unterminated Hexo tag: missing `%}`', source, open, fileLabel)
       warn('未终止的 Hexo tag（缺少 `%}`），按原文透传', open)

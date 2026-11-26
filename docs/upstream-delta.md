@@ -26,6 +26,8 @@
 | U7 | 上游仓库约定（换行） | 上游全部 `.styl` / `_config.yml` | 上游文件是 **CRLF**；镜像必须逐字节保持，任何换行归一化都会改 SHA | **保持 CRLF**，禁止格式化 | SHA + 换行统计 |
 | U8 | 上游渲染能力缺失（对照用） | hexo-renderer-marked 7.0.1 | 上游 `hexo g` 不渲染 GFM 脚注（`[^x]` 原样留段落） | 迁移期不改上游；Astro 侧按 GFM 启用，记为已知差异 | P1-6 报告 §7 #3；HTML diff 口径 |
 | U9 | 上游 tag 解析器行为（对照差异） | 1.7.1 `videos` / `sitegroup` 等容器 tag | 容器吞掉紧邻其前的 Markdown 标题，基线留下 `## xxx` 字面量（不进 TOC） | **不改上游**；Astro 侧按 GFM 渲染标题，diff 走 N21 双形态豁免（跳过 `pre/code/textarea`） | N21 口径 + `/2025/04/01/tags-media/` 正文/TOC 对齐；首页摘要 `## videos` 归零 |
+| U10 | 上游脚本语法错误（红线豁免：SyntaxError 修复） | `about.pug` 的 `new CountUp("selfInfo-content-year", 0, #{selfInfoContentYear}, 0, 2, …)` | 基线 `about.yml` 的 `selfInfoContentYear: 1.7.1`（本页当「主题版本」展示）被原样插进数值参数位，整段 `initAboutPage` 脚本是 SyntaxError | **已修复（fix-plan 2.1.3）**：非数字/空值兜底 `0`；diff 走 N26 归一（非数字第 3 参两侧归一成 0） | N26 口径 + `/about/` 脚本 diff 归零 |
+| U11 | 上游 URL 拼接缺陷（红线豁免：转义/编码修复） | `ptool.pug` 微博分享 `share.php?title=…&url=…&pic=…` | 上游参数裸拼：title 含 `&`/`#`/`+`/`%` 会截断或注入查询参数 | **已修复（fix-plan 2.2.6）**：参数改 `encodeURIComponent`；diff 走 N25 归一（share.php 查询 percent-encoding 归一） | N25 口径 + 9 个文章页 `a.share-button[href]` diff 归零 |
 
 > U3 已在 **P1-11** 修复（插件复刻 Hexo define 层），定位实验与修复前后数据见 §3；U6 是「即使 D9 修好也不能逐字节一致」的机制解释，也是当前唯一剩余差异（−228 B），详见 §4。
 

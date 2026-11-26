@@ -99,7 +99,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function translateInitialization() {
     translateButtonObject = document.getElementById('translateLink');
-    translateRightMenuButtonObject = document.getElementById('menu-translate').querySelector('span');
+    // #menu-translate 是右键菜单项，菜单节点可能不存在，不能直接 .querySelector
+    const menuTranslate = document.getElementById('menu-translate');
+    translateRightMenuButtonObject = menuTranslate && menuTranslate.querySelector('span');
 
     if (translateButtonObject || translateRightMenuButtonObject) {
       if (currentEncoding !== targetEncoding) {
@@ -112,7 +114,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (translateRightMenuButtonObject) {
           translateRightMenuButtonObject.textContent = textContent;
         }
-  
+      }
+
+      // fix-plan 3.3.2：换页后正文是新页面（默认编码），只要目标语言是繁体
+      // （targetEncoding === 1 → zh-TW），无论 currentEncoding 是否相等都要重翻，
+      // 否则新页面正文会停在未翻译状态。
+      if (currentEncoding !== targetEncoding || targetEncoding === 1) {
+        currentEncoding = defaultEncoding;
         setLang();
         setTimeout(translateBody, translateDelay);
       }

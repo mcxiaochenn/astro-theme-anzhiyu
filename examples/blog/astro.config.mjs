@@ -486,10 +486,14 @@ const PWA_SPARE_URLS_SW = `
 
   function fetchWithTimeout(request) {
     return new Promise(function (resolve, reject) {
+      // 真超时：AbortController 中止底层 fetch，而不是只 reject 外层 Promise
+      // （旧实现超时后原请求还挂着，网络栈继续白等）。
+      var controller = new AbortController()
       var timer = setTimeout(function () {
+        controller.abort()
         reject(new Error('P7-1: 原始 URL 超时 ' + TIMEOUT_MS + 'ms'))
       }, TIMEOUT_MS)
-      fetch(request).then(
+      fetch(request, { signal: controller.signal }).then(
         function (response) {
           clearTimeout(timer)
           resolve(response)
@@ -527,6 +531,14 @@ const PWA_SPARE_URLS_SW = `
 })()
 `
 
+/** 与 defineConfig 的 base 同源：`DEPLOY_SITE_ROOT` 归一化成 `/xxx/`（未设置为 `/`）。 */
+const BASE_URL = (() => {
+  const raw = process.env.DEPLOY_SITE_ROOT
+  if (!raw) return '/'
+  const base = raw.startsWith('/') ? raw : `/${raw}`
+  return base.endsWith('/') ? base : `${base}/`
+})()
+
 /** 上游 theme.config.yml 的 pwa.manifest 指向的图标（都在 examples/blog/public/img/siteicon/）。 */
 const PWA_MANIFEST = {
   // 站点身份暂时与 src/data/site-identity.ts 的默认值保持一致（Phase 7 之前没有站点配置层）
@@ -534,26 +546,27 @@ const PWA_MANIFEST = {
   short_name: 'AnZhiYu',
   description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
   lang: 'zh-CN',
-  start_url: '/',
-  scope: '/',
+  // 子路径部署（DEPLOY_SITE_ROOT）时 start_url / scope / 图标都挂 base 前缀
+  start_url: BASE_URL,
+  scope: BASE_URL,
   display: 'standalone',
   theme_color: PWA_THEME_COLOR,
   background_color: PWA_BACKGROUND_COLOR,
   icons: [
     {
-      src: '/img/siteicon/manifest-icon-192.maskable.png',
+      src: `${BASE_URL}img/siteicon/manifest-icon-192.maskable.png`,
       sizes: '192x192',
       type: 'image/png',
       purpose: 'maskable',
     },
     {
-      src: '/img/siteicon/manifest-icon-512.maskable.png',
+      src: `${BASE_URL}img/siteicon/manifest-icon-512.maskable.png`,
       sizes: '512x512',
       type: 'image/png',
       purpose: 'maskable',
     },
     {
-      src: '/img/siteicon/apple-icon-180.png',
+      src: `${BASE_URL}img/siteicon/apple-icon-180.png`,
       sizes: '180x180',
       type: 'image/png',
       purpose: 'any',
@@ -621,10 +634,14 @@ function anzhiyuPwaExtras() {
         for (const file of htmlFiles) {
           let html = readFileSync(file, 'utf8')
           if (html.includes('rel="manifest"')) continue
-          if (!html.includes('</head>') || !html.includes('</body>')) continue
-          html = html
-            .replace('</head>', `${headTags}</head>`)
-            .replace('</body>', `${registerScript}</body>`)
+          // 用 lastIndexOf：正文（代码块）里可能出现字面量 </body> / </head>，
+          // 第一个匹配不是真正的闭合标签。
+          const headAt = html.lastIndexOf('</head>')
+          const bodyAt = html.lastIndexOf('</body>')
+          if (headAt === -1 || bodyAt === -1) continue
+          // 从后往前插，避免前一处插入改变后一处下标
+          html = html.slice(0, bodyAt) + registerScript + html.slice(bodyAt)
+          html = html.slice(0, headAt) + headTags + html.slice(headAt)
           writeFileSync(file, html, 'utf8')
           injected++
         }

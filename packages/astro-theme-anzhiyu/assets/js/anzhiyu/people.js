@@ -203,15 +203,31 @@ function init() {
 
 if (!isbindPjax) {
   isbindPjax = true;
+  // fix-plan 3.3.6：pjax:success 的延迟初始化句柄要留着，换页时 clearTimeout，
+  // 否则 300ms 内连续换页会在已销毁的 canvas 上重新挂 gsap.ticker。
+  let peopleInitTimer = null;
+  const clearPeopleInitTimer = () => {
+    if (peopleInitTimer) {
+      clearTimeout(peopleInitTimer);
+      peopleInitTimer = null;
+    }
+  };
   document.addEventListener("pjax:send", function () {
     // 离开页面时清理
+    clearPeopleInitTimer();
+    cleanupPeopleCanvas();
+  });
+  window.addEventListener("astro:before-swap", function () {
+    clearPeopleInitTimer();
     cleanupPeopleCanvas();
   });
   document.addEventListener("pjax:success", function () {
     peoplecanvasEl = document.getElementById("peoplecanvas");
     if (peoplecanvasEl) {
       ctx = peoplecanvasEl.getContext("2d");
-      setTimeout(function () {
+      clearPeopleInitTimer();
+      peopleInitTimer = setTimeout(function () {
+        peopleInitTimer = null;
         if (!peoplecanvasEl) return;
         resize();
         if (gsap.ticker) gsap.ticker.add(render);

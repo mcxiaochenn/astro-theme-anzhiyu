@@ -18,7 +18,7 @@
 
 import { parse as parseYaml } from 'yaml'
 
-import { commaArgs, escapeHtml, urlFor } from '../../runtime.mjs'
+import { commaArgs, escapeHtml, escapeHtmlAttr, safeUrl, urlFor } from '../../runtime.mjs'
 
 /** B 站播放图标（上游原样内联，勿改）。 */
 const PLAY_ICON =
@@ -43,9 +43,9 @@ const COIN_ICON =
  * @returns {string}
  */
 function bilibili({ args }) {
-  const id = (args[0] || '').replace(/.*video\/(.*)\/?.*/, '$1')
-  const time = args[1]
-  const hiddenDesc = args[2]
+  const id = escapeHtml((args[0] || '').replace(/.*video\/(.*)\/?.*/, '$1'))
+  const time = escapeHtml(args[1])
+  const hiddenDesc = escapeHtml(args[2])
   const api = 'https://api.320.ink/api/b'
 
   return `
@@ -92,8 +92,11 @@ function bilibili({ args }) {
  */
 function dogeplayer({ args }) {
   const userId = args[0]
-  const vcode = args[1]
+  const vcode = escapeHtml(args[1])
   const divId = `player_${vcode}`
+  // userId 直接落在脚本的数值位：只接受纯数字，其余一律 0，杜绝脚本注入。
+  const userIdNum = Number(String(userId ?? '').trim())
+  const safeUserId = Number.isFinite(userIdNum) ? userIdNum : 0
 
   return (
     `<div id="${divId}"></div>\n` +
@@ -102,7 +105,7 @@ function dogeplayer({ args }) {
     '  setTimeout(() => {\n' +
     '    var dogePlayer = new DogePlayer({\n' +
     `        container: document.getElementById("${divId}"),\n` +
-    `        userId: ${userId},\n` +
+    `        userId: ${safeUserId},\n` +
     `        vcode: "${vcode}",\n` +
     '        autoPlay: false\n' +
     '    });\n' +
@@ -138,20 +141,20 @@ function mermaid(ctx) {
  */
 function link(ctx) {
   const parts = commaArgs(ctx.args)
-  const title = (parts[0] || '').trim()
-  const sitename = (parts[1] || '').trim()
-  const target = (parts[2] || '').trim()
+  const title = escapeHtml((parts[0] || '').trim())
+  const sitename = escapeHtml((parts[1] || '').trim())
+  const target = safeUrl((parts[2] || '').trim())
   const imgUrl = (parts[3] || '').trim()
 
   const isRelativePath = target.startsWith('/') && !target.startsWith('//')
   const isExplicitInside = imgUrl === 'true'
   const insideStation = isRelativePath || isExplicitInside
-  const favicon = ctx.options.favicon || '/favicon.ico'
+  const favicon = safeUrl(ctx.options.favicon || '/favicon.ico')
 
   let iconUrl = ''
   let useAutoFavicon = false
   if (imgUrl && imgUrl !== 'true') {
-    iconUrl = imgUrl
+    iconUrl = safeUrl(imgUrl)
   } else if (insideStation) {
     iconUrl = favicon
   } else {
@@ -166,11 +169,11 @@ function link(ctx) {
   const hasIcon = iconUrl || useAutoFavicon
   const targetAttr = insideStation ? '' : 'target="_blank" rel="noopener external nofollow noreferrer"'
 
-  return `<div class='anzhiyu-tag-link'><a class="tag-Link" ${targetAttr} href="${urlFor(target)}">
+  return `<div class='anzhiyu-tag-link'><a class="tag-Link" ${targetAttr} href="${escapeHtmlAttr(urlFor(target))}">
     <div class="tag-link-tips">${insideStation ? '站内地址' : '引用站外地址'}</div>
     <div class="tag-link-bottom">
-        <div class="tag-link-left"${hasIcon ? ` data-icon="${iconUrl}"` : ''}>
-          <img class="tag-link-favicon" src="${iconUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="${
+        <div class="tag-link-left"${hasIcon ? ` data-icon="${escapeHtmlAttr(iconUrl)}"` : ''}>
+          <img class="tag-link-favicon" src="${escapeHtmlAttr(iconUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" style="${
             hasIcon ? '' : 'display:none'
           }" alt="favicon"/>
           <i class="anzhiyufont anzhiyu-icon-link" style="${hasIcon ? 'display:none' : 'display:flex'}"></i>
@@ -191,43 +194,58 @@ function link(ctx) {
  * @returns {object[]}
  */
 function flink(ctx) {
-  const groups = parseYaml(ctx.trimmedBody) || []
-  const errorImg = urlFor(ctx.options.flinkErrorImg || '/img/friend_404.gif')
+  // 非法 YAML / 非数组 / 数组里的空项与非对象项都不能把渲染打崩。
+  let groups = []
+  try {
+    const parsed = parseYaml(ctx.trimmedBody)
+    if (Array.isArray(parsed)) groups = parsed
+  } catch {
+    groups = []
+  }
+  groups = groups.filter((group) => group && typeof group === 'object' && !Array.isArray(group))
+  const errorImg = safeUrl(urlFor(ctx.options.flinkErrorImg || '/img/friend_404.gif'))
   let result = ''
 
   for (const group of groups) {
-    const className = group.class_name ? `<div class="flink-name">${group.class_name}</div>` : ''
-    const classDesc = group.class_desc ? `<div class="flink-desc">${group.class_desc}</div>` : ''
+    const className = group.class_name ? `<div class="flink-name">${escapeHtml(group.class_name)}</div>` : ''
+    const classDesc = group.class_desc ? `<div class="flink-desc">${escapeHtml(group.class_desc)}</div>` : ''
     let listResult = ''
     let listContainerClass = ''
 
+    const linkList = Array.isArray(group.link_list)
+      ? group.link_list.filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+      : []
+
     if (group.flink_style === 'anzhiyu') {
       listContainerClass = 'anzhiyu-flink-list'
-      for (const item of group.link_list || []) {
+      for (const item of linkList) {
+        const name = escapeHtml(item.name)
+        const descr = escapeHtml(item.descr)
         listResult += `
             <div class="flink-list-item">
-              <a href="${item.link}" title="${item.name}" class="cf-friends-link" target="_blank">
+              <a href="${escapeHtmlAttr(safeUrl(item.link))}" title="${escapeHtmlAttr(item.name)}" class="cf-friends-link" target="_blank">
                 <div class="flink-item-icon">
-                  <img class="no-lightbox cf-friends-avatar" src="${item.avatar}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${item.name}" />
+                  <img class="no-lightbox cf-friends-avatar" src="${escapeHtmlAttr(safeUrl(item.avatar))}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${escapeHtmlAttr(item.name)}" />
                 </div>
                 <div class="flink-item-info">
-                  <div class="flink-item-name">${item.name}</div>
-                  <div class="flink-item-desc" title="${item.descr}">${item.descr}</div>
+                  <div class="flink-item-name">${name}</div>
+                  <div class="flink-item-desc" title="${escapeHtmlAttr(item.descr)}">${descr}</div>
                 </div>
               </a>
             </div>`
       }
     } else {
       listContainerClass = 'flexcard-flink-list'
-      for (const item of group.link_list || []) {
+      for (const item of linkList) {
+        const name = escapeHtml(item.name)
         listResult += `
-              <a href="${item.link}" title="${item.name}" target="_blank" class="flink-list-card cf-friends-link">
+              <a href="${escapeHtmlAttr(safeUrl(item.link))}" title="${escapeHtmlAttr(item.name)}" target="_blank" class="flink-list-card cf-friends-link">
                 <div class="wrapper cover">
-                    <img class="no-lightbox cover fadeIn" src="${item.siteshot}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${item.name}" />
+                    <img class="no-lightbox cover fadeIn" src="${escapeHtmlAttr(safeUrl(item.siteshot))}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${escapeHtmlAttr(item.name)}" />
                 </div>
                 <div class="info">
-                  <img class="no-lightbox cf-friends-avatar flink-avatar" src="${item.avatar}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${item.name}"/>
-                  <span class="flink-sitename cf-friends-name">${item.name}</span>
+                  <img class="no-lightbox cf-friends-avatar flink-avatar" src="${escapeHtmlAttr(safeUrl(item.avatar))}" onerror='this.onerror=null;this.src="${errorImg}"' alt="${escapeHtmlAttr(item.name)}"/>
+                  <span class="flink-sitename cf-friends-name">${name}</span>
                 </div>
               </a>`
       }
@@ -260,7 +278,14 @@ function tip(ctx) {
  * @returns {string}
  */
 function intCard({ args }) {
-  const [linkUrl, img, tipText, cardTitle, logo, title, subTitle] = args
+  const [rawLinkUrl, rawImg, rawTipText, rawCardTitle, rawLogo, rawTitle, rawSubTitle] = args
+  const linkUrl = safeUrl(rawLinkUrl)
+  const img = safeUrl(rawImg)
+  const logo = safeUrl(rawLogo)
+  const tipText = escapeHtml(rawTipText)
+  const cardTitle = escapeHtml(rawCardTitle)
+  const title = escapeHtml(rawTitle)
+  const subTitle = escapeHtml(rawSubTitle)
   const defaultTip = '最爱'
   const defaultCardTitle = '最爱'
 
@@ -269,14 +294,14 @@ function intCard({ args }) {
       ? `
       <div class="introduction-card-bottom">
         <div class="left">
-          <img src="${urlFor(logo || '')}" class="no-lightbox" alt="introduction"/>
+          <img src="${escapeHtmlAttr(urlFor(logo || ''))}" class="no-lightbox" alt="introduction"/>
           <div class="info">
             <div class="title">${title || ''}</div>
             <div class="subTitle">${subTitle || ''}</div>
           </div>
         </div>
         <div class="right">
-          <a href="${urlFor(linkUrl)}" tableindex="-1" class="no-text-decoration">前往</a>
+          <a href="${escapeHtmlAttr(urlFor(linkUrl))}" tableindex="-1" class="no-text-decoration">前往</a>
         </div>
       </div>
     `
@@ -292,7 +317,7 @@ function intCard({ args }) {
           <div class="int-tip">${tipText || defaultTip}</div>
           <div class="int-cardTitle">${cardTitle || defaultCardTitle}</div>
         </div>
-        <img src="${urlFor(img)}" class="no-lightbox" alt="introduction"/>
+        <img src="${escapeHtmlAttr(urlFor(img))}" class="no-lightbox" alt="introduction"/>
       </div>
       ${introductionCardBottom}
     </div>

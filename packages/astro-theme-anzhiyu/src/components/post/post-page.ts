@@ -29,7 +29,8 @@ import { createUrlFor, type PostHrefResolver } from '../../layouts/site.ts'
 import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { rewriteHeadings, SWALLOWED_HEADING_RE, type HeadingInfo } from '../../utils/slugger.ts'
 
-const urlFor = createUrlFor('/')
+// 子路径部署跟随 Astro base（import.meta.env.BASE_URL），与页面侧 urlFor 同口径
+const urlFor = createUrlFor(import.meta.env.BASE_URL || '/')
 
 /* ------------------------------------------------------------------ */
 /* 输入 / 输出类型                                                     */
@@ -163,7 +164,8 @@ function applyExternalLinks(
 
 function safeHost(value: string): string {
   try {
-    return new URL(value).hostname
+    // 协议相对（//example.com）没有 base 时 new URL 会抛，先给一个假 base 再取 host。
+    return new URL(value, 'https://example.invalid').hostname
   } catch {
     return ''
   }

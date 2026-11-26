@@ -41,6 +41,7 @@ import {
   pageCount,
   slicePage,
   toArticleSortPosts,
+  urlFor,
 } from '../archives/_data.ts'
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -96,7 +97,7 @@ const pageTitle = `${data.t('page.category')}: ${term.name}`
       <i class="anzhiyufont anzhiyu-icon-shapes" />
       <div id="catalog-list">
         <div class="catalog-list-item">
-          <a href="/">首页</a>
+          <a href={BASELINE_SITE.root}>首页</a>
         </div>
         <Fragment set:html={catalogListHtml(data.categories)} />
       </div>
@@ -107,7 +108,7 @@ const pageTitle = `${data.t('page.category')}: ${term.name}`
       >
         <i class="anzhiyufont anzhiyu-icon-angle-double-right" />
       </div>
-      <a class="catalog-more" href="/categories/">更多</a>
+      <a class="catalog-more" href={urlFor('/categories/')}>更多</a>
     </div>
     <div class="article-sort-title">{`${data.t('page.category')} - ${term.name}`}</div>
     <ArticleSort posts={posts} current={current} perPage={SITE_PER_PAGE} />

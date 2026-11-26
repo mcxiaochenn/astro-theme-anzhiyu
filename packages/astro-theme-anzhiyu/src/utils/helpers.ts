@@ -75,6 +75,19 @@ export function escapeHtml(str: string): string {
   return str
 }
 
+/**
+ * 属性值（href / id 等）转义：只处理 `& < > "`，**不**动 `/` `=`（escapeHtml 的
+ * marked 式全量转义会把 URL 变成 `&#x2F;…`，破坏与上游产物的字节对拍）。
+ * 单引号属性外的 `'` 无害；实体同样不二次转义。
+ */
+export function escapeAttr(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&(?!#\d+;|#x[0-9a-fA-F]+;|[a-zA-Z][a-zA-Z0-9]*;)/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 const STATE_PLAINTEXT = 0
 const STATE_HTML = 1
 const STATE_COMMENT = 2
@@ -1048,7 +1061,7 @@ export function cloudTags(options: CloudTagsOptions, input: CloudTagsInput): str
     if (matchingTag) {
       style += ' font-weight: 500; color: var(--anzhiyu-lighttext)'
     }
-    result += `<a href="${input.urlFor(tag.path)}" style="${style}">${tag.name}<sup>${tag.length}</sup></a>`
+    result += `<a href="${escapeAttr(input.urlFor(tag.path))}" style="${style}">${escapeHtml(tag.name)}<sup>${tag.length}</sup></a>`
   }
   return result
 }
@@ -1229,6 +1242,11 @@ export interface RandomGeneratorInput {
 /**
  * 上游 `random` **generator**（不是 helper）：生成 `anzhiyu/random.js` 里的
  * 「随机文章 / 随机友链」前端脚本。这里返回 `{ path, data }` 纯数据。
+ *
+ * @deviation footer 友链脚本比上游多三处安全补丁（fix-plan 2.2.2）：
+ *   friendChainRandomTransmission 空链表守卫、友链 name/link 写 HTML 前转义、
+ *   #friend-links-in-footer 判空。check-helpers C8 用 applyRandomSafetyPatches
+ *   对齐上游产物后仍逐字节对拍。
  */
 export function randomGenerator(input: RandomGeneratorInput): { path: string; data: string } {
   const pjaxEn = input.pjaxEnabled ?? false
@@ -1260,6 +1278,7 @@ export function randomGenerator(input: RandomGeneratorInput): { path: string; da
     result += `var friend_link_list=${JSON.stringify(linkList)};
     var refreshNum = 1;
     function friendChainRandomTransmission() {
+      if (!friend_link_list.length) return;
       const randomIndex = Math.floor(Math.random() * friend_link_list.length);
       const { name, link } = friend_link_list.splice(randomIndex, 1)[0];
       Snackbar.show({
@@ -1298,14 +1317,16 @@ export function randomGenerator(input: RandomGeneratorInput): { path: string; da
   
       let html = finalLinkList
         .map(({ name, link }) => {
-          const returnInfo = "<a class='footer-item' href='" + link + "' target='_blank' rel='noopener nofollow'>" + name + "</a>"
+          const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          const returnInfo = "<a class='footer-item' href='" + esc(link) + "' target='_blank' rel='noopener nofollow'>" + esc(name) + "</a>"
           return returnInfo;
         })
         .join("");
   
       html += "<a class='footer-item' href='/link/'>更多</a>";
 
-      document.getElementById("friend-links-in-footer").innerHTML = html;
+      const footerLinksEl = document.getElementById("friend-links-in-footer");
+      if (footerLinksEl) footerLinksEl.innerHTML = html;
 
       setTimeout(()=>{
         footerRandomFriendsBtn.style.opacity = "1";
@@ -1544,8 +1565,8 @@ export function tagsPageList(tags: ReadonlyArray<TagsPageItemLike>): string {
   let html = ''
   for (const item of sortedTags) {
     html += `
-      <a href="/${item.path}" id="/${item.path}">
-        <span class="tags-punctuation">#</span>${item.name}
+      <a href="${escapeAttr(`/${item.path}`)}" id="${escapeAttr(`/${item.path}`)}">
+        <span class="tags-punctuation">#</span>${escapeHtml(item.name)}
         <span class="tagsPageCount">${item.length}</span>
       </a>
     `

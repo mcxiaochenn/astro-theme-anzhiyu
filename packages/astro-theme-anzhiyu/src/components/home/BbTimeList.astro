@@ -54,8 +54,10 @@ const urlFor = createUrlFor(site.root ?? '/')
 /** 上游 :4-5 的两种 onclick/href 形态。本地 pjax 由 ClientRouter + head/runtime.ts shim
  *  取代，`pjax.loadUrl` 契约保留（runtime.ts:166-173）。 */
 const pjaxEnabled = readFlag(theme.pjax, 'enable')
-const onclickValue = pjaxEnabled ? 'pjax.loadUrl("/essay/");' : undefined
-const hrefValue = pjaxEnabled ? 'javascript:void(0);' : '/essay/'
+// 子路径部署：/essay/ 前缀跟随 site.root（onclick 里的 JS 字符串同源）
+const essayUrl = urlFor('/essay/')
+const onclickValue = pjaxEnabled ? `pjax.loadUrl("${essayUrl}");` : undefined
+const hrefValue = pjaxEnabled ? 'javascript:void(0);' : essayUrl
 
 /** 上游 :17：`url_for(theme.home_top.swiper.swiper_js)`。 */
 const swiperJsUrl = urlFor(theme.home_top.swiper.swiper_js)

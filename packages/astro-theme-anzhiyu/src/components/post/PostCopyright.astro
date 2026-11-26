@@ -27,6 +27,7 @@ import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { tp } from '../../i18n/index.ts'
 import { lazyImageAttrs } from '../layout/lazyload.ts'
 import { categoryHref } from './post-page.ts'
+import { escapeJsString } from '../head/global-config.ts'
 import type { PreparedPost } from './post-list.ts'
 import PostPtool from './PostPtool.astro'
 import ShareBox from './ShareBox.astro'
@@ -79,7 +80,15 @@ const imgFront = copy.copyright_author_img_front || avatar
 const authorLink = copy.copyright_author_link || '/'
 
 const decode = copy.decode === true
-const urlForCopy = decode ? decodeURI(articleUrl) : articleUrl
+// URL 含非法 % 序列时 decodeURI 会抛 URIError，兜底回原文。
+let urlForCopy = articleUrl
+if (decode) {
+  try {
+    urlForCopy = decodeURI(articleUrl)
+  } catch {
+    urlForCopy = articleUrl
+  }
+}
 
 /**
  * `_p('post.copyright.copyright_content', license_url, license, config.url, config.title)`
@@ -144,7 +153,7 @@ const categories = post.categories
             </a>
           )}
           <a class="post-copyright-title">
-            <span onclick={`rm.copyPageUrl('${urlForCopy}')`}>{post.title}</span>
+            <span onclick={`rm.copyPageUrl('${escapeJsString(urlForCopy)}')`}>{post.title}</span>
           </a>
         </div>
         <PostPtool

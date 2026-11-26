@@ -102,7 +102,9 @@ export function hexoPageUrl(site: SiteMeta, pathname: string): string {
 
 /** 404 页的 `page.path` 就是 `404.html`（上游 404 generator 的 path 原样）。 */
 export function hexoNotFoundPageUrl(site: SiteMeta): string {
-  return `${site.url.replace(/\/+$/, '')}/404.html`
+  // 子路径部署（root ≠ '/'）时 404 页挂在 root 之下，不能写死根路径
+  const root = (site.root || '/').replace(/\/+$/, '')
+  return `${site.url.replace(/\/+$/, '')}${root}/404.html`
 }
 
 /** 站点时区日期格式化器：`date()` / `full_date()` / `date_xml()` 的等价实现。 */
@@ -113,11 +115,12 @@ const dateFormatter = createSiteDateFormatter({
   timeFormat: TIME_FORMAT,
 })
 
-/** 上游 `url_for()`（本站 root 为 `/`，只做站内前缀 + 非 ASCII 编码）。 */
-function urlFor(path: string): string {
+/** 上游 `url_for()`：站内路径拼 `BASELINE_SITE.root` 前缀 + 非 ASCII 编码（子路径部署兼容）。 */
+export function urlFor(path: string): string {
   if (/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(path) || path.startsWith('data:')) return path
+  const root = (BASELINE_SITE.root || '/').replace(/\/+$/, '')
   const rooted = path.startsWith('/') ? path : `/${path}`
-  return encodeURI(rooted)
+  return encodeURI(`${root}${rooted}`)
 }
 
 /* ==================================================================== */

@@ -45,6 +45,7 @@ import { getThemeConfig } from '../../layouts/theme-context.ts'
 import { createUrlFor, type SiteConfig } from '../../layouts/site.ts'
 import { resolveAssets } from '../../config/assets.ts'
 import { buildLogJs } from './log-js.ts'
+import { escapeJsString } from './global-config.ts'
 /* P5-2：additional-js.pug 里「第三方集成」段落的组件化挂载（P5-2）。
  * 位置全部对齐上游 additional-js.pug 的行号，见各 JSX 处的注释。 */
 import Pangu from '../third-party/pangu.astro'
@@ -190,7 +191,7 @@ const peopleScript = `if (typeof gsap === "object") {
       GLOBAL_CONFIG_SITE.isPost 判断，组件内部已实现，无需 page prop） */}
   <Pangu />
 
-  {metingApi && <script is:inline set:html={`var meting_api = "${metingApi}";`}></script>}
+  {metingApi && <script is:inline set:html={`var meting_api = "${escapeJsString(metingApi)}";`}></script>}
 
   {universeEnabled && (
     <>
@@ -201,7 +202,7 @@ const peopleScript = `if (typeof gsap === "object") {
 
   {consoleEnabled && <script is:inline set:html={logScript}></script>}
 
-  <script is:inline async src="/anzhiyu/random.js"></script>
+  <script is:inline async src={urlFor('/anzhiyu/random.js')}></script>
 
   {/* additional-js.pug:40-42 —— 页脚计时器 #runtime（footer.runtime.enable） */}
   <Runtime />
@@ -249,7 +250,7 @@ const peopleScript = `if (typeof gsap === "object") {
   <NewestComments page={{ pageType }} />
 
   {visitorMailEnabled && (
-    <script is:inline set:html={`var visitorMail = "${str(theme.visitorMail, 'mail')}";`}></script>
+    <script is:inline set:html={`var visitorMail = "${escapeJsString(str(theme.visitorMail, 'mail'))}";`}></script>
   )}
 
   <script is:inline async data-pjax data-astro-rerun src={assetUrl('waterfall')}></script>

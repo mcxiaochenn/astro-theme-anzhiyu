@@ -91,7 +91,7 @@ const copyUrlScript = `function copyCurrentPageUrl() {
               <a
                 class="share-button"
                 target="_blank"
-                href={`https://service.weibo.com/share/share.php?title=${siteTitle}&url=${url}&pic=${bgImg}`}
+                href={`https://service.weibo.com/share/share.php?title=${encodeURIComponent(siteTitle)}&url=${encodeURIComponent(url)}&pic=${encodeURIComponent(bgImg)}`}
                 rel="external nofollow noreferrer noopener"
               >
                 <i class="anzhiyufont anzhiyu-icon-weibo" />

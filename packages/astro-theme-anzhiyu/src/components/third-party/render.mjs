@@ -140,7 +140,8 @@ const SPLASH_SIZES = [
 export function renderPwa(theme) {
   if (!flag(theme.pwa, 'enable')) return ''
   const p = obj(theme.pwa)
-  const root = '/'
+  // 子路径部署跟随 Astro base（import.meta.env.BASE_URL）
+  const root = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.BASE_URL) || '/'
   const url = (v) => (v ? `${root}${String(v).replace(/^\/+/, '')}` : '')
   const out = []
   out.push(`<link${attrs({ rel: 'manifest', href: url(p.manifest) })}>`)
@@ -158,7 +159,7 @@ export function renderPwa(theme) {
       for (const orientation of ['portrait', 'landscape']) {
         const pw = orientation === 'portrait' ? w : h
         const ph = orientation === 'portrait' ? h : w
-        const href = `/img/siteicon/apple-splash-${pw * r}-${ph * r}.jpg`
+        const href = url(`img/siteicon/apple-splash-${pw * r}-${ph * r}.jpg`)
         const media = `(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: ${orientation})`
         out.push(`<link${attrs({ rel: 'apple-touch-startup-image', href, media })}>`)
       }
@@ -209,7 +210,8 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
               sub.unshift(data.hitokoto, from)
               window.typed = new Typed(${selQuoted}, ${typedOptions})
             } else {
-              document.getElementById('${selId}').innerHTML = data.hitokoto
+              const el = document.getElementById('${selId}')
+              if (el) el.textContent = data.hitokoto
             }
           })
       }`
@@ -223,7 +225,8 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
             sub.unshift(con, from)
             window.typed = new Typed(${selQuoted}, ${typedOptions})
           } else {
-            document.getElementById('${selId}').innerHTML = con
+            const el = document.getElementById('${selId}')
+            if (el) el.textContent = con
           }
         })
       }`
@@ -237,7 +240,8 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
               sub.unshift(content)
               window.typed = new Typed(${selQuoted}, ${typedOptions})
             } else {
-              document.getElementById('${selId}').innerHTML = result.data.content
+              const el = document.getElementById('${selId}')
+              if (el) el.textContent = result.data.content
             }
           })
         })
@@ -253,7 +257,8 @@ function typewriterScript(theme, cfg, selector, siteSubtitle) {
             backSpeed: ${backSpeed}
           })
         } else {
-          document.getElementById('${selId}').innerHTML = '${esc((sub.length ? sub : [siteSubtitle])[0])}'
+          const el = document.getElementById('${selId}')
+          if (el) el.innerHTML = '${esc((sub.length ? sub : [siteSubtitle])[0])}'
         }
       }`
   }

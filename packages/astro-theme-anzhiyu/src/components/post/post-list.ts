@@ -50,7 +50,8 @@ const SITE_TIME_FORMAT = 'HH:mm:ss'
 export const LAZYLOAD_PLACEHOLDER =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
-const urlFor = createUrlFor('/')
+// 子路径部署跟随 Astro base（import.meta.env.BASE_URL），与页面侧 urlFor 同口径
+const urlFor = createUrlFor(import.meta.env.BASE_URL || '/')
 
 /* ------------------------------------------------------------------ */
 /* 输入类型：astro:content 集合条目的结构化子集                          */

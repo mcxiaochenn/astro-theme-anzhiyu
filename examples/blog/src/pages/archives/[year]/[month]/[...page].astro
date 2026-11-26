@@ -28,6 +28,7 @@ import {
   pageCount,
   slicePage,
   toArticleSortPosts,
+  urlFor,
 } from '../../_data.ts'
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -84,7 +85,7 @@ const posts = toArticleSortPosts(
     <Pagination
       current={current}
       total={total}
-      basePath={`/archives/${year}/${month}/`}
+      basePath={urlFor(`/archives/${year}/${month}/`)}
     />
   </div>
 </BaseLayout>

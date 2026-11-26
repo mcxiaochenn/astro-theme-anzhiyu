@@ -59,10 +59,23 @@ async function listenerCount(page: Page, key: string): Promise<number> {
 
 /** 用 pjax.loadUrl 做一次站内导航（文章页没有 #recent-posts，第二跳起用它）。 */
 async function navTo(page: Page, path: string): Promise<void> {
-  await page.evaluate((p) => (window as unknown as { pjax: { loadUrl: (u: string) => void } }).pjax.loadUrl(p), path)
+  // 导航完成信号与 clickAndWaitForClientRoute 同口径：等 astro:page-load。
+  // URL 在 swap 后立刻变，但 runScripts 还在等新 src 脚本 load（about 的 countup、
+  // data-astro-rerun 的 waterfall），只等 URL 就断言会偶发假失败。
+  await page.evaluate((p) => {
+    const state = window as unknown as { __e2eRouteDone?: boolean }
+    state.__e2eRouteDone = false
+    document.addEventListener('astro:page-load', () => { state.__e2eRouteDone = true }, { once: true })
+    ;(window as unknown as { pjax: { loadUrl: (u: string) => void } }).pjax.loadUrl(p)
+  }, path)
   await expect
     .poll(() => page.url(), { timeout: 20_000, message: `pjax.loadUrl(${path}) 后 URL 未变化` })
     .toContain(path.replace(/\/$/, ''))
+  await page.waitForFunction(
+    () => (window as unknown as { __e2eRouteDone?: boolean }).__e2eRouteDone === true,
+    undefined,
+    { timeout: 20_000 },
+  )
 }
 
 test.describe('换页生命周期 · 附属功能跨站内导航存活', () => {

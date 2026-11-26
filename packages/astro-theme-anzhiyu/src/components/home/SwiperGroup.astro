@@ -40,7 +40,8 @@ interface Props {
 
 const { swiperPosts, topGroupPosts, entries } = Astro.props
 const theme = getThemeConfig()
-const urlFor = createUrlFor('/')
+// 子路径部署跟随 Astro base（import.meta.env.BASE_URL）
+const urlFor = createUrlFor(import.meta.env.BASE_URL || '/')
 const lazyload = resolveImageLazyload()
 
 /** `timemode === 'updated'` 时轮播日期取 updated（top.pug:44-47）。 */
@@ -77,7 +78,7 @@ function lazyAttrs(src: string) {
       }
     : {
         src: urlFor(src),
-        onerror: `this.src=${lazyload.errorPostPage}; this.onerror = null;`,
+        onerror: `this.src='${String(lazyload.errorPostPage).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'; this.onerror = null;`,
       }
 }
 ---

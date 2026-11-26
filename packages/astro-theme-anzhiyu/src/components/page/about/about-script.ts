@@ -17,6 +17,7 @@
  */
 import type { AboutItem } from './types.ts'
 import { getThemeConfig, readFlag, readString } from '../../../layouts/theme-context.ts'
+import { escapeJsString } from '../../head/global-config.ts'
 import { _p, assetUrl } from './shared.ts'
 
 const theme = getThemeConfig()
@@ -52,7 +53,13 @@ const i18nStats = {
  * 这里沿用「不转义、不加引号」的口径，保证产物与基线逐字符一致。
  */
 export function buildAboutScript(item: AboutItem): string {
-  const selfInfoContentYear = item.selfInfo?.selfInfoContentYear ?? ''
+  // 出生年份插在 CountUp 的数值参数位：空 / 非数字会拼出 `0, , 0` 这种语法错误。
+  // 合法数字保留原字面量（与基线逐字符一致），其余兜底成 0。
+  const rawSelfInfoContentYear = String(item.selfInfo?.selfInfoContentYear ?? '').trim()
+  const selfInfoContentYear =
+    rawSelfInfoContentYear !== '' && Number.isFinite(Number(rawSelfInfoContentYear))
+      ? rawSelfInfoContentYear
+      : '0'
   return `function initAboutPage() {
   const statisticEl = document.getElementById("statistic");
   let statistic = [];
@@ -109,7 +116,7 @@ export function buildAboutScript(item: AboutItem): string {
 
   // 51la 统计
   if (${laEnable}) {
-    fetch("https://v6-widget.51.la/v6/${laCk}/quote.js")
+    fetch("https://v6-widget.51.la/v6/${escapeJsString(laCk)}/quote.js")
       .then(res => res.text())
       .then(data => {
         let title = [i18nStats.today_visitors, i18nStats.today_views, i18nStats.yesterday_visitors, i18nStats.yesterday_views, i18nStats.month_views, i18nStats.total_views];
@@ -134,9 +141,9 @@ export function buildAboutScript(item: AboutItem): string {
 
   // Umami 统计
   if (${umamiEnable}) {
-    const apiHost = "${umamiApiHost}";
-    const websiteId = "${umamiWebsiteId}";
-    const token = "${umamiToken}";
+    const apiHost = "${escapeJsString(umamiApiHost)}";
+    const websiteId = "${escapeJsString(umamiWebsiteId)}";
+    const token = "${escapeJsString(umamiToken)}";
     
     const now = Date.now();
     const todayStart = new Date().setHours(0, 0, 0, 0);

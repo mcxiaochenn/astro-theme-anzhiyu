@@ -97,8 +97,9 @@ const btn = ({ args }) => {
  */
 const blockish = (tagName) => ({ args }) => {
   const parts = commaArgs(args)
-  const className = parts[0].trim()
-  const text = parts[1].trim()
+  // `{% p red %}` 这类缺参写法：parts[1] 不存在时兜底空串，不能 .trim() 崩掉。
+  const className = (parts[0] ?? '').trim()
+  const text = (parts[1] ?? '').trim()
   return `<${tagName} class='p ${className}'>${text}</${tagName}>`
 }
 

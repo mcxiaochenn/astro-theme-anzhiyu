@@ -20,11 +20,11 @@ function isAbsoluteUrl(href) {
   return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href)
 }
 
-/** Vite 打包出的样式资源，即站点真实样式（当前为 upstream.<hash>.css）。 */
-const ASTRO_CSS_RE = /^\/_astro\/[^/?#]+\.css$/i
+/** Vite 打包出的样式资源，即站点真实样式（当前为 upstream.<hash>.css）。兼容带 base 前缀（子路径部署）。 */
+const ASTRO_CSS_RE = /^(?:\/[^/?#]+)*\/_astro\/[^/?#]+\.css$/i
 
 /** 上游 Head 固定输出的结构性占位（见 examples/blog/public/css/index.css 的说明）。 */
-const INDEX_CSS_RE = /^\/css\/index\.css$/i
+const INDEX_CSS_RE = /^(?:\/[^/?#]+)*\/css\/index\.css$/i
 
 /** 按文档顺序收集 `<link ... rel="stylesheet" ...>` 的 href；忽略没有 href 的占位标签。 */
 export function collectStylesheetHrefs(html) {

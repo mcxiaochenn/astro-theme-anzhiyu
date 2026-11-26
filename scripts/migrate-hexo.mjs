@@ -2279,10 +2279,13 @@ function main() {
    */
   const relativeSpecifier = (fileRel, targetAbs) => {
     const from = path.dirname(path.join(OUT, fileRel))
-    let r = posix(path.relative(from, targetAbs))
-    if (r === '') r = '.'
-    else if (!r.startsWith('.')) r = `./${r}`
-    return r
+    const raw = path.relative(from, targetAbs)
+    if (raw === '') return '.'
+    // Windows 跨盘符时 path.relative 返回绝对路径，相对 import 说明符无法表示；
+    // 此时退回 file:// URL，不能强加 './'（会拼出 './D:/...' 这种非法说明符）。
+    if (path.isAbsolute(raw)) return pathToFileURL(targetAbs).href
+    const r = posix(raw)
+    return r.startsWith('.') ? r : `./${r}`
   }
   const packagesSpecifier = (fileRel) =>
     CROSS_DRIVE
@@ -2433,7 +2436,7 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
   // Hexo 渲染成 <路径>.html（page.path = 源路径 .md → .html），permalink 照此注入。
   const pageFiles = walkFiles(sourceDir).filter(
     (rel) =>
-      rel.endsWith('.md') &&
+      rel.toLowerCase().endsWith('.md') &&
       !rel.startsWith('_posts/') &&
       !rel.startsWith('_data/') &&
       !rel.startsWith('.obsidian/'),
@@ -2441,9 +2444,11 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
   const pageRecords = []
   const unsupported = []
   for (const rel of pageFiles) {
-    const isDirIndex = rel.endsWith('/index.md') || rel === 'index.md'
-    const dirName = isDirIndex ? rel.slice(0, -'/index.md'.length) : rel.slice(0, -'.md'.length)
-    const permalink = isDirIndex ? `/${dirName}/` : `/${dirName}.html`
+    const relLower = rel.toLowerCase()
+    const isDirIndex = relLower.endsWith('/index.md') || relLower === 'index.md'
+    // 根 index.md 切 '' 会让 permalink 变成 '//'，这里保留空目录名但单独兜底。
+    const dirName = isDirIndex ? rel.slice(0, -'index.md'.length).replace(/\/$/, '') : rel.slice(0, -'.md'.length)
+    const permalink = isDirIndex ? (dirName ? `/${dirName}/` : '/') : `/${dirName}.html`
     const srcAbs = path.join(sourceDir, rel)
     const original = readFileSync(srcAbs, 'utf8')
     const { data } = readFrontmatter(original, rel)
@@ -2454,9 +2459,9 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
     if (!data.title) {
       // 源站允许页面没有 title（如 QwQ/equipment/jxgm-link.md 连 frontmatter 都没有），
       // Hexo 渲染出空的 page-title；内容 schema 的 title 必填，这里补空串保持一致。
-      migrated = migrated.replace(/^---\n/, '---\ntitle: ""\n')
+      migrated = migrated.replace(/^---(\r?\n)/, `---$1title: ""$1`)
     }
-    const dest = `src/content/posts/${dirName.replace(/\//g, '-')}-page.md`
+    const dest = `src/content/posts/${(dirName || 'index').replace(/\//g, '-')}-page.md`
     if (!STANDARD_PAGE_TYPES.has(type)) {
       // 上游 page.pug 的 case 同样没有 charts 这类自定义 type——一样落
       // default-page.pug（仅渲染正文）。我们的 DefaultPage 行为与上游一致，不是缺口。
@@ -2531,8 +2536,8 @@ export const siteExtras = ${JSON.stringify(extras, null, 2)}
       if (rel.startsWith('_posts/') || rel.startsWith('_data/') || rel.startsWith('.obsidian/')) continue
       // .md 是内容（独立页面 / 可能的自定义渲染），Hexo 不会把原始 .md 放进 public；
       // 全部由上面的独立页面扫描接管，这里跳过避免 public 里出现 .md。
-      if (rel.endsWith('.md')) continue
-      if (rel === 'index.md' || rel.endsWith('/index.md')) continue
+      if (rel.toLowerCase().endsWith('.md')) continue
+      if (rel.toLowerCase() === 'index.md' || rel.toLowerCase().endsWith('/index.md')) continue
       copyOut(path.join(sourceDir, rel), `public/${rel}`)
       assetCount++
     }
@@ -2632,8 +2637,8 @@ console.log(\`[normalize-html-output] 平文件化 \${moved} 处 .html 目录\`)
   // 显式 fail 而不是静默退回严格模式（否则未来迁移会重新卡在 build A）。
   const lenientBefore = astroConfig
   astroConfig = astroConfig.replace(
-    "[[remarkHexoTag, { noteStyle: 'flat' }]]",
-    "[[remarkHexoTag, { noteStyle: 'flat', lenient: true }]]",
+    /\[remarkHexoTag,\s*\{\s*noteStyle:\s*'flat'\s*\}\]/,
+    "[remarkHexoTag, { noteStyle: 'flat', lenient: true }]",
   )
   if (astroConfig === lenientBefore) {
     fail('examples/blog/astro.config.mjs 的 remarkPlugins 模板已变化，无法注入 lenient: true；请同步更新 scripts/migrate-hexo.mjs 的注入规则。')
@@ -2808,7 +2813,7 @@ export const SITE_IDENTITY = { ...siteIdentity, postHref }
     out = out.replace(archBlock, `const ARCHIVE_GENERATOR = ${JSON.stringify(archiveConfig)}`)
     // 文章 href：/YYYY/MM/DD/<slug>/ → 源站 permalink（post-permalink.ts 的 postHref）
     const hrefLine =
-      "href: urlFor(`/${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${entry.id}/`),"
+      "href: urlFor(`/${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${postSlugOf(entry)}/`),"
     if (!out.includes(hrefLine)) fail('archives/_data.ts 的文章 href 行与预期不符')
     out = out.replace(hrefLine, 'href: urlFor(postHref(entry)),')
     // 导入 postHref（紧跟 SITE_IDENTITY 导入之后，相对深度从 pages/archives/ 到 src/data/）

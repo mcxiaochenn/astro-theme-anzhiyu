@@ -1019,6 +1019,23 @@ if (!existsSync(UPSTREAM_HELPERS)) {
     const posts = [{ path: 'p/1/' }, { path: 'p/2/', random: false }, { path: 'p/3/' }]
     const links = [{ link_list: [{ name: '友链A', link: 'https://a.example', avatar: '/a.png' }] }]
     const oracleLocals = { posts: { data: posts }, data: { link: links } }
+    // fix-plan 2.2.2 有意偏差（见 helpers.ts randomGenerator 的 @deviation 注释）：
+    // footer 友链脚本比上游多三处安全补丁（空链表守卫 / name、link 写 HTML 前转义 /
+    // 容器判空）。把补丁应用到上游产物后必须与本实现逐字节一致；补丁本身另有专测。
+    const applyRandomSafetyPatches = (data) =>
+      data
+        .replace(
+          'function friendChainRandomTransmission() {\n      const randomIndex',
+          'function friendChainRandomTransmission() {\n      if (!friend_link_list.length) return;\n      const randomIndex',
+        )
+        .replace(
+          `          const returnInfo = "<a class='footer-item' href='" + link + "' target='_blank' rel='noopener nofollow'>" + name + "</a>"`,
+          `          const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');\n          const returnInfo = "<a class='footer-item' href='" + esc(link) + "' target='_blank' rel='noopener nofollow'>" + esc(name) + "</a>"`,
+        )
+        .replace(
+          '      document.getElementById("friend-links-in-footer").innerHTML = html;',
+          '      const footerLinksEl = document.getElementById("friend-links-in-footer");\n      if (footerLinksEl) footerLinksEl.innerHTML = html;',
+        )
     for (const themeConfig of [
       { pjax: { enable: false }, footer: { list: { enable: false, randomFriends: 0 } } },
       { pjax: { enable: true }, footer: { list: { enable: false, randomFriends: 3 } } },
@@ -1034,8 +1051,17 @@ if (!existsSync(UPSTREAM_HELPERS)) {
         randomFriends: themeConfig.footer.list.randomFriends,
       })
       checkEq(`oracle random path(pjax=${themeConfig.pjax.enable})`, actual.path, expected.path)
-      checkEq(`oracle random data(pjax=${themeConfig.pjax.enable}, footer=${themeConfig.footer.list.enable})`, actual.data, expected.data)
+      checkEq(
+        `oracle random data(pjax=${themeConfig.pjax.enable}, footer=${themeConfig.footer.list.enable})`,
+        actual.data,
+        applyRandomSafetyPatches(expected.data),
+      )
     }
+    // 2.2.2 安全补丁的显式断言（补丁行为本身不靠 oracle 覆盖）
+    const patched = H.randomGenerator({ ...randomInput, footerListEnabled: true, randomFriends: 2 }).data
+    check('randomGenerator 空链表守卫', patched.includes('if (!friend_link_list.length) return;'))
+    check('randomGenerator 友链 name/link 转义后拼 HTML', patched.includes('esc(link)') && patched.includes('esc(name)'))
+    check('randomGenerator #friend-links-in-footer 判空', patched.includes('if (footerLinksEl) footerLinksEl.innerHTML = html;'))
   }
 
   /* ---------------- C9. related_post.js ---------------- */

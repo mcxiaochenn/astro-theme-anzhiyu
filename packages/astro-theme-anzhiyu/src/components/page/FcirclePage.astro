@@ -23,8 +23,12 @@ import {
   readNumber,
   readString,
 } from '../../layouts/theme-context.ts'
+import { escapeJsString } from '../head/global-config.ts'
+import { createUrlFor } from '../../layouts/site.ts'
 
 const theme = getThemeConfig()
+/** 站内链接前缀（子路径部署跟随 Astro base）。 */
+const urlFor = createUrlFor(import.meta.env.BASE_URL || '/')
 
 /* ------------------------------------------------------------------ */
 /* 分支开关                                                            */
@@ -89,9 +93,8 @@ const liteStyle = `#random-article {
   background: var(--anzhiyu-theme)!important;
 }`
 
-/** JS 字符串字面量转义（只用于内联脚本里的配置值）。 */
-const jsString = (value: string): string =>
-  `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+/** JS 字符串字面量转义（只用于内联脚本里的配置值，含换行 / `</` / 行分隔符防护）。 */
+const jsString = (value: string): string => `'${escapeJsString(value)}'`
 
 /** 1.6.14 fcircle.pug 的 `script.` 块：`fclite.js` 读取的全局 `UserConfig`。 */
 const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
@@ -118,7 +121,7 @@ const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
               <div class="tips">{topTips}</div>
             </div>
             <div class="banner-button-group">
-              <a class="banner-button" onclick='pjax.loadUrl("/about")'>
+              <a class="banner-button" onclick={`pjax.loadUrl("${urlFor('/about')}")`}>
                 <i
                   class="anzhiyufont anzhiyu-icon-arrow-circle-right"
                   style="font-size: 22px; margin-right: 0.25rem"
@@ -136,7 +139,7 @@ const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
             </a>
           </div>
           <div class="title-h2-a-right">
-            <a class="random-post-all" href="/link/">{t.allLinks}</a>
+            <a class="random-post-all" href={urlFor('/link/')}>{t.allLinks}</a>
           </div>
         </div>
         <div id="random-post" />
@@ -165,7 +168,7 @@ const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
               <div class="tips">{liteTopTips}</div>
             </div>
             <div class="banner-button-group">
-              <a class="banner-button" onclick='pjax.loadUrl("/about")'>
+              <a class="banner-button" onclick={`pjax.loadUrl("${urlFor('/about')}")`}>
                 <i
                   class="anzhiyufont anzhiyu-icon-arrow-circle-right"
                   style="font-size: 22px; margin-right: 0.25rem"
@@ -183,7 +186,7 @@ const liteUserConfigScript = `if (typeof UserConfig === 'undefined') {
             </a>
           </div>
           <div class="title-h2-a-right">
-            <a class="random-post-all" href="/link/">全部友链</a>
+            <a class="random-post-all" href={urlFor('/link/')}>全部友链</a>
           </div>
         </div>
         <div id="random-post" />
