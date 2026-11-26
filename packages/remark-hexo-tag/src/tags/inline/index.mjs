@@ -90,7 +90,7 @@ const btn = ({ args }) => {
  *
  * 注意：上游输出的是字面 `<p class='p h2'>…</p>`，嵌在段落里属于非法 HTML；
  * HTML5 解析器（rehype-raw 里的 parse5）会把外层段落自动闭合，文本内容不变，
- * 结构会变成三个兄弟 <p>（详见 docs/notes/P6-1-hexo-tags.md「已知差异」）。
+ * 结构会变成三个兄弟 <p>（详见 docs/notes/phases/P6-1-hexo-tags.md「已知差异」）。
  *
  * @param {'p' | 'span'} tagName
  * @returns {(ctx: { args: string[] }) => string}

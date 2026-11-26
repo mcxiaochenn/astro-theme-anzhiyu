@@ -15,7 +15,7 @@
  *
  * 导航基座：与主 e2e（tests/e2e/helpers.ts）一致 —— 首次导航前隔离外部 CDN、
  * 用 `domcontentloaded` 而不是默认的 `load`。原因见文件内测试 2 的注释与
- * docs/notes/P7-1-pwa.md §6.1（CI run 45395473424 的真实失败点）。
+ * docs/notes/phases/P7-1-pwa.md §6.1（CI run 45395473424 的真实失败点）。
  */
 import { expect, test } from '@playwright/test'
 import { isolateExternalRequests } from './helpers'
@@ -52,7 +52,7 @@ test.describe('P7-1 PWA · 离线可访问首页', () => {
     expect(swText).toContain('TIMEOUT_MS = 3000')
     // Workbox 预缓存清单；清单条目形如 {url:`…`,revision:…}。
     // P7-1 实测 84 条 = 62 HTML + 16 JS + 2 CSS + manifest.webmanifest + 3 图标
-    // （docs/notes/P7-1-pwa.md:60/150/163）。G4 删除 2 个调试页（debug-collection、
+    // （docs/notes/phases/P7-1-pwa.md:60/150/163）。G4 删除 2 个调试页（debug-collection、
     // page2）+ public/slice-harness.js + P1.5 切片布局的脚本 chunk、B4 新增
     // abbrlink fixture 页后应为 61 HTML + 14 JS + 2 CSS + manifest + 3 图标 = 81 条；
     // 下界按 B4 后的产物口径取 81（待 CI 的 [anzhiyu-pwa-extras] precache=N 日志复核）。

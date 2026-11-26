@@ -33,7 +33,7 @@ import { gzipSync } from 'node:zlib'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(HERE, '..', '..')
 const DEFAULT_SOURCE = path.join(REPO_ROOT, '.baseline-work', 'public')
-const DEFAULT_BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'baseline.json')
+const DEFAULT_BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 
 const ARCHIVE_NAME = 'baseline-html.tar.gz'
 const MANIFEST_NAME = 'baseline-html.manifest.json'

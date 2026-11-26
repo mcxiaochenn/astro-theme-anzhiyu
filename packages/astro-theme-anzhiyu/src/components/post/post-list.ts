@@ -254,7 +254,7 @@ function buildDateInfo(
  * Astro 的 remark-rehype 会在块级元素之间插 `\n`，于是标题后面多一个换行；摘要按字符数
  * 截断，这个换行会把后续文本整体推移 1 个字符、截断点错位。所以先去掉它再 `stripHtml()`。
  * 实测 9 张卡片里 4 张可对（另外 5 张的 `.content` 含未移植的 Hexo tag 产物），见
- * docs/notes/P2-7-home-postcard.md §4 的对拍表。
+ * docs/notes/phases/P2-7-home-postcard.md §4 的对拍表。
  */
 function buildExcerpt(
   html: string,

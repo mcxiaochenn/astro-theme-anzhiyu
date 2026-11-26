@@ -37,7 +37,7 @@
  * `scriptsAlreadyRan` 并打上 `data-astro-exec`，`runScripts()` 会跳过它
  * （`router.js` 的 `if (script.dataset.astroExec === "") continue;`）。
  * 因此只能在 `astro:after-swap`（swap 之后、page-load/refreshFn 之前）显式重放。
- * 详见 docs/notes/P4-4-darkmode-nav-fix.md。
+ * 详见 docs/notes/phases/P4-4-darkmode-nav-fix.md。
  */
 import { navigate } from 'astro:transitions/client'
 

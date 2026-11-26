@@ -68,7 +68,7 @@ npm i -D stylus vite-plugin-stylus-hexo-config
 - 写在 `vite.css.preprocessorOptions.stylus.define` 里 → 传递过程中丢失
 - 写在插件 `config` 钩子里 → 插件内 `typeof` 是 `function`，编译器那侧看不到
 
-Vite 8 的样式预处理跑在隔离环境，函数跨不过去。完整记录见 [docs/02-astro-mapping.md](../../docs/02-astro-mapping.md#6-phase-1-实测记录2026-11-23)。
+Vite 8 的样式预处理跑在隔离环境，函数跨不过去。完整记录见 [docs/analysis/02-astro-mapping.md](../../docs/analysis/02-astro-mapping.md#6-phase-1-实测记录2026-11-23)。
 
 ## 为什么不直接替换成字面量
 

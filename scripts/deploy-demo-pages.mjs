@@ -86,7 +86,7 @@ function run(command, options = {}) {
 
 /**
  * 需要拿输出的命令：输出先落盘再读回。沙箱禁止子进程经命名管道回传 stdout
- * （默认 stdio 'pipe' 的 execSync 会 EPERM，见 docs/notes/P7-4-acceptance.md）。
+ * （默认 stdio 'pipe' 的 execSync 会 EPERM，见 docs/notes/phases/P7-4-acceptance.md）。
  */
 function captureOutput(command) {
   const outFile = join(repoRoot, '.tmp-deploy-out.txt')

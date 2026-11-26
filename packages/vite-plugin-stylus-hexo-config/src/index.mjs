@@ -294,7 +294,7 @@ export function stylusHexoConfig(options = {}) {
    * 这 4 个变量在 72 个上游 `.styl` 里零赋值，只被 `_highlight/highlight.styl`
    * 与 `_highlight/theme.styl` 的 `if` / `&&` 消费；漏掉这一层时它们未定义，
    * 而 Stylus 对 `if` 里的未定义变量当**真**，`if $prismjs_enable` 分支就会被
-   * 错误包含（+3782 字节，见 docs/upstream-delta.md 的 U3/D9）。
+   * 错误包含（+3782 字节，见 docs/reference/upstream-delta.md 的 U3/D9）。
    *
    * 值的来源：hexo.config 是「站点 _config.yml 深合并 default_config」的结果。
    * 本插件拿到的 YAML 可能是主题配置（`examples/blog/theme.config.yml`，里面

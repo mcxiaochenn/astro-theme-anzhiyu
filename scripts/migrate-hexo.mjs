@@ -316,7 +316,7 @@ function scanThemeReferencedKeys(siteRoot) {
  *      对没有这些插件的站点安全；
  *   3. 服务端渲染部分完全静态化。bangumi 的 tab 切换/分页用插件原逻辑的移植版，
  *      但不再在浏览器里用 axios+pug 二次拉 `bangumis.json` 渲染剩余条目
- *      （迁移期把数据一次性渲染进 HTML，见 docs/notes/P7-4-fix-plugin-pages.md）；
+ *      （迁移期把数据一次性渲染进 HTML，见 docs/notes/phases/P7-4-fix-plugin-pages.md）；
  *   4. /comments/ 与 /bangumis/ 走主题 BaseLayout 外壳（#body-wrap / Header /
  *      Footer / aside），与其它独立页面一致；/go.html 是独立单页（无主题外壳，
  *      与源站 hexo-safego 产物一致）。
@@ -1222,7 +1222,7 @@ function injectPageFrontmatter(text, permalink) {
  *   baidusitemap.xml  hexo-generator-baidu-sitemap 0.1.9 baidusitemap.ejs
  *   baidu_urls.txt    hexo-baidu-url-submit 0.0.6        lib/generator.js
  *
- * 实现取舍（详见 docs/notes/P7-4-fix-feeds-search.md）：
+ * 实现取舍（详见 docs/notes/phases/P7-4-fix-feeds-search.md）：
  *   - search/atom/rss2 的正文是**构建期渲染后的 HTML**，迁移期拿不到 → 统一生成
  *     Astro endpoint（`src/pages/<产物路径>.ts`），构建期 `getCollection` 取条目，
  *     正文直接用 Astro 7 glob loader 的 eager 渲染产物 `entry.rendered.html`
@@ -3423,7 +3423,7 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
         if (searchGenerator.field !== 'post') {
           warnings.push(
             `search.field=${searchGenerator.field}：本轮 search.xml 只生成文章条目（post 分支）；` +
-              'page/自定义 field 需要额外实现，见 docs/MIGRATION.md「搜索」章节。',
+              'page/自定义 field 需要额外实现，见 docs/guides/MIGRATION.md「搜索」章节。',
           )
         }
       }
@@ -3606,10 +3606,10 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
     })
   }
   // 其中 bangumi / envelope_comment / hexo_safego 的**页面产物**已由本脚本的 [7.x]
-  // 阶段按插件语义生成（见 report.plugins / docs/notes/P7-4-fix-plugin-pages.md），
+  // 阶段按插件语义生成（见 report.plugins / docs/notes/phases/P7-4-fix-plugin-pages.md），
   // 不再列入「无等价物」清单；它们残留的渲染期行为单独归类为 hexo-plugin-page。
   // search / feed / sitemap / baidusitemap / baidu_url_submit 已由 [7.y] 阶段按插件语义生成
-  // 等价产物（见 report.generators / docs/MIGRATION.md §7.2），不再列为「无等价物」；
+  // 等价产物（见 report.generators / docs/guides/MIGRATION.md §7.2），不再列为「无等价物」；
   // 这里的清单只剩真正需要人工接的 Hexo 插件。
   const HEXO_PLUGINS = [
     'abbrlink',
@@ -3739,7 +3739,7 @@ export function postHref(entry: { id: string; data: Record<string, unknown> }): 
   if (!DRY) {
     console.log('\n下一步：')
     console.log(`  cd ${report.outputDir} && pnpm install && pnpm build`)
-    console.log('  详见 docs/MIGRATION.md（评论/搜索/统计、CDN、部署、回滚、验证清单）。')
+    console.log('  详见 docs/guides/MIGRATION.md（评论/搜索/统计、CDN、部署、回滚、验证清单）。')
   }
 }
 

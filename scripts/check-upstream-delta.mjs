@@ -4,7 +4,7 @@
  *
  * 上游基线锁在 hexo-theme-anzhiyu 1.7.1 / commit 72439d93。迁移期我们对上游
  * 副本一个字节都不改（包括上游自己的笔误），所有「已知差异」都记在
- * docs/upstream-delta.md 里。这个脚本负责在 CI 里守住登记表的前提，只读、
+ * docs/reference/upstream-delta.md 里。这个脚本负责在 CI 里守住登记表的前提，只读、
  * 不写任何文件、不做构建：
  *
  * 1. 上游只读守卫（readmode.styl 笔误不许"顺手修好"）
@@ -14,9 +14,9 @@
  *      改回正确写法会让 read-mode 代码块背景真的生效、与上游视觉不一致，
  *      而且会打乱 P1-5/P1-6 已固化的字节基准 —— 属于"上游缺陷，我们选择
  *      保真不改"，不是可以顺手修的东西。
- * 2. 基准摘要一致（docs ↔ docs/baseline.json）
- *    - docs/upstream-delta.md 里的机器可读锚点（baseline-index-css-bytes 等）
- *      与 docs/baseline.json 的 commit / 字节数 / gzip / SHA-256 必须一致；
+ * 2. 基准摘要一致（docs ↔ docs/reference/baseline.json）
+ *    - docs/reference/upstream-delta.md 里的机器可读锚点（baseline-index-css-bytes 等）
+ *      与 docs/reference/baseline.json 的 commit / 字节数 / gzip / SHA-256 必须一致；
  *    - P1-11 的产物字节口径：上游样式子集 = 基准字节 + 残余排版差，即
  *      683218 + (-228) = 682990（U6 的 @css{} 排版差是唯一剩余项）。
  *      P1-5 的历史口径 686772 = 683218 + 3782 + (-228) 已随 D9 修复作废；
@@ -54,9 +54,9 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'upstream-delta.md')
-const NOTES_DOC = path.join(REPO_ROOT, 'docs', 'notes', 'P-upstream-delta.md')
-const BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'baseline.json')
+const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'reference', 'upstream-delta.md')
+const NOTES_DOC = path.join(REPO_ROOT, 'docs', 'notes', 'topics', 'P-upstream-delta.md')
+const BASELINE_JSON = path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 const UPSTREAM_STYLES = path.join(REPO_ROOT, 'examples', 'blog', 'src', 'styles', 'upstream')
 const THEME_CONFIG = path.join(REPO_ROOT, 'examples', 'blog', 'theme.config.yml')
 const BASELINE_WORK = path.join(REPO_ROOT, '.baseline-work')
@@ -175,12 +175,12 @@ if (!existsSync(readmodePath)) {
       'readmode.styl:120 保持上游笔误 var(-highlight-bg)（我们决策：不改）',
       `实际：${JSON.stringify(line120)}。` +
         '把这里"修好"会让 read-mode 代码块背景真的生效（上游实际不生效），' +
-        '破坏像素级还原与 P1-6 字节基准；确需修复请先更新 docs/upstream-delta.md 的决策与锚点。',
+        '破坏像素级还原与 P1-6 字节基准；确需修复请先更新 docs/reference/upstream-delta.md 的决策与锚点。',
     )
   }
 }
 
-// —— 2. 基准摘要一致：docs 锚点 ↔ docs/baseline.json ——
+// —— 2. 基准摘要一致：docs 锚点 ↔ docs/reference/baseline.json ——
 
 if (!existsSync(BASELINE_JSON)) {
   fail('baseline.json 存在', `缺少 ${rel(BASELINE_JSON)}`)
@@ -263,7 +263,7 @@ if (existsSync(NOTES_DOC)) {
     }
   }
 } else {
-  skip('notes 报告记录', 'docs/notes/P-upstream-delta.md 不存在')
+  skip('notes 报告记录', 'docs/notes/topics/P-upstream-delta.md 不存在')
 }
 
 // —— 3. 上游关键文件 SHA-256 ——
@@ -331,7 +331,7 @@ if (hexoInjectedVars.length === 0) {
       'Hexo 注入变量在 styl 里保持零赋值',
       `发现赋值：${assigned.join('；')}。上游副本被改了：这四个变量只应由 Hexo 的 ` +
         '.define() / 插件的 define 层提供，styl 里出现赋值会让 D9 的现场失效，' +
-        '必须重新定位并更新 docs/upstream-delta.md。',
+        '必须重新定位并更新 docs/reference/upstream-delta.md。',
     )
   }
 
@@ -561,6 +561,6 @@ function finish() {
     process.exit(1)
   }
   log(`校验通过：PASS ${passed} / SKIP ${skipped} / FAIL 0`)
-  log('登记表：docs/upstream-delta.md（上游 1.7.1 / 72439d93，只读副本不许改）')
+  log('登记表：docs/reference/upstream-delta.md（上游 1.7.1 / 72439d93，只读副本不许改）')
   process.exit(0)
 }

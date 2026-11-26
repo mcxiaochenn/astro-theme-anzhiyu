@@ -220,7 +220,7 @@ checkEq(
   '2025-03-04 / 2025-03-05',
 )
 
-// B5：真实 fixture 值抽查（10 篇 fixtures 的完整清单见 docs/notes/P-markdown-date-align.md）
+// B5：真实 fixture 值抽查（10 篇 fixtures 的完整清单见 docs/notes/topics/P-markdown-date-align.md）
 checkEq(
   'B5 fixtures/short-note.md：2024-12-15 21:05（+08）→ 13:05Z',
   D.hexoDateXml('2024-12-15 21:05:00', SITE),

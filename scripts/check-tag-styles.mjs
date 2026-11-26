@@ -5,7 +5,7 @@
  * 目的：证明 42 个 `{% tag %}` 生成的 HTML 里的 class，能在上游样式源中找到规则，
  * 避免「标签渲染出来了、但没有样式」的静默退化。只读产物与 styl/css 源，不跑构建。
  *
- * 判定口径（与 docs/notes/P6-7-tag-styles.md 一致）：
+ * 判定口径（与 docs/notes/phases/P6-7-tag-styles.md 一致）：
  *   - 只看 class；元素选择器（`u`、`kbd` 这类）只作补充说明，不计入命中率；
  *   - 精确命中：class 本身出现在某条选择器里；
  *   - 仅语境命中：class 本身没有规则，但同一元素上的其它 class、或祖先元素的 class 有规则
@@ -53,7 +53,7 @@ const fail = (message) => {
 /* 1. tag → 页面 / 分节 / 根元素 的映射表                                */
 /* ------------------------------------------------------------------ */
 
-/** 4 个 tag fixture 对应的产物页面（日期来自 docs/baseline.json）。 */
+/** 4 个 tag fixture 对应的产物页面（日期来自 docs/reference/baseline.json）。 */
 const PAGES = {
   inline: '2025/03/05/tags-inline',
   block: '2025/03/18/tags-block',
@@ -607,7 +607,7 @@ if (totals.unstyled > 0) {
       '不计失败；加 --strict 可把它们也判成失败',
   )
 }
-warn('口径提示：元素选择器与编译展开命中不计入「精确」；详见 docs/notes/P6-7-tag-styles.md')
+warn('口径提示：元素选择器与编译展开命中不计入「精确」；详见 docs/notes/phases/P6-7-tag-styles.md')
 
 if (process.argv.includes('--json')) {
   console.log(

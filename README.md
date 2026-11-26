@@ -12,7 +12,7 @@
 
 预览: 👍 [AnZhiYu Astro Demo](https://anzhiyu.example.mcxiaochen.top/) || 原版预览: 🤞 [Hexo AnZhiYu](https://hexo.anheyu.com/)
 
-文档: 📖 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) || 🚀 [Hexo 一键迁移指南](docs/MIGRATION.md)
+文档: 📖 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) || 🚀 [Hexo 一键迁移指南](docs/guides/MIGRATION.md)
 
 一款基于 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 完整移植到 **Astro** 的个人博客主题，保留原版视觉设计、交互体验与配置习惯，同时享受 Astro 的极速构建与静态部署能力。
 
@@ -65,7 +65,7 @@ node scripts/migrate-hexo.mjs --site <你的Hexo站点目录> --dry-run
 node scripts/migrate-hexo.mjs --site <你的Hexo站点目录> --out <输出目录>
 ```
 
-迁移工具会自动转换文章、独立页面、YAML 数据文件（友链 / 说说 / 相册 / 装备 / 关于）、永久链接格式与主题配置。详细步骤与注意事项请阅读 [Hexo 迁移指南](docs/MIGRATION.md)。
+迁移工具会自动转换文章、独立页面、YAML 数据文件（友链 / 说说 / 相册 / 装备 / 关于）、永久链接格式与主题配置。详细步骤与注意事项请阅读 [Hexo 迁移指南](docs/guides/MIGRATION.md)。
 
 ### 方式三：作为主题包接入现有 Astro 项目
 
@@ -169,7 +169,7 @@ ANZHIYU_PWA=1 pnpm build
 
 ## 🗂 相关文档
 
-- [Hexo → Astro 迁移指南](docs/MIGRATION.md)
+- [Hexo → Astro 迁移指南](docs/guides/MIGRATION.md)
 - [示例站点说明](examples/blog/README.md)
 - [原版主题仓库（anzhiyu-c/hexo-theme-anzhiyu）](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
 - [原版主题文档（docs.anheyu.com）](https://docs.anheyu.com/)
@@ -177,7 +177,7 @@ ANZHIYU_PWA=1 pnpm build
 <details>
 <summary>开发者自检与工程文档（点击展开）</summary>
 
-- 架构与设计文档：[技术映射](docs/02-astro-mapping.md) · [上游差异记录](docs/upstream-delta.md) · [执行计划](docs/PLAN.md)
+- 架构与设计文档：[技术映射](docs/analysis/02-astro-mapping.md) · [上游差异记录](docs/reference/upstream-delta.md) · [执行计划](docs/plan/PLAN.md)
 - 本地测试与基线校验：
 
 ```bash

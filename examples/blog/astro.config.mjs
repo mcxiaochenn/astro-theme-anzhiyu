@@ -6,7 +6,7 @@ import { createMarkdownProcessor } from '@astrojs/markdown-remark'
 import { stylusHexoConfig } from 'vite-plugin-stylus-hexo-config'
 // Phase 6：Hexo `{% tag %}` 语法。P6-1 交付行内 12 + 块级 12（含 hideInline）。
 // 放在 packages/ 里按源码相对导入：插件是纯 ESM `.mjs`，没有构建步骤，
-// Astro 配置在 Node 侧直接 import 即可（见 docs/notes/P6-1-hexo-tags.md）。
+// Astro 配置在 Node 侧直接 import 即可（见 docs/notes/phases/P6-1-hexo-tags.md）。
 import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag/src/index.mjs'
 // P7-6：主题自有静态资源（/js/main.js、/js/utils.js、/js/tw_cn.js、/js/anzhiyu/*、
 // /js/search/*、/css/index.css 占位）过去是手工放在 examples/blog/public/ 里的，
@@ -17,7 +17,7 @@ import remarkHexoTag, { rehypeHexoInlineP } from '../../packages/remark-hexo-tag
 // 声明 astro-theme-anzhiyu 依赖（它一直都是按源码相对导入主题包的），根 node_modules
 // 里也没有这个包，裸包名会 ERR_MODULE_NOT_FOUND。迁移产物 package.json 里有
 // `"astro-theme-anzhiyu": "file:../../packages/astro-theme-anzhiyu"`，所以
-// migrate-hexo 把这一行改写成相对路径后两种站都能解析（见 docs/notes/P7-6-theme-assets.md §5）。
+// migrate-hexo 把这一行改写成相对路径后两种站都能解析（见 docs/notes/phases/P7-6-theme-assets.md §5）。
 import anzhiyuAssets from '../../packages/astro-theme-anzhiyu/integration.mjs'
 
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -62,7 +62,7 @@ process.env.ANZHIYU_THEME_CONFIG = themeConfigPath
  * 2026-11 这一轮 P2-7 的写范围没有 `examples/blog/package.json`，依赖仍待组长批准加入；
  * 未安装时本插件**降级为结构等价**（figure/table/gutter/行号/`span.line`/`br` 全部一致，
  * 只是行内没有 token span），并在构建日志里警告一次。装上 `highlight.js`（^11）后
- * 无需改代码即自动补齐 token span，证据见 docs/notes/P2-7-home-postcard.md §5。
+ * 无需改代码即自动补齐 token span，证据见 docs/notes/phases/P2-7-home-postcard.md §5。
  */
 
 /** 构建期只加载一次 highlight.js；缺失时返回 null（降级分支）。 */
@@ -298,7 +298,7 @@ function unwrapFigureTbody(html) {
  *     上游 tag 渲染在 marked **之后**做模板替换——golden
  *     .baseline-html/2025/03/18/tags-block/index.html:228-229 的 hideInline
  *     `点我查看\n  </button>` 没有 `<br>`，而 marked 对同一字符串是会出 `<br>` 的
- *     （.baseline-work marked 实测，见 docs/notes/fix-ci-wave.md），
+ *     （.baseline-work marked 实测，见 docs/notes/fixes/fix-ci-wave.md），
  *     说明模板字面换行不走 breaks 语义，不能拆。
  */
 function remarkHexoSoftBreaks() {
@@ -391,7 +391,7 @@ const hexoMarkdownProcessor = {
   },
 }
 
-// 供 node 级验证脚本复用**同一份**处理器配置（docs/notes/fix-ci-wave.md 的验证一节）：
+// 供 node 级验证脚本复用**同一份**处理器配置（docs/notes/fixes/fix-ci-wave.md 的验证一节）：
 // hexoMarkdownProcessor 是生产配置本体；其余是验证脚本搭「修复前」对照臂用的纯函数。
 // Astro 配置加载只读 default export，具名导出不影响构建。
 export { hexoMarkdownProcessor, remarkHexoSoftBreaks, rehypeHexoHighlight, unwrapFigureTbody }
@@ -413,7 +413,7 @@ export { hexoMarkdownProcessor, remarkHexoSoftBreaks, rehypeHexoHighlight, unwra
  *   external.stable[1][2]（cdn.cbd.int/jsdelivr）   → PWA_RUNTIME_CACHING[1..2]
  *   external.stable[0]（npm.elemecdn.com）          → PWA_SPARE_URLS_SW（追加进 dist/sw.js）
  *   getSpareUrls（elemecdn→cdn.cbd.int，timeout 3s）→ PWA_SPARE_URLS_SW
- *   json.merge / dom.onsuccess / skipRequest        → 未实现（原因见 docs/notes/P7-1-pwa.md §3）
+ *   json.merge / dom.onsuccess / skipRequest        → 未实现（原因见 docs/notes/phases/P7-1-pwa.md §3）
  *
  * 门控与降级（硬约束）：
  *   - 不设 ANZHIYU_PWA 时**不加载** @vite-pwa/astro，也就没有任何产物/HTML 变化
@@ -581,7 +581,7 @@ const PWA_MANIFEST = {
  *
  * 为什么用构建后处理而不是 `injectRegister`：Astro 的 SSG 页面不经过 Vite 的
  * index.html 管道（`transformIndexHtml` 不执行），@vite-pwa/astro 的自动注入对
- * Astro 路由无效，实测见 docs/notes/P7-1-pwa.md §4。
+ * Astro 路由无效，实测见 docs/notes/phases/P7-1-pwa.md §4。
  */
 function anzhiyuPwaExtras() {
   let baseUrl = '/'
@@ -611,7 +611,7 @@ function anzhiyuPwaExtras() {
         // 只注入 <link rel="manifest">：默认 head 里已有主题色 meta（P2-3 移植的
         // meta_theme_color），再注入一条 theme-color 会重复；manifest 里的
         // theme_color 才是 PWA 安装态用的值（上游 pwa.pug 的 msapplication-TileColor
-        // 依赖 theme.pwa 配置层，见 docs/notes/P7-1-pwa.md §3 #10）。
+        // 依赖 theme.pwa 配置层，见 docs/notes/phases/P7-1-pwa.md §3 #10）。
         const manifestHref = `${baseUrl}manifest.webmanifest`
         const swUrl = `${baseUrl}sw.js`
         const headTags = `<link rel="manifest" href="${manifestHref}">`
@@ -693,7 +693,7 @@ if (PWA_ENABLED) {
           // `registerRoute(new NavigationRoute(createHandlerBoundToURL('/')))`，
           // 断网 reload `/` 才能命中预缓存。写死 '/' 会破坏 DEPLOY_SITE_ROOT 子路径
           // 部署；真实构建产物证据（sw.js 的 `/` precache 条目 + NavigationRoute 接线）
-          // 见 docs/notes/P7-1-pwa.md §6.1。
+          // 见 docs/notes/phases/P7-1-pwa.md §6.1。
           cleanupOutdatedCaches: true,
           skipWaiting: true,
           clientsClaim: true,
@@ -734,7 +734,7 @@ export default defineConfig({
   // ADR-001：显式切回 unified 处理器（@astrojs/markdown-remark），不用 Astro 7 默认的 Sätteri。
   // 原因：Phase 6 的 42 个 Hexo tag 需要在 Markdown 解析阶段做语法替换，
   // remark/rehype 生态有现成的 MDAST/HAST 插件与大量可参考实现；Sätteri 没有插件生态。
-  // 代价是失去 Sätteri 的构建速度，对几百篇文章的站点在秒级，可接受（见 docs/02-astro-mapping.md §ADR-001）。
+  // 代价是失去 Sätteri 的构建速度，对几百篇文章的站点在秒级，可接受（见 docs/analysis/02-astro-mapping.md §ADR-001）。
   markdown: {
     // smartypants: false —— 关掉 unified 的「智能标点」替换，与 Hexo/marked 对齐。
     //
@@ -751,7 +751,7 @@ export default defineConfig({
     //  1. `{% mermaid %}` 块里的 `A --> B` 会被改写成 `A —> B`，Phase 6 的 tag 解析器
     //     按字面量取块内容时拿到的就不是 Mermaid 语法，图直接画不出来
     //     （实测 fixtures/tags-thirdparty.md 3 条 `-->` 全被替换，见
-    //      docs/notes/P-markdown-date-align.md §1）。
+    //      docs/notes/topics/P-markdown-date-align.md §1）。
     //  2. HTML diff 里凡是正文出现 `--` / `...` / 引号的段落都会报假文本差异。
     //
     // 关闭方式按 @astrojs/markdown-remark 的 processor API：处理器选项会覆盖
@@ -775,7 +775,7 @@ export default defineConfig({
       //    修上游那处笔误会让 read-mode 的代码块背景真的生效，跟上游的视觉
       //    不一致（上游实际是「没生效」），验收要求像素级还原，所以不能改。
       //
-      // 2. 验收基准 docs/baseline.json 里的 CSS 是上游 `hexo g` 的未压缩产物
+      // 2. 验收基准 docs/reference/baseline.json 里的 CSS 是上游 `hexo g` 的未压缩产物
       //    （683218 字节）。压缩后会差 30% 以上，verify-css 的 ±5% 判定必然失败。
       //
       // 压缩属于性能优化，按 PLAN 的原则放到 Phase 7 再做；那时的做法是让

@@ -7,7 +7,7 @@
  *     （`smartypants: false`、`syntaxHighlight: false`），把本插件挂上；
  *   - 每个 tag 给一段最小 Markdown 输入 + **上游产物的硬编码 oracle**
  *     （直接从 `.baseline-html/2025/03/05/tags-inline`、`2025/03/18/tags-block`
- *      与上游 `scripts/tag/*.js` 的模板抄下来，见 docs/notes/P6-1-hexo-tags.md）；
+ *      与上游 `scripts/tag/*.js` 的模板抄下来，见 docs/notes/phases/P6-1-hexo-tags.md）；
  *   - 归一化只吃掉渲染语义无关的差异：属性引号由 parse5 统一成双引号、
  *     void 元素的 `/`、标签之间的空白。属性值里的空格（例如
  *     `class="timeline blue"`、`width: 1.2em`）必须保留。

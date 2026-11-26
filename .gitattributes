@@ -1,7 +1,7 @@
 # 上游镜像必须逐字节保真。
 #
 # 上游 hexo-theme-anzhiyu 1.7.1 的 source/css/*.styl 与 _config.yml 全部是 CRLF
-# （见 docs/upstream-delta.md U7）。如果让 git 按平台的 core.autocrlf 做转换，
+# （见 docs/reference/upstream-delta.md U7）。如果让 git 按平台的 core.autocrlf 做转换，
 # 同一份仓库在不同平台 checkout 出来的字节不同：
 #   - 本地 Windows 工作树：CRLF
 #   - CI Linux checkout：LF

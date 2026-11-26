@@ -20,7 +20,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   // 只收 PWA 离线用例；默认 `npx playwright test`（根 playwright.config.ts）
   // 也会扫到 pwa.spec.ts，所以那个文件自带「当前产物没有 sw.js 就 skip」的门闸，
-  // 两套配置互不干扰（原因见 docs/notes/P7-1-pwa.md §6）。
+  // 两套配置互不干扰（原因见 docs/notes/phases/P7-1-pwa.md §6）。
   testMatch: 'pwa.spec.ts',
   // SW + 离线模拟是有状态行为，串行跑一个 worker
   fullyParallel: false,

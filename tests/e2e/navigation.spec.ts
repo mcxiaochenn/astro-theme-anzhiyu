@@ -1,7 +1,7 @@
 /**
  * Phase 4 行为验收：站内导航不整页刷新（ClientRouter / pug pjax 兼容层）
  *
- * 验收口径来自 docs/PLAN.md「Phase 4 验收」：
+ * 验收口径来自 docs/plan/PLAN.md「Phase 4 验收」：
  *   - 站内点击 document 请求为 0；
  *   - 前进后退不出现重复初始化（console 无报错）。
  *

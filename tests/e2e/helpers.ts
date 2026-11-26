@@ -1,7 +1,7 @@
 /**
  * 行为用例共用的选择器、确定性导航基座与外部资源隔离。
  *
- * 设计目标（P4-10 CI 首跑 26 条失败后重做，见 docs/notes/P4-10-e2e-ci-fix.md）：
+ * 设计目标（P4-10 CI 首跑 26 条失败后重做，见 docs/notes/phases/P4-10-e2e-ci-fix.md）：
  *
  * 1. **导航不依赖 `load`**：demo 站 head/body 里引了 cdn.cbd.int / npm.elemecdn /
  *    bu.dusays 等外部资源，CI 上偶发挂起会让 `page.goto()` 默认的 `waitUntil: "load"`

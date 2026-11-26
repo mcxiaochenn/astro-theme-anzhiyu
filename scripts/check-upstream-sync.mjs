@@ -2,8 +2,8 @@
 /**
  * P7-5：上游同步检查（季度 diff 的可复跑入口）。
  *
- * 迁移基线锁在 hexo-theme-anzhiyu 1.7.1 / commit 72439d93（见 docs/PLAN.md §2.1、
- * docs/upstream-delta.md §5 锚点）。这个脚本回答一个问题：
+ * 迁移基线锁在 hexo-theme-anzhiyu 1.7.1 / commit 72439d93（见 docs/plan/PLAN.md §2.1、
+ * docs/reference/upstream-delta.md §5 锚点）。这个脚本回答一个问题：
  *
  *   「基线之后，上游到底多了什么？哪些必须跟进？」
  *
@@ -36,14 +36,14 @@
  * - **未分类路径默认按「必须跟进」处理**（fail-safe：新目录/新资源类型先让人看一眼）。
  *
  * 路径规则只看「改了哪个文件」，不看「改得多大」。历史区间 1.7.0..1.7.1 的自检
- * （docs/notes/P7-5-upstream-sync.md）里 26 个文件全部落到了预期档位；dev 分支
+ * （docs/notes/phases/P7-5-upstream-sync.md）里 26 个文件全部落到了预期档位；dev 分支
  * 上那次只改注释的 `_config.yml` 也会被判必须跟进 —— 这是故意的：宁可多报一次
  * 人工 triage，也不要静默漏掉配置语义变化。
  *
  * ## 退出码
  *
  * - 0：无变更，或只有可选/无关变更（可以不管）；
- * - 1：存在必须跟进的变更（需要人工 triage，见 docs/upstream-delta.md §8 处置流程）；
+ * - 1：存在必须跟进的变更（需要人工 triage，见 docs/reference/upstream-delta.md §8 处置流程）；
  * - 2：无法判定（基线解析失败 / 基线不是目标 ref 的祖先 / 网络模式下 fetch 失败
  *      且没有必须跟进变更 / git 不可用等）。2 不是「上游没变」，是「这次没验完」。
  *
@@ -67,7 +67,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'upstream-delta.md')
+const DELTA_DOC = path.join(REPO_ROOT, 'docs', 'reference', 'upstream-delta.md')
 
 const DEFAULT_UPSTREAM = 'D:/Git-project/_research/anzhiyu-upstream'
 const DEFAULT_BASELINE = '72439d93'
@@ -195,7 +195,7 @@ const HELP = `用法: node scripts/check-upstream-sync.mjs [options]
   -h, --help          显示本帮助
 
 退出码: 0=无必须跟进变更 / 1=有必须跟进变更 / 2=无法判定（网络、基线、shallow 等）
-文档: docs/upstream-delta.md §8（季度流程）、docs/notes/P7-5-upstream-sync.md（本轮记录）`
+文档: docs/reference/upstream-delta.md §8（季度流程）、docs/notes/phases/P7-5-upstream-sync.md（本轮记录）`
 
 // —— 进程内收集结果 ——
 
@@ -384,7 +384,7 @@ function main() {
   const upstreamDir = path.resolve(options.upstream)
   if (!existsSync(upstreamDir)) {
     fatal(`上游副本不存在：${upstreamDir}`, [
-      '先按 docs/PLAN.md §2.1 准备只读副本，或用 --upstream 指定路径。',
+      '先按 docs/plan/PLAN.md §2.1 准备只读副本，或用 --upstream 指定路径。',
     ])
   }
   if (!existsSync(path.join(upstreamDir, '.git'))) {
@@ -434,7 +434,7 @@ function main() {
   }
   if (documented && documented.commit !== baselineFull) {
     warn(
-      `基线 ${baselineFull.slice(0, 8)} 与 docs/upstream-delta.md 锚点 ` +
+      `基线 ${baselineFull.slice(0, 8)} 与 docs/reference/upstream-delta.md 锚点 ` +
         `${String(documented.commit).slice(0, 8)} 不一致（登记表 §5 需要同步）`,
     )
   }
@@ -735,21 +735,21 @@ function summarizeBuckets(classified) {
 
 function readDocumentedBaseline() {
   if (!existsSync(DELTA_DOC)) {
-    warn('docs/upstream-delta.md 不存在，跳过登记表基线一致性检查')
+    warn('docs/reference/upstream-delta.md 不存在，跳过登记表基线一致性检查')
     return null
   }
   const text = readFileSync(DELTA_DOC, 'utf8')
   const match =
     /<!--\s*upstream-delta:begin\s*-->\s*```json\s*([\s\S]*?)```\s*<!--\s*upstream-delta:end\s*-->/m.exec(text)
   if (!match) {
-    warn('docs/upstream-delta.md 缺少 upstream-delta:begin/end 锚点，跳过登记表基线一致性检查')
+    warn('docs/reference/upstream-delta.md 缺少 upstream-delta:begin/end 锚点，跳过登记表基线一致性检查')
     return null
   }
   try {
     const anchor = JSON.parse(match[1])
     return { commit: anchor.upstreamCommit ?? null, version: anchor.upstreamVersion ?? null }
   } catch (error) {
-    warn(`docs/upstream-delta.md 锚点 JSON 解析失败：${error.message}`)
+    warn(`docs/reference/upstream-delta.md 锚点 JSON 解析失败：${error.message}`)
     return null
   }
 }

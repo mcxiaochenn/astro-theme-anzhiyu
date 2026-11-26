@@ -16,7 +16,7 @@
  *   - `minFile()`：只把**文件名末尾**的 `.js/.css` 换成 `.min.js/.min.css`，
  *     已经带 `.min` 的不重复加（负向后行断言）；
  *   - `cdnjs_file`：去掉开头的 `lib/`、`dist/`、`browser/` 段（正则里 `[lib|dist]`
- *     是字符类，上游原样保留，见 docs/upstream-delta.md）；
+ *     是字符类，上游原样保留，见 docs/reference/upstream-delta.md）；
  *   - internal 分支在算完 `cdnjs_file` 之后才给 `file` 加 `source/` 前缀，
  *     所以 `local` 用的是去掉 `source/` 的路径（`js/main.js`），
  *     而 jsdelivr 等 CDN 用的是 `source/js/main.min.js`；

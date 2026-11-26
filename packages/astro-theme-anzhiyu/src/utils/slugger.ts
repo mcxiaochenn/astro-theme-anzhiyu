@@ -258,7 +258,7 @@ export function stripSwallowedHeadings(html: string): string {
 }
 
 /**
- * M2/U8：上游 `hexo-renderer-marked` 不渲染 GFM 脚注（`docs/upstream-delta.md` U8），
+ * M2/U8：上游 `hexo-renderer-marked` 不渲染 GFM 脚注（`docs/reference/upstream-delta.md` U8），
  * 定义行被当成普通段落留在**书写位置**（本基准里紧挨引用所在段）；Astro 侧启用的
  * GFM 会把定义统一挪到文末的 `section[data-footnotes]`。
  *

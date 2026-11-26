@@ -1,6 +1,6 @@
 # baseline-html.tar.gz
 
-上游 Hexo 主题基线（`docs/baseline.json` 里的 49 页）的 HTML 归档，给
+上游 Hexo 主题基线（`docs/reference/baseline.json` 里的 49 页）的 HTML 归档，给
 `scripts/diff-html.mjs --all` 当参考产物用。CI 上没有 `.baseline-work/`
 （被 gitignore），所以只把 HTML 打进归档进仓库，不再走 Release / CI cache。
 
@@ -10,7 +10,7 @@
 - 归档内路径 = 相对 `.baseline-work/public` 的路径，POSIX `/` 分隔；
 - 解压根目录就是 baseline HTML 根目录（即 `BASELINE_HTML_DIR`）：
   `index.html`、`404.html`、`about/index.html`、`categories/前端/index.html`；
-- 49 个文件与 `docs/baseline.json` 的 `pages` 一一对应；逐文件字节数 / SHA256
+- 49 个文件与 `docs/reference/baseline.json` 的 `pages` 一一对应；逐文件字节数 / SHA256
   记在 `baseline-html.manifest.json`，整包 SHA256 也在里面。
 
 当前归档：
@@ -43,4 +43,4 @@ pnpm baseline:extract        # = node scripts/extract-baseline-html.mjs
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all
 ```
 
-细节见 `docs/notes/P-baseline-html-ci.md`。
+细节见 `docs/notes/topics/P-baseline-html-ci.md`。

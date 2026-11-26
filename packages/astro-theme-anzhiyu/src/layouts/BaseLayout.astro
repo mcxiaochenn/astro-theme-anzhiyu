@@ -180,7 +180,7 @@ const pageType: 'post' | 'page' = pageTypeProp ?? 'page'
 /**
  * 生成页（首页 / 归档 / 分类 / 标签 / 404 等）在 Hexo 里没有 `page.updated`，
  * `full_date()` 会退化成构建时刻；基线用 `.baseline-work/scripts/reproducible.js`
- * 把它固定成这个值（见 docs/notes/P1-6-baseline.md §5.3）。文章页与独立页面
+ * 把它固定成这个值（见 docs/notes/phases/P1-6-baseline.md §5.3）。文章页与独立页面
  * 应显式传入自己的真实 `updated`（缺省回退 `date`），不要落到这个分支。
  */
 const GENERATED_PAGE_POST_UPDATE = '2026-01-01 00:00:00'
@@ -204,7 +204,7 @@ const contentInnerClass = !theme.aside.enable || aside === false ? 'layout hide-
  * 取舍：这是 P2-5 引入的一次「主题布局 → 站点内容集合」耦合。Phase 7 站点配置层
  * 落地后，应该改成由站点向布局注入 site 数据（或主题导出一个 data adapter），
  * 届时 Sidebar 的 props 不变、只换数据来源。详见
- * docs/notes/P2-4-5-header-footer-sidebar.md。
+ * docs/notes/phases/P2-4-5-header-footer-sidebar.md。
  *
  * 计数口径与 Hexo 对齐：
  *   - posts：`site.posts` = 所有文章，**不含** `layout: page` 的独立页面；

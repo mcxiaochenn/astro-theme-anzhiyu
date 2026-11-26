@@ -158,7 +158,7 @@ const WHITELIST = [
   },
 ]
 
-/** page.type → 根选择器（依据 docs/notes/P3-2-page-types.md §6.2 + 源站 golden 实测） */
+/** page.type → 根选择器（依据 docs/notes/phases/P3-2-page-types.md §6.2 + 源站 golden 实测） */
 const PAGE_TYPE_SELECTORS = {
   about: { type: 'about', selectors: [{ test: 'id="about-page"' }] },
   tags: {

@@ -11,10 +11,10 @@
  *   node scripts/diff-html.mjs <baselineHtmlPath> <distHtmlPath> [--json]
  *   node scripts/diff-html.mjs --all [--json] [--filter <子串>] [--limit 20]
  *
- * --all 模式按 docs/baseline.json 的 pages 列表批量比对：
+ * --all 模式按 docs/reference/baseline.json 的 pages 列表批量比对：
  *   baseline 根目录：BASELINE_HTML_DIR，默认 .baseline-work/public
  *   dist     根目录：DIST_DIR，默认 examples/blog/dist
- *   baseline.json：BASELINE_PATH，默认 docs/baseline.json
+ *   baseline.json：BASELINE_PATH，默认 docs/reference/baseline.json
  *
  * 退出码：全部 PASS → 0；有 FAIL → 1；baseline 缺失 / 无 pages / filter 无命中 /
  *        用法错误 → 2（D1：跳过不算通过，假绿堵死）
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_JSON = process.env.BASELINE_PATH
   ? path.resolve(process.env.BASELINE_PATH)
-  : path.join(REPO_ROOT, 'docs', 'baseline.json')
+  : path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 const BASELINE_HTML_DIR = process.env.BASELINE_HTML_DIR
   ? path.resolve(process.env.BASELINE_HTML_DIR)
   : path.join(REPO_ROOT, '.baseline-work', 'public')
@@ -471,7 +471,7 @@ function attrValue(node, name) {
 }
 
 /**
- * N18：已登记的资源路径豁免（docs/resource-path-policy.md §1.1）。
+ * N18：已登记的资源路径豁免（docs/reference/resource-path-policy.md §1.1）。
  *
  * 只放行「上游 /css/index.css ↔ 我们 /_astro/<name>.<HASH>.css」这一种映射：
  * Vite 打包必然改目录与文件名，但 CSS 内容由 verify-css.mjs 单独按字节比对，
@@ -594,7 +594,7 @@ function normalizeAttrValue(name, rawValue, ctx) {
 }
 
 /**
- * N22：M2 脚注定义段落（docs/upstream-delta.md「脚注」一条）。
+ * N22：M2 脚注定义段落（docs/reference/upstream-delta.md「脚注」一条）。
  *
  * 上游 marked 不识别 GFM 脚注：`[^note1]: 定义…` 被当成普通段落输出，`[^note1]` 引用
  * 也原样留在正文里。我们渲染真脚注（引用 → sup、定义 → section[data-footnotes]），
@@ -1483,7 +1483,7 @@ const USAGE = `用法：
   node scripts/diff-html.mjs --all [选项]
 
 选项：
-  --all                    按 docs/baseline.json 的 pages 列表批量比对
+  --all                    按 docs/reference/baseline.json 的 pages 列表批量比对
   --json                   输出机器可读 JSON（CI 用）
   --limit <n>              FAIL 时每页最多打印多少条差异（默认 20）
   --max-diffs <n>          单页最多收集多少条差异，0 表示不限（默认 20000）
@@ -1495,7 +1495,7 @@ const USAGE = `用法：
 环境变量：
   BASELINE_HTML_DIR  baseline 根目录，默认 .baseline-work/public
   DIST_DIR           dist 根目录，默认 examples/blog/dist
-  BASELINE_PATH      baseline.json 路径，默认 docs/baseline.json
+  BASELINE_PATH      baseline.json 路径，默认 docs/reference/baseline.json
 
 退出码：全部 PASS → 0；有 FAIL → 1；无法比对（baseline 缺失 / 无 pages / filter 无命中）或用法错误 → 2
 `

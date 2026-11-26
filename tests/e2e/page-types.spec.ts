@@ -5,7 +5,7 @@
  * 路径不是手写的理想值，而是构建产物里真实存在的 13 个 `dist/<path>/index.html`：
  * 12 个 `fixtures/page-*.md` + `fixtures/about-page.md`。
  *
- * 选择器口径见 docs/notes/P3-2-page-types.md §6.2「各 type 的根选择器（构建产物实测）」。
+ * 选择器口径见 docs/notes/phases/P3-2-page-types.md §6.2「各 type 的根选择器（构建产物实测）」。
  * 断言只做「HTTP 200 + layout/page.pug 外壳 + 模板根节点存在」。
  *
  * P4-10 修复（CI 首跑 12 条全挂，A 类用例假设错误）：

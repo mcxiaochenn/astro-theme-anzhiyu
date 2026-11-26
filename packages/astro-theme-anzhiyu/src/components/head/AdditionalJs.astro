@@ -23,7 +23,7 @@
  *   - `prismjs`（additional-js.pug:83）**不挂载**：它的门控来自站点 `_config.yml`
  *     的 `prismjs` 键，本主题的站点配置模型没有这个键（迁移脚本列为 hexo-only），
  *     基线配置用的是 highlight.js，分支恒为关。挂一个恒 0 输出的空壳没有意义。
- *     迁移 prismjs 站点时需单独处理（见 docs/PLAN.md 已知边界）。
+ *     迁移 prismjs 站点时需单独处理（见 docs/plan/PLAN.md 已知边界）。
  *   - `page.mathjax` / `page.katex` / `page.aplayer` 三个 page 级开关由路由层透传
  *     （B2：front-matter → BaseLayout 的 pageMathjax/pageKatex/pageAplayer → 本组件 →
  *     `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；per_page=false 时按上游

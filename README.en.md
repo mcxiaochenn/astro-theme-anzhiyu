@@ -12,7 +12,7 @@
 
 Preview: 👍 [AnZhiYu Astro Demo](https://anzhiyu.example.mcxiaochen.top/) || Upstream Preview: 🤞 [Hexo AnZhiYu](https://hexo.anheyu.com/)
 
-Docs: 📖 [AnZhiYu Official Docs](https://docs.anheyu.com/) || 🚀 [Hexo Migration Guide](docs/MIGRATION.md)
+Docs: 📖 [AnZhiYu Official Docs](https://docs.anheyu.com/) || 🚀 [Hexo Migration Guide](docs/guides/MIGRATION.md)
 
 An **Astro** blog theme ported from [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu), preserving the original visual design, interactive experience, and YAML configuration habits while leveraging Astro's fast static build pipeline.
 
@@ -65,7 +65,7 @@ node scripts/migrate-hexo.mjs --site <your-hexo-site-dir> --dry-run
 node scripts/migrate-hexo.mjs --site <your-hexo-site-dir> --out <output-dir>
 ```
 
-The tool automatically converts posts, standalone pages, YAML data files (links, essays, albums, equipment, about), permalinks, and theme config. See the [Migration Guide](docs/MIGRATION.md) for details.
+The tool automatically converts posts, standalone pages, YAML data files (links, essays, albums, equipment, about), permalinks, and theme config. See the [Migration Guide](docs/guides/MIGRATION.md) for details.
 
 ### Option 3: Use as a Theme Package in an Astro Project
 
@@ -164,7 +164,7 @@ ANZHIYU_PWA=1 pnpm build
 
 ## 🗂 Documentation
 
-- [Hexo → Astro Migration Guide](docs/MIGRATION.md)
+- [Hexo → Astro Migration Guide](docs/guides/MIGRATION.md)
 - [Example Site Guide](examples/blog/README.md)
 - [Upstream Repository (anzhiyu-c/hexo-theme-anzhiyu)](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
 - [Upstream Documentation (docs.anheyu.com)](https://docs.anheyu.com/)
@@ -172,7 +172,7 @@ ANZHIYU_PWA=1 pnpm build
 <details>
 <summary>Developer Verification & Architecture Docs</summary>
 
-- Architecture & design: [Technical Mapping](docs/02-astro-mapping.md) · [Upstream Delta](docs/upstream-delta.md) · [Execution Plan](docs/PLAN.md)
+- Architecture & design: [Technical Mapping](docs/analysis/02-astro-mapping.md) · [Upstream Delta](docs/reference/upstream-delta.md) · [Execution Plan](docs/plan/PLAN.md)
 - Local checks:
 
 ```bash

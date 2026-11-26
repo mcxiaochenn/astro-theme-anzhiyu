@@ -2,7 +2,7 @@
 /**
  * P1-10 CI：样式基准比对（PLAN §3.1 样式基准 / §P1-5 验收标准）
  *
- * 读 docs/baseline.json（P1-6 产出）里的 css 摘要，与构建产物
+ * 读 docs/reference/baseline.json（P1-6 产出）里的 css 摘要，与构建产物
  * examples/blog/dist 中 index 页面实际引用的 CSS 比对。
  *
  * 判定规则：
@@ -32,7 +32,7 @@ import { selectLocalStylesheets } from './lib/css-stylesheets.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_PATH = process.env.BASELINE_PATH
   ? path.resolve(process.env.BASELINE_PATH)
-  : path.join(REPO_ROOT, 'docs', 'baseline.json')
+  : path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 const DIST_DIR = process.env.DIST_DIR
   ? path.resolve(process.env.DIST_DIR)
   : path.join(REPO_ROOT, 'examples', 'blog', 'dist')

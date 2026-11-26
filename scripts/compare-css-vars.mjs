@@ -2,7 +2,7 @@
 /**
  * P1-9 第二条验收：`--anzhiyu-*` CSS 变量逐值比对（PLAN §P1-9）
  *
- * 读 docs/baseline.json 的 `css.cssVars`（P1-6 从上游 hexo 产物提取的 69 个变量，
+ * 读 docs/reference/baseline.json 的 `css.cssVars`（P1-6 从上游 hexo 产物提取的 69 个变量，
  * 取法：按 CSS 文件出现顺序扫描 /(--anzhiyu-[a-zA-Z0-9-]+)\s*:\s*([^;}]+)/，
  * 同名变量只保留第一次出现），与 examples/blog/dist 里 index 页面实际引用的 CSS 逐条比对。
  *
@@ -24,7 +24,7 @@ import { selectLocalStylesheets } from './lib/css-stylesheets.mjs'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const BASELINE_PATH = process.env.BASELINE_PATH
   ? path.resolve(process.env.BASELINE_PATH)
-  : path.join(REPO_ROOT, 'docs', 'baseline.json')
+  : path.join(REPO_ROOT, 'docs', 'reference', 'baseline.json')
 const DIST_DIR = process.env.DIST_DIR
   ? path.resolve(process.env.DIST_DIR)
   : path.join(REPO_ROOT, 'examples', 'blog', 'dist')

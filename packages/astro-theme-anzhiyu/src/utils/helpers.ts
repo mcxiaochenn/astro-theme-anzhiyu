@@ -14,7 +14,7 @@
  *  3. 依赖 moment / hexo-util 的部分用等价实现替换，并在 `scripts/check-helpers.mjs` 里
  *     直接加载上游 JS 作为 oracle 做逐字节对比（见该脚本「上游 oracle」段落）。
  *
- * 与上游的已知差异都就地标注 `@deviation`，并在 docs/notes/P2-6-11-helpers-i18n.md 汇总。
+ * 与上游的已知差异都就地标注 `@deviation`，并在 docs/notes/phases/P2-6-11-helpers-i18n.md 汇总。
  *
  * 文件 → 导出函数速查：
  *  - aside_archives.js    → asideArchives
