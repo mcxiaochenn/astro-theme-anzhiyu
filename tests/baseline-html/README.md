@@ -38,6 +38,7 @@ node tests/baseline-html/make-baseline-html-archive.mjs
 ## 解压（CI 与本地同一条命令）
 
 ```bash
+pnpm build:baseline           # 基线 fixture 构建（diff-html 的比对对象是这个 dist/）
 pnpm baseline:extract        # = node scripts/extract-baseline-html.mjs
 # → .baseline-html/（gitignore）
 BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all

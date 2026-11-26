@@ -738,7 +738,7 @@ jobs:
 6. **prismjs 组件未接线**：站点配置模型无 `prismjs` 键（hexo-only），基线用 highlight.js 恒为关；迁移 prismjs 站点需单独处理
 7. **page 级开关已透传（Batch B）**：`page.mathjax` / `page.katex` / `page.aplayer` 由路由层 front-matter 透传进 BaseLayout → AdditionalJs → `<MathIndex page={…}/>` / `<Aplayer page={…}/>`；`per_page: false` 时按上游 `math/index.pug` 语义读 `page.mathjax` / `page.katex`。内容侧公式管线缺口见 MIGRATION.md §13.2。
 
-**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `pnpm build`（改过 remark/rehype 插件先 `rm -rf node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。（2026-11-27 更新：模板化后根即站点，不再有 `examples/blog`；2026-11-24 注记仍有效：本机无浏览器，e2e/Lighthouse 只在 CI 实跑；实现走 agent team，Lead 只做方向与验收。）
+**恢复工作时的入口**：`export PATH="/c/Program Files/nodejs:$PATH"` → `git pull` → `pnpm install --frozen-lockfile` → `pnpm build:baseline`（改过 remark/rehype 插件先 `rm -rf node_modules/.astro`）→ `BASELINE_HTML_DIR=.baseline-html node scripts/diff-html.mjs --all`。（2026-11-27 更新：内容分层后验收走 `build:baseline`（基线 fixture），默认 `pnpm build` 是 demo 内容；模板化后根即站点，不再有 `examples/blog`；2026-11-24 注记仍有效：本机无浏览器，e2e/Lighthouse 只在 CI 实跑；实现走 agent team，Lead 只做方向与验收。）
 
 ---
 
