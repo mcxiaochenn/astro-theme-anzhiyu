@@ -1,0 +1,113 @@
+- class_name: 关于页
+  subtitle: 有志不在年高，无志空活百岁✨
+  avatarImg: /img/demo/data/L2ltZy-avatar.png
+  avatarSkills:
+    left:
+      - 🤖️ 数码科技爱好者
+      - 🔍 分享与热心帮助
+      - 🏠 智能家居小能手
+      - 🔨 设计开发一条龙
+    right:
+      - Minecraft服务器管理 🤝
+      - 网站搭建与部署 🏃
+      - 小型Linux服务器运维 🧱
+      - 较强的独立思考能力 💢
+  name: 陆逸尘
+  description: 是一名 编程爱好者、安卓玩机爱好者、高中生、UP主、博主、Hacker
+  aboutsiteTips:
+    tips: 追求
+    title1: 源于
+    title2: 热爱而去 感受
+    word:
+      - 学习
+      - 生活
+      - 程序
+      - 骑行
+  helloAbout: Hello world!
+  skillsTips:
+    tips: 技能
+    title: 开启创造力
+  careers:
+    tips: 生涯
+    title: 我们一起，无限进步！
+    list:
+      - desc: 数字化设计与制造专业
+        color: "#357ef5"
+    img: /img/demo/data/aHR0cH-68e615739236a.png #https://bu.dusays.com/2023/04/21/644287166329b.png
+  statistic:
+    link: /archives
+    text: 文章隧道
+    cover: /img/demo/data/aHR0cH-644f4b037b930.jpg
+  map:
+    title: 我现在住在
+    StrengthenTitle: 中国，嘉兴市
+    background: /img/demo/data/aHR0cH-691b3c74affa5.png
+    backgroundDark: /img/demo/data/aHR0cH-691b3c74affa5.png
+  selfInfo:
+    selfInfoTips1: 生于
+    selfInfoContentYear: 2009
+    selfInfoTips2: 浙江嘉兴平湖技师学院
+    selfInfoContent2: 数字化设计与制造
+    selfInfoTips3: 现在职业
+    selfInfoContent3: 高三学生👨‍🎓
+  personalities:
+    author_name: 逻辑学家
+    personality_type: INTP-T
+    photo_url: /img/demo/data/aHR0cH-691b3c8f689fd.jpg
+    personality_img: /img/demo/data/L2ltZy-INTP-T.svg
+    name_url: https://www.16personalities.com/ch/intp-%E4%BA%BA%E6%A0%BC
+  maxim:
+    maxim_tips: 座右铭
+    maxim_top: 有志不在年高，
+    maxim_bottom: 无志空活百岁。
+  buff:
+    buff_tips: 特长
+    buff_top: 计算机全校前五的 小透明
+    buff_bottom: 二次元指数 MAX
+  game:
+    game_tips: 爱好游戏
+    game_title: 原神
+    game_uid: "UID: 319075550"
+    game_bg: /img/demo/data/aHR0cH-4307379ed7585a54b27f54c478e5b1b5_5653856677248832176.jpg
+  comic:
+    comic_tips: 爱好番剧
+    comic_title: 追番
+    comic_list:
+      - name: DARLING in the FRANXX
+        href: https://www.bilibili.com/bangumi/media/md9192
+        cover: /img/demo/data/aHR0cH-a299dbf4e040d468a7a436bf2a8e14af.jpg
+      - name: 晨曦公主
+        href: https://www.bilibili.com/bangumi/media/md3072
+        cover: /img/demo/data/aHR0cH-ed7409956871bf11a4fb1ed1c9cca578.jpg
+      - name: 新世纪福音战士新剧场版：终
+        href: https://www.bilibili.com/bangumi/media/md28371498
+        cover: /img/demo/data/aHR0cH-eb0376146eea134910aa85918147adcd.png
+      - name: 埃罗芒阿老师
+        href: https://www.bilibili.com/bangumi/media/md5997
+        cover: /img/demo/data/aHR0cH-fc280470e6830d13e0a40aef3fe1ffda.webp
+      - name: 鬼灭之刃
+        href: https://www.bilibili.com/bangumi/media/md22718131
+        cover: /img/demo/data/aHR0cH-eda426feb007d0f16bbea6753b07f71f.webp
+  like:
+    like_tips: 关注偏好
+    like_title: 数码科技
+    like_bg: https://bu.dusays.com/2022/12/06/638f5f05ce1f7.jpg
+    like_bottom: 手机、电脑软硬件
+  music:
+    music_tips: 音乐偏好
+    music_title: 说唱、Rap、嘻哈说唱
+    music_bg: /img/demo/data/aHR0cD-109951165139737007.jpg
+    music_link: /music/?id=12886307666&server=netease
+  tenyear:
+    enable: true # 十年之约开关，true为显示，false为隐藏
+    tips: 十年之约
+    title: 一个人的寂寞，一群人的狂欢。
+    start: 2025/07/17
+    end: 2035/07/17
+  reward_list:
+   - name: 小尘
+     amount: 0.0
+     datatime: 2025-07-17
+   - name: 雨云
+     amount: 180.0
+     datatime: 2025-07-17

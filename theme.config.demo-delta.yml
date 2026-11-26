@@ -90,3 +90,53 @@ home_top:
 
 bubble:
   enable: true
+
+# —— 观感（B3，2026-11-27）：头像 / 横幅 / 封面 / 社交 / 页脚 ——
+# 素材在 public/img/demo/（老站 xcAnzhiyu 素材本地化 + 泰山行记摄影）。
+# 站名身份（title/subtitle/description/author）不走本文件：由
+# scripts/deploy-demo-pages.mjs 以 DEPLOY_SITE_* 环境变量注入 src/data/site-identity.ts。
+
+avatar:
+  img: /img/demo/avatar.png
+  effect: true
+
+# 首页横幅（泰山日出）；各页顶部图由页面 frontmatter 的 top_img 提供
+index_img: "background: url(/img/demo/posts/taishan-travel/68e38d02b3ecf.jpg) top / cover no-repeat"
+default_top_img: /img/demo/posts/taishan-travel/68e3c031761e4.webp
+
+error_404:
+  background: /img/demo/posts/taishan-travel/68e38d0203bf0.jpg
+
+cover:
+  default_cover:
+    - /img/default_cover.jpg
+
+author_status:
+  enable: true
+  statusImg: /img/demo/data/status.png
+  skills:
+    - 🤖️ 数码科技爱好者
+    - 🔍 分享与热心帮助
+    - 🏠 智能家居小能手
+    - 🔨 设计开发一条龙
+
+social:
+  GitHub: https://github.com/mcxiaochenn || anzhiyu-icon-github
+
+footer:
+  owner:
+    enable: true
+    since: 2025
+  custom_text: 未完待续……
+  runtime:
+    enable: true
+    launch_time: 07/17/2025 00:00:00
+  bdageitem:
+    enable: true
+    list:
+      - link: https://astro.build/
+        shields: https://img.shields.io/badge/Astro-7.x-FF5D01?style=flat&logo=astro&logoColor=white
+        message: 博客框架为 Astro 7
+      - link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
+        shields: https://img.shields.io/badge/Theme-AnZhiYu%20Astro-2E67D3?style=flat
+        message: 本站使用 AnZhiYu 主题的 Astro 移植版

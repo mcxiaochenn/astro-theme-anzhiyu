@@ -75,6 +75,13 @@ const DEMO_DELTA = process.env.DEMO_THEME_CONFIG
   : join(blogDir, 'theme.config.demo-delta.yml')
 const BASELINE_CONFIG = join(blogDir, 'theme.config.yml')
 const MERGED_CONFIG = join(blogDir, '.tmp-demo-theme.config.yml')
+// demo 站名身份（注入 site-identity.ts 的 DEPLOY_SITE_* 覆盖，老站口径文案）；
+// 显式 env 优先，缺省用 demo 观感站名。基线构建（build:baseline）不带这些变量。
+const SITE_TITLE = process.env.DEPLOY_SITE_TITLE || '辰渊尘の个人博客'
+const SITE_SUBTITLE = process.env.DEPLOY_SITE_SUBTITLE || '「小尘」の个人博客'
+const SITE_DESCRIPTION =
+  process.env.DEPLOY_SITE_DESCRIPTION || '05后，高中生，内容偏技术向，希望能对你有用QwQ'
+const SITE_AUTHOR = process.env.DEPLOY_SITE_AUTHOR || 'mcxiaochenn'
 const ESSAY_FILE = join(blogDir, 'src', 'data', 'essay.yml')
 const FIXTURES_DIR = join(repoRoot, 'src/content')
 
@@ -173,7 +180,15 @@ if (firstGroup < 0) {
   rmSync(ESSAY_TMP, { force: true })
   fail('essay.yml 未找到顶层分组（以 "- " 开头的行）')
 }
-essayLines.splice(firstGroup + 1, 0, '  home_essay: true')
+// demo 数据层自带 home_essay: true 时跳过注入（只在缺省时补）
+let groupEnd = essayLines.findIndex((line, i) => i > firstGroup && line.startsWith('- '))
+if (groupEnd < 0) groupEnd = essayLines.length
+const hasHomeEssay = essayLines.slice(firstGroup, groupEnd).some((line) => /^\s*home_essay:/.test(line))
+if (hasHomeEssay) {
+  console.log('  essay.yml 第一组已有 home_essay: true，跳过注入')
+} else {
+  essayLines.splice(firstGroup + 1, 0, '  home_essay: true')
+}
 const essayPatched = essayLines.join('\n')
 
 writeFileSync(ESSAY_FILE, essayPatched)
@@ -195,6 +210,10 @@ try {
       ANZHIYU_THEME_CONFIG: MERGED_CONFIG,
       DEPLOY_SITE_URL: PAGES_URL,
       DEPLOY_SITE_ROOT: PAGES_PATH || '/',
+      DEPLOY_SITE_TITLE: SITE_TITLE,
+      DEPLOY_SITE_SUBTITLE: SITE_SUBTITLE,
+      DEPLOY_SITE_DESCRIPTION: SITE_DESCRIPTION,
+      DEPLOY_SITE_AUTHOR: SITE_AUTHOR,
       CODEBUDDY_SAFE_DELETE_ENABLED: '0',
     },
     stdio: 'inherit',
@@ -202,8 +221,8 @@ try {
   })
   buildStatus = build.status ?? -1
 } finally {
-  // 无论构建成败都恢复守卫文件（golden diff 依赖 essay.yml 不含 home_essay；
-  // 临时合并配置与 essay 临时副本也在此清理）。
+  // 无论构建成败都恢复守卫文件（essay.yml 原样写回；临时合并配置与 essay
+  // 临时副本也在此清理。golden diff 走 tests/baseline-content/ 数据层，不受此影响）。
   writeFileSync(ESSAY_FILE, essayOriginal)
   rmSync(ESSAY_TMP, { force: true })
   rmSync(MERGED_CONFIG, { force: true })

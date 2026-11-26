@@ -25,11 +25,14 @@ const normalizeRoot = (value?: string) =>
   value ? (value.startsWith('/') ? value : `/${value}`) : undefined
 
 export const SITE_IDENTITY = {
-  title: 'AnZhiYu Baseline',
-  subtitle: '上游 1.7.1 参考产物',
-  description: 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
-  keywords: 'Hexo,AnZhiYu,baseline',
-  author: 'AnZhiYu Baseline',
+  // DEPLOY_SITE_* 覆盖仅供 demo/部署构建注入观感站名；默认值是基线身份，
+  // diff-html 归一化（<SITE> 占位）依赖它，**不要改动默认值**。
+  title: process.env.DEPLOY_SITE_TITLE || 'AnZhiYu Baseline',
+  subtitle: process.env.DEPLOY_SITE_SUBTITLE || '上游 1.7.1 参考产物',
+  description:
+    process.env.DEPLOY_SITE_DESCRIPTION || 'hexo-theme-anzhiyu 1.7.1 在固定内容与固定配置下的参考构建',
+  keywords: process.env.DEPLOY_SITE_KEYWORDS || 'Hexo,AnZhiYu,baseline',
+  author: process.env.DEPLOY_SITE_AUTHOR || 'AnZhiYu Baseline',
   language: 'zh-CN',
   url: deployUrl || 'https://baseline.anzhiyu.test',
   root: normalizeRoot(deployRoot) || '/',
