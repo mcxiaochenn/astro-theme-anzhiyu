@@ -1341,7 +1341,7 @@ function comparePages({ baselinePath, distPath, label, maxDiffs = 20000, dumpNor
       category: '文件',
       path: '(dist)',
       expected: distPath ? rel(distPath) : '（未提供 dist 路径）',
-      actual: '（不存在，先跑 pnpm --filter blog build）',
+      actual: '（不存在，先跑 pnpm build）',
     })
     return finishReport(report)
   }
@@ -1601,7 +1601,7 @@ function runAll(options) {
   if (!options.json) {
     log(`baseline: ${rel(BASELINE_HTML_DIR)}（${selected.length} 页）`)
     log(`dist:     ${rel(DIST_DIR)}`)
-    if (!existsSync(DIST_DIR)) log('dist 目录不存在，全部页面都会报失败（先跑 pnpm --filter blog build）')
+    if (!existsSync(DIST_DIR)) log('dist 目录不存在，全部页面都会报失败（先跑 pnpm build）')
     console.log('')
   }
 

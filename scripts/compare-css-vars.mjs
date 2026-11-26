@@ -102,7 +102,7 @@ log(`baseline cssVars: ${baselineNames.length} 个 --anzhiyu-* 变量`)
 // —— 2. 找 index 页面实际引用的 CSS ——
 const indexPath = path.join(DIST_DIR, 'index.html')
 if (!existsSync(indexPath)) {
-  fail(`构建产物缺少 ${path.relative(REPO_ROOT, indexPath)}，先跑 pnpm --filter blog build`)
+  fail(`构建产物缺少 ${path.relative(REPO_ROOT, indexPath)}，先跑 pnpm build`)
 }
 const html = readFileSync(indexPath, 'utf8')
 

@@ -56,7 +56,7 @@ export default defineConfig({
   webServer: process.env.E2E_PWA_BASE_URL
     ? undefined
     : {
-        command: `pnpm --filter blog build && pnpm --filter blog exec astro preview --host ${HOST} --port ${PORT}`,
+        command: `pnpm build && pnpm exec astro preview --host ${HOST} --port ${PORT}`,
         env: { ANZHIYU_PWA: '1' },
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
