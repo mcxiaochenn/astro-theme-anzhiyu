@@ -12,19 +12,24 @@ const fullUrl = new URL(url, siteConfig.url).toString();
 ---
 
 <div class="post-copyright anzhiyu-card">
-  <div class="copyright-item">
-    <span class="copyright-label">文章作者：</span>
-    <a href="/about/" class="hover:text-[var(--anzhiyu-main)] font-semibold">{siteConfig.author}</a>
+  <Icon name="fa6-brands:creative-commons" class="copyright-cc-watermark" aria-hidden="true" />
+  <div class="post-copyright__author">
+    <span class="post-copyright-meta">文章作者</span>
+    <span class="post-copyright-info">
+      <a href="/about/">{siteConfig.author}</a>
+    </span>
   </div>
-  <div class="copyright-item">
-    <span class="copyright-label">文章链接：</span>
-    <a href={fullUrl} class="break-all hover:text-[var(--anzhiyu-main)]">{fullUrl}</a>
+  <div class="post-copyright__type">
+    <span class="post-copyright-meta">文章链接</span>
+    <span class="post-copyright-info">
+      <a href={fullUrl} class="break-all">{fullUrl}</a>
+    </span>
   </div>
-  <div class="copyright-item">
-    <span class="copyright-label">版权声明：</span>
-    <span>
+  <div class="post-copyright__notice">
+    <span class="post-copyright-meta">版权声明</span>
+    <span class="post-copyright-info">
       本博客所有文章除特别声明外，均采用
-      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" class="text-[var(--anzhiyu-main)] underline">
+      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" class="underline text-[var(--anzhiyu-main)]">
         CC BY-NC-SA 4.0
       </a>
       许可协议。转载请注明来源 {siteConfig.title}！
@@ -59,16 +64,47 @@ const fullUrl = new URL(url, siteConfig.url).toString();
 
 <style>
   .post-copyright {
+    position: relative;
     margin-top: 2rem;
-    padding: 1.15rem 1.3rem;
+    padding: 1.25rem 1.45rem;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
-    font-size: 0.88rem;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    overflow: hidden;
   }
 
-  .copyright-label {
+  .copyright-cc-watermark {
+    position: absolute;
+    right: -18px;
+    top: -18px;
+    width: 110px;
+    height: 110px;
+    opacity: 0.06;
+    pointer-events: none;
+  }
+
+  .post-copyright__author,
+  .post-copyright__type,
+  .post-copyright__notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .post-copyright-meta {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+    font-size: 0.78rem;
     font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .post-copyright-info a:hover {
     color: var(--anzhiyu-main);
   }
 

@@ -38,6 +38,11 @@ export const profileConfig: ProfileConfig = {
       icon: "fa6-brands:bilibili",
     },
     {
+      name: "RSS",
+      url: "/rss.xml",
+      icon: "fa6-solid:rss",
+    },
+    {
       name: "Email",
       url: "mailto:example@example.com",
       icon: "fa6-solid:envelope",

@@ -25,6 +25,27 @@
   scroll-margin-top: 5rem;
 }
 
+.anzhiyu-prose .headerlink {
+  position: relative;
+  margin-right: 0.4rem;
+  color: var(--anzhiyu-main);
+  opacity: 0.4;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.anzhiyu-prose .headerlink::before {
+  content: "#";
+  font-weight: 800;
+}
+
+.anzhiyu-prose h1:hover .headerlink,
+.anzhiyu-prose h2:hover .headerlink,
+.anzhiyu-prose h3:hover .headerlink,
+.anzhiyu-prose h4:hover .headerlink {
+  opacity: 1;
+}
+
 .anzhiyu-prose h2 {
   font-size: 1.45rem;
   padding-bottom: 0.4rem;

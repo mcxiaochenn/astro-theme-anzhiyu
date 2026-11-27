@@ -65,6 +65,23 @@ export const siteConfig: SiteConfig = {
         items: [
           { name: "RSS", link: "/rss.xml" },
           { name: "Sitemap", link: "/sitemap-index.xml" },
+          { name: "版权声明", link: "/about/" },
+        ],
+      },
+      {
+        title: "推荐",
+        items: [
+          { name: "相册集", link: "/album/" },
+          { name: "我的装备", link: "/equipment/" },
+          { name: "音乐馆", link: "/music/" },
+        ],
+      },
+      {
+        title: "友链",
+        items: [
+          { name: "友人帐", link: "/link/" },
+          { name: "朋友圈", link: "/fcircle/" },
+          { name: "GitHub", link: "https://github.com/mcxiaochenn/astro-theme-anzhiyu" },
         ],
       },
     ],

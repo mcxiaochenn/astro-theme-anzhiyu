@@ -135,11 +135,15 @@ const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
             <button
               type="button"
               id="nav-console-btn"
-              class="nav-btn"
+              class="nav-btn console-btn"
               title="中控台"
               aria-label="打开中控台"
             >
-              <Icon name="fa6-solid:compass" class="w-4 h-4" />
+              <span class="console-icon" aria-hidden="true">
+                <i class="left"></i>
+                <i class="center"></i>
+                <i class="right"></i>
+              </span>
             </button>
           )
         }
@@ -215,9 +219,8 @@ const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
     width: 100%;
     height: 60px;
     padding: 0 1.5rem;
-    background: var(--anzhiyu-card-bg);
-    border-bottom: 1px solid var(--anzhiyu-card-border);
-    box-shadow: var(--anzhiyu-shadow-nav);
+    background: var(--anzhiyu-background);
+    border-bottom: 1px solid transparent;
     transition: background-color 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
   }
 
@@ -230,6 +233,8 @@ const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
 
   .anzhiyu-header.nav-fixed .anzhiyu-nav {
     background: color-mix(in srgb, var(--anzhiyu-card-bg) 82%, transparent);
+    border-bottom-color: var(--anzhiyu-card-border);
+    box-shadow: var(--anzhiyu-shadow-nav);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
@@ -504,6 +509,57 @@ const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
   .nav-btn:hover {
     background: var(--anzhiyu-main);
     color: var(--anzhiyu-white);
+  }
+
+  /* AnZhiYu 原版三矩形中控台图标 */
+  .console-btn:hover {
+    background: transparent;
+  }
+
+  .console-icon {
+    position: relative;
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+
+  .console-icon i {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    right: auto;
+    border-radius: 3px;
+    background: currentColor;
+    transition: 0.45s var(--animation-on);
+    width: 7px;
+    height: 7px;
+    transform: translateY(5px);
+  }
+
+  .console-icon i.left {
+    width: 100%;
+    transform: translateY(-5px);
+  }
+
+  .console-icon i.right {
+    left: auto;
+    right: 0;
+    width: 10px;
+  }
+
+  .console-btn:hover .console-icon i.left {
+    width: 8px;
+  }
+
+  .console-btn:hover .console-icon i.center {
+    opacity: 0.5;
+    width: 8px;
+  }
+
+  .console-btn:hover .console-icon i.right {
+    width: 8px;
+    height: 17px;
+    transform: none;
   }
 
   .mobile-only {

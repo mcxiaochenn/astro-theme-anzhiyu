@@ -71,3 +71,33 @@ const aiSummary =
 
   <slot name="overlays" slot="overlays" />
 </BaseLayout>
+
+<script>
+  function initArticleTags() {
+    // 1. Tabs 选项卡切换
+    document.querySelectorAll(".anzhiyu-prose .tabs").forEach((tabsRoot) => {
+      const buttons = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>(".nav-tabs button.tab"));
+      const panels = Array.from(tabsRoot.querySelectorAll<HTMLElement>(".tab-contents .tab-item-content"));
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetId = btn.getAttribute("data-href");
+          buttons.forEach((b) => b.classList.remove("active"));
+          panels.forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          if (targetId) {
+            tabsRoot.querySelector(`#${CSS.escape(targetId)}`)?.classList.add("active");
+          }
+        });
+      });
+    });
+
+    // 2. Hide 折叠/行内隐藏块切换
+    document.querySelectorAll(".anzhiyu-prose .hide-button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        btn.closest(".hide-inline, .hide-block")?.classList.toggle("open");
+      });
+    });
+  }
+
+  document.addEventListener("astro:page-load", initArticleTags);
+</script>
