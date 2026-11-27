@@ -4,7 +4,7 @@ date: 2025-05-01 08:00:00
 layout: page
 type: music
 permalink: /music/
-top_img: /img/demo/posts/taishan-travel/68e38583d3529.jpg
+top_img: /img/demo/anime/anime-05-tall.jpg
 ---
 
 听歌的时候在想什么。

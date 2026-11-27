@@ -4,7 +4,8 @@ date: 2025-05-01 08:00:00
 layout: page
 type: about
 permalink: /about/
-top_img: /img/demo/posts/taishan-travel/68e38d02b3ecf.jpg
+top_img: /img/demo/anime/anime-15-tall.jpg
+aside: false
 ---
 
 有志不在年高，无志空活百岁。

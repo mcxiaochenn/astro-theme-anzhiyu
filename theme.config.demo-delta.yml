@@ -84,9 +84,34 @@ mainTone:
   enable: true
   mode: colorthief
 
+# 首页顶部（标题 / 轮播 / 分类按钮 / 推广卡对齐 demo 内容与本仓库）
 home_top:
   swiper:
     enable: true
+  title: AnZhiYu × Astro
+  subTitle: hexo-theme-anzhiyu 的 Astro 移植版
+  siteText: anzhiyu.example.mcxiaochen.top
+  category:
+    - name: 样式演示
+      path: /categories/样式演示/
+      shadow: var(--anzhiyu-shadow-blue)
+      class: blue
+      icon: anzhiyu-icon-dove
+    - name: 标签演示
+      path: /categories/标签演示/
+      shadow: var(--anzhiyu-shadow-red)
+      class: red
+      icon: anzhiyu-icon-fire
+    - name: 入门指南
+      path: /categories/入门指南/
+      shadow: var(--anzhiyu-shadow-green)
+      class: green
+      icon: anzhiyu-icon-book
+  banner:
+    tips: 开源模板
+    title: Use this template
+    image: /img/demo/anime/banner.jpg
+    link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
 
 bubble:
   enable: true
@@ -96,16 +121,19 @@ bubble:
 # 站名身份（title/subtitle/description/author）不走本文件：由
 # scripts/deploy-demo-pages.mjs 以 DEPLOY_SITE_* 环境变量注入 src/data/site-identity.ts。
 
+# C1（2026-11-27 第二批）：首页非全屏（上游缺省 100vh）
+index_top_img_height: 42vh
+
 avatar:
-  img: /img/demo/avatar.png
+  img: /img/demo/anime/avatar-anime.jpg
   effect: true
 
 # 首页横幅（泰山日出）；各页顶部图由页面 frontmatter 的 top_img 提供
-index_img: "background: url(/img/demo/posts/taishan-travel/68e38d02b3ecf.jpg) top / cover no-repeat"
-default_top_img: /img/demo/posts/taishan-travel/68e3c031761e4.webp
+index_img: "background: url(/img/demo/anime/banner.jpg) top / cover no-repeat"
+default_top_img: /img/demo/anime/anime-13-tall.jpg
 
 error_404:
-  background: /img/demo/posts/taishan-travel/68e38d0203bf0.jpg
+  background: /img/demo/anime/anime-14-tall.jpg
 
 cover:
   default_cover:
@@ -113,7 +141,7 @@ cover:
 
 author_status:
   enable: true
-  statusImg: /img/demo/data/status.png
+  statusImg: /img/demo/anime/avatar-anime.jpg
   skills:
     - 🤖️ 数码科技爱好者
     - 🔍 分享与热心帮助
@@ -140,8 +168,46 @@ footer:
       - link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
         shields: https://img.shields.io/badge/Theme-AnZhiYu%20Astro-2E67D3?style=flat
         message: 本站使用 AnZhiYu 主题的 Astro 移植版
+  # 主题链接指向本仓库（上游默认指 hexo-theme-anzhiyu，demo 不给原主题引流）
+  linkList:
+    - link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
+      text: 主题
 
 # 侧栏「建站天数」与 footer 运行时间同源（上游默认 4/1/2021 是占位）
 runtimeshow:
   enable: true
   publish_date: 07/17/2025 00:00:00
+
+# —— C1：引流清理与布局对齐（2026-11-27 第二批）——
+
+# 网站导航面板（上游默认链 anheyu.com 作者站，换为本项目与演示站）
+nav:
+  enable: true
+  menu:
+    - title: 网页
+      item:
+        - name: 演示站
+          link: https://anzhiyu.example.mcxiaochen.top/
+          icon: /img/favicon.ico
+    - title: 项目
+      item:
+        - name: AnZhiYu Astro（本仓库）
+          link: https://github.com/mcxiaochenn/astro-theme-anzhiyu
+          icon: /img/favicon.ico
+        - name: 上游 hexo-theme-anzhiyu
+          link: https://github.com/anzhiyu-dev/hexo-theme-anzhiyu
+          icon: /img/favicon.ico
+
+# 公众号推广卡（上游示例引流）关闭
+aside:
+  card_weixin:
+    enable: false
+
+# colorthief：cbd 快照缺 .umd.min.js（404），覆盖为存在的 .umd.js（mainTone 取色依赖）
+CDN:
+  option:
+    colorthief: https://cdn.cbd.int/colorthief@2.6.0/dist/color-thief.umd.js
+
+# 文章版权卡位置（上游默认「长沙」是作者示例数据）
+post_copyright:
+  location: 互联网

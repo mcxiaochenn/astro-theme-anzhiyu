@@ -1,6 +1,6 @@
 - class_name: 关于页
   subtitle: 有志不在年高，无志空活百岁✨
-  avatarImg: /img/demo/data/L2ltZy-avatar.png
+  avatarImg: /img/demo/anime/anime-01-tall.jpg
   avatarSkills:
     left:
       - 🤖️ 数码科技爱好者
@@ -33,16 +33,16 @@
     list:
       - desc: 数字化设计与制造专业
         color: "#357ef5"
-    img: /img/demo/data/aHR0cH-68e615739236a.png #https://bu.dusays.com/2023/04/21/644287166329b.png
+    img: /img/demo/anime/anime-02-tall.jpg #https://bu.dusays.com/2023/04/21/644287166329b.png
   statistic:
     link: /archives
     text: 文章隧道
-    cover: /img/demo/data/aHR0cH-644f4b037b930.jpg
+    cover: /img/demo/anime/anime-03-tall.jpg
   map:
     title: 我现在住在
     StrengthenTitle: 中国，嘉兴市
-    background: /img/demo/data/aHR0cH-691b3c74affa5.png
-    backgroundDark: /img/demo/data/aHR0cH-691b3c74affa5.png
+    background: /img/demo/anime/anime-04-tall.jpg
+    backgroundDark: /img/demo/anime/anime-04-tall.jpg
   selfInfo:
     selfInfoTips1: 生于
     selfInfoContentYear: 2009
@@ -53,8 +53,8 @@
   personalities:
     author_name: 逻辑学家
     personality_type: INTP-T
-    photo_url: /img/demo/data/aHR0cH-691b3c8f689fd.jpg
-    personality_img: /img/demo/data/L2ltZy-INTP-T.svg
+    photo_url: /img/demo/anime/anime-05-tall.jpg
+    personality_img: /img/demo/data/INTP-T.svg
     name_url: https://www.16personalities.com/ch/intp-%E4%BA%BA%E6%A0%BC
   maxim:
     maxim_tips: 座右铭
@@ -68,26 +68,26 @@
     game_tips: 爱好游戏
     game_title: 原神
     game_uid: "UID: 319075550"
-    game_bg: /img/demo/data/aHR0cH-4307379ed7585a54b27f54c478e5b1b5_5653856677248832176.jpg
+    game_bg: /img/demo/anime/anime-06-tall.jpg
   comic:
     comic_tips: 爱好番剧
     comic_title: 追番
     comic_list:
       - name: DARLING in the FRANXX
         href: https://www.bilibili.com/bangumi/media/md9192
-        cover: /img/demo/data/aHR0cH-a299dbf4e040d468a7a436bf2a8e14af.jpg
+        cover: /img/demo/anime/anime-07-tall.jpg
       - name: 晨曦公主
         href: https://www.bilibili.com/bangumi/media/md3072
-        cover: /img/demo/data/aHR0cH-ed7409956871bf11a4fb1ed1c9cca578.jpg
+        cover: /img/demo/anime/anime-08-tall.jpg
       - name: 新世纪福音战士新剧场版：终
         href: https://www.bilibili.com/bangumi/media/md28371498
-        cover: /img/demo/data/aHR0cH-eb0376146eea134910aa85918147adcd.png
+        cover: /img/demo/anime/anime-09-tall.jpg
       - name: 埃罗芒阿老师
         href: https://www.bilibili.com/bangumi/media/md5997
-        cover: /img/demo/data/aHR0cH-fc280470e6830d13e0a40aef3fe1ffda.webp
+        cover: /img/demo/anime/anime-10-tall.jpg
       - name: 鬼灭之刃
         href: https://www.bilibili.com/bangumi/media/md22718131
-        cover: /img/demo/data/aHR0cH-eda426feb007d0f16bbea6753b07f71f.webp
+        cover: /img/demo/anime/anime-11-tall.jpg
   like:
     like_tips: 关注偏好
     like_title: 数码科技
@@ -96,7 +96,7 @@
   music:
     music_tips: 音乐偏好
     music_title: 说唱、Rap、嘻哈说唱
-    music_bg: /img/demo/data/aHR0cD-109951165139737007.jpg
+    music_bg: /img/demo/anime/anime-12-tall.jpg
     music_link: /music/?id=12886307666&server=netease
   tenyear:
     enable: true # 十年之约开关，true为显示，false为隐藏

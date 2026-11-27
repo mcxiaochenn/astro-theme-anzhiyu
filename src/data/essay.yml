@@ -1,90 +1,25 @@
+# demo 短文数据（示例内容，展示 essay 页与首页短文条形态）
 - title: 即刻短文
-  subTitle: 小尘的日常生活。
+  subTitle: 模板演示的示例短文。
   tips: 随时随地，分享生活
   buttonText: 关于我
   buttonLink: /about/
   limit: 30
   home_essay: true
-  top_background: /img/demo/data/L2ltZy-congyu4.png
+  top_background: /img/demo/anime/anime-14-tall.jpg
   essay_list:
-    - content: Vercel超量了，临时改用Cloudflare了，可能体验会差一点
-      date: 2026-01-07 20:44:25
-    - content: 新的一年，小尘在这里祝大家新年快乐！万事如意！顺风顺水！
-      date: 2026-01-01 00:00:00
-    - content: 续费云服务器，重签SSL证书，博客功能恢复
-      date: 2025-12-13 23:13:28
-    - content: 啊啊啊啊啊伊之助好帅，又有新目标了，力量训练也开始了，可以接着减脂，明年暑假要是还看不到肌肉线条你们让我干嘛我就干嘛，明年cos伊之助。
-      date: 2025-11-10 22:53:45
-      image: 
-        - /img/demo/data/aHR0cH-69188df816153.jpg
-        - /img/demo/data/aHR0cH-69188df816153.jpg
-        - /img/demo/data/aHR0cH-69188df826fb8.jpg
-        - /img/demo/data/aHR0cH-ae9d72a65834f1918c4795473e692ff1.png
-        - /img/demo/data/aHR0cH-011ba92397699ceae61fd47f6c608e95.png
-    - content: 被我同桌推荐鬼灭，随即沉浸其中无法自拔。
-      date: 2025-11-07 07:20:17
-    - content: 现在开学了，忙于学业，博客看的少了，非常抱歉大家，有空了第一时间会回复和维护博客的！
-      date: 2025-10-20 21:24:23
-    - content: 泰山行回来啦，累死我了
-      date: 2025-10-05 18:59:15
-    - content: 记录下这重要的一刻，我的站点图标被必应收录了！！！
-      date: 2025-09-19 20:01:53
-      link: https://www.bing.com/search?q=%E8%BE%B0%E6%B8%8A%E5%B0%98
-      image: 
-        - /img/demo/data/aHR0cH-68cd45a2e5c5e.png
-    - content: 经过原作者确认Netlify+Vercel双线是可以自动续签的，故改为双线，如果分配到Vercel节点后博客遇到任何问题，烦请到留言板反馈，万分感谢！🙏🙏🙏
-      date: 2025-09-15 19:08
-    - content: 我被抛弃在这巨大染缸~
-      date: 2025/09/13 19:57
-      aplayer:
-        server: netease
-        id: 2676001035
-      link: https://music.163.com/song?id=2676001035
-    - content: 教师节快乐！
-      date: 2025/09/10 13:14
-    - content: 16周岁了呢，又老一岁
-      date: 2025/08/19 08:37
-    - content: 好累，不知道怎么回事，昨晚失眠了，可能是没tim这个电子宠物了，戒断反应。这歌日推的，感觉还行
-      date: 2025/08/17 17:39
-      aplayer:
-        server: netease
-        id: 1320100120
-      link: https://music.163.com/song?id=1320100120
-    - content: 小尘这名重合太高了，考虑后准备了一个重名少的名字作为我的新网名。所以我们重新认识一下吧，我是辰渊尘，欢迎来到我的博客！
-      date: 2025/08/16 08:19
-    - content: 今天抽空做了下人格测试，我是INTP-T，稍后同步到个人页
-      date: 2025/08/11 19:14
-    - content: 修复评论昵称获取，骑车规划完了，准备环青海湖，今晚就要出发啦！
-      date: 2025/08/08 21:44
-    - content: 不知道说啥，推首歌吧
-      date: 2025/08/07 08:48
-      aplayer:
-        server: netease
-        id: 1487212142
-      link: https://music.163.com/#/song?id=1487212142
-    - content: 最近忙于出门长途骑行的路线规划，博客更新先咕了（doge），小改了一下配色
-      date: 2025/07/27 16:48
-    - content: 阿里云这服务器续费太恐怖了，用不起。。。听MortalCat说netlify的体验还可以，先换过来试试看
-      date: 2025/07/24 17:54
-    - content: 如果你正感到疲惫，希望这里能给你片刻的安慰。
-      date: 2025/07/24 00:01
-    - content: 从Cloudflare Pages迁移到了阿里云轻量应用服务器（香港）。
-      date: 2025/07/22 18:38
-    - content: 改回了Cloudflare，并把评论服务器加入cf代理，就我这小破站还有人打我是真想不到。。。评论系统被打爆了。。。
-      date: 2025/07/21 15:43
-    - content: 今天是0721哦，Ciallo～(∠・ω< )⌒☆
-      date: 2025/07/21 07:21
-    - content: 本站正式活过48小时啦！之后也会继续更新博客哦~
-      date: 2025/07/19 15:00
-    - content: 之前把经纬度写反了才导致了这 7108 公里的壮举，现在已经修好啦！
-      date: 2025/07/19 12:29
-    - content: 加了robots试图提高网站SEO权重
-      date: 2025/07/19 09:51
-    - content: 魔改了link.js达到去重效果（内心os：我真聪明）
-      date: 2025/07/19 09:40
-    - content: 加了分流规则，大陆走vercel，海外/其他走Cloudflare，但是貌似vercel会报配置无效，暂时先这样，出问题再想办法（
-      date: 2025/07/19 09:21
-    - content: 感觉要累死了，终于把博客搭的7788了，希望能活的长久吧。。。
-      date: 2025/07/18 23:21
-    - content: 换了鸿蒙字体，看着顺眼多了
-      date: 2025/07/17 14:59
+    - content: 欢迎使用 AnZhiYu Astro 模板！这是一条示例短文，支持 Markdown 与图片。
+      date: 2025-12-10 12:00:00
+    - content: 短文支持多图，比如这样👇
+      date: 2025-12-09 12:00:00
+      image:
+        - /img/demo/anime/anime-15-tall.jpg
+        - /img/demo/anime/anime-16-tall.jpg
+    - content: 在 src/data/essay.yml 里写下你自己的碎碎念。
+      date: 2025-12-08 12:00:00
+    - content: 今天也是充满希望的一天。
+      date: 2025-12-07 12:00:00
+    - content: 点击右上角的中控台，还能发现更多功能。
+      date: 2025-12-06 12:00:00
+    - content: 按 shift + S 打开站内搜索试试。
+      date: 2025-12-05 12:00:00

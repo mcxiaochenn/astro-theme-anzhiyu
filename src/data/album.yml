@@ -1,65 +1,48 @@
-# demo 相册数据（泰山行记 · 瀑布流 / 光影画廊 · fj-gallery）
-- class_name: 泰山行记
-  description: 会当凌绝顶，一览众山小
-  cover: /img/demo/posts/taishan-travel/122cf09e23f556f15f83180d0a4d062c.jpg
-  path_name: /album/taishan/
+# demo 相册数据（二次元占位插画，展示两种相册形态）
+- class_name: 插画集
+  description: 瀑布流模式的相册
+  cover: /img/demo/anime/anime-01-tall.jpg
+  path_name: /album/demo/
   type: 1
-  top_background: /img/demo/posts/taishan-travel/1d83ce0d5a8c5cf83ed7bc7b3a037567.jpg
-  top_link: /2025/10/06/72884b50/
-  top_btn_text: 游记全文
+  top_background: /img/demo/anime/anime-02-tall.jpg
+  top_link: /about/
+  top_btn_text: 关于我
   album_list:
-    - content: 夜爬泰山，从红门到南天门
-      date: 2025-10-05 22:30:00
+    - content: 示例照片一
+      date: 2025-12-01 10:00:00
       image:
-        - /img/demo/posts/taishan-travel/122cf09e23f556f15f83180d0a4d062c.jpg
-        - /img/demo/posts/taishan-travel/1d83ce0d5a8c5cf83ed7bc7b3a037567.jpg
-        - /img/demo/posts/taishan-travel/38a4afc874ee186a83e015d83c2452fd.jpg
-        - /img/demo/posts/taishan-travel/3d01f02e403734ab4213e4492ff1fb68.jpg
-      address: 山东泰安
-      from: 小尘的相机
-    - content: 日观峰的日出，一夜的疲惫都值了
-      date: 2025-10-06 05:40:00
+        - /img/demo/anime/anime-05-tall.jpg
+      address: 演示位置
+      from: 占位插画
+    - content: 示例照片二
+      date: 2025-12-02 10:00:00
       image:
-        - /img/demo/posts/taishan-travel/44bc67e106ef9fe6b9d4ae4c72f473b5.jpg
-        - /img/demo/posts/taishan-travel/47b5e6e73ce3e69835c828e6d7455105.jpg
-        - /img/demo/posts/taishan-travel/4be02d8b851e2251610c9a1b1c4533d8.jpg
-        - /img/demo/posts/taishan-travel/5f13da8498e71a01f080267e80f1faf9.jpg
-      address: 泰山日观峰
-      from: 小尘的相机
-    - content: 下山回望，煌煌泰山景
-      date: 2025-10-06 12:00:00
+        - /img/demo/anime/anime-06-tall.jpg
+        - /img/demo/anime/anime-07-tall.jpg
+      link: /archives/
+    - content: 示例照片三
+      date: 2025-12-03 10:00:00
       image:
-        - /img/demo/posts/taishan-travel/5f5c798775232e5a317868969f535209.jpg
-        - /img/demo/posts/taishan-travel/63deeaa7a4058b3e862304e8e8e461cb.jpg
-        - /img/demo/posts/taishan-travel/66ccb9d0f8af77899de0d6fd9e6b17ee.jpg
-        - /img/demo/posts/taishan-travel/68e382b1ef129.jpg
-        - /img/demo/posts/taishan-travel/68e38426545e7.jpg
-        - /img/demo/posts/taishan-travel/68e38581a2abf.jpg
-      address: 泰山风景区
-      from: 小尘的相机
+        - /img/demo/anime/anime-08-tall.jpg
+        - /img/demo/anime/anime-09-tall.jpg
+        - /img/demo/anime/anime-10-tall.jpg
+      address: 演示位置
+      from: 占位插画
 - class_name: 光影画廊
-  description: 记录生活的边角料
-  cover: /img/demo/album/6378d6458c6b6.png
+  description: 画廊模式的相册
+  cover: /img/demo/anime/anime-11-tall.jpg
   path_name: /album/gallery/
   type: 2
-  top_background: /img/demo/posts/taishan-travel/38a4afc874ee186a83e015d83c2452fd.jpg
+  top_background: /img/demo/anime/anime-12-tall.jpg
   rowHeight: 220
   limit: 10
   lazyload: true
   btnLazyload: false
   album_list:
-    - content: 创作与折腾
-      address: 书桌
+    - content: 画廊示例组
+      address: 演示位置
       image:
-        - /img/demo/album/6378d6458c6b6.png
-        - /img/demo/album/639aa3a5c240e.png
-        - /img/demo/album/639aa3a5c241c.png
-        - /img/demo/album/639aa3a5c251e.png
-        - /img/demo/album/643293b0f0abe.png
-        - /img/demo/album/643293b1055c2.png
-        - /img/demo/album/643293b10ccdd.webp
-        - /img/demo/album/643293b1184e9.jpg
-        - /img/demo/album/643293b121f02.png
-        - /img/demo/album/643293b1230f7.png
-        - /img/demo/album/643293b6788bd.png
-        - /img/demo/album/643293b68026c.png
+        - /img/demo/anime/anime-13-tall.jpg
+        - /img/demo/anime/anime-14-tall.jpg
+        - /img/demo/anime/anime-15-tall.jpg
+        - /img/demo/anime/anime-16-tall.jpg

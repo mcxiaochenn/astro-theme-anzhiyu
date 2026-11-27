@@ -75,12 +75,12 @@ const DEMO_DELTA = process.env.DEMO_THEME_CONFIG
   : join(blogDir, 'theme.config.demo-delta.yml')
 const BASELINE_CONFIG = join(blogDir, 'theme.config.yml')
 const MERGED_CONFIG = join(blogDir, '.tmp-demo-theme.config.yml')
-// demo 站名身份（注入 site-identity.ts 的 DEPLOY_SITE_* 覆盖，老站口径文案）；
-// 显式 env 优先，缺省用 demo 观感站名。基线构建（build:baseline）不带这些变量。
-const SITE_TITLE = process.env.DEPLOY_SITE_TITLE || '辰渊尘の个人博客'
-const SITE_SUBTITLE = process.env.DEPLOY_SITE_SUBTITLE || '「小尘」の个人博客'
+// demo 站名身份（注入 site-identity.ts 的 DEPLOY_SITE_* 覆盖；内容为模板演示形态，
+// 站名用主题名，fuwari 式）；显式 env 优先。基线构建（build:baseline）不带这些变量。
+const SITE_TITLE = process.env.DEPLOY_SITE_TITLE || 'AnZhiYu Astro'
+const SITE_SUBTITLE = process.env.DEPLOY_SITE_SUBTITLE || 'hexo-theme-anzhiyu 的 Astro 移植版'
 const SITE_DESCRIPTION =
-  process.env.DEPLOY_SITE_DESCRIPTION || '05后，高中生，内容偏技术向，希望能对你有用QwQ'
+  process.env.DEPLOY_SITE_DESCRIPTION || '一个基于 Astro 的静态博客主题模板，Use this template 即可拥有同款'
 const SITE_AUTHOR = process.env.DEPLOY_SITE_AUTHOR || 'mcxiaochenn'
 const ESSAY_FILE = join(blogDir, 'src', 'data', 'essay.yml')
 const FIXTURES_DIR = join(repoRoot, 'src/content')
