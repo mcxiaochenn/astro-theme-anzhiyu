@@ -12,9 +12,12 @@
 
 预览: 👍 [AnZhiYu Astro Demo](https://anzhiyu.example.mcxiaochen.top/) || 原版预览: 🤞 [Hexo AnZhiYu](https://hexo.anheyu.com/)
 
-文档: 📖 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) || 🚀 [Hexo 一键迁移指南](docs/guides/MIGRATION.md)
+文档: 📖 [重构计划 (PLAN)](docs/plan/PLAN.md) || 📖 [AnZhiYu 原版配置文档](https://docs.anheyu.com/) || 🚀 [Hexo 迁移指南](docs/guides/MIGRATION.md)
 
-一款基于 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 完整移植到 **Astro** 的个人博客主题，保留原版视觉设计、交互体验与配置习惯，同时享受 Astro 的极速构建与静态部署能力。
+**Anzhiyu 的外貌，Astro 的心** —— 一款基于 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 打造的 **Astro** 个人博客主题，完整保留 AnZhiYu 的视觉设计与交互体验，同时拥抱现代 Astro 工程架构与极速静态构建。
+
+> [!NOTE]
+> **v2 架构重构进行中**：本项目已完成第一版 Hexo 兼容迁移，目前正按 [docs/plan/PLAN.md](docs/plan/PLAN.md) 推进彻底的原生 Astro 化重构（拆离 Hexo DOM/Stylus/全局脚本兼容层，重构为 Astro + Svelte 5 + TypeScript 配置 + Tailwind CSS v4 + Expressive Code + Pagefind 架构），确保外貌原汁原味、内核彻底 Astro 化。
 
 # astro-theme-anzhiyu
 

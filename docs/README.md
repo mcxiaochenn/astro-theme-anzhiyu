@@ -5,7 +5,7 @@ hexo-theme-anzhiyu 1.7.1 → Astro 迁移项目的全部文档，按用途分类
 | 目录 | 内容 | 入口 |
 | --- | --- | --- |
 | [analysis/](analysis/) | 上游调研与技术映射（背景与决策记录） | [01 上游调研](analysis/01-upstream-analysis.md) · [02 技术映射](analysis/02-astro-mapping.md) |
-| [plan/](plan/) | 执行计划与修复计划 | [PLAN](plan/PLAN.md)（唯一执行基线）· [FIXPLAN](plan/FIXPLAN.md) · [03 初版计划](plan/03-migration-plan.md) |
+| [plan/](plan/) | 执行计划与修复计划 | [PLAN](plan/PLAN.md)（v2 彻底 Astro 化重构基线）· [04-legacy-port-plan](plan/04-legacy-port-plan.md)（v1 移植归档）· [FIXPLAN](plan/FIXPLAN.md) · [03 初版计划](plan/03-migration-plan.md) |
 | [guides/](guides/) | 面向使用者的操作指南 | [Hexo 迁移指南](guides/MIGRATION.md) |
 | [reference/](reference/) | 登记表、政策与基准数据 | [上游差异登记](reference/upstream-delta.md) · [资源路径政策](reference/resource-path-policy.md) · [baseline.json](reference/baseline.json) |
 | [notes/](notes/) | 工作记录（历史归档） | 见下 |

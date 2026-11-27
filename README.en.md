@@ -12,9 +12,12 @@
 
 Preview: 👍 [AnZhiYu Astro Demo](https://anzhiyu.example.mcxiaochen.top/) || Upstream Preview: 🤞 [Hexo AnZhiYu](https://hexo.anheyu.com/)
 
-Docs: 📖 [AnZhiYu Official Docs](https://docs.anheyu.com/) || 🚀 [Hexo Migration Guide](docs/guides/MIGRATION.md)
+Docs: 📖 [Refactor Plan (PLAN)](docs/plan/PLAN.md) || 📖 [AnZhiYu Official Docs](https://docs.anheyu.com/) || 🚀 [Hexo Migration Guide](docs/guides/MIGRATION.md)
 
-An **Astro** blog theme ported from [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu), preserving the original visual design, interactive experience, and YAML configuration habits while leveraging Astro's fast static build pipeline.
+**Anzhiyu's look, Astro's heart** — An **Astro** personal blog theme inspired by [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu), preserving its signature visual design and interactive experience while embracing a clean, modern Astro architecture and fast static build pipeline.
+
+> [!NOTE]
+> **v2 Architecture Refactor in Progress**: Following the initial compatibility port, this repository is undergoing a ground-up Astro-native refactor per [docs/plan/PLAN.md](docs/plan/PLAN.md) — replacing the Hexo DOM/Stylus/global-script compatibility layer with native Astro components, Svelte 5 islands, modular TypeScript configs, Tailwind CSS v4, Expressive Code, and Pagefind.
 
 # astro-theme-anzhiyu
 
