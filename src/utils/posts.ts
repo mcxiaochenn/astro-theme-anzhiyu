@@ -1,11 +1,8 @@
 import { getCollection, type CollectionEntry } from "astro:content";
 import readingTime from "reading-time";
 
-export type PostEntry = CollectionEntry<"posts">;
-
-export function isPageEntry(entry: PostEntry): boolean {
-  return entry.data.layout === "page" || typeof entry.data.type === "string";
-}
+export type PostEntry = CollectionEntry<"blog">;
+export type SpecEntry = CollectionEntry<"spec">;
 
 export function normalizeCategoryList(categories: unknown[] = []): string[] {
   const result: string[] = [];
@@ -31,9 +28,9 @@ export function getPostUrl(entry: PostEntry): string {
 }
 
 export async function getAllPosts(): Promise<PostEntry[]> {
-  const all = await getCollection("posts");
+  const all = await getCollection("blog");
   return all
-    .filter((entry) => !isPageEntry(entry) && !entry.data.draft)
+    .filter((entry) => !entry.data.draft)
     .sort((a, b) => {
       const stickyA = a.data.sticky ?? (a.data.top ? 1 : 0);
       const stickyB = b.data.sticky ?? (b.data.top ? 1 : 0);
@@ -44,14 +41,12 @@ export async function getAllPosts(): Promise<PostEntry[]> {
     });
 }
 
-export async function getAllPages(): Promise<PostEntry[]> {
-  const all = await getCollection("posts");
-  return all.filter((entry) => isPageEntry(entry) && !entry.data.draft);
+export async function getAllSpecs(): Promise<SpecEntry[]> {
+  return await getCollection("spec");
 }
 
 export function getPostStats(entry: PostEntry) {
   const stats = readingTime(entry.body ?? "");
-  // 中文字符与英文词统计
   const text = (entry.body ?? "").replace(/```[\s\S]*?```/g, "").replace(/[#>*`\[\]()]/g, "");
   const cnCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
   const enCount = (text.replace(/[\u4e00-\u9fa5]/g, " ").match(/[a-zA-Z0-9_]+/g) || []).length;

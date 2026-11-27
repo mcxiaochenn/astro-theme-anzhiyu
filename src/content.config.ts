@@ -9,13 +9,12 @@ const categoryPath: z.ZodType<unknown> = z.lazy(() =>
 const imageOrDisabled = z.union([z.string(), z.boolean()]);
 
 /**
- * 博客文章与页面集合
- * 兼容 Hexo frontmatter 与现代 Astro 字段
+ * 博客文章集合（src/content/posts/）
  */
-const posts = defineCollection({
+const blog = defineCollection({
   loader: glob({
     pattern: "**/*.{md,mdx}",
-    base: "./src/content",
+    base: "./src/content/posts",
   }),
   schema: z
     .object({
@@ -40,12 +39,28 @@ const posts = defineCollection({
       toc: z.boolean().default(true),
       aside: z.boolean().default(true),
       copyright: z.boolean().default(true),
-      layout: z.string().optional(),
-      type: z.string().optional(),
       permalink: z.string().optional(),
       draft: z.boolean().default(false),
     })
     .passthrough(),
 });
 
-export const collections = { posts };
+/**
+ * 固定独立页面集合（src/content/spec/）
+ */
+const spec = defineCollection({
+  loader: glob({
+    pattern: "**/*.{md,mdx}",
+    base: "./src/content/spec",
+  }),
+  schema: z
+    .object({
+      title: z.string().optional(),
+      type: z.string().optional(),
+      comments: z.boolean().default(true),
+      aside: z.boolean().default(false),
+    })
+    .passthrough(),
+});
+
+export const collections = { blog, spec };
