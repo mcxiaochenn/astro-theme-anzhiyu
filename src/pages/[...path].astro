@@ -205,7 +205,7 @@ const todoData = getSiteData<TodoGroup[]>('todolist') ?? []
     ) : type === 'room' ? (
       <RoomPage />
     ) : type === 'about' ? (
-      <AboutPage data={aboutData} html={renderedHtml} />
+      <AboutPage data={aboutData} html={renderedHtml} creativity={getSiteData('creativity')} />
     ) : type === 'album' ? (
       <AlbumPage data={albumData} topBackground={topBackground} />
     ) : type === 'fcircle' ? (

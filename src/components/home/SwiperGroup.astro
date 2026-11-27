@@ -90,7 +90,9 @@ function lazyAttrs(src: string) {
         swiperPosts.map((post) => {
           const date = timemode === 'updated' ? post.updated : post.date
           const text = descriptionOf(post) || expertOf(post)
-          const imgAttrs = lazyAttrs(typeof post.cover === 'string' ? post.cover : '')
+          // 上游 top.pug 的 slide img 直接 src（lazyload filter 只处理正文图）；
+          // 轮播 slide 在 wrapper 内不可见，走 lazyload 会永远停在占位纹理。
+          const cover = typeof post.cover === 'string' ? post.cover : ''
           return (
             <div
               class="blog-slider__item swiper-slide"
@@ -100,10 +102,9 @@ function lazyAttrs(src: string) {
                 <img
                   width="48"
                   height="48"
-                  src={imgAttrs.src}
+                  src={urlFor(cover)}
                   alt="图片"
-                  onerror={imgAttrs.onerror}
-                  data-lazy-src={'data-lazy-src' in imgAttrs ? imgAttrs['data-lazy-src'] : undefined}
+                  onerror={`this.src='${String(lazyload.errorPostPage).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'; this.onerror = null;`}
                 />
               </a>
               <div class="blog-slider__content">
@@ -156,3 +157,46 @@ function lazyAttrs(src: string) {
     <div class="top-group-list-none" />
   </div>
 </div>
+
+{/* top.pug:99-125 —— initBlogSlider()（fade 轮播 + hover 暂停）。
+    swiper_js 无条件引入（上游 `if !site.data.essay` 的分支等价于总有一处引入；
+    BbTimeList 的同款引入重复执行无害）。Swiper 未加载时轮询等待。 */}
+<script is:inline src={urlFor(theme.home_top.swiper.swiper_js)}></script>
+<script is:inline>
+  function initBlogSlider() {
+    if (typeof Swiper !== 'function') {
+      setTimeout(initBlogSlider, 200)
+      return
+    }
+    var swiper = new Swiper('.blog-slider', {
+      passiveListeners: true,
+      spaceBetween: 30,
+      effect: 'fade',
+      loop: true,
+      autoplay: {
+        disableOnInteraction: true,
+        delay: 3000,
+      },
+      mousewheel: {
+        passive: true,
+      },
+      pagination: {
+        el: '.blog-slider__pagination',
+        clickable: true,
+      },
+    })
+
+    var comtainer = document.getElementById('swiper_container')
+    if (comtainer !== null) {
+      comtainer.onmouseenter = function () {
+        swiper.autoplay.stop()
+      }
+      comtainer.onmouseleave = function () {
+        swiper.autoplay.start()
+      }
+    }
+  }
+  setTimeout(function () {
+    initBlogSlider()
+  }, 100)
+</script>
