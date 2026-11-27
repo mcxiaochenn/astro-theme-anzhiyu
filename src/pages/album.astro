@@ -1,0 +1,52 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface PhotoEntry {
+  content?: string;
+  date?: string;
+  image?: string[];
+  address?: string;
+}
+
+interface AlbumGroup {
+  class_name: string;
+  description?: string;
+  album_list?: PhotoEntry[];
+}
+
+const albums = getSiteData<AlbumGroup[]>("album") ?? [];
+---
+
+<PageLayout title="相册集" aside={false}>
+  <div class="flex flex-col gap-8">
+    {
+      albums.map((album) => (
+        <section>
+          <h2 class="text-xl font-bold mb-1">{album.class_name}</h2>
+          {album.description && (
+            <p class="text-sm text-[var(--anzhiyu-secondtext)] mb-4">{album.description}</p>
+          )}
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(album.album_list ?? []).map((entry) => (
+              <div class="rounded-xl overflow-hidden bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] p-3 flex flex-col gap-2.5">
+                {entry.image && entry.image.length > 0 && (
+                  <div class:list={["grid gap-2", entry.image.length > 1 ? "grid-cols-2" : "grid-cols-1"]}>
+                    {entry.image.map((src) => (
+                      <img src={src} alt={entry.content || "相册图片"} class="w-full h-44 object-cover rounded-lg" loading="lazy" />
+                    ))}
+                  </div>
+                )}
+                {entry.content && <div class="text-sm font-medium">{entry.content}</div>}
+                <div class="flex items-center justify-between text-xs text-[var(--anzhiyu-secondtext)]">
+                  <span>{entry.address ?? ""}</span>
+                  <span>{entry.date ?? ""}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

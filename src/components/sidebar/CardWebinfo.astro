@@ -1,0 +1,35 @@
+---
+import { Icon } from "astro-icon/components";
+import { siteConfig } from "@/config";
+
+interface Props {
+  postCount: number;
+  totalWords: number;
+}
+
+const { postCount, totalWords } = Astro.props;
+const startTime = new Date(siteConfig.footer.since).getTime();
+const runDays = Math.max(1, Math.floor((Date.now() - startTime) / 86_400_000));
+const wordsText = totalWords >= 1000 ? `${(totalWords / 1000).toFixed(1)}k` : String(totalWords);
+---
+
+<div class="card-widget anzhiyu-card p-4">
+  <div class="flex items-center gap-2 font-bold text-sm mb-3">
+    <Icon name="fa6-solid:chart-line" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+    <span>网站资讯</span>
+  </div>
+  <div class="flex flex-col gap-2 text-sm">
+    <div class="flex justify-between">
+      <span class="text-[var(--anzhiyu-secondtext)]">文章数目：</span>
+      <span class="font-semibold">{postCount} 篇</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="text-[var(--anzhiyu-secondtext)]">已运行时间：</span>
+      <span class="font-semibold">{runDays} 天</span>
+    </div>
+    <div class="flex justify-between">
+      <span class="text-[var(--anzhiyu-secondtext)]">本站总字数：</span>
+      <span class="font-semibold">{wordsText}</span>
+    </div>
+  </div>
+</div>

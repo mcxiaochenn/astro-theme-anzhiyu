@@ -1,0 +1,55 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { formatDate, getAllPosts, getPostUrl, type PostEntry } from "@/utils/posts";
+
+const posts = await getAllPosts();
+
+const byYear = new Map<number, PostEntry[]>();
+for (const p of posts) {
+  const year = p.data.date ? p.data.date.getFullYear() : new Date().getFullYear();
+  const list = byYear.get(year) ?? [];
+  list.push(p);
+  byYear.set(year, list);
+}
+const years = Array.from(byYear.entries()).sort((a, b) => b[0] - a[0]);
+---
+
+<PageLayout title={`归档 (${posts.length})`}>
+  <div class="flex flex-col gap-8">
+    {
+      years.map(([year, list]) => (
+        <section>
+          <h2 class="text-xl font-extrabold mb-4 flex items-center gap-2 text-[var(--anzhiyu-main)]">
+            <span>{year}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-[var(--anzhiyu-secondbg)] text-[var(--anzhiyu-secondtext)]">
+              {list.length} 篇
+            </span>
+          </h2>
+          <div class="flex flex-col gap-3 pl-4 border-l-2 border-[var(--anzhiyu-card-border)]">
+            {list.map((post) => {
+              const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+              return (
+                <a
+                  href={getPostUrl(post)}
+                  class="flex items-center gap-4 p-2.5 rounded-xl hover:bg-[var(--anzhiyu-secondbg)] transition-colors group"
+                >
+                  <img src={cover} alt={post.data.title} class="w-16 h-12 rounded-lg object-cover shrink-0" loading="lazy" />
+                  <div class="min-w-0 flex-1">
+                    <div class="font-bold text-base truncate group-hover:text-[var(--anzhiyu-main)]">
+                      {post.data.title}
+                    </div>
+                    {post.data.date && (
+                      <time class="text-xs text-[var(--anzhiyu-secondtext)]">
+                        {formatDate(post.data.date)}
+                      </time>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

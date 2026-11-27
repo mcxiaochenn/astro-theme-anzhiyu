@@ -1,0 +1,77 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  basePath?: string;
+}
+
+const { currentPage, totalPages, basePath = "" } = Astro.props;
+
+function pageHref(page: number) {
+  if (page <= 1) return basePath ? `${basePath}/` : "/";
+  return basePath ? `${basePath}/page/${page}/` : `/page/${page}/`;
+}
+
+const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+---
+
+{
+  totalPages > 1 && (
+    <nav class="pagination" aria-label="分页导航">
+      {currentPage > 1 && (
+        <a href={pageHref(currentPage - 1)} class="page-btn" aria-label="上一页">
+          <Icon name="fa6-solid:chevron-left" class="w-3.5 h-3.5" />
+        </a>
+      )}
+      {pages.map((p) => (
+        <a
+          href={pageHref(p)}
+          class:list={["page-btn", { current: p === currentPage }]}
+          aria-current={p === currentPage ? "page" : undefined}
+        >
+          {p}
+        </a>
+      ))}
+      {currentPage < totalPages && (
+        <a href={pageHref(currentPage + 1)} class="page-btn" aria-label="下一页">
+          <Icon name="fa6-solid:chevron-right" class="w-3.5 h-3.5" />
+        </a>
+      )}
+    </nav>
+  )
+}
+
+<style>
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.65rem;
+    border-radius: var(--anzhiyu-radius);
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    color: var(--anzhiyu-fontcolor);
+    font-size: 0.88rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .page-btn:hover,
+  .page-btn.current {
+    background: var(--anzhiyu-main);
+    border-color: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+  }
+</style>

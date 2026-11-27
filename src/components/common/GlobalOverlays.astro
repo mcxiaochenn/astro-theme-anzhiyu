@@ -1,0 +1,52 @@
+---
+import { aggregateCategories, aggregateTags, getAllPosts, getPostUrl } from "@/utils/posts";
+import { musicConfig, siteConfig, themeConfig } from "@/config";
+import Console from "@/components/console/Console.svelte";
+import ContextMenu from "@/components/console/ContextMenu.svelte";
+import ShortcutModal from "@/components/console/ShortcutModal.svelte";
+import SearchDialog from "@/components/search/SearchDialog.svelte";
+import MusicBall from "@/components/music/MusicBall.svelte";
+
+const posts = await getAllPosts();
+const tags = aggregateTags(posts).map((t) => ({ name: t.name, count: t.count }));
+const categories = aggregateCategories(posts);
+const postUrls = posts.map((p) => getPostUrl(p));
+const fallbackPosts = posts.map((p) => ({
+  title: p.data.title,
+  url: getPostUrl(p),
+  description: p.data.description,
+  tags: p.data.tags,
+}));
+---
+
+{
+  themeConfig.features.console && (
+    <Console
+      client:idle
+      tags={tags}
+      postCount={posts.length}
+      categoryCount={categories.length}
+      siteTitle={siteConfig.title}
+    />
+  )
+}
+{themeConfig.features.rightMenu && <ContextMenu client:idle postUrls={postUrls} />}
+{themeConfig.features.shortcutKey && <ShortcutModal client:idle />}
+{themeConfig.features.search && <SearchDialog client:idle fallbackPosts={fallbackPosts} />}
+<div transition:persist="music-ball">
+  <MusicBall client:idle enable={musicConfig.enable} />
+</div>
+
+<script is:inline define:vars={{ postUrls }}>
+  document.addEventListener("astro:page-load", () => {
+    document.querySelectorAll('[data-random-post="true"]').forEach((el) => {
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (postUrls.length > 0) {
+          const url = postUrls[Math.floor(Math.random() * postUrls.length)];
+          window.location.href = url;
+        }
+      });
+    });
+  });
+</script>

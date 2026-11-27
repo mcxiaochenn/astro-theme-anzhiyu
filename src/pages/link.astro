@@ -1,0 +1,59 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface FriendItem {
+  name: string;
+  link: string;
+  avatar: string;
+  descr?: string;
+  siteshot?: string;
+  tag?: string;
+}
+
+interface LinkGroup {
+  class_name: string;
+  class_desc?: string;
+  link_list: FriendItem[];
+}
+
+const groups = getSiteData<LinkGroup[]>("link") ?? [];
+---
+
+<PageLayout title="友人帐" aside={false}>
+  <div class="flex flex-col gap-8">
+    {
+      groups.map((group) => (
+        <section>
+          <h2 class="text-xl font-bold mb-1">{group.class_name}</h2>
+          {group.class_desc && (
+            <p class="text-sm text-[var(--anzhiyu-secondtext)] mb-4">{group.class_desc}</p>
+          )}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {group.link_list.map((item) => (
+              <a
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-3.5 p-3.5 rounded-xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] hover:border-[var(--anzhiyu-main)] hover:bg-[var(--anzhiyu-main)] hover:text-white transition-all group"
+              >
+                <img
+                  src={item.avatar}
+                  alt={item.name}
+                  class="w-14 h-14 rounded-full object-cover shrink-0 border-2 border-white/80"
+                  loading="lazy"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="font-bold text-base truncate">{item.name}</div>
+                  {item.descr && (
+                    <div class="text-xs opacity-75 line-clamp-2 mt-0.5">{item.descr}</div>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

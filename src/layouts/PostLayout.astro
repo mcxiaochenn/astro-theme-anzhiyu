@@ -1,0 +1,73 @@
+---
+import type { MarkdownHeading } from "astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Sidebar from "@/components/sidebar/Sidebar.astro";
+import PostHeader from "@/components/post/PostHeader.astro";
+import PostToc from "@/components/post/PostToc.astro";
+import PostAiAbstract from "@/components/post/PostAiAbstract.astro";
+import PostCopyright from "@/components/post/PostCopyright.astro";
+import PostRelated from "@/components/post/PostRelated.astro";
+import { themeConfig } from "@/config";
+import { getPostStats, getPostUrl, type PostEntry } from "@/utils/posts";
+
+interface Props {
+  post: PostEntry;
+  headings: MarkdownHeading[];
+  prev?: PostEntry;
+  next?: PostEntry;
+  related: PostEntry[];
+}
+
+const { post, headings, prev, next, related } = Astro.props;
+const { words, minutes } = getPostStats(post);
+const cover = typeof post.data.cover === "string" ? post.data.cover : undefined;
+const aiSummary =
+  typeof post.data.ai === "string"
+    ? post.data.ai
+    : post.data.ai === false
+      ? ""
+      : themeConfig.post.aiAbstract
+        ? post.data.description ?? ""
+        : "";
+---
+
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  image={cover}
+  article={true}
+  publishedTime={post.data.date}
+  updatedTime={post.data.updated}
+  isPost={true}
+  hasComments={post.data.comments}
+  mainColor={post.data.main_color}
+>
+  <PostHeader post={post} words={words} minutes={minutes} />
+
+  <div class="layout-shell">
+    <div class="layout-main">
+      <article id="post" class="anzhiyu-card p-6 md:p-8">
+        {aiSummary && <PostAiAbstract summary={aiSummary} />}
+        <div id="article-container" class="anzhiyu-prose">
+          <slot />
+        </div>
+        {post.data.copyright && themeConfig.post.copyright && (
+          <PostCopyright title={post.data.title} url={getPostUrl(post)} />
+        )}
+      </article>
+
+      <PostRelated prev={prev} next={next} related={related} />
+      <slot name="comments" />
+    </div>
+
+    {
+      post.data.aside && themeConfig.sidebar.enable && (
+        <Sidebar showAuthor={true}>
+          <PostToc slot="sticky" headings={headings} />
+        </Sidebar>
+      )
+    }
+  </div>
+
+  <slot name="overlays" slot="overlays" />
+</BaseLayout>

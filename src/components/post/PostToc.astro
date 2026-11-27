@@ -1,0 +1,120 @@
+---
+import type { MarkdownHeading } from "astro";
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const tocItems = headings.filter((h) => h.depth >= 2 && h.depth <= 4);
+---
+
+{
+  tocItems.length > 0 && (
+    <div id="card-toc" class="card-widget anzhiyu-card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2 font-bold text-sm">
+          <Icon name="fa6-solid:list-ul" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+          <span>目录</span>
+        </div>
+        <span id="toc-progress" class="text-xs font-bold text-[var(--anzhiyu-main)]">0%</span>
+      </div>
+
+      <nav class="toc-content" aria-label="文章目录">
+        <ol class="toc-list">
+          {tocItems.map((h) => (
+            <li class={`toc-item toc-depth-${h.depth}`}>
+              <a href={`#${h.slug}`} class="toc-link" data-toc-slug={h.slug}>
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </div>
+  )
+}
+
+<style>
+  .toc-content {
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+
+  .toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .toc-depth-3 {
+    padding-left: 0.9rem;
+  }
+
+  .toc-depth-4 {
+    padding-left: 1.8rem;
+  }
+
+  .toc-link {
+    display: block;
+    padding: 0.28rem 0.6rem;
+    border-radius: var(--anzhiyu-radius);
+    font-size: 0.85rem;
+    color: var(--toc-link-color);
+    line-height: 1.45;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .toc-link:hover {
+    color: var(--anzhiyu-main);
+  }
+
+  .toc-link.active {
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+    font-weight: 600;
+  }
+</style>
+
+<script>
+  function initToc() {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>(".toc-link"));
+    const progressEl = document.getElementById("toc-progress");
+    if (links.length === 0) return;
+
+    const headings = links
+      .map((link) => {
+        const slug = link.getAttribute("data-toc-slug");
+        return slug ? document.getElementById(slug) : null;
+      })
+      .filter((el): el is HTMLElement => el !== null);
+
+    const onScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (progressEl && docHeight > 0) {
+        progressEl.textContent = `${Math.min(100, Math.round((scrollTop / docHeight) * 100))}%`;
+      }
+
+      let activeId = headings[0]?.id;
+      for (const h of headings) {
+        if (h.getBoundingClientRect().top <= 110) {
+          activeId = h.id;
+        }
+      }
+
+      links.forEach((link) => {
+        link.classList.toggle("active", link.getAttribute("data-toc-slug") === activeId);
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
+  document.addEventListener("astro:page-load", initToc);
+</script>

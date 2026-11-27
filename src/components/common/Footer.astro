@@ -1,0 +1,183 @@
+---
+import { Icon } from "astro-icon/components";
+import { siteConfig, profileConfig } from "@/config";
+
+const startYear = new Date(siteConfig.footer.since).getFullYear();
+const currentYear = new Date().getFullYear();
+const yearText = startYear === currentYear ? `${currentYear}` : `${startYear} - ${currentYear}`;
+---
+
+<footer id="footer" class="anzhiyu-footer">
+  <div class="footer-social">
+    {
+      profileConfig.social.map((s) => (
+        <a
+          href={s.url}
+          target={s.url.startsWith("http") ? "_blank" : undefined}
+          rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+          class="social-btn"
+          title={s.name}
+          aria-label={s.name}
+        >
+          <Icon name={s.icon} class="w-4 h-4" />
+        </a>
+      ))
+    }
+    <button
+      type="button"
+      id="footer-top-btn"
+      class="social-btn top-btn"
+      title="返回顶部"
+      aria-label="返回顶部"
+    >
+      <Icon name="fa6-solid:arrow-up" class="w-4 h-4" />
+    </button>
+  </div>
+
+  {
+    siteConfig.footer.links && siteConfig.footer.links.length > 0 && (
+      <div class="footer-links-grid">
+        {siteConfig.footer.links.map((group) => (
+          <div class="footer-group">
+            <h3 class="footer-group-title">{group.title}</h3>
+            <div class="footer-group-list">
+              {group.items.map((item) => (
+                <a href={item.link} class="footer-link">
+                  {item.name}
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  <div class="footer-bar">
+    <div class="footer-bar-inner">
+      <div class="footer-copyright">
+        <span>© {yearText} By <a href="/about/" class="font-semibold hover:text-[var(--anzhiyu-main)]">{siteConfig.author}</a></span>
+        <span class="mx-2 opacity-40">|</span>
+        <span>Powered by <a href="https://astro.build" target="_blank" rel="noopener noreferrer" class="hover:text-[var(--anzhiyu-main)]">Astro</a> &amp; <a href="https://github.com/mcxiaochenn/astro-theme-anzhiyu" target="_blank" rel="noopener noreferrer" class="hover:text-[var(--anzhiyu-main)]">AnZhiYu</a></span>
+      </div>
+      {
+        siteConfig.footer.icp && (
+          <a href={siteConfig.footer.icp.url} target="_blank" rel="noopener noreferrer" class="text-xs opacity-75 hover:opacity-100">
+            {siteConfig.footer.icp.text}
+          </a>
+        )
+      }
+    </div>
+  </div>
+</footer>
+
+<style>
+  .anzhiyu-footer {
+    margin-top: 2.5rem;
+    background: linear-gradient(180deg, transparent 0%, var(--anzhiyu-card-bg) 35%);
+    border-top: 1px solid var(--anzhiyu-card-border);
+  }
+
+  .footer-social {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .social-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--anzhiyu-fontcolor);
+    color: var(--anzhiyu-card-bg);
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .social-btn:hover {
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+    transform: translateY(-2px);
+  }
+
+  .social-btn.top-btn {
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+  }
+
+  .footer-links-grid {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .footer-group-title {
+    margin: 0 0 0.65rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--anzhiyu-secondtext);
+  }
+
+  .footer-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .footer-link {
+    font-size: 0.88rem;
+    color: var(--anzhiyu-fontcolor);
+    opacity: 0.82;
+  }
+
+  .footer-link:hover {
+    opacity: 1;
+    color: var(--anzhiyu-main);
+  }
+
+  .footer-bar {
+    background: var(--anzhiyu-secondbg);
+    border-top: 1px solid var(--anzhiyu-card-border);
+    padding: 0.9rem 1.5rem;
+  }
+
+  .footer-bar-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--anzhiyu-secondtext);
+  }
+
+  @media (max-width: 640px) {
+    .footer-bar-inner {
+      justify-content: center;
+      text-align: center;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    document.getElementById("footer-top-btn")?.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+</script>

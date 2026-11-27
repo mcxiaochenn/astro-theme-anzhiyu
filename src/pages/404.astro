@@ -1,121 +1,21 @@
 ---
-/**
- * P2-10 · 404 页：`/404.html`
- *
- * 上游 `layout/includes/404.pug`（由 `scripts/events/404.js` 生成的 `page.type === '404'` 页面使用），
- * `layout.pug` 对 404 走**独立分支**：不渲染 `#body-wrap.page` / `main#blog-container` / footer，
- * 而是：
- *
- *   #body-wrap.error
- *     include header/index.pug                ← 复用同一套 header
- *     .error-box
- *       #error-wrap > .error-content
- *         .error-img[style=background-image:url(...)]
- *         .error-info
- *           h1.error_title 404
- *           .error_subtitle
- *           a.button--animated[href=config.root] > i + 回到主页
- *       .aside-list > .aside-list-group
- *         .aside-list-item × N                ← card_recent_post.limit（0 → 全部；否则 related_post.limit || 6）
- *
- * 关于 header：`BaseLayout` 的 `is404` 分支只提供 `<slot name="404" />` 占位（上游 layout.pug 的 404
- * 分支不渲染 main/footer，但仍然 include header/index.pug）。这里直接复用 P2-4 抽出的
- * `components/chrome/Header.astro`，与其它页面同源；`topImg={false}` 对应 404 generator 给页面数据塞的
- * `top_img: false`（所以 `#page-header` 是 `not-top-img`）。
- */
-import BaseLayout from '@/layouts/BaseLayout.astro'
-import Header from '@/components/chrome/Header.astro'
-import LazyImage from '@/components/archive/LazyImage.astro'
-import {
-  getThemeConfig,
-  readString,
-} from '@/config/theme-context.ts'
-import '../styles/upstream/index.styl'
-import { BASELINE_SITE, hexoNotFoundPageUrl, loadArchiveSite } from './archives/_data.ts'
-
-const theme = getThemeConfig()
-const data = await loadArchiveSite()
-
-/** 上游 `theme.error_404.subtitle`。 */
-const subtitle = readString(theme.error_404, 'subtitle')
-/** 上游 `error_404_top_img = theme.error_404.background || theme.default_top_img`。 */
-const background =
-  readString(theme.error_404, 'background') || readString(theme, 'default_top_img') || ''
-
-/**
- * 上游 404.pug 的最近文章列表：
- *   postLimit = card_recent_post.limit === 0 ? site.posts.length : related_post.limit || 6
- *   sort      = card_recent_post.sort === 'updated' ? 'updated' : 'date'
- * 基准配置是 `limit: 5`（≠0）→ 用 `related_post.limit`（6），sort = `date`（降序，与已排好的顺序一致）。
- * `sort: updated` 分支当前未实现（基准配置用 date；真要用时按 updated 重排即可）。
- */
-const recentPostLimit =
-  theme.aside.card_recent_post.limit === 0
-    ? data.posts.length
-    : theme.related_post.limit || 6
-const recentPosts = data.posts.slice(0, recentPostLimit)
-const showAsideCover = theme.cover.aside_enable
-
-const pageTitle = data.t('error404')
+import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
-<BaseLayout
-  site={BASELINE_SITE}
-  title={pageTitle}
-  description={BASELINE_SITE.description}
-  ogType="website"
-  is404
-  pageType="page"
-  pageTypeValue="404"
-  pageUrl={hexoNotFoundPageUrl(BASELINE_SITE)}
->
-  <Fragment slot="404">
-    <div id="body-wrap" class="error">
-      {/* 上游 include ./header/index.pug（404 分支仍复用 header） */}
-      <Header site={BASELINE_SITE} pageType="page" topImg={false} />
-
-      <div class="error-box">
-        <div id="error-wrap">
-          <div class="error-content">
-            <div class="error-img" style={`background-image: url('${background}')`}></div>
-            <div class="error-info">
-              <h1 class="error_title">404</h1>
-              <div class="error_subtitle">{subtitle}</div>
-              <a class="button--animated" href={BASELINE_SITE.root}>
-                <i class="anzhiyufont anzhiyu-icon-rocket" />
-                {data.t('回到主页')}
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div class="aside-list">
-          <div class="aside-list-group">
-            {
-              recentPosts.map((post) => {
-                const noCover = post.cover === false || !showAsideCover
-                return (
-                  <div class={noCover ? 'aside-list-item no-cover' : 'aside-list-item'}>
-                    {!noCover && (
-                      <a class="thumbnail" href={post.href} title={post.title}>
-                        <LazyImage src={post.cover as string} alt={post.title} />
-                      </a>
-                    )}
-                    <div class="content">
-                      <a class="title" href={post.href} title={post.title}>
-                        {post.title}
-                      </a>
-                      <time datetime={post.isoDate} title={post.dateTitle}>
-                        {post.dateDisplay}
-                      </time>
-                    </div>
-                  </div>
-                )
-              })
-            }
-          </div>
-        </div>
-      </div>
+<BaseLayout title="404 - 页面未找到">
+  <div class="max-w-xl mx-auto px-6 py-20 text-center">
+    <div class="anzhiyu-card p-8 flex flex-col items-center gap-4">
+      <div class="text-6xl font-black text-[var(--anzhiyu-main)]">404</div>
+      <h1 class="text-xl font-bold m-0">抱歉，页面未找到</h1>
+      <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
+        你访问的页面可能已被移动、删除或链接有误。
+      </p>
+      <a
+        href="/"
+        class="mt-2 px-6 py-2.5 rounded-full bg-[var(--anzhiyu-main)] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+      >
+        返回首页
+      </a>
     </div>
-  </Fragment>
+  </div>
 </BaseLayout>

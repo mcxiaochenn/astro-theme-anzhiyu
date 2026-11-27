@@ -1,0 +1,156 @@
+---
+import { Icon } from "astro-icon/components";
+import { getPostUrl, type PostEntry } from "@/utils/posts";
+
+interface Props {
+  prev?: PostEntry;
+  next?: PostEntry;
+  related: PostEntry[];
+}
+
+const { prev, next, related } = Astro.props;
+---
+
+{
+  (prev || next) && (
+    <nav class="post-pagination" aria-label="上下篇导航">
+      {prev ? (
+        <a href={getPostUrl(prev)} class="pagination-card anzhiyu-card anzhiyu-card-hover">
+          <span class="label">上一篇</span>
+          <span class="title">{prev.data.title}</span>
+        </a>
+      ) : (
+        <div />
+      )}
+      {next ? (
+        <a href={getPostUrl(next)} class="pagination-card next anzhiyu-card anzhiyu-card-hover">
+          <span class="label">下一篇</span>
+          <span class="title">{next.data.title}</span>
+        </a>
+      ) : (
+        <div />
+      )}
+    </nav>
+  )
+}
+
+{
+  related.length > 0 && (
+    <section class="related-posts">
+      <div class="related-headline">
+        <Icon name="fa6-solid:thumbs-up" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+        <span>相关推荐</span>
+      </div>
+      <div class="related-grid">
+        {related.map((post) => {
+          const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+          return (
+            <a href={getPostUrl(post)} class="related-item anzhiyu-card anzhiyu-card-hover">
+              <img src={cover} alt={post.data.title} class="related-cover" loading="lazy" />
+              <div class="related-mask">
+                <span class="related-title">{post.data.title}</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .post-pagination {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 1.5rem;
+  }
+
+  .pagination-card {
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .pagination-card.next {
+    text-align: right;
+  }
+
+  .pagination-card .label {
+    font-size: 0.78rem;
+    color: var(--anzhiyu-secondtext);
+  }
+
+  .pagination-card .title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pagination-card:hover .title {
+    color: var(--anzhiyu-main);
+  }
+
+  .related-posts {
+    margin-top: 2rem;
+  }
+
+  .related-headline {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 1.08rem;
+    font-weight: 700;
+    margin-bottom: 0.85rem;
+  }
+
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
+  .related-item {
+    position: relative;
+    height: 150px;
+    overflow: hidden;
+    display: block;
+  }
+
+  .related-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s var(--animation-in);
+  }
+
+  .related-item:hover .related-cover {
+    transform: scale(1.06);
+  }
+
+  .related-mask {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 0.85rem;
+  }
+
+  .related-title {
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.92rem;
+    line-height: 1.35;
+  }
+
+  @media (max-width: 640px) {
+    .post-pagination,
+    .related-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

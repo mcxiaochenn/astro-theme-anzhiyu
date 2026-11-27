@@ -4,7 +4,7 @@
 >
 > 保留 `hexo-theme-anzhiyu` 的全部视觉设计与交互特性，彻底剥离 Hexo DOM 兼容层、Stylus 运行时编译、`public/js/` 全局脚本与迁移比对脚手架，重构为原生的 **Astro + Svelte 5 + TypeScript + Tailwind CSS v4** 现代化主题工程。
 
-- **当前状态**：`◐` 规划完成，待启动 Phase 0
+- **当前状态**：`✅` v2 原生 Astro 化主体重构已完成（25 页静态构建 + Pagefind 索引通过）
 - **历史基线**：第一版 Hexo 1:1 移植计划归档于 [04-legacy-port-plan.md](04-legacy-port-plan.md)
 - **架构参考**：[Dusklight](https://github.com/mcxiaochenn/Dusklight)（Astro + Svelte 交互岛、模块化 `src/config/*.ts`、Design Tokens、Expressive Code、Pagefind）
 - **特性对齐参考**：`xcAnzhiyu`（真实 Hexo AnZhiYu 站点的全部功能与交互习惯）

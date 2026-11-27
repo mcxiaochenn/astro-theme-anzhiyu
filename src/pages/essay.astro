@@ -1,0 +1,42 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface EssayEntry {
+  content: string;
+  date?: string;
+  image?: string[];
+}
+
+interface EssaySection {
+  title?: string;
+  subTitle?: string;
+  tips?: string;
+  essay_list?: EssayEntry[];
+}
+
+const sections = getSiteData<EssaySection[]>("essay") ?? [];
+const section = sections[0] ?? {};
+const list = section.essay_list ?? [];
+---
+
+<PageLayout title={section.title || "即刻短文"} description={section.subTitle} aside={false}>
+  {section.tips && <p class="text-sm text-[var(--anzhiyu-secondtext)] -mt-3 mb-6">{section.tips}</p>}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {
+      list.map((item) => (
+        <article class="p-4 rounded-xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col justify-between gap-3">
+          <div class="text-sm leading-relaxed text-[var(--anzhiyu-fontcolor)]">{item.content}</div>
+          {item.image && item.image.length > 0 && (
+            <div class="grid grid-cols-2 gap-2">
+              {item.image.map((src) => (
+                <img src={src} alt="说说配图" class="w-full h-32 object-cover rounded-lg" loading="lazy" />
+              ))}
+            </div>
+          )}
+          {item.date && <time class="text-xs text-[var(--anzhiyu-secondtext)]">{item.date}</time>}
+        </article>
+      ))
+    }
+  </div>
+</PageLayout>

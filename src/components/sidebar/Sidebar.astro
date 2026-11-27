@@ -1,0 +1,51 @@
+---
+import { themeConfig } from "@/config";
+import {
+  aggregateCategories,
+  aggregateTags,
+  getAllPosts,
+  getPostStats,
+} from "@/utils/posts";
+import CardAuthor from "./CardAuthor.astro";
+import CardAnnouncement from "./CardAnnouncement.astro";
+import CardRecentPost from "./CardRecentPost.astro";
+import CardTags from "./CardTags.astro";
+import CardWebinfo from "./CardWebinfo.astro";
+
+interface Props {
+  showAuthor?: boolean;
+}
+
+const { showAuthor = true } = Astro.props;
+const posts = await getAllPosts();
+const categories = aggregateCategories(posts);
+const tags = aggregateTags(posts);
+const totalWords = posts.reduce((acc, p) => acc + getPostStats(p).words, 0);
+---
+
+<aside id="aside-content" class="layout-aside">
+  {
+    showAuthor && (
+      <CardAuthor
+        postCount={posts.length}
+        tagCount={tags.length}
+        categoryCount={categories.length}
+      />
+    )
+  }
+  <slot name="top" />
+  <CardAnnouncement />
+  <div class="sticky-layout flex flex-col gap-4 w-full">
+    <slot name="sticky" />
+    <CardRecentPost posts={posts.slice(0, themeConfig.sidebar.recentPostsCount)} />
+    <CardTags tags={tags} />
+    <CardWebinfo postCount={posts.length} totalWords={totalWords} />
+  </div>
+</aside>
+
+<style>
+  .sticky-layout {
+    position: sticky;
+    top: 76px;
+  }
+</style>

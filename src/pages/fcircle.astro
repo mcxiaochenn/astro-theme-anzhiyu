@@ -1,0 +1,15 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+---
+
+<PageLayout title="朋友圈" aside={false}>
+  <div class="p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col gap-3">
+    <div class="text-base font-bold">友链文章聚合</div>
+    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
+      此处用于展示友链站点的最新 RSS 更新动态，可接入你的 Friend-Circle-Lite / 朋友圈后端接口。
+    </p>
+    <a href="/link/" class="self-start px-4 py-2 rounded-full bg-[var(--anzhiyu-main)] text-white text-sm font-semibold">
+      前往友人帐 →
+    </a>
+  </div>
+</PageLayout>

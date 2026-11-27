@@ -1,0 +1,88 @@
+---
+import { Icon } from "astro-icon/components";
+import type { TaxonomyItem } from "@/utils/posts";
+
+interface Props {
+  categories: TaxonomyItem[];
+  active?: string;
+}
+
+const { categories, active } = Astro.props;
+---
+
+<div class="category-bar anzhiyu-card">
+  <div class="category-bar-items">
+    <a href="/" class:list={["category-bar-item", { select: !active }]}>
+      首页
+    </a>
+    {
+      categories.slice(0, 8).map((cat) => (
+        <a
+          href={`/categories/${encodeURIComponent(cat.name)}/`}
+          class:list={["category-bar-item", { select: active === cat.name }]}
+        >
+          {cat.name}
+        </a>
+      ))
+    }
+  </div>
+  <a href="/categories/" class="category-bar-more" title="全部分类">
+    <Icon name="fa6-solid:angles-right" class="w-3.5 h-3.5" />
+    <span>更多</span>
+  </a>
+</div>
+
+<style>
+  .category-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .category-bar-items {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .category-bar-items::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-bar-item {
+    white-space: nowrap;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--anzhiyu-radius);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--anzhiyu-fontcolor);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .category-bar-item:hover,
+  .category-bar-item.select {
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+  }
+
+  .category-bar-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--anzhiyu-secondtext);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--anzhiyu-radius);
+  }
+
+  .category-bar-more:hover {
+    color: var(--anzhiyu-main);
+  }
+</style>

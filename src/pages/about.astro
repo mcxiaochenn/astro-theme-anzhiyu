@@ -1,0 +1,55 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+import { profileConfig } from "@/config";
+
+interface AboutData {
+  subtitle?: string;
+  avatarImg?: string;
+  avatarSkills?: { left?: string[]; right?: string[] };
+  name?: string;
+  description?: string;
+  helloAbout?: string;
+}
+
+const raw = getSiteData<AboutData[]>("about") ?? [];
+const about = raw[0] ?? {};
+const skills = [...(about.avatarSkills?.left ?? []), ...(about.avatarSkills?.right ?? [])];
+---
+
+<PageLayout title="关于本人" aside={false}>
+  <div class="flex flex-col gap-6">
+    <div class="flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)]">
+      <img
+        src={about.avatarImg || profileConfig.avatar}
+        alt={about.name || profileConfig.name}
+        class="w-28 h-28 rounded-full object-cover border-4 border-[var(--anzhiyu-main)] shrink-0"
+      />
+      <div class="text-center md:text-left">
+        <div class="text-xs font-bold text-[var(--anzhiyu-main)] mb-1">{about.helloAbout || "Hello!"}</div>
+        <h2 class="text-2xl font-extrabold m-0">{about.name || profileConfig.name}</h2>
+        <p class="text-sm text-[var(--anzhiyu-secondtext)] mt-2 mb-0">
+          {about.description || profileConfig.bio}
+        </p>
+        {about.subtitle && (
+          <p class="text-xs text-[var(--anzhiyu-main)] mt-2 mb-0 font-semibold">{about.subtitle}</p>
+        )}
+      </div>
+    </div>
+
+    {
+      skills.length > 0 && (
+        <section>
+          <h3 class="text-lg font-bold mb-3">个人标签 & 技能</h3>
+          <div class="flex flex-wrap gap-2">
+            {skills.map((s) => (
+              <span class="px-3.5 py-1.5 rounded-full bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] text-sm font-medium">
+                {s}
+              </span>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</PageLayout>

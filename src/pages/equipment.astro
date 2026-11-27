@@ -1,0 +1,58 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface GearItem {
+  name: string;
+  specification?: string;
+  description?: string;
+  image: string;
+  link?: string;
+}
+
+interface GearCategory {
+  title: string;
+  description?: string;
+  equipment_list?: GearItem[];
+}
+
+interface EquipmentSection {
+  class_name: string;
+  description?: string;
+  good_things?: GearCategory[];
+}
+
+const sections = getSiteData<EquipmentSection[]>("equipment") ?? [];
+const cats = sections[0]?.good_things ?? [];
+---
+
+<PageLayout title="我的装备" aside={false}>
+  <div class="flex flex-col gap-8">
+    {
+      cats.map((cat) => (
+        <section>
+          <h2 class="text-xl font-bold mb-1">{cat.title}</h2>
+          {cat.description && (
+            <p class="text-sm text-[var(--anzhiyu-secondtext)] mb-4">{cat.description}</p>
+          )}
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(cat.equipment_list ?? []).map((item) => (
+              <div class="rounded-xl overflow-hidden bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col">
+                <img src={item.image} alt={item.name} class="w-full h-44 object-cover" loading="lazy" />
+                <div class="p-4 flex flex-col gap-1.5 flex-1">
+                  <div class="font-bold text-base">{item.name}</div>
+                  {item.specification && (
+                    <div class="text-xs text-[var(--anzhiyu-main)] font-semibold">{item.specification}</div>
+                  )}
+                  {item.description && (
+                    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0 mt-1">{item.description}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</PageLayout>

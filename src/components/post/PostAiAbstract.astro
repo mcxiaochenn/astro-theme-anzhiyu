@@ -1,0 +1,73 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  summary: string;
+}
+
+const { summary } = Astro.props;
+---
+
+{
+  summary && (
+    <div class="post-ai-box anzhiyu-card">
+      <div class="ai-header">
+        <div class="ai-title">
+          <Icon name="fa6-solid:wand-magic-sparkles" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+          <span>文章摘要</span>
+          <span class="ai-tag">AI</span>
+        </div>
+        <span class="ai-badge">AnZhiYu GPT</span>
+      </div>
+      <div class="ai-explanation" data-ai-text={summary}>
+        {summary}
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .post-ai-box {
+    padding: 0.9rem 1.15rem;
+    margin-bottom: 1.5rem;
+    background: var(--anzhiyu-secondbg);
+  }
+
+  .ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.55rem;
+  }
+
+  .ai-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .ai-tag {
+    font-size: 0.72rem;
+    padding: 0.08rem 0.4rem;
+    border-radius: 4px;
+    background: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+  }
+
+  .ai-badge {
+    font-size: 0.74rem;
+    color: var(--anzhiyu-secondtext);
+  }
+
+  .ai-explanation {
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--anzhiyu-radius);
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--anzhiyu-fontcolor);
+  }
+</style>

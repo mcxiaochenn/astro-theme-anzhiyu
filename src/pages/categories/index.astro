@@ -1,0 +1,23 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { aggregateCategories, getAllPosts } from "@/utils/posts";
+
+const posts = await getAllPosts();
+const categories = aggregateCategories(posts);
+---
+
+<PageLayout title={`分类 (${categories.length})`}>
+  <div class="flex flex-wrap gap-3">
+    {
+      categories.map((cat) => (
+        <a
+          href={`/categories/${encodeURIComponent(cat.name)}/`}
+          class="px-4 py-2.5 rounded-xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] hover:border-[var(--anzhiyu-main)] hover:bg-[var(--anzhiyu-main)] hover:text-white transition-all font-semibold flex items-center gap-2"
+        >
+          <span>📁 {cat.name}</span>
+          <span class="text-xs opacity-75">({cat.count})</span>
+        </a>
+      ))
+    }
+  </div>
+</PageLayout>

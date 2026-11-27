@@ -1,0 +1,17 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { musicConfig } from "@/config";
+---
+
+<PageLayout title="音乐馆" aside={false}>
+  <div class="p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col gap-3">
+    <div class="text-base font-bold">当前歌单配置</div>
+    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
+      音源平台：<code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">{musicConfig.meting.server}</code>
+      · 歌单 ID：<code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">{musicConfig.meting.id}</code>
+    </p>
+    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
+      你可以在 <code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">src/config/music.ts</code> 中自定义歌单或接入 APlayer / MetingJS 播放器。
+    </p>
+  </div>
+</PageLayout>

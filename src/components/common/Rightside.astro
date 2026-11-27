@@ -1,0 +1,171 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  isPost?: boolean;
+  hasComments?: boolean;
+}
+
+const { isPost = false, hasComments = false } = Astro.props;
+---
+
+<aside id="rightside" class="anzhiyu-rightside" aria-label="快捷工具栏">
+  <div id="rightside-config-hide" class="rightside-group hidden-group">
+    {
+      isPost && (
+        <button type="button" id="rs-readmode" class="rs-btn" title="阅读模式" aria-label="阅读模式">
+          <Icon name="fa6-solid:book-open" class="w-3.5 h-3.5" />
+        </button>
+      )
+    }
+    <button type="button" id="rs-darkmode" class="rs-btn" title="浅色与深色模式转换" aria-label="切换明暗主题">
+      <Icon name="fa6-solid:circle-half-stroke" class="w-3.5 h-3.5" />
+    </button>
+  </div>
+
+  <div id="rightside-config-show" class="rightside-group">
+    <button type="button" id="rs-config" class="rs-btn" title="设置" aria-label="展开设置">
+      <Icon name="fa6-solid:gear" class="w-3.5 h-3.5 animate-spin-slow" />
+    </button>
+    {
+      hasComments && (
+        <a href="#post-comment" class="rs-btn" title="直达评论" aria-label="直达评论">
+          <Icon name="fa6-solid:comments" class="w-3.5 h-3.5" />
+        </a>
+      )
+    }
+    <button type="button" id="rs-gotop" class="rs-btn" title="回到顶部" aria-label="回到顶部">
+      <span id="rs-percent" class="rs-percent">0</span>
+      <Icon name="fa6-solid:arrow-up" class="w-3.5 h-3.5 rs-top-icon" />
+    </button>
+  </div>
+</aside>
+
+<style>
+  .anzhiyu-rightside {
+    position: fixed;
+    right: 16px;
+    bottom: 40px;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    transform: translateX(52px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .anzhiyu-rightside.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .rightside-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .hidden-group {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+  }
+
+  .hidden-group.open {
+    max-height: 200px;
+    opacity: 1;
+  }
+
+  .rs-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: var(--style-border);
+    background: var(--anzhiyu-card-bg);
+    color: var(--anzhiyu-fontcolor);
+    box-shadow: var(--anzhiyu-shadow-border);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .rs-btn:hover {
+    background: var(--anzhiyu-main);
+    border-color: var(--anzhiyu-main);
+    color: var(--anzhiyu-white);
+  }
+
+  .rs-percent {
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .rs-top-icon {
+    display: none;
+  }
+
+  #rs-gotop:hover .rs-percent {
+    display: none;
+  }
+
+  #rs-gotop:hover .rs-top-icon {
+    display: block;
+  }
+
+  @keyframes spinSlow {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-spin-slow {
+    animation: spinSlow 6s linear infinite;
+  }
+</style>
+
+<script>
+  function initRightside() {
+    const rightside = document.getElementById("rightside");
+    const percentEl = document.getElementById("rs-percent");
+    if (!rightside) return;
+
+    const updateScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = docHeight > 0 ? Math.min(100, Math.round((scrollTop / docHeight) * 100)) : 0;
+      if (percentEl) percentEl.textContent = String(pct);
+      rightside.classList.toggle("visible", scrollTop > 100);
+    };
+
+    window.addEventListener("scroll", updateScroll, { passive: true });
+    updateScroll();
+
+    document.getElementById("rs-config")?.addEventListener("click", () => {
+      document.getElementById("rightside-config-hide")?.classList.toggle("open");
+    });
+
+    document.getElementById("rs-darkmode")?.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      const next = isDark ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      document.documentElement.classList.toggle("dark", next === "dark");
+      localStorage.setItem("anzhiyu-theme", next);
+      window.dispatchEvent(new CustomEvent("anzhiyu:theme-change", { detail: { theme: next } }));
+    });
+
+    document.getElementById("rs-readmode")?.addEventListener("click", () => {
+      document.body.classList.toggle("read-mode");
+    });
+
+    document.getElementById("rs-gotop")?.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+
+  document.addEventListener("astro:page-load", initRightside);
+</script>

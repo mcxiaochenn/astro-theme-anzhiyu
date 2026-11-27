@@ -1,0 +1,22 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import PostCard from "@/components/home/PostCard.astro";
+import { aggregateTags, getAllPosts } from "@/utils/posts";
+
+export async function getStaticPaths() {
+  const posts = await getAllPosts();
+  const tags = aggregateTags(posts);
+  return tags.map((tag) => ({
+    params: { tag: tag.name },
+    props: { tagName: tag.name, posts: tag.posts },
+  }));
+}
+
+const { tagName, posts } = Astro.props;
+---
+
+<PageLayout title={`标签：#${tagName}`}>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {posts.map((post, i) => <PostCard post={post} index={i} />)}
+  </div>
+</PageLayout>
