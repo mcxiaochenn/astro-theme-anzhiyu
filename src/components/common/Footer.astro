@@ -1,176 +1,256 @@
 ---
 import { Icon } from "astro-icon/components";
-import { siteConfig, profileConfig } from "@/config";
+import { profileConfig, siteConfig } from "@/config";
 
 const startYear = new Date(siteConfig.footer.since).getFullYear();
 const currentYear = new Date().getFullYear();
 const yearText = startYear === currentYear ? `${currentYear}` : `${startYear} - ${currentYear}`;
+const socialHalf = Math.ceil(profileConfig.social.length / 2);
+const leftSocial = profileConfig.social.slice(0, socialHalf);
+const rightSocial = profileConfig.social.slice(socialHalf);
 ---
 
 <footer id="footer" class="anzhiyu-footer">
-  <div class="footer-social">
+  <div id="footer-wrap">
+    <div id="footer_deal">
+      {
+        leftSocial.map((s) => (
+          <a
+            href={s.url}
+            target={s.url.startsWith("http") ? "_blank" : undefined}
+            rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+            class="deal_link"
+            title={s.name}
+            aria-label={s.name}
+          >
+            <Icon name={s.icon} class="w-4 h-4" />
+          </a>
+        ))
+      }
+      <button
+        type="button"
+        id="footer-top-btn"
+        class="footer_mini_logo"
+        title="返回顶部"
+        aria-label="返回顶部"
+      >
+        <img src={profileConfig.avatar} alt={profileConfig.name} loading="lazy" />
+        <span class="top-arrow">
+          <Icon name="fa6-solid:arrow-up" class="w-4 h-4" />
+        </span>
+      </button>
+      {
+        rightSocial.map((s) => (
+          <a
+            href={s.url}
+            target={s.url.startsWith("http") ? "_blank" : undefined}
+            rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+            class="deal_link"
+            title={s.name}
+            aria-label={s.name}
+          >
+            <Icon name={s.icon} class="w-4 h-4" />
+          </a>
+        ))
+      }
+    </div>
+
     {
-      profileConfig.social.map((s) => (
-        <a
-          href={s.url}
-          target={s.url.startsWith("http") ? "_blank" : undefined}
-          rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
-          class="social-btn"
-          title={s.name}
-          aria-label={s.name}
-        >
-          <Icon name={s.icon} class="w-4 h-4" />
-        </a>
-      ))
+      siteConfig.footer.links && siteConfig.footer.links.length > 0 && (
+        <div id="anzhiyu-footer">
+          {siteConfig.footer.links.map((group) => (
+            <div class="footer-group">
+              <div class="footer-title">{group.title}</div>
+              <div class="footer-links">
+                {group.items.map((item) => (
+                  <a href={item.link} class="footer-item">
+                    {item.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )
     }
-    <button
-      type="button"
-      id="footer-top-btn"
-      class="social-btn top-btn"
-      title="返回顶部"
-      aria-label="返回顶部"
-    >
-      <Icon name="fa6-solid:arrow-up" class="w-4 h-4" />
-    </button>
   </div>
 
-  {
-    siteConfig.footer.links && siteConfig.footer.links.length > 0 && (
-      <div class="footer-links-grid">
-        {siteConfig.footer.links.map((group) => (
-          <div class="footer-group">
-            <h3 class="footer-group-title">{group.title}</h3>
-            <div class="footer-group-list">
-              {group.items.map((item) => (
-                <a href={item.link} class="footer-link">
-                  {item.name}
-                </a>
-              ))}
-            </div>
-          </div>
-        ))}
+  <div id="footer-bar">
+    <div class="footer-bar-links">
+      <div class="footer-bar-left">
+        <div id="footer-bar-tips">
+          <span class="copyright">© {yearText} By <a href="/about/">{siteConfig.author}</a></span>
+        </div>
       </div>
-    )
-  }
-
-  <div class="footer-bar">
-    <div class="footer-bar-inner">
-      <div class="footer-copyright">
-        <span>© {yearText} By <a href="/about/" class="font-semibold hover:text-[var(--anzhiyu-main)]">{siteConfig.author}</a></span>
-        <span class="mx-2 opacity-40">|</span>
-        <span>Powered by <a href="https://astro.build" target="_blank" rel="noopener noreferrer" class="hover:text-[var(--anzhiyu-main)]">Astro</a> &amp; <a href="https://github.com/mcxiaochenn/astro-theme-anzhiyu" target="_blank" rel="noopener noreferrer" class="hover:text-[var(--anzhiyu-main)]">AnZhiYu</a></span>
+      <div class="footer-bar-right">
+        <a href="/rss.xml" class="footer-bar-link">订阅</a>
+        <a href="/link/" class="footer-bar-link">友链</a>
+        <a href="/about/" class="footer-bar-link">关于</a>
+        <a
+          href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="footer-bar-link cc"
+          title="CC BY-NC-SA 4.0"
+          aria-label="CC 协议"
+        >
+          <Icon name="fa6-brands:creative-commons" class="w-4 h-4" />
+        </a>
       </div>
-      {
-        siteConfig.footer.icp && (
-          <a href={siteConfig.footer.icp.url} target="_blank" rel="noopener noreferrer" class="text-xs opacity-75 hover:opacity-100">
-            {siteConfig.footer.icp.text}
-          </a>
-        )
-      }
     </div>
   </div>
 </footer>
 
 <style>
   .anzhiyu-footer {
-    margin-top: 2.5rem;
-    background: linear-gradient(180deg, transparent 0%, var(--anzhiyu-card-bg) 35%);
-    border-top: 1px solid var(--anzhiyu-card-border);
+    position: relative;
+    margin-top: 2rem;
+    background: linear-gradient(180deg, var(--anzhiyu-card-bg-none) 0%, var(--anzhiyu-card-bg) 25%);
   }
 
-  .footer-social {
+  #footer-wrap {
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem 1.5rem 1rem;
+  }
+
+  #footer_deal {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
+    margin-bottom: 1.5rem;
   }
 
-  .social-btn {
+  .deal_link {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background: var(--anzhiyu-fontcolor);
     color: var(--anzhiyu-card-bg);
+    transition: transform 0.25s ease, background-color 0.25s ease;
+  }
+
+  .deal_link:hover {
+    background: var(--anzhiyu-main);
+    color: #fff;
+    transform: scale(1.15);
+  }
+
+  .footer_mini_logo {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    padding: 0;
     border: none;
+    overflow: hidden;
     cursor: pointer;
-    transition: transform 0.2s ease, background-color 0.2s ease;
+    box-shadow: var(--anzhiyu-shadow-border);
+    transition: transform 0.3s ease;
   }
 
-  .social-btn:hover {
+  .footer_mini_logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .footer_mini_logo .top-arrow {
+    position: absolute;
+    inset: 0;
     background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-    transform: translateY(-2px);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s ease;
   }
 
-  .social-btn.top-btn {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
+  .footer_mini_logo:hover .top-arrow {
+    opacity: 1;
   }
 
-  .footer-links-grid {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 1rem 1.5rem 2rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1.5rem;
-    text-align: center;
+  #anzhiyu-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto 1rem;
   }
 
-  .footer-group-title {
-    margin: 0 0 0.65rem;
-    font-size: 0.92rem;
-    font-weight: 700;
+  .footer-group {
+    min-width: 110px;
+  }
+
+  .footer-title {
     color: var(--anzhiyu-secondtext);
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+    font-weight: 700;
   }
 
-  .footer-group-list {
+  .footer-links {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
   }
 
-  .footer-link {
-    font-size: 0.88rem;
+  .footer-item {
+    font-size: 0.92rem;
     color: var(--anzhiyu-fontcolor);
-    opacity: 0.82;
+    font-weight: 600;
   }
 
-  .footer-link:hover {
-    opacity: 1;
+  .footer-item:hover {
     color: var(--anzhiyu-main);
   }
 
-  .footer-bar {
+  #footer-bar {
+    padding: 1rem 1.5rem;
     background: var(--anzhiyu-secondbg);
+    color: var(--anzhiyu-fontcolor);
     border-top: 1px solid var(--anzhiyu-card-border);
-    padding: 0.9rem 1.5rem;
   }
 
-  .footer-bar-inner {
+  .footer-bar-links {
     max-width: 1400px;
     margin: 0 auto;
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    color: var(--anzhiyu-secondtext);
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 
-  @media (max-width: 640px) {
-    .footer-bar-inner {
-      justify-content: center;
-      text-align: center;
-    }
+  .footer-bar-left {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .footer-bar-left a:hover {
+    color: var(--anzhiyu-main);
+  }
+
+  .footer-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .footer-bar-link {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .footer-bar-link:hover {
+    color: var(--anzhiyu-main);
   }
 </style>
 

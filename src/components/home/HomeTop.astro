@@ -1,7 +1,8 @@
 ---
 import { Icon } from "astro-icon/components";
-import { themeConfig } from "@/config";
+import { siteConfig, themeConfig } from "@/config";
 import { getPostUrl, type PostEntry } from "@/utils/posts";
+import TagsGroupAll from "./TagsGroupAll.astro";
 
 interface Props {
   posts: PostEntry[];
@@ -13,56 +14,85 @@ const featuredPosts = posts
   .filter((p) => p.data.top_group_index !== undefined || p.data.swiper_index !== undefined)
   .slice(0, 6);
 const topPosts = featuredPosts.length > 0 ? featuredPosts : posts.slice(0, 6);
+const todayPost = topPosts[0];
+const postUrls = posts.map((p) => getPostUrl(p));
 ---
 
 {
   themeConfig.home.homeTopEnable && (
-    <section id="home_top" class="home-top-section">
-      <div class="home-top-grid">
-        <!-- 左侧：Banner 创意区 + 分类磁贴 -->
-        <div class="top-left-col">
-          <div class="banners-box anzhiyu-card">
+    <section id="home_top" class="home-top-wrap">
+      <div class="swiper-container-card">
+        <!-- 左侧：创意图标墙 + 分类磁贴 -->
+        <div id="bannerGroup">
+          <div id="random-banner">
             <div class="banners-title">
               <div class="banners-title-big">{themeConfig.home.homeTopTitle}</div>
-              <div class="banners-title-small">{themeConfig.home.homeTopSubtitle}</div>
+              <div class="banners-title-small">{siteConfig.title.toUpperCase()}</div>
             </div>
-            <div class="banner-actions">
-              <a href="/archives/" class="banner-cta">
-                <Icon name="fa6-solid:rocket" class="w-3.5 h-3.5" />
-                <span>探索文章</span>
-              </a>
-              <a href="/about/" class="banner-cta secondary">
-                <Icon name="fa6-solid:user" class="w-3.5 h-3.5" />
-                <span>关于我</span>
-              </a>
-            </div>
+            <TagsGroupAll />
+            <a
+              id="random-hover"
+              href="javascript:void(0)"
+              data-random-post="true"
+              aria-label="随便逛逛"
+            >
+              <Icon name="fa6-solid:paper-plane" class="w-12 h-12 mb-2" />
+              <div class="bannerText">
+                <span>随便逛逛</span>
+                <Icon name="fa6-solid:arrow-right" class="w-12 h-12 ml-3" />
+              </div>
+            </a>
           </div>
 
-          <div class="category-group">
+          <div class="categoryGroup">
             {themeConfig.home.categories.map((cat) => (
-              <a href={cat.link} class="category-tile" style={`background: ${cat.gradient};`}>
-                <span class="tile-name">{cat.name}</span>
-                <Icon name={cat.icon} class="tile-icon" />
-              </a>
+              <div class="categoryItem">
+                <a class="categoryButton" href={cat.link} style={`background: ${cat.gradient};`}>
+                  <span class="categoryButtonText">{cat.name}</span>
+                  <Icon name={cat.icon} class="cat-bg-icon" />
+                </a>
+              </div>
             ))}
           </div>
         </div>
 
-        <!-- 右侧：今日推荐 / 热门文章组 -->
-        <div class="top-right-col">
-          <div class="top-group-grid">
-            {topPosts.map((post) => {
-              const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
-              return (
-                <a href={getPostUrl(post)} class="top-group-item anzhiyu-card anzhiyu-card-hover">
-                  <img src={cover} alt={post.data.title} class="top-group-img" loading="eager" />
-                  <div class="top-group-mask">
-                    <span class="top-group-title">{post.data.title}</span>
-                  </div>
+        <!-- 右侧：6 格热门文章 + 今日推荐 -->
+        <div class="topGroup">
+          {topPosts.map((post) => {
+            const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+            return (
+              <a href={getPostUrl(post)} class="top-post-item">
+                <div class="post_cover">
+                  <span class="recent-post-top-text">荐</span>
+                  <img src={cover} alt={post.data.title} class="post_bg" loading="eager" />
+                </div>
+                <div class="recent-post-info">
+                  <span class="article-title">{post.data.title}</span>
+                </div>
+              </a>
+            );
+          })}
+
+          {todayPost && (
+            <div id="todayCard" class="todayCard">
+              <div class="todayCard-info">
+                <div class="todayCard-tips">今日推荐</div>
+                <a href={getPostUrl(todayPost)} class="todayCard-title">
+                  {todayPost.data.title}
                 </a>
-              );
-            })}
-          </div>
+              </div>
+              <img
+                class="todayCard-cover"
+                src={typeof todayPost.data.cover === "string" ? todayPost.data.cover : "/img/default_cover.jpg"}
+                alt={todayPost.data.title}
+                loading="eager"
+              />
+              <button type="button" class="todayCard-close" id="todayCard-toggle" title="展开/收起推荐列表">
+                <Icon name="fa6-solid:circle-plus" class="w-4 h-4" />
+                <span>更多推荐</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -70,167 +100,363 @@ const topPosts = featuredPosts.length > 0 ? featuredPosts : posts.slice(0, 6);
 }
 
 <style>
-  .home-top-section {
+  .home-top-wrap {
     max-width: 1400px;
     margin: 0 auto;
     padding: 1rem 1.5rem 0;
   }
 
-  .home-top-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-  }
-
-  .top-left-col {
+  .swiper-container-card {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    justify-content: space-between;
+    gap: 0.5rem;
+    height: 340px;
   }
 
-  .banners-box {
-    flex: 1;
-    padding: 1.5rem 1.75rem;
+  #bannerGroup {
+    width: 49%;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 220px;
-    background: linear-gradient(135deg, var(--anzhiyu-card-bg) 0%, var(--anzhiyu-secondbg) 100%);
+    height: 100%;
+  }
+
+  #random-banner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 76%;
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--anzhiyu-shadow-border);
+    transition: box-shadow 0.3s ease;
+  }
+
+  #random-banner:hover {
+    box-shadow: var(--anzhiyu-shadow-main);
+    border-color: var(--anzhiyu-main);
+  }
+
+  .banners-title {
+    position: relative;
+    z-index: 2;
+    margin: 1.5rem 0 0 2rem;
+    pointer-events: none;
   }
 
   .banners-title-big {
-    font-size: 1.85rem;
+    font-size: 32px;
+    line-height: 1.25;
     font-weight: 800;
-    line-height: 1.3;
     color: var(--anzhiyu-fontcolor);
+    letter-spacing: 1px;
   }
 
   .banners-title-small {
-    margin-top: 0.45rem;
-    font-size: 0.88rem;
-    letter-spacing: 0.04em;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1;
     color: var(--anzhiyu-secondtext);
+    letter-spacing: 0.5px;
   }
 
-  .banner-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-  }
-
-  .banner-cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.48rem 1rem;
-    border-radius: var(--anzhiyu-radius-full);
-    background: var(--anzhiyu-main);
+  #random-hover {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: var(--anzhiyu-theme-op-deep);
     color: var(--anzhiyu-white);
-    font-size: 0.86rem;
-    font-weight: 600;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    padding-left: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    transition: opacity 0.35s ease, padding-left 0.35s ease;
   }
 
-  .banner-cta.secondary {
-    background: var(--anzhiyu-card-btn-bg);
-    color: var(--anzhiyu-fontcolor);
+  #random-banner:hover #random-hover {
+    opacity: 1;
+    padding-left: 2.5rem;
   }
 
-  .banner-cta:hover {
-    transform: translateY(-2px);
-    opacity: 0.92;
-  }
-
-  .category-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.65rem;
-  }
-
-  .category-tile {
-    position: relative;
+  .bannerText {
     display: flex;
     align-items: center;
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .categoryGroup {
+    display: flex;
     justify-content: space-between;
-    padding: 0.9rem 1rem;
-    border-radius: var(--anzhiyu-radius-lg);
-    color: var(--anzhiyu-white);
-    font-weight: 700;
-    font-size: 0.95rem;
-    overflow: hidden;
-    transition: transform 0.25s ease;
+    gap: 0.5rem;
+    height: 22%;
   }
 
-  .category-tile:hover {
-    transform: translateY(-3px);
-  }
-
-  .tile-icon {
-    width: 1.5rem;
-    height: 1.5rem;
-    opacity: 0.85;
-  }
-
-  .top-group-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 0.65rem;
+  .categoryItem {
+    flex: 1;
     height: 100%;
-    min-height: 300px;
-  }
-
-  .top-group-item {
-    position: relative;
     overflow: hidden;
-    display: block;
-    min-height: 140px;
+    border-radius: 12px;
   }
 
-  .top-group-img {
+  .categoryButton {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    height: 100%;
+    padding: 0 1rem;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+  }
+
+  .categoryButton:hover {
+    transform: scale(1.02);
+  }
+
+  .categoryButtonText {
+    position: relative;
+    z-index: 2;
+  }
+
+  .cat-bg-icon {
+    position: absolute;
+    right: 0.75rem;
+    width: 3rem;
+    height: 3rem;
+    opacity: 0.25;
+    transform: rotate(-15deg);
+    transition: transform 0.4s ease, opacity 0.4s ease;
+  }
+
+  .categoryButton:hover .cat-bg-icon {
+    transform: rotate(0deg) scale(1.15);
+    opacity: 0.45;
+  }
+
+  /* 右侧 6 格 + 今日推荐 */
+  .topGroup {
+    position: relative;
+    width: 50%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .top-post-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.3s ease, transform 0.3s ease;
+  }
+
+  .top-post-item:hover {
+    border-color: var(--anzhiyu-main);
+  }
+
+  .top-post-item .post_cover {
+    position: relative;
+    width: 100%;
+    height: 64%;
+    overflow: hidden;
+  }
+
+  .top-post-item .post_bg {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s var(--animation-in);
+    transition: transform 0.4s ease;
   }
 
-  .top-group-item:hover .top-group-img {
-    transform: scale(1.08);
+  .top-post-item:hover .post_bg {
+    transform: scale(1.06);
   }
 
-  .top-group-mask {
+  .recent-post-top-text {
     position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.72) 100%);
-    display: flex;
-    align-items: flex-end;
-    padding: 0.75rem;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    padding: 2px 8px;
+    border-radius: 0 0 8px 0;
+    background: var(--anzhiyu-theme);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
   }
 
-  .top-group-title {
-    color: #fff;
-    font-size: 0.86rem;
+  .top-post-item .recent-post-info {
+    flex: 1;
+    padding: 0.45rem 0.7rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .top-post-item .article-title {
+    font-size: 13px;
     font-weight: 700;
     line-height: 1.35;
+    color: var(--anzhiyu-fontcolor);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
-  @media (max-width: 900px) {
-    .home-top-section {
+  .top-post-item:hover .article-title {
+    color: var(--anzhiyu-main);
+  }
+
+  /* 今日推荐浮层卡片 */
+  .todayCard {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    border-radius: 12px;
+    overflow: hidden;
+    border: var(--style-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: #1a1a1a;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .todayCard.hide {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.98);
+  }
+
+  .todayCard-cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+  }
+
+  .todayCard:hover .todayCard-cover {
+    transform: scale(1.04);
+  }
+
+  .todayCard::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.78) 100%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .todayCard-info {
+    position: relative;
+    z-index: 2;
+    padding: 1.25rem 1.5rem;
+    color: #fff;
+  }
+
+  .todayCard-tips {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-bottom: 4px;
+  }
+
+  .todayCard-title {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: #fff;
+    display: block;
+    max-width: 80%;
+  }
+
+  .todayCard-close {
+    position: absolute;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 9999px;
+    border: none;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .todayCard-close:hover {
+    background: var(--anzhiyu-main);
+  }
+
+  @media (max-width: 1200px) {
+    #bannerGroup {
+      display: none;
+    }
+
+    .topGroup {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .home-top-wrap {
       padding: 0.75rem 1rem 0;
     }
 
-    .home-top-grid {
-      grid-template-columns: 1fr;
+    .swiper-container-card {
+      height: 240px;
     }
 
-    .top-group-grid {
-      grid-template-columns: repeat(2, 1fr);
-      min-height: 220px;
+    .topGroup {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .todayCard-title {
+      font-size: 18px;
     }
   }
 </style>
+
+<script is:inline define:vars={{ postUrls }}>
+  document.addEventListener("astro:page-load", () => {
+    const todayCard = document.getElementById("todayCard");
+    const toggleBtn = document.getElementById("todayCard-toggle");
+    const topGroup = document.querySelector(".topGroup");
+    if (todayCard && toggleBtn && topGroup) {
+      toggleBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        todayCard.classList.add("hide");
+      });
+      topGroup.addEventListener("mouseleave", () => {
+        todayCard.classList.remove("hide");
+      });
+    }
+  });
+</script>

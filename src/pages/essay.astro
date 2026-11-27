@@ -1,5 +1,6 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PageBanner from "@/components/page/PageBanner.astro";
 import { getSiteData } from "@/data/site-data";
 
 interface EssayEntry {
@@ -12,31 +13,114 @@ interface EssaySection {
   title?: string;
   subTitle?: string;
   tips?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  top_background?: string;
   essay_list?: EssayEntry[];
 }
 
-const sections = getSiteData<EssaySection[]>("essay") ?? [];
-const section = sections[0] ?? {};
+const section = (getSiteData<EssaySection[]>("essay") ?? [])[0] ?? {};
 const list = section.essay_list ?? [];
 ---
 
-<PageLayout title={section.title || "即刻短文"} description={section.subTitle} aside={false}>
-  {section.tips && <p class="text-sm text-[var(--anzhiyu-secondtext)] -mt-3 mb-6">{section.tips}</p>}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    {
-      list.map((item) => (
-        <article class="p-4 rounded-xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col justify-between gap-3">
-          <div class="text-sm leading-relaxed text-[var(--anzhiyu-fontcolor)]">{item.content}</div>
-          {item.image && item.image.length > 0 && (
-            <div class="grid grid-cols-2 gap-2">
-              {item.image.map((src) => (
-                <img src={src} alt="说说配图" class="w-full h-32 object-cover rounded-lg" loading="lazy" />
-              ))}
+<BaseLayout title={section.title || "即刻短文"} description={section.subTitle}>
+  <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
+    <PageBanner
+      tips="ESSAY"
+      title={section.title || "即刻短文"}
+      subTitle={section.tips || section.subTitle}
+      background={section.top_background}
+      buttonText={section.buttonText}
+      buttonLink={section.buttonLink}
+    />
+
+    <div class="bber-list">
+      {
+        list.map((item) => (
+          <article class="bber-item anzhiyu-card anzhiyu-card-hover">
+            <div class="bber-content">{item.content}</div>
+            {item.image && item.image.length > 0 && (
+              <div class="bber-images">
+                {item.image.map((src) => (
+                  <img src={src} alt="说说配图" class="bber-img" loading="lazy" />
+                ))}
+              </div>
+            )}
+            <hr class="bber-hr" />
+            <div class="bber-bottom">
+              <time class="bber-date">🕒 {item.date ?? ""}</time>
             </div>
-          )}
-          {item.date && <time class="text-xs text-[var(--anzhiyu-secondtext)]">{item.date}</time>}
-        </article>
-      ))
-    }
+          </article>
+        ))
+      }
+    </div>
   </div>
-</PageLayout>
+</BaseLayout>
+
+<style>
+  .bber-list {
+    column-count: 3;
+    column-gap: 1rem;
+  }
+
+  .bber-item {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    padding: 1.15rem 1.25rem;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .bber-content {
+    font-size: 0.96rem;
+    line-height: 1.65;
+    color: var(--anzhiyu-fontcolor);
+  }
+
+  .bber-images {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .bber-img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .bber-hr {
+    border: 0;
+    border-top: 1px dashed var(--anzhiyu-card-border);
+    margin: 0.2rem 0;
+  }
+
+  .bber-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .bber-date {
+    font-size: 0.76rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--anzhiyu-secondbg);
+    color: var(--anzhiyu-secondtext);
+  }
+
+  @media (max-width: 1024px) {
+    .bber-list {
+      column-count: 2;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .bber-list {
+      column-count: 1;
+    }
+  }
+</style>

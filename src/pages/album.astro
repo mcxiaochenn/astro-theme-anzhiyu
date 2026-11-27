@@ -1,5 +1,6 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PageBanner from "@/components/page/PageBanner.astro";
 import { getSiteData } from "@/data/site-data";
 
 interface PhotoEntry {
@@ -12,41 +13,52 @@ interface PhotoEntry {
 interface AlbumGroup {
   class_name: string;
   description?: string;
+  top_background?: string;
+  top_link?: string;
+  top_btn_text?: string;
   album_list?: PhotoEntry[];
 }
 
 const albums = getSiteData<AlbumGroup[]>("album") ?? [];
+const first = albums[0] ?? {};
 ---
 
-<PageLayout title="相册集" aside={false}>
-  <div class="flex flex-col gap-8">
-    {
-      albums.map((album) => (
-        <section>
-          <h2 class="text-xl font-bold mb-1">{album.class_name}</h2>
-          {album.description && (
-            <p class="text-sm text-[var(--anzhiyu-secondtext)] mb-4">{album.description}</p>
-          )}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(album.album_list ?? []).map((entry) => (
-              <div class="rounded-xl overflow-hidden bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] p-3 flex flex-col gap-2.5">
-                {entry.image && entry.image.length > 0 && (
-                  <div class:list={["grid gap-2", entry.image.length > 1 ? "grid-cols-2" : "grid-cols-1"]}>
-                    {entry.image.map((src) => (
-                      <img src={src} alt={entry.content || "相册图片"} class="w-full h-44 object-cover rounded-lg" loading="lazy" />
-                    ))}
+<BaseLayout title="相册集">
+  <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
+    <PageBanner
+      tips="ALBUM"
+      title={first.class_name || "相册集"}
+      subTitle={first.description}
+      background={first.top_background}
+      buttonText={first.top_btn_text}
+      buttonLink={first.top_link}
+    />
+
+    <div class="flex flex-col gap-10">
+      {
+        albums.map((album) => (
+          <section>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(album.album_list ?? []).map((entry) => (
+                <div class="anzhiyu-card anzhiyu-card-hover p-3.5 rounded-xl flex flex-col gap-3">
+                  {entry.image && entry.image.length > 0 && (
+                    <div class:list={["grid gap-2", entry.image.length > 1 ? "grid-cols-2" : "grid-cols-1"]}>
+                      {entry.image.map((src) => (
+                        <img src={src} alt={entry.content || "相册图片"} class="w-full h-44 object-cover rounded-lg" loading="lazy" />
+                      ))}
+                    </div>
+                  )}
+                  {entry.content && <div class="text-sm font-semibold">{entry.content}</div>}
+                  <div class="flex items-center justify-between text-xs text-[var(--anzhiyu-secondtext)] mt-auto">
+                    <span>📍 {entry.address ?? "未知地点"}</span>
+                    <span>{entry.date ?? ""}</span>
                   </div>
-                )}
-                {entry.content && <div class="text-sm font-medium">{entry.content}</div>}
-                <div class="flex items-center justify-between text-xs text-[var(--anzhiyu-secondtext)]">
-                  <span>{entry.address ?? ""}</span>
-                  <span>{entry.date ?? ""}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))
-    }
+              ))}
+            </div>
+          </section>
+        ))
+      }
+    </div>
   </div>
-</PageLayout>
+</BaseLayout>

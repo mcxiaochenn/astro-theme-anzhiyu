@@ -13,13 +13,15 @@ const { summary } = Astro.props;
     <div class="post-ai-box anzhiyu-card">
       <div class="ai-header">
         <div class="ai-title">
-          <Icon name="fa6-solid:wand-magic-sparkles" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+          <Icon name="fa6-solid:robot" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
           <span>文章摘要</span>
           <span class="ai-tag">AI</span>
         </div>
-        <span class="ai-badge">AnZhiYu GPT</span>
+        <button type="button" id="ai-replay-btn" class="ai-badge-btn" title="重新生成摘要动画">
+          AnZhiYu GPT ↻
+        </button>
       </div>
-      <div class="ai-explanation" data-ai-text={summary}>
+      <div class="ai-explanation" id="ai-explanation-box" data-ai-text={summary}>
         {summary}
       </div>
     </div>
@@ -28,46 +30,90 @@ const { summary } = Astro.props;
 
 <style>
   .post-ai-box {
-    padding: 0.9rem 1.15rem;
+    padding: 14px 18px;
     margin-bottom: 1.5rem;
     background: var(--anzhiyu-secondbg);
+    border-radius: 12px;
   }
 
   .ai-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.55rem;
+    margin-bottom: 10px;
   }
 
   .ai-title {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-    font-size: 0.9rem;
+    gap: 8px;
+    font-size: 0.95rem;
     font-weight: 700;
   }
 
   .ai-tag {
-    font-size: 0.72rem;
-    padding: 0.08rem 0.4rem;
-    border-radius: 4px;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 5px;
     background: var(--anzhiyu-main);
     color: var(--anzhiyu-white);
   }
 
-  .ai-badge {
-    font-size: 0.74rem;
+  .ai-badge-btn {
+    border: none;
+    background: var(--anzhiyu-card-bg);
     color: var(--anzhiyu-secondtext);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: var(--style-border);
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .ai-badge-btn:hover {
+    color: var(--anzhiyu-main);
+    border-color: var(--anzhiyu-main);
   }
 
   .ai-explanation {
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--anzhiyu-radius);
+    padding: 10px 14px;
+    border-radius: 10px;
     background: var(--anzhiyu-card-bg);
     border: var(--style-border);
-    font-size: 0.9rem;
-    line-height: 1.65;
+    font-size: 0.92rem;
+    line-height: 1.7;
     color: var(--anzhiyu-fontcolor);
+    min-height: 44px;
   }
 </style>
+
+<script>
+  function initAiTypewriter() {
+    const box = document.getElementById("ai-explanation-box");
+    const replayBtn = document.getElementById("ai-replay-btn");
+    if (!box) return;
+
+    const fullText = box.getAttribute("data-ai-text") || "";
+    if (!fullText) return;
+
+    let timer: number | undefined;
+    const play = () => {
+      if (timer) window.clearInterval(timer);
+      let idx = 0;
+      box.textContent = "";
+      timer = window.setInterval(() => {
+        idx += 2;
+        box.textContent = fullText.slice(0, idx);
+        if (idx >= fullText.length && timer) {
+          window.clearInterval(timer);
+        }
+      }, 28);
+    };
+
+    play();
+    replayBtn?.addEventListener("click", play);
+  }
+
+  document.addEventListener("astro:page-load", initAiTypewriter);
+</script>

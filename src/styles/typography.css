@@ -194,7 +194,26 @@
   padding: 0.85rem 1rem;
 }
 
-/* Expressive Code 容器微调 */
+/* Expressive Code Mac 风格窗口圆点微调 */
 .anzhiyu-prose .expressive-code {
   margin: 1.2rem 0;
+}
+
+.anzhiyu-prose .expressive-code .frame .header {
+  position: relative;
+  padding-left: 3.6rem;
+}
+
+.anzhiyu-prose .expressive-code .frame .header::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fc625d;
+  box-shadow: 18px 0 0 #fdbc40, 36px 0 0 #35cd4b;
+  z-index: 2;
 }

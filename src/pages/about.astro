@@ -1,5 +1,5 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getSiteData } from "@/data/site-data";
 import { profileConfig } from "@/config";
 
@@ -9,47 +9,357 @@ interface AboutData {
   avatarSkills?: { left?: string[]; right?: string[] };
   name?: string;
   description?: string;
+  aboutsiteTips?: { tips?: string; title1?: string; title2?: string; word?: string[] };
   helloAbout?: string;
+  skillsTips?: { tips?: string; title?: string };
+  careers?: { tips?: string; title?: string; list?: { desc?: string; color?: string }[] };
+  personalities?: { tips?: string; author_name?: string; personality_type?: string; personality_img?: string };
+  maxim?: { maxim_tips?: string; maxim_top?: string; maxim_bottom?: string };
+  buff?: { buff_tips?: string; buff_top?: string; buff_bottom?: string };
+  game?: { game_tips?: string; game_title?: string; game_bg?: string; game_uid?: string };
+  comic?: { comic_tips?: string; comic_title?: string; comic_list?: { name?: string; cover?: string; href?: string }[] };
 }
 
-const raw = getSiteData<AboutData[]>("about") ?? [];
-const about = raw[0] ?? {};
-const skills = [...(about.avatarSkills?.left ?? []), ...(about.avatarSkills?.right ?? [])];
+interface CreativityGroup {
+  creativity_list?: { name: string; color: string; icon: string }[];
+}
+
+const about = (getSiteData<AboutData[]>("about") ?? [])[0] ?? {};
+const creativity = (getSiteData<CreativityGroup[]>("creativity") ?? [])[0]?.creativity_list ?? [];
+const leftSkills = about.avatarSkills?.left ?? [];
+const rightSkills = about.avatarSkills?.right ?? [];
 ---
 
-<PageLayout title="关于本人" aside={false}>
-  <div class="flex flex-col gap-6">
-    <div class="flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)]">
-      <img
-        src={about.avatarImg || profileConfig.avatar}
-        alt={about.name || profileConfig.name}
-        class="w-28 h-28 rounded-full object-cover border-4 border-[var(--anzhiyu-main)] shrink-0"
-      />
-      <div class="text-center md:text-left">
-        <div class="text-xs font-bold text-[var(--anzhiyu-main)] mb-1">{about.helloAbout || "Hello!"}</div>
-        <h2 class="text-2xl font-extrabold m-0">{about.name || profileConfig.name}</h2>
-        <p class="text-sm text-[var(--anzhiyu-secondtext)] mt-2 mb-0">
-          {about.description || profileConfig.bio}
-        </p>
-        {about.subtitle && (
-          <p class="text-xs text-[var(--anzhiyu-main)] mt-2 mb-0 font-semibold">{about.subtitle}</p>
-        )}
+<BaseLayout title="关于本人">
+  <div id="about-page" class="about-page-wrap">
+    <!-- 1. 顶部左右技能环绕大头像 -->
+    <div class="author-box">
+      <div class="author-tag-left">
+        {leftSkills.map((s) => <span class="author-tag">{s}</span>)}
+      </div>
+      <div class="author-img">
+        <img src={about.avatarImg || profileConfig.avatar} alt={about.name || profileConfig.name} />
+      </div>
+      <div class="author-tag-right">
+        {rightSkills.map((s) => <span class="author-tag">{s}</span>)}
       </div>
     </div>
 
-    {
-      skills.length > 0 && (
-        <section>
-          <h3 class="text-lg font-bold mb-3">个人标签 & 技能</h3>
-          <div class="flex flex-wrap gap-2">
-            {skills.map((s) => (
-              <span class="px-3.5 py-1.5 rounded-full bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] text-sm font-medium">
-                {s}
-              </span>
-            ))}
+    <div class="author-title">关于本人</div>
+
+    <!-- 2. 自我介绍 + 追求词轮播 -->
+    <div class="author-content">
+      <div class="author-content-item myInfoAndSayHello">
+        <div class="title1">你好，很高兴认识你 👋</div>
+        <div class="title2">我叫 <span class="inline-word">{about.name || profileConfig.name}</span></div>
+        <div class="title1">{about.description || profileConfig.bio}</div>
+      </div>
+
+      <div class="author-content-item aboutsiteTips">
+        <div class="author-content-item-tips">{about.aboutsiteTips?.tips || "追求"}</div>
+        <h2 class="tips-heading">
+          {about.aboutsiteTips?.title1 || "源于"}
+          <br />
+          {about.aboutsiteTips?.title2 || "热爱而去 感受"}
+        </h2>
+        <div class="mask">
+          {(about.aboutsiteTips?.word ?? ["学习", "生活", "程序", "科技"]).map((w, i) => (
+            <span class:list={["word-item", { active: i === 0 }]} data-first-tips={i === 0 ? "true" : undefined}>
+              {w}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 技能与生涯 -->
+    <div class="author-content">
+      <div class="author-content-item skills">
+        <div class="author-content-item-tips">{about.skillsTips?.tips || "技能"}</div>
+        <span class="author-content-item-title">{about.skillsTips?.title || "开启创造力"}</span>
+        <div class="skills-list">
+          {creativity.slice(0, 14).map((item) => (
+            <div class="skill-icon-chip" title={item.name} style={`background: ${item.color};`}>
+              <img src={item.icon} alt={item.name} loading="lazy" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="author-content-item careers">
+        <div class="author-content-item-tips">{about.careers?.tips || "生涯"}</div>
+        <span class="author-content-item-title">{about.careers?.title || "无限进步"}</span>
+        <div class="careers-list">
+          {(about.careers?.list ?? [{ desc: "热爱折腾与创造", color: "#357ef5" }]).map((c) => (
+            <div class="careers-item">
+              <span class="circle" style={`background: ${c.color || "var(--anzhiyu-main)"};`}></span>
+              <span>{c.desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 座右铭 & 性格/游戏 -->
+    {(about.maxim || about.personalities || about.game) && (
+      <div class="author-content">
+        {about.maxim && (
+          <div class="author-content-item maxim">
+            <div class="author-content-item-tips">{about.maxim.maxim_tips || "座右铭"}</div>
+            <span class="maxim-title">{about.maxim.maxim_top}</span>
+            <span class="maxim-title highlight">{about.maxim.maxim_bottom}</span>
           </div>
-        </section>
-      )
-    }
+        )}
+        {about.personalities && (
+          <div class="author-content-item personalities">
+            <div class="author-content-item-tips">{about.personalities.tips || "性格"}</div>
+            <span class="author-content-item-title">{about.personalities.author_name}</span>
+            <div class="personality-type">{about.personalities.personality_type}</div>
+          </div>
+        )}
+      </div>
+    )}
   </div>
-</PageLayout>
+</BaseLayout>
+
+<style>
+  .about-page-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .author-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin: 1rem 0;
+  }
+
+  .author-tag-left,
+  .author-tag-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .author-tag-left {
+    align-items: flex-end;
+  }
+
+  .author-tag-right {
+    align-items: flex-start;
+  }
+
+  .author-tag {
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    box-shadow: var(--anzhiyu-shadow-border);
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: transform 0.25s ease;
+  }
+
+  .author-tag:hover {
+    transform: scale(1.05);
+    border-color: var(--anzhiyu-main);
+  }
+
+  .author-img {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 5px solid var(--anzhiyu-card-bg);
+    box-shadow: var(--anzhiyu-shadow-border);
+    flex-shrink: 0;
+  }
+
+  .author-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .author-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0.75rem 0 1.5rem;
+  }
+
+  .author-content {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .author-content-item {
+    position: relative;
+    padding: 1.75rem 2rem;
+    border-radius: 16px;
+    background: var(--anzhiyu-card-bg);
+    border: var(--style-border);
+    box-shadow: var(--anzhiyu-shadow-border);
+    overflow: hidden;
+  }
+
+  .myInfoAndSayHello {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(120deg, #5b27ff 0%, #00d4ff 100%);
+    border: none;
+  }
+
+  .myInfoAndSayHello .title1 {
+    font-size: 1.05rem;
+    opacity: 0.9;
+  }
+
+  .myInfoAndSayHello .title2 {
+    font-size: 2.1rem;
+    font-weight: 800;
+    margin: 0.4rem 0;
+  }
+
+  .author-content-item-tips {
+    font-size: 0.78rem;
+    color: var(--anzhiyu-secondtext);
+    margin-bottom: 0.45rem;
+  }
+
+  .author-content-item-title {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .tips-heading {
+    margin: 0;
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  .aboutsiteTips .mask {
+    position: relative;
+    height: 2.6rem;
+    margin-top: 0.75rem;
+    overflow: hidden;
+  }
+
+  .word-item {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--anzhiyu-main);
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .word-item.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .skill-icon-chip {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--anzhiyu-shadow-border);
+  }
+
+  .skill-icon-chip img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .careers-list {
+    margin-top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .careers-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .careers-item .circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .maxim-title {
+    display: block;
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  .maxim-title.highlight {
+    color: var(--anzhiyu-main);
+  }
+
+  .personality-type {
+    margin-top: 0.75rem;
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--anzhiyu-main);
+  }
+
+  @media (max-width: 768px) {
+    .author-tag-left,
+    .author-tag-right {
+      display: none;
+    }
+
+    .author-content {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const words = Array.from(document.querySelectorAll(".aboutsiteTips .word-item"));
+    if (words.length <= 1) return;
+    let idx = 0;
+    setInterval(() => {
+      words[idx]?.classList.remove("active");
+      idx = (idx + 1) % words.length;
+      words[idx]?.classList.add("active");
+    }, 2200);
+  });
+</script>
