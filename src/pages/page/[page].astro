@@ -3,42 +3,35 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import CategoryBar from "@/components/home/CategoryBar.astro";
 import PostCard from "@/components/home/PostCard.astro";
 import Pagination from "@/components/home/Pagination.astro";
-import Sidebar from "@/components/sidebar/Sidebar.astro";
-import { siteConfig, themeConfig } from "@/config";
+import { siteConfig } from "@/config";
 import { aggregateCategories, getAllPosts } from "@/utils/posts";
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPosts();
+  const posts = await getAllPosts();
   const pageSize = siteConfig.pageSize;
-  const totalPages = Math.max(1, Math.ceil(allPosts.length / pageSize));
-
-  return Array.from({ length: totalPages }, (_, idx) => {
-    const page = idx + 1;
-    const start = idx * pageSize;
-    return {
-      params: { page: String(page) },
+  const totalPages = Math.ceil(posts.length / pageSize);
+  const paths = [];
+  for (let p = 2; p <= totalPages; p++) {
+    paths.push({
+      params: { page: String(p) },
       props: {
-        posts: allPosts.slice(start, start + pageSize),
-        currentPage: page,
+        currentPage: p,
         totalPages,
-        categories: aggregateCategories(allPosts),
+        pagePosts: posts.slice((p - 1) * pageSize, p * pageSize),
+        categories: aggregateCategories(posts),
       },
-    };
-  });
+    });
+  }
+  return paths;
 }
 
-const { posts, currentPage, totalPages, categories } = Astro.props;
+const { currentPage, totalPages, pagePosts, categories } = Astro.props;
 ---
 
-<BaseLayout title={`第 ${currentPage} 页`}>
-  <div class="layout-shell">
-    <div class="layout-main">
-      <CategoryBar categories={categories} />
-      <div class:list={["grid gap-4", themeConfig.home.doubleRow ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"]}>
-        {posts.map((post, i) => <PostCard post={post} index={i} />)}
-      </div>
-      <Pagination currentPage={currentPage} totalPages={totalPages} />
-    </div>
-    {themeConfig.sidebar.enable && <Sidebar showAuthor={true} />}
+<BaseLayout title={`第 ${currentPage} 页`} pageType="anzhiyu">
+  <div class="recent-posts" id="recent-posts">
+    <CategoryBar categories={categories} />
+    {pagePosts.map((post, i) => <PostCard post={post} index={i} />)}
+    <Pagination currentPage={currentPage} totalPages={totalPages} />
   </div>
 </BaseLayout>

@@ -1,59 +1,153 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  let open = $state(false);
+  interface Props {
+    postUrls?: string[];
+  }
 
-  const shortcuts = [
-    { keys: "Ctrl + K / ⌘ + K", desc: "打开站内全文搜索" },
-    { keys: "Shift + ?", desc: "打开 / 关闭快捷键面板" },
-    { keys: "Esc", desc: "关闭当前弹窗或中控台" },
-    { keys: "Ctrl + 右键", desc: "临时使用浏览器原生右键菜单" },
+  let { postUrls = [] }: Props = $props();
+  let show = $state(false);
+
+  const shortcutItems = [
+    { key: "K", content: "关闭快捷键功能" },
+    { key: "A", content: "打开/关闭中控台" },
+    { key: "M", content: "播放/暂停音乐" },
+    { key: "D", content: "深色/浅色显示模式" },
+    { key: "S", content: "站内搜索" },
+    { key: "R", content: "随机访问文章" },
+    { key: "H", content: "返回首页" },
+    { key: "F", content: "友链鱼塘" },
+    { key: "L", content: "友链页面" },
+    { key: "P", content: "关于本站" },
+    { key: "I", content: "快捷右键菜单" },
   ];
 
   onMount(() => {
-    const onOpen = () => (open = true);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && open) open = false;
-      if (e.shiftKey && e.key === "?") {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag !== "INPUT" && tag !== "TEXTAREA") {
+    let shiftTimer: number | undefined;
+
+    const isInputTarget = (el: EventTarget | null) => {
+      const tag = (el as HTMLElement | null)?.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement | null)?.isContentEditable;
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isInputTarget(e.target)) return;
+      const enabled = localStorage.getItem("anzhiyu-keyboard") !== "false";
+
+      if (e.key === "Shift" && !e.repeat && enabled) {
+        window.clearTimeout(shiftTimer);
+        shiftTimer = window.setTimeout(() => {
+          show = true;
+        }, 200);
+        return;
+      }
+
+      if (!e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      const upper = e.key.toUpperCase();
+      if (!enabled && upper !== "K") return;
+
+      switch (upper) {
+        case "K":
           e.preventDefault();
-          open = !open;
-        }
+          show = false;
+          const next = !enabled;
+          localStorage.setItem("anzhiyu-keyboard", String(next));
+          window.dispatchEvent(
+            new CustomEvent("anzhiyu:toast", { detail: { message: next ? "已开启快捷键" : "已关闭快捷键" } }),
+          );
+          break;
+        case "A":
+          e.preventDefault();
+          show = false;
+          window.dispatchEvent(new CustomEvent("anzhiyu:toggle-console"));
+          break;
+        case "M":
+          e.preventDefault();
+          show = false;
+          window.dispatchEvent(new CustomEvent("anzhiyu:music-toggle"));
+          break;
+        case "D":
+          e.preventDefault();
+          show = false;
+          window.dispatchEvent(new CustomEvent("anzhiyu:toggle-theme"));
+          break;
+        case "S":
+          e.preventDefault();
+          show = false;
+          window.dispatchEvent(new CustomEvent("anzhiyu:open-search"));
+          break;
+        case "R":
+          e.preventDefault();
+          show = false;
+          if (postUrls.length > 0) {
+            window.location.href = postUrls[Math.floor(Math.random() * postUrls.length)];
+          }
+          break;
+        case "H":
+          e.preventDefault();
+          show = false;
+          window.location.href = "/";
+          break;
+        case "F":
+          e.preventDefault();
+          show = false;
+          window.location.href = "/fcircle/";
+          break;
+        case "L":
+          e.preventDefault();
+          show = false;
+          window.location.href = "/link/";
+          break;
+        case "P":
+          e.preventDefault();
+          show = false;
+          window.location.href = "/about/";
+          break;
+        case "I":
+          e.preventDefault();
+          show = false;
+          window.dispatchEvent(new CustomEvent("anzhiyu:open-contextmenu"));
+          break;
       }
     };
-    window.addEventListener("anzhiyu:open-shortcuts", onOpen);
-    window.addEventListener("keydown", onKey);
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") {
+        window.clearTimeout(shiftTimer);
+        show = false;
+      }
+    };
+
+    const onBlur = () => {
+      window.clearTimeout(shiftTimer);
+      show = false;
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
-      window.removeEventListener("anzhiyu:open-shortcuts", onOpen);
-      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(shiftTimer);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   });
 </script>
 
-{#if open}
-  <div
-    class="fixed inset-0 z-[230] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-    role="dialog"
-    aria-modal="true"
-    aria-label="快捷键指南"
-    onclick={(e) => {
-      if (e.target === e.currentTarget) open = false;
-    }}
-  >
-    <div class="w-full max-w-md rounded-2xl bg-[var(--anzhiyu-card-bg)] border border-[var(--anzhiyu-card-border)] shadow-2xl p-6 text-[var(--anzhiyu-fontcolor)]">
-      <div class="flex items-center justify-between pb-3 mb-4 border-b border-[var(--anzhiyu-card-border)]">
-        <span class="font-bold text-base">⌨️ 快捷键指南</span>
-        <button type="button" class="cursor-pointer opacity-70 hover:opacity-100" onclick={() => (open = false)}>✕</button>
+<!-- 保持上游原样类名拼写：keyboardTitle / keybordList / keybordItem -->
+<div id="keyboard-tips" class:show={show}>
+  <div class="keyboardTitle">博客快捷键</div>
+  <div class="keybordList">
+    {#each shortcutItems as item}
+      <div class="keybordItem">
+        <div class="keyGroup">
+          <div class="key">{`shift ${item.key}`}</div>
+        </div>
+        <div class="keyContent">
+          <div class="content">{item.content}</div>
+        </div>
       </div>
-      <div class="flex flex-col gap-3">
-        {#each shortcuts as item}
-          <div class="flex items-center justify-between text-sm">
-            <span class="text-[var(--anzhiyu-secondtext)]">{item.desc}</span>
-            <kbd class="px-2 py-0.5 rounded bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] font-mono text-xs">{item.keys}</kbd>
-          </div>
-        {/each}
-      </div>
-    </div>
+    {/each}
   </div>
-{/if}
+</div>

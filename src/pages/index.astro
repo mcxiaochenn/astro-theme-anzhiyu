@@ -5,7 +5,6 @@ import BbTimeList from "@/components/home/BbTimeList.svelte";
 import CategoryBar from "@/components/home/CategoryBar.astro";
 import PostCard from "@/components/home/PostCard.astro";
 import Pagination from "@/components/home/Pagination.astro";
-import Sidebar from "@/components/sidebar/Sidebar.astro";
 import { siteConfig, themeConfig } from "@/config";
 import { aggregateCategories, getAllPosts } from "@/utils/posts";
 import { getSiteData } from "@/data/site-data";
@@ -16,23 +15,19 @@ const pageSize = siteConfig.pageSize;
 const totalPages = Math.max(1, Math.ceil(allPosts.length / pageSize));
 const pagePosts = allPosts.slice(0, pageSize);
 
-const essayData = getSiteData<Array<{ essay_list?: { content: string; date?: string }[] }>>("essay");
-const essayItems = essayData?.[0]?.essay_list?.slice(0, 8) ?? [];
+const essayData = getSiteData<Array<{ essay_list?: { content: string; date?: string; image?: string[] }[] }>>("essay");
+const essayItems = essayData?.[0]?.essay_list?.slice(0, 10) ?? [];
 ---
 
-<BaseLayout>
-  {themeConfig.home.bbTimeEnable && <BbTimeList client:idle items={essayItems} />}
-  <HomeTop posts={allPosts} />
+<BaseLayout isHome={true} pageType="anzhiyu">
+  <Fragment slot="top-area">
+    {themeConfig.home.bbTimeEnable && <BbTimeList client:idle items={essayItems} />}
+    <HomeTop posts={allPosts} />
+  </Fragment>
 
-  <div class="layout-shell">
-    <div class="layout-main">
-      <CategoryBar categories={categories} />
-      <div class:list={["grid gap-4", themeConfig.home.doubleRow ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"]}>
-        {pagePosts.map((post, i) => <PostCard post={post} index={i} />)}
-      </div>
-      <Pagination currentPage={1} totalPages={totalPages} />
-    </div>
-
-    {themeConfig.sidebar.enable && <Sidebar showAuthor={true} />}
+  <div class="recent-posts" id="recent-posts">
+    <CategoryBar categories={categories} />
+    {pagePosts.map((post, i) => <PostCard post={post} index={i} />)}
+    <Pagination currentPage={1} totalPages={totalPages} />
   </div>
 </BaseLayout>

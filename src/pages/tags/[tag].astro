@@ -1,6 +1,6 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
-import PostCard from "@/components/home/PostCard.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import ArticleSort from "@/components/archive/ArticleSort.astro";
 import { aggregateTags, getAllPosts } from "@/utils/posts";
 
 export async function getStaticPaths() {
@@ -8,15 +8,35 @@ export async function getStaticPaths() {
   const tags = aggregateTags(posts);
   return tags.map((tag) => ({
     params: { tag: tag.name },
-    props: { tagName: tag.name, posts: tag.posts },
+    props: {
+      tagName: tag.name,
+      allTags: tags,
+      posts: posts.filter((p) => (p.data.tags ?? []).includes(tag.name)),
+    },
   }));
 }
 
-const { tagName, posts } = Astro.props;
+const { tagName, allTags, posts } = Astro.props;
 ---
 
-<PageLayout title={`标签：#${tagName}`}>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {posts.map((post, i) => <PostCard post={post} index={i} />)}
+<BaseLayout title={`标签: ${tagName}`} pageType="tag">
+  <div id="tag">
+    <div id="tag-page-tags">
+      {
+        allTags.map((t) => (
+          <a
+            href={`/tags/${encodeURIComponent(t.name)}/`}
+            class:list={[{ select: t.name === tagName }]}
+          >
+            <span class="tags-punctuation">
+              <i class="anzhiyufont anzhiyu-icon-hashtag" />
+            </span>
+            {t.name}
+            <span class="tagsPageCount">{t.count}</span>
+          </a>
+        ))
+      }
+    </div>
+    <ArticleSort title={`标签 - ${tagName}`} posts={posts} />
   </div>
-</PageLayout>
+</BaseLayout>

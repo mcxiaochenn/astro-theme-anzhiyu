@@ -1,237 +1,66 @@
 ---
-import { Icon } from "astro-icon/components";
+import AnIcon from "@/components/common/AnIcon.astro";
 import { profileConfig, siteConfig } from "@/config";
 
 interface Props {
-  postCount: number;
-  tagCount: number;
-  categoryCount: number;
+  postCount?: number;
+  tagCount?: number;
+  categoryCount?: number;
 }
 
-const { postCount, tagCount, categoryCount } = Astro.props;
+const { postCount: _p = 0, tagCount: _t = 0, categoryCount: _c = 0 } = Astro.props;
+void _p;
+void _t;
+void _c;
 ---
 
-<div class="card-widget card-info anzhiyu-card">
+<div class="card-widget card-info">
   <div class="card-content">
-    <button
-      type="button"
-      id="author-info__sayhi"
-      class="author-info__sayhi"
-      title="点击切换问候语"
-    >
+    <div class="author-info__sayhi" id="author-info__sayhi" title="点击切换问候语">
       {profileConfig.greeting}
-    </button>
+    </div>
 
     <div class="author-info-avatar">
-      <img src={profileConfig.avatar} alt={profileConfig.name} class="avatar-img" loading="eager" />
-      <span class="author-status" title="在线状态">{profileConfig.statusEmoji}</span>
+      <img class="avatar-img" src={profileConfig.avatar} alt={profileConfig.name} />
+      {
+        profileConfig.statusImg ? (
+          <div class="author-status">
+            <img src={profileConfig.statusImg} class="g-status" alt="status" />
+          </div>
+        ) : profileConfig.statusEmoji ? (
+          <div class="author-status" title="在线状态">
+            <span class="g-status" style="display:flex;align-items:center;justify-content:center;font-size:14px;">
+              {profileConfig.statusEmoji}
+            </span>
+          </div>
+        ) : null
+      }
     </div>
 
-    <div class="author-info__description">
-      {profileConfig.bio}
-      <div class="author-info__stats">
-        <a href="/archives/">文章 {postCount}</a>
-        <span>·</span>
-        <a href="/tags/">标签 {tagCount}</a>
-        <span>·</span>
-        <a href="/categories/">分类 {categoryCount}</a>
-      </div>
-    </div>
+    <div class="author-info__description" set:html={profileConfig.bio} />
 
-    <div class="author-info__bottom-group">
-      <a href="/about/" class="author-info__bottom-group-left">
-        <div class="author-info__name">{profileConfig.name}</div>
-        <div class="author-info__desc">{siteConfig.subtitle}</div>
-      </a>
-      <div class="card-info-social-icons">
-        {
-          profileConfig.social.slice(0, 2).map((s) => (
-            <a
-              href={s.url}
-              target={s.url.startsWith("http") ? "_blank" : undefined}
-              rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
-              class="social-icon"
-              title={s.name}
-              aria-label={s.name}
-            >
-              <Icon name={s.icon} class="w-4 h-4" />
-            </a>
-          ))
-        }
-      </div>
-    </div>
+    {
+      profileConfig.social.length > 0 && (
+        <div class="author-info__bottom-group">
+          <a class="author-info__bottom-group-left" href="/about/">
+            <h1 class="author-info__name">{profileConfig.name}</h1>
+            <div class="author-info__desc">{siteConfig.subtitle}</div>
+          </a>
+          <div class="card-info-social-icons is-center">
+            {profileConfig.social.slice(0, 2).map((s) => (
+              <a
+                class="social-icon faa-parent animated-hover"
+                href={s.url}
+                target={s.url.startsWith("http") ? "_blank" : undefined}
+                rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+                title={s.name}
+              >
+                <AnIcon name={s.icon} class={s.animation || "faa-tada"} />
+              </a>
+            ))}
+          </div>
+        </div>
+      )
+    }
   </div>
 </div>
-
-<style>
-  .card-info {
-    position: relative;
-    padding: 20px 24px;
-    background: linear-gradient(-25deg, var(--anzhiyu-main) 0%, var(--anzhiyu-theme-deep) 100%);
-    color: var(--anzhiyu-white);
-    border: none;
-    border-radius: 12px;
-    min-height: 300px;
-    overflow: hidden;
-  }
-
-  .card-content {
-    position: relative;
-    height: 100%;
-    min-height: 260px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .author-info__sayhi {
-    border: none;
-    color: var(--anzhiyu-white);
-    background: var(--anzhiyu-white-op);
-    font-size: 12px;
-    padding: 4px 12px;
-    border-radius: 9999px;
-    cursor: pointer;
-    transition: background-color 0.25s ease, transform 0.2s ease;
-  }
-
-  .author-info__sayhi:hover {
-    background: var(--anzhiyu-white);
-    color: var(--anzhiyu-main);
-    transform: scale(1.04);
-  }
-
-  .author-info-avatar {
-    position: relative;
-    width: 118px;
-    height: 118px;
-    margin: 16px auto;
-    transition: all 0.35s cubic-bezier(0.6, 0.1, 0, 1);
-  }
-
-  .avatar-img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 5px solid var(--anzhiyu-white);
-  }
-
-  .author-status {
-    position: absolute;
-    right: 2px;
-    bottom: 2px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--anzhiyu-white);
-    color: #333;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-
-  /* 悬浮时头像隐退，个人简介从上方显现 —— AnZhiYu 最经典交互之一 */
-  .author-info__description {
-    position: absolute;
-    top: 46px;
-    left: 0;
-    right: 0;
-    padding: 0 4px;
-    font-size: 14px;
-    line-height: 1.7;
-    color: var(--anzhiyu-white);
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.35s ease, transform 0.35s ease;
-    pointer-events: none;
-  }
-
-  .author-info__stats {
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    opacity: 0.9;
-  }
-
-  .card-info:hover .author-info-avatar {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-
-  .card-info:hover .author-info__description {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  .author-info__bottom-group {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    margin-top: auto;
-  }
-
-  .author-info__name {
-    font-weight: 700;
-    color: var(--anzhiyu-white);
-    font-size: 20px;
-    line-height: 1.2;
-    margin-bottom: 4px;
-  }
-
-  .author-info__desc {
-    font-size: 12px;
-    color: var(--anzhiyu-white);
-    opacity: 0.7;
-    line-height: 1;
-  }
-
-  .card-info-social-icons {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .social-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: var(--anzhiyu-white-op);
-    color: var(--anzhiyu-white);
-    transition: transform 0.25s ease, background-color 0.25s ease, color 0.25s ease;
-  }
-
-  .social-icon:hover {
-    background: var(--anzhiyu-white);
-    color: var(--anzhiyu-main);
-    transform: scale(1.1);
-  }
-</style>
-
-<script>
-  document.addEventListener("astro:page-load", () => {
-    const el = document.getElementById("author-info__sayhi");
-    if (!el) return;
-    const greetings = [
-      "欢迎光临小站 👋",
-      "今天也要元气满满 ✨",
-      "写代码也要记得喝水 ☕",
-      "愿你在这里有所收获 🚀",
-    ];
-    let idx = 0;
-    el.addEventListener("click", () => {
-      idx = (idx + 1) % greetings.length;
-      el.textContent = greetings[idx];
-    });
-  });
-</script>

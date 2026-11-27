@@ -1,5 +1,4 @@
 ---
-import { Icon } from "astro-icon/components";
 import { formatDate, getPostUrl, type PostEntry } from "@/utils/posts";
 
 interface Props {
@@ -9,52 +8,37 @@ interface Props {
 const { posts } = Astro.props;
 ---
 
-<div class="card-widget anzhiyu-card p-4">
-  <div class="flex items-center gap-2 font-bold text-sm mb-3">
-    <Icon name="fa6-solid:clock-rotate-left" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
-    <span>最新文章</span>
-  </div>
-  <div class="flex flex-col gap-3">
-    {
-      posts.map((post) => {
-        const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
-        return (
-          <a href={getPostUrl(post)} class="recent-item group">
-            <img src={cover} alt={post.data.title} class="recent-thumb" loading="lazy" />
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-semibold line-clamp-2 group-hover:text-[var(--anzhiyu-main)] transition-colors">
-                {post.data.title}
+{
+  posts.length > 0 && (
+    <div class="card-widget card-recent-post">
+      <div class="item-headline">
+        <i class="anzhiyufont anzhiyu-icon-history" />
+        <span>最新文章</span>
+      </div>
+      <div class="aside-list">
+        {posts.map((post) => {
+          const url = getPostUrl(post);
+          const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+          const dateStr = post.data.date ? formatDate(post.data.date) : "";
+          return (
+            <div class="aside-list-item">
+              <a class="thumbnail" href={url} title={post.data.title}>
+                <img src={cover} alt={post.data.title} loading="lazy" />
+              </a>
+              <div class="content">
+                <a class="title" href={url} title={post.data.title}>
+                  {post.data.title}
+                </a>
+                {dateStr && (
+                  <time datetime={post.data.date?.toISOString()} title={`发表于 ${dateStr}`}>
+                    {dateStr}
+                  </time>
+                )}
               </div>
-              {post.data.date && (
-                <time class="text-xs text-[var(--anzhiyu-secondtext)] mt-0.5 block">
-                  {formatDate(post.data.date)}
-                </time>
-              )}
             </div>
-          </a>
-        );
-      })
-    }
-  </div>
-</div>
-
-<style>
-  .recent-item {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-  }
-
-  .recent-thumb {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--anzhiyu-radius);
-    object-fit: cover;
-    flex-shrink: 0;
-    transition: transform 0.3s ease;
-  }
-
-  .recent-item:hover .recent-thumb {
-    transform: scale(1.05);
-  }
-</style>
+          );
+        })}
+      </div>
+    </div>
+  )
+}

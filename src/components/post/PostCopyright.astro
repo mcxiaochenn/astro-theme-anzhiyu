@@ -1,176 +1,119 @@
 ---
-import { Icon } from "astro-icon/components";
-import { siteConfig, themeConfig } from "@/config";
+import PostPtool from "./PostPtool.astro";
+import { profileConfig, siteConfig } from "@/config";
+import { aggregateCategories, aggregateTags, getAllPosts, normalizeCategoryList, type PostEntry } from "@/utils/posts";
 
 interface Props {
-  title: string;
+  post: PostEntry;
   url: string;
 }
 
-const { url } = Astro.props;
+const { post, url } = Astro.props;
 const fullUrl = new URL(url, siteConfig.url).toString();
+const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+const categories = normalizeCategoryList(post.data.categories);
+const tags = post.data.tags ?? [];
+
+const allPosts = await getAllPosts();
+const catCounts = Object.fromEntries(aggregateCategories(allPosts).map((c) => [c.name, c.count]));
+const tagCounts = Object.fromEntries(aggregateTags(allPosts).map((t) => [t.name, t.count]));
 ---
 
-<div class="post-copyright anzhiyu-card">
-  <Icon name="fa6-brands:creative-commons" class="copyright-cc-watermark" aria-hidden="true" />
-  <div class="post-copyright__author">
-    <span class="post-copyright-meta">文章作者</span>
-    <span class="post-copyright-info">
-      <a href="/about/">{siteConfig.author}</a>
-    </span>
-  </div>
-  <div class="post-copyright__type">
-    <span class="post-copyright-meta">文章链接</span>
-    <span class="post-copyright-info">
-      <a href={fullUrl} class="break-all">{fullUrl}</a>
-    </span>
-  </div>
-  <div class="post-copyright__notice">
-    <span class="post-copyright-meta">版权声明</span>
-    <span class="post-copyright-info">
-      本博客所有文章除特别声明外，均采用
-      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" class="underline text-[var(--anzhiyu-main)]">
-        CC BY-NC-SA 4.0
-      </a>
-      许可协议。转载请注明来源 {siteConfig.title}！
-    </span>
+<div class="post-copyright">
+  <div class="copyright-cc-box">
+    <i class="anzhiyufont anzhiyu-icon-copyright" />
   </div>
 
-  {
-    themeConfig.post.reward.enable && (
-      <div class="post-reward">
-        <button type="button" id="reward-toggle-btn" class="reward-button">
-          <Icon name="fa6-solid:heart" class="w-4 h-4" />
-          <span>打赏作者</span>
-        </button>
-        <div id="reward-qr-box" class="reward-qr-box hidden">
-          {themeConfig.post.reward.wechat && (
-            <div class="reward-qr-item">
-              <img src={themeConfig.post.reward.wechat} alt="微信赞赏" loading="lazy" />
-              <span>微信</span>
-            </div>
-          )}
-          {themeConfig.post.reward.alipay && (
-            <div class="reward-qr-item">
-              <img src={themeConfig.post.reward.alipay} alt="支付宝赞赏" loading="lazy" />
-              <span>支付宝</span>
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
+  <div class="post-copyright__author_box">
+    <a class="post-copyright__author_img" href="/about/" title={siteConfig.author}>
+      <img
+        class="post-copyright__author_img_back no-lightbox"
+        src={profileConfig.avatar}
+        alt={siteConfig.author}
+        loading="lazy"
+      />
+      <img
+        class="post-copyright__author_img_front no-lightbox"
+        src={profileConfig.avatar}
+        alt={siteConfig.author}
+        loading="lazy"
+      />
+    </a>
+    <div class="post-copyright__author_name">{post.data.copyright_author || siteConfig.author}</div>
+    <div class="post-copyright__author_desc">{siteConfig.subtitle}</div>
+  </div>
+
+  <div class="post-copyright__post__info">
+    <a class="post-copyright__original" title="该文章为原创文章，注意版权协议" href={url}>
+      原创
+    </a>
+    <a class="post-copyright-title" href="javascript:void(0);" data-copy-url={fullUrl} id="copyright-copy-title">
+      <span>{post.data.title}</span>
+    </a>
+  </div>
+
+  <PostPtool title={post.data.title} url={url} cover={cover} />
+
+  <div class="post-copyright__notice">
+    <span class="post-copyright-info">
+      本文是原创文章，采用{" "}
+      <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">
+        CC BY-NC-SA 4.0
+      </a>{" "}
+      协议，完整转载请注明来自 <a href="/">{siteConfig.title}</a>。
+    </span>
+  </div>
 </div>
 
-<style>
-  .post-copyright {
-    position: relative;
-    margin-top: 2rem;
-    padding: 1.25rem 1.45rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-    font-size: 0.9rem;
-    overflow: hidden;
-  }
-
-  .copyright-cc-watermark {
-    position: absolute;
-    right: -18px;
-    top: -18px;
-    width: 110px;
-    height: 110px;
-    opacity: 0.06;
-    pointer-events: none;
-  }
-
-  .post-copyright__author,
-  .post-copyright__type,
-  .post-copyright__notice {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-
-  .post-copyright-meta {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-    font-size: 0.78rem;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  .post-copyright-info a:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  .post-reward {
-    margin-top: 0.75rem;
-    padding-top: 0.85rem;
-    border-top: 1px dashed var(--anzhiyu-card-border);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.85rem;
-  }
-
-  .reward-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.48rem 1.25rem;
-    border-radius: var(--anzhiyu-radius-full);
-    background: var(--anzhiyu-red);
-    color: var(--anzhiyu-white);
-    border: none;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-  }
-
-  .reward-button:hover {
-    transform: translateY(-2px);
-    opacity: 0.92;
-  }
-
-  .reward-qr-box {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.25rem;
-  }
-
-  .reward-qr-box.hidden {
-    display: none;
-  }
-
-  .reward-qr-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.8rem;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .reward-qr-item img {
-    width: 130px;
-    height: 130px;
-    border-radius: var(--anzhiyu-radius);
-    object-fit: cover;
-    border: var(--style-border);
-  }
-</style>
+<div class="post-tools-right">
+  <div class="tag_share">
+    <div class="post-meta__box">
+      {
+        categories.length > 0 && (
+          <div class="post-meta__box__category-list">
+            {categories.map((cat) => (
+              <a class="post-meta__box__categoryes" href={`/categories/${encodeURIComponent(cat)}/`}>
+                <span class="categoryes-punctuation">
+                  <i class="anzhiyufont anzhiyu-icon-inbox" />
+                </span>
+                {cat}
+                <span class="categoryesPageCount">{catCounts[cat] ?? 1}</span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+      {
+        tags.length > 0 && (
+          <div class="post-meta__box__tag-list">
+            {tags.map((tag) => (
+              <a class="post-meta__box__tags" href={`/tags/${encodeURIComponent(tag)}/`}>
+                <span class="tags-punctuation">
+                  <i class="anzhiyufont anzhiyu-icon-tag" />
+                </span>
+                {tag}
+                <span class="tagsPageCount">{tagCounts[tag] ?? 1}</span>
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </div>
+</div>
 
 <script>
   document.addEventListener("astro:page-load", () => {
-    document.getElementById("reward-toggle-btn")?.addEventListener("click", () => {
-      document.getElementById("reward-qr-box")?.classList.toggle("hidden");
+    const el = document.getElementById("copyright-copy-title");
+    el?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const u = el.getAttribute("data-copy-url") || window.location.href;
+      try {
+        await navigator.clipboard.writeText(u);
+        window.dispatchEvent(new CustomEvent("anzhiyu:toast", { detail: { message: "已复制文章链接" } }));
+      } catch {
+        /* ignore */
+      }
     });
   });
 </script>

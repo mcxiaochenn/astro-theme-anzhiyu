@@ -1,15 +1,19 @@
 ---
-import { aggregateCategories, aggregateTags, getAllPosts, getPostUrl } from "@/utils/posts";
-import { musicConfig, siteConfig, themeConfig } from "@/config";
-import Console from "@/components/console/Console.svelte";
+import { getAllPosts, getPostUrl } from "@/utils/posts";
+import { commentConfig, musicConfig, themeConfig } from "@/config";
 import ContextMenu from "@/components/console/ContextMenu.svelte";
 import ShortcutModal from "@/components/console/ShortcutModal.svelte";
 import SearchDialog from "@/components/search/SearchDialog.svelte";
 import MusicBall from "@/components/music/MusicBall.svelte";
+import CommentBarrage from "@/components/comments/CommentBarrage.svelte";
+
+interface Props {
+  isPost?: boolean;
+}
+
+const { isPost = false } = Astro.props;
 
 const posts = await getAllPosts();
-const tags = aggregateTags(posts).map((t) => ({ name: t.name, count: t.count }));
-const categories = aggregateCategories(posts);
 const postUrls = posts.map((p) => getPostUrl(p));
 const fallbackPosts = posts.map((p) => ({
   title: p.data.title,
@@ -19,27 +23,40 @@ const fallbackPosts = posts.map((p) => ({
 }));
 ---
 
+{themeConfig.features.rightMenu && <ContextMenu client:load postUrls={postUrls} />}
+{themeConfig.features.shortcutKey && <ShortcutModal client:load postUrls={postUrls} />}
+{themeConfig.features.search && <SearchDialog client:load fallbackPosts={fallbackPosts} />}
 {
-  themeConfig.features.console && (
-    <Console
+  isPost && commentConfig.barrage && (
+    <CommentBarrage
       client:idle
-      tags={tags}
-      postCount={posts.length}
-      categoryCount={categories.length}
-      siteTitle={siteConfig.title}
+      enable={commentConfig.barrage}
+      provider={commentConfig.provider}
+      twikooEnvId={commentConfig.twikoo?.envId}
     />
   )
 }
-{themeConfig.features.rightMenu && <ContextMenu client:idle postUrls={postUrls} />}
-{themeConfig.features.shortcutKey && <ShortcutModal client:idle />}
-{themeConfig.features.search && <SearchDialog client:idle fallbackPosts={fallbackPosts} />}
-<div transition:persist="music-ball">
-  <MusicBall client:idle enable={musicConfig.enable} />
+
+<div transition:persist="nav-music">
+  <MusicBall
+    client:idle
+    enable={musicConfig.enable}
+    playlistId={musicConfig.meting.id}
+    server={musicConfig.meting.server}
+    type={musicConfig.meting.type}
+  />
+</div>
+
+<div id="anzhiyu-toast" role="status" aria-live="polite"></div>
+<div id="anzhiyu-lightbox" aria-hidden="true">
+  <img src="" alt="" />
 </div>
 
 <script is:inline define:vars={{ postUrls }}>
   document.addEventListener("astro:page-load", () => {
     document.querySelectorAll('[data-random-post="true"]').forEach((el) => {
+      if (el.dataset.randBound === "1") return;
+      el.dataset.randBound = "1";
       el.addEventListener("click", (e) => {
         e.preventDefault();
         if (postUrls.length > 0) {
@@ -49,4 +66,8 @@ const fallbackPosts = posts.map((p) => ({
       });
     });
   });
+</script>
+
+<script>
+  import "@/scripts/anzhiyu-client";
 </script>

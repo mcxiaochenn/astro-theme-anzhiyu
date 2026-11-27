@@ -1,0 +1,23 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  name: string;
+  class?: string;
+}
+
+const { name, class: className = "" } = Astro.props;
+const isAnzhiyuFont =
+  name.startsWith("anzhiyu-icon-") || name.startsWith("anzhiyufont ");
+const anzhiyuClass = name.startsWith("anzhiyufont")
+  ? name
+  : `anzhiyufont ${name}`;
+---
+
+{
+  isAnzhiyuFont ? (
+    <i class:list={[anzhiyuClass, className]} aria-hidden="true" />
+  ) : (
+    <Icon name={name} class={className} />
+  )
+}

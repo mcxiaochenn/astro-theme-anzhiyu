@@ -1,12 +1,12 @@
 ---
 import type { MarkdownHeading } from "astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import Sidebar from "@/components/sidebar/Sidebar.astro";
 import PostHeader from "@/components/post/PostHeader.astro";
 import PostToc from "@/components/post/PostToc.astro";
 import PostAiAbstract from "@/components/post/PostAiAbstract.astro";
 import PostCopyright from "@/components/post/PostCopyright.astro";
 import PostRelated from "@/components/post/PostRelated.astro";
+import Comments from "@/components/comments/Comments.astro";
 import { themeConfig } from "@/config";
 import { getPostStats, getPostUrl, type PostEntry } from "@/utils/posts";
 
@@ -20,7 +20,9 @@ interface Props {
 
 const { post, headings, prev, next, related } = Astro.props;
 const { words, minutes } = getPostStats(post);
-const cover = typeof post.data.cover === "string" ? post.data.cover : undefined;
+const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+const showToc = themeConfig.post.toc && headings.some((h) => h.depth >= 1 && h.depth <= 4);
+
 const aiSummary =
   typeof post.data.ai === "string"
     ? post.data.ai
@@ -39,65 +41,37 @@ const aiSummary =
   publishedTime={post.data.date}
   updatedTime={post.data.updated}
   isPost={true}
-  hasComments={post.data.comments}
+  topImg={post.data.top_img === false ? false : typeof post.data.top_img === "string" ? post.data.top_img : cover}
+  showAside={post.data.aside !== false}
+  showToc={showToc}
+  hasComments={post.data.comments !== false}
   mainColor={post.data.main_color}
 >
-  <PostHeader post={post} words={words} minutes={minutes} />
+  <PostHeader slot="post-header" post={post} words={words} minutes={minutes} />
 
-  <div class="layout-shell">
-    <div class="layout-main">
-      <article id="post" class="anzhiyu-card p-6 md:p-8">
-        {aiSummary && <PostAiAbstract summary={aiSummary} />}
-        <div id="article-container" class="anzhiyu-prose">
-          <slot />
-        </div>
-        {post.data.copyright && themeConfig.post.copyright && (
-          <PostCopyright title={post.data.title} url={getPostUrl(post)} />
-        )}
-      </article>
+  {showToc && <PostToc slot="aside-sticky" headings={headings} />}
 
-      <PostRelated prev={prev} next={next} related={related} />
-      <slot name="comments" />
-    </div>
+  <div id="post">
+    {aiSummary && <PostAiAbstract summary={aiSummary} />}
+
+    <article class="post-content" id="article-container" data-pagefind-body>
+      <slot />
+    </article>
 
     {
-      post.data.aside && themeConfig.sidebar.enable && (
-        <Sidebar showAuthor={true}>
-          <PostToc slot="sticky" headings={headings} />
-        </Sidebar>
+      post.data.copyright !== false && themeConfig.post.copyright && (
+        <PostCopyright post={post} url={getPostUrl(post)} />
       )
     }
+
+    <PostRelated
+      prev={prev}
+      next={next}
+      related={themeConfig.post.relatedPosts ? related : []}
+    />
+
+    <Comments enable={post.data.comments !== false} />
   </div>
 
   <slot name="overlays" slot="overlays" />
 </BaseLayout>
-
-<script>
-  function initArticleTags() {
-    // 1. Tabs 选项卡切换
-    document.querySelectorAll(".anzhiyu-prose .tabs").forEach((tabsRoot) => {
-      const buttons = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>(".nav-tabs button.tab"));
-      const panels = Array.from(tabsRoot.querySelectorAll<HTMLElement>(".tab-contents .tab-item-content"));
-      buttons.forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const targetId = btn.getAttribute("data-href");
-          buttons.forEach((b) => b.classList.remove("active"));
-          panels.forEach((p) => p.classList.remove("active"));
-          btn.classList.add("active");
-          if (targetId) {
-            tabsRoot.querySelector(`#${CSS.escape(targetId)}`)?.classList.add("active");
-          }
-        });
-      });
-    });
-
-    // 2. Hide 折叠/行内隐藏块切换
-    document.querySelectorAll(".anzhiyu-prose .hide-button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        btn.closest(".hide-inline, .hide-block")?.classList.toggle("open");
-      });
-    });
-  }
-
-  document.addEventListener("astro:page-load", initArticleTags);
-</script>

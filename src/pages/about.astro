@@ -1,7 +1,10 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+import PageLayout from "@/layouts/PageLayout.astro";
+import TagsGroupAll from "@/components/home/TagsGroupAll.astro";
 import { getSiteData } from "@/data/site-data";
-import { profileConfig } from "@/config";
+import { profileConfig, siteConfig } from "@/config";
+import { aggregateCategories, aggregateTags, getAllPosts, getPostStats } from "@/utils/posts";
 
 interface AboutData {
   subtitle?: string;
@@ -12,354 +15,513 @@ interface AboutData {
   aboutsiteTips?: { tips?: string; title1?: string; title2?: string; word?: string[] };
   helloAbout?: string;
   skillsTips?: { tips?: string; title?: string };
-  careers?: { tips?: string; title?: string; list?: { desc?: string; color?: string }[] };
-  personalities?: { tips?: string; author_name?: string; personality_type?: string; personality_img?: string };
+  careers?: { tips?: string; title?: string; list?: { desc?: string; color?: string }[]; img?: string };
+  statistic?: { link?: string; text?: string; cover?: string };
+  map?: { title?: string; StrengthenTitle?: string; background?: string; backgroundDark?: string };
+  selfInfo?: {
+    selfInfoTips1?: string;
+    selfInfoContentYear?: string | number;
+    selfInfoTips2?: string;
+    selfInfoContent2?: string;
+    selfInfoTips3?: string;
+    selfInfoContent3?: string;
+  };
+  personalities?: {
+    tips?: string;
+    author_name?: string;
+    personality_type?: string;
+    personality_type_color?: string;
+    photo_url?: string;
+    personality_img?: string;
+    name_url?: string;
+  };
   maxim?: { maxim_tips?: string; maxim_top?: string; maxim_bottom?: string };
   buff?: { buff_tips?: string; buff_top?: string; buff_bottom?: string };
   game?: { game_tips?: string; game_title?: string; game_bg?: string; game_uid?: string };
   comic?: { comic_tips?: string; comic_title?: string; comic_list?: { name?: string; cover?: string; href?: string }[] };
+  like?: { like_tips?: string; like_title?: string; like_bg?: string; like_bottom?: string };
+  music?: { music_tips?: string; music_title?: string; music_bg?: string; music_link?: string };
+  reward_list?: { name?: string; amount?: number; suffix?: string; datatime?: string }[];
 }
 
 interface CreativityGroup {
   creativity_list?: { name: string; color: string; icon: string }[];
 }
 
-const about = (getSiteData<AboutData[]>("about") ?? [])[0] ?? {};
-const creativity = (getSiteData<CreativityGroup[]>("creativity") ?? [])[0]?.creativity_list ?? [];
-const leftSkills = about.avatarSkills?.left ?? [];
-const rightSkills = about.avatarSkills?.right ?? [];
+const item = (getSiteData<AboutData[]>("about") ?? [])[0] ?? {};
+const creativityGroups = getSiteData<CreativityGroup[]>("creativity") ?? [];
+const creativityList = creativityGroups[0]?.creativity_list ?? [];
+const avatarSrc = item.avatarImg || profileConfig.avatar;
+const aboutName = item.name || profileConfig.name;
+const words = item.aboutsiteTips?.word ?? ["学习", "生活", "程序", "创作"];
+
+const posts = await getAllPosts();
+const totalWords = posts.reduce((acc, p) => acc + getPostStats(p).words, 0);
+const tagCount = aggregateTags(posts).length;
+const catCount = aggregateCategories(posts).length;
+const sinceDays = Math.max(1, Math.floor((Date.now() - new Date(siteConfig.footer.since).getTime()) / 86400000));
+
+const specEntries = await getCollection("spec");
+const specEntry = specEntries.find((e) => e.id === "about-page" || e.id === "about");
+const renderedSpec = specEntry ? await render(specEntry) : null;
+const SpecContent = renderedSpec?.Content;
+
+const mapBg = item.map?.background || "/img/demo/anime/anime-04-tall.jpg";
+const mapBgDark = item.map?.backgroundDark || mapBg;
+const mapCss = `.author-content-item.map { background-image: url(${mapBg}); } [data-theme='dark'] .author-content-item.map { background-image: url(${mapBgDark}); }`;
+const initialTransform = "translate:none;rotate:none;scale:none;transform:translate(721px,180px)";
 ---
 
-<BaseLayout title="关于本人">
-  <div id="about-page" class="about-page-wrap">
-    <!-- 1. 顶部左右技能环绕大头像 -->
+<PageLayout title="关于本人" showAside={false} showPageTitle={false} pageType="about">
+  <div id="about-page">
+    <!-- 1. 顶部左右漂浮技能标签 + 头像 -->
     <div class="author-box">
-      <div class="author-tag-left">
-        {leftSkills.map((s) => <span class="author-tag">{s}</span>)}
-      </div>
+      {
+        item.avatarSkills?.left && (
+          <div class="author-tag-left">
+            {item.avatarSkills.left.map((tag) => (
+              <span class="author-tag">{tag}</span>
+            ))}
+          </div>
+        )
+      }
       <div class="author-img">
-        <img src={about.avatarImg || profileConfig.avatar} alt={about.name || profileConfig.name} />
+        <img class="no-lightbox" src={avatarSrc} alt={aboutName} />
       </div>
-      <div class="author-tag-right">
-        {rightSkills.map((s) => <span class="author-tag">{s}</span>)}
-      </div>
+      {
+        item.avatarSkills?.right && (
+          <div class="author-tag-right">
+            {item.avatarSkills.right.map((tag) => (
+              <span class="author-tag">{tag}</span>
+            ))}
+          </div>
+        )
+      }
     </div>
+    <p class="p center logo large">关于本站</p>
+    {item.subtitle && <p class="p center small">{item.subtitle}</p>}
 
-    <div class="author-title">关于本人</div>
-
-    <!-- 2. 自我介绍 + 追求词轮播 -->
+    <!-- 2. 你好介绍卡 + 追求词翻滚遮罩卡 -->
     <div class="author-content">
       <div class="author-content-item myInfoAndSayHello">
-        <div class="title1">你好，很高兴认识你 👋</div>
-        <div class="title2">我叫 <span class="inline-word">{about.name || profileConfig.name}</span></div>
-        <div class="title1">{about.description || profileConfig.bio}</div>
+        <div class="title1">你好，很高兴认识你👋</div>
+        <div class="title2">
+          我叫 <span class="inline-word">{aboutName}</span>
+        </div>
+        <div class="title1">{item.description || profileConfig.bio}</div>
       </div>
 
-      <div class="author-content-item aboutsiteTips">
-        <div class="author-content-item-tips">{about.aboutsiteTips?.tips || "追求"}</div>
-        <h2 class="tips-heading">
-          {about.aboutsiteTips?.title1 || "源于"}
+      <div class="aboutsiteTips author-content-item">
+        <div class="author-content-item-tips">{item.aboutsiteTips?.tips || "追求"}</div>
+        <h2>
+          {item.aboutsiteTips?.title1 || "源于"}
           <br />
-          {about.aboutsiteTips?.title2 || "热爱而去 感受"}
+          {item.aboutsiteTips?.title2 || "热爱而去 感受"}
+          <div class="mask" id="about-tips-mask">
+            {
+              words.map((w, idx) => (
+                <span
+                  class={idx === 0 ? "first-tips" : undefined}
+                  data-show={idx === 0 ? "" : undefined}
+                  data-up={idx === words.length - 1 ? "" : undefined}
+                >
+                  {w}
+                </span>
+              ))
+            }
+          </div>
         </h2>
-        <div class="mask">
-          {(about.aboutsiteTips?.word ?? ["学习", "生活", "程序", "科技"]).map((w, i) => (
-            <span class:list={["word-item", { active: i === 0 }]} data-first-tips={i === 0 ? "true" : undefined}>
-              {w}
-            </span>
-          ))}
-        </div>
       </div>
     </div>
 
-    <!-- 3. 技能与生涯 -->
+    <!-- 3. Hello 鼠标跟随彩色光斑大横幅 -->
+    {
+      item.helloAbout && (
+        <div class="hello-about" id="hello-about-card">
+          <div class="cursor" style={initialTransform} />
+          <div class="shapes">
+            <div class="shape shape-1" style={initialTransform} />
+            <div class="shape shape-2" style={initialTransform} />
+            <div class="shape shape-3" style={initialTransform} />
+          </div>
+          <div class="content">
+            <h1>{item.helloAbout}</h1>
+          </div>
+        </div>
+      )
+    }
+
+    <!-- 4. 开启创造力技能流 + 无限进步生涯 -->
     <div class="author-content">
       <div class="author-content-item skills">
-        <div class="author-content-item-tips">{about.skillsTips?.tips || "技能"}</div>
-        <span class="author-content-item-title">{about.skillsTips?.title || "开启创造力"}</span>
-        <div class="skills-list">
-          {creativity.slice(0, 14).map((item) => (
-            <div class="skill-icon-chip" title={item.name} style={`background: ${item.color};`}>
-              <img src={item.icon} alt={item.name} loading="lazy" />
-            </div>
-          ))}
+        <div class="card-content">
+          <div class="author-content-item-tips">{item.skillsTips?.tips || "技能"}</div>
+          <span class="author-content-item-title">{item.skillsTips?.title || "开启创造力"}</span>
+          <div class="skills-style-group">
+            <TagsGroupAll />
+            {creativityList.length > 0 && (
+              <div class="skills-list">
+                {creativityList.map((skill) => (
+                  <div class="skill-info">
+                    <div class="skill-icon" style={`background: ${skill.color}`}>
+                      <img class="no-lightbox" title={skill.name} src={skill.icon} alt={skill.name} loading="lazy" />
+                    </div>
+                    <div class="skill-name">
+                      <span>{skill.name}</span>
+                    </div>
+                  </div>
+                ))}
+                <div class="etc">...</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div class="author-content-item careers">
-        <div class="author-content-item-tips">{about.careers?.tips || "生涯"}</div>
-        <span class="author-content-item-title">{about.careers?.title || "无限进步"}</span>
-        <div class="careers-list">
-          {(about.careers?.list ?? [{ desc: "热爱折腾与创造", color: "#357ef5" }]).map((c) => (
-            <div class="careers-item">
-              <span class="circle" style={`background: ${c.color || "var(--anzhiyu-main)"};`}></span>
-              <span>{c.desc}</span>
-            </div>
-          ))}
+        <div class="card-content">
+          <div class="author-content-item-tips">{item.careers?.tips || "生涯"}</div>
+          <span class="author-content-item-title">{item.careers?.title || "无限进步"}</span>
+          <div class="careers-group">
+            {item.careers?.list && item.careers.list.length > 0 ? (
+              item.careers.list.map((c) => (
+                <div class="career-item">
+                  <div class="circle" style={`background:${c.color || "#357ef5"}`} />
+                  <div class="name">{c.desc}</div>
+                </div>
+              ))
+            ) : (
+              <div class="careers-none" />
+            )}
+          </div>
+          {item.careers?.img && (
+            <img class="author-content-img no-lightbox" src={item.careers.img} alt="生涯" loading="lazy" />
+          )}
         </div>
       </div>
     </div>
 
-    <!-- 4. 座右铭 & 性格/游戏 -->
-    {(about.maxim || about.personalities || about.game) && (
-      <div class="author-content">
-        {about.maxim && (
-          <div class="author-content-item maxim">
-            <div class="author-content-item-tips">{about.maxim.maxim_tips || "座右铭"}</div>
-            <span class="maxim-title">{about.maxim.maxim_top}</span>
-            <span class="maxim-title highlight">{about.maxim.maxim_bottom}</span>
+    <!-- 5. 站点内容数据统计黑底卡 + 地图与个人三项信息 -->
+    <div class="author-content">
+      <div
+        class="about-statistic author-content-item"
+        style={`background: url(${item.statistic?.cover || "/img/demo/anime/anime-03-tall.jpg"}) top / cover no-repeat;`}
+      >
+        <div class="card-content">
+          <div class="author-content-item-tips">数据</div>
+          <span class="author-content-item-title">内容统计</span>
+          <div id="statistic">
+            <div>
+              <span>文章总数</span>
+              <span>{posts.length}</span>
+            </div>
+            <div>
+              <span>全站字数</span>
+              <span>{totalWords >= 1000 ? `${(totalWords / 1000).toFixed(1)}k` : totalWords}</span>
+            </div>
+            <div>
+              <span>分类数目</span>
+              <span>{catCount}</span>
+            </div>
+            <div>
+              <span>标签数目</span>
+              <span>{tagCount}</span>
+            </div>
+            <div>
+              <span>建站天数</span>
+              <span>{sinceDays}</span>
+            </div>
           </div>
-        )}
-        {about.personalities && (
-          <div class="author-content-item personalities">
-            <div class="author-content-item-tips">{about.personalities.tips || "性格"}</div>
-            <span class="author-content-item-title">{about.personalities.author_name}</span>
-            <div class="personality-type">{about.personalities.personality_type}</div>
+          <div class="post-tips">实时聚合自 Astro Content Collections</div>
+          <div class="banner-button-group">
+            <a class="banner-button" href={item.statistic?.link || "/archives/"}>
+              <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />
+              <span class="banner-button-text">{item.statistic?.text || "文章隧道"}</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="author-content-item-group column mapAndInfo">
+        <style is:inline set:html={mapCss}></style>
+        <div class="author-content-item map single">
+          <span class="map-title">
+            {item.map?.title || "我现在住在"}
+            <b>{item.map?.StrengthenTitle || "中国"}</b>
+          </span>
+        </div>
+
+        {item.selfInfo && (
+          <div class="author-content-item selfInfo single">
+            <div>
+              <span class="selfInfo-title">{item.selfInfo.selfInfoTips1}</span>{" "}
+              <span class="selfInfo-content" id="selfInfo-content-year" style="color:#43a6c6">
+                {item.selfInfo.selfInfoContentYear}
+              </span>
+            </div>
+            <div>
+              <span class="selfInfo-title">{item.selfInfo.selfInfoTips2}</span>{" "}
+              <span class="selfInfo-content" style="color:#c69043">{item.selfInfo.selfInfoContent2}</span>
+            </div>
+            <div>
+              <span class="selfInfo-title">{item.selfInfo.selfInfoTips3}</span>{" "}
+              <span class="selfInfo-content" style="color:#b04fe6">{item.selfInfo.selfInfoContent3}</span>
+            </div>
           </div>
         )}
       </div>
-    )}
+    </div>
+
+    <!-- 6. 性格 MBTI 插画卡 + 个人写真 -->
+    {
+      item.personalities && (
+        <div class="author-content">
+          <div class="author-content-item personalities">
+            <div class="author-content-item-tips">性格</div>
+            <span class="author-content-item-title">{item.personalities.author_name}</span>
+            <div
+              class="title2"
+              style={`color:${item.personalities.personality_type_color || "#ac899c"}`}
+            >
+              {item.personalities.personality_type}
+            </div>
+            <div class="post-tips">
+              在{" "}
+              <a href="https://www.16personalities.com/" target="_blank" rel="noopener nofollow">
+                16personalities
+              </a>{" "}
+              了解更多关于{" "}
+              <a
+                target="_blank"
+                rel="noopener external nofollow"
+                href={item.personalities.name_url || "https://www.16personalities.com/"}
+              >
+                {item.personalities.author_name}
+              </a>
+            </div>
+            {item.personalities.personality_img && (
+              <div class="image">
+                <img
+                  class="no-lightbox"
+                  src={item.personalities.personality_img}
+                  alt={item.personalities.personality_type || "MBTI"}
+                  loading="lazy"
+                />
+              </div>
+            )}
+          </div>
+
+          <div class="author-content-item myphoto">
+            <img
+              class="author-content-img no-lightbox"
+              alt={aboutName}
+              src={item.personalities.photo_url || avatarSrc}
+              loading="lazy"
+            />
+          </div>
+        </div>
+      )
+    }
+
+    <!-- 7. 座右铭 + 特长 Buff -->
+    {
+      (item.maxim || item.buff) && (
+        <div class="author-content">
+          {item.maxim && (
+            <div class="author-content-item maxim">
+              <div class="author-content-item-tips">{item.maxim.maxim_tips || "座右铭"}</div>
+              <span class="maxim-title">
+                <span style="opacity:.6;margin-bottom:8px">{item.maxim.maxim_top}</span>{" "}
+                <span>{item.maxim.maxim_bottom}</span>
+              </span>
+            </div>
+          )}
+          {item.buff && (
+            <div class="author-content-item buff">
+              <div class="card-content" />
+              <div class="author-content-item-tips">{item.buff.buff_tips || "特长"}</div>
+              <span class="buff-title">
+                <span style="opacity:.6;margin-bottom:8px">{item.buff.buff_top}</span>{" "}
+                <span>{item.buff.buff_bottom}</span>
+              </span>
+              <div class="card-background-icon">
+                <i class="anzhiyufont anzhiyu-icon-dice-d20" />
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    <!-- 8. 游戏爱好卡 + 追番五连斜切封面卡 -->
+    {
+      (item.game || item.comic) && (
+        <div class="author-content">
+          {item.game && (
+            <div
+              class="author-content-item game-yuanshen"
+              style={`background: url(${item.game.game_bg || "/img/demo/anime/anime-06-tall.jpg"}) top / cover no-repeat;`}
+            >
+              <div class="card-content">
+                <div class="author-content-item-tips">{item.game.game_tips}</div>
+                <span class="author-content-item-title">{item.game.game_title}</span>
+                <div class="content-bottom">
+                  <div class="icon-group">
+                    <div class="loading-bar" role="presentation" aria-hidden="true" />
+                  </div>
+                  <div class="tips game-yuanshen-uid">{item.game.game_uid}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {item.comic && (
+            <div class="author-content-item comic-content">
+              <div class="card-content">
+                <div class="author-content-item-tips">{item.comic.comic_tips}</div>
+                <div class="author-content-item-title">{item.comic.comic_title}</div>
+                <div class="comic-box">
+                  {(item.comic.comic_list ?? []).map((c) => (
+                    <a class="comic-item" href={c.href || "#"} target="_blank" rel="noopener noreferrer" title={c.name}>
+                      <div class="comic-item-cover">
+                        <img class="no-lightbox" src={c.cover} alt={c.name} loading="lazy" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    <!-- 9. 关注偏好 + 音乐偏好 -->
+    {
+      (item.like || item.music) && (
+        <div class="author-content">
+          {item.like && (
+            <div
+              class="author-content-item like-technology"
+              style={`background: url(${item.like.like_bg || "/img/demo/anime/anime-13-tall.jpg"}) top / cover no-repeat;`}
+            >
+              <div class="card-content">
+                <div class="author-content-item-tips">{item.like.like_tips}</div>
+                <span class="author-content-item-title">{item.like.like_title}</span>
+                <div class="content-bottom">
+                  <div class="tips">{item.like.like_bottom}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {item.music && (
+            <div
+              class="author-content-item like-music"
+              style={`background: url(${item.music.music_bg || "/img/demo/anime/anime-12-tall.jpg"}) top / cover no-repeat;`}
+            >
+              <div class="card-content">
+                <div class="author-content-item-tips">{item.music.music_tips}</div>
+                <span class="author-content-item-title">{item.music.music_title}</span>
+                <div class="content-bottom">
+                  <div class="tips">跟 {aboutName} 一起欣赏更多音乐</div>
+                </div>
+                <div class="banner-button-group">
+                  <a class="banner-button" href={item.music.music_link || "/music/"}>
+                    <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />
+                    <span class="banner-button-text">更多推荐</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    <!-- 10. 建站心路历程正文 -->
+    {
+      SpecContent && (
+        <div class="author-content">
+          <div class="create-site-post author-content-item single">
+            <SpecContent />
+          </div>
+        </div>
+      )
+    }
+
+    <!-- 11. 致谢赞赏榜 -->
+    {
+      item.reward_list && item.reward_list.length > 0 && (
+        <div class="author-content">
+          <div class="author-content-item single reward" id="about-reward">
+            <div class="author-content-item-tips">致谢</div>
+            <span class="author-content-item-title">赞赏名单</span>
+            <div class="author-content-item-description">
+              感谢因为有你们，让我更加有创作的动力。
+              <div class="reward-list-all">
+                {item.reward_list.map((r) => (
+                  <div class="reward-list-item">
+                    <div class="reward-list-item-name">{r.name}</div>
+                    <div class="reward-list-bottom-group">
+                      {(r.amount ?? 0) >= 50 ? (
+                        <div class="reward-list-item-money" style="background:var(--anzhiyu-yellow)">
+                          {`¥${r.amount}`}
+                        </div>
+                      ) : (
+                        <div class="reward-list-item-money">
+                          {`¥${r.amount ?? 0}${r.suffix || ""}`}
+                        </div>
+                      )}
+                      <div class="datatime reward-list-item-time">{String(r.datatime ?? "").slice(0, 10)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
   </div>
-</BaseLayout>
-
-<style>
-  .about-page-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 3rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .author-box {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    margin: 1rem 0;
-  }
-
-  .author-tag-left,
-  .author-tag-right {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-  }
-
-  .author-tag-left {
-    align-items: flex-end;
-  }
-
-  .author-tag-right {
-    align-items: flex-start;
-  }
-
-  .author-tag {
-    padding: 0.35rem 0.9rem;
-    border-radius: 9999px;
-    background: var(--anzhiyu-card-bg);
-    border: var(--style-border);
-    box-shadow: var(--anzhiyu-shadow-border);
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: transform 0.25s ease;
-  }
-
-  .author-tag:hover {
-    transform: scale(1.05);
-    border-color: var(--anzhiyu-main);
-  }
-
-  .author-img {
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 5px solid var(--anzhiyu-card-bg);
-    box-shadow: var(--anzhiyu-shadow-border);
-    flex-shrink: 0;
-  }
-
-  .author-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .author-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0.75rem 0 1.5rem;
-  }
-
-  .author-content {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    width: 100%;
-    margin-bottom: 1rem;
-  }
-
-  .author-content-item {
-    position: relative;
-    padding: 1.75rem 2rem;
-    border-radius: 16px;
-    background: var(--anzhiyu-card-bg);
-    border: var(--style-border);
-    box-shadow: var(--anzhiyu-shadow-border);
-    overflow: hidden;
-  }
-
-  .myInfoAndSayHello {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    color: #fff;
-    background: linear-gradient(120deg, #5b27ff 0%, #00d4ff 100%);
-    border: none;
-  }
-
-  .myInfoAndSayHello .title1 {
-    font-size: 1.05rem;
-    opacity: 0.9;
-  }
-
-  .myInfoAndSayHello .title2 {
-    font-size: 2.1rem;
-    font-weight: 800;
-    margin: 0.4rem 0;
-  }
-
-  .author-content-item-tips {
-    font-size: 0.78rem;
-    color: var(--anzhiyu-secondtext);
-    margin-bottom: 0.45rem;
-  }
-
-  .author-content-item-title {
-    display: block;
-    font-size: 1.8rem;
-    font-weight: 800;
-    line-height: 1.25;
-  }
-
-  .tips-heading {
-    margin: 0;
-    font-size: 1.85rem;
-    font-weight: 800;
-    line-height: 1.3;
-  }
-
-  .aboutsiteTips .mask {
-    position: relative;
-    height: 2.6rem;
-    margin-top: 0.75rem;
-    overflow: hidden;
-  }
-
-  .word-item {
-    position: absolute;
-    left: 0;
-    top: 0;
-    font-size: 2rem;
-    font-weight: 900;
-    color: var(--anzhiyu-main);
-    opacity: 0;
-    transform: translateY(100%);
-    transition: opacity 0.4s ease, transform 0.4s ease;
-  }
-
-  .word-item.active {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .skills-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-  }
-
-  .skill-icon-chip {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--anzhiyu-shadow-border);
-  }
-
-  .skill-icon-chip img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .careers-list {
-    margin-top: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-  }
-
-  .careers-item {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-  }
-
-  .careers-item .circle {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .maxim-title {
-    display: block;
-    font-size: 1.85rem;
-    font-weight: 800;
-    line-height: 1.3;
-  }
-
-  .maxim-title.highlight {
-    color: var(--anzhiyu-main);
-  }
-
-  .personality-type {
-    margin-top: 0.75rem;
-    font-size: 2.2rem;
-    font-weight: 900;
-    color: var(--anzhiyu-main);
-  }
-
-  @media (max-width: 768px) {
-    .author-tag-left,
-    .author-tag-right {
-      display: none;
-    }
-
-    .author-content {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
+</PageLayout>
 
 <script>
   document.addEventListener("astro:page-load", () => {
-    const words = Array.from(document.querySelectorAll(".aboutsiteTips .word-item"));
-    if (words.length <= 1) return;
-    let idx = 0;
-    setInterval(() => {
-      words[idx]?.classList.remove("active");
-      idx = (idx + 1) % words.length;
-      words[idx]?.classList.add("active");
-    }, 2200);
+    // 1. 追求词滚动遮罩轮播（原版 aboutsiteTips 动画）
+    const mask = document.getElementById("about-tips-mask");
+    if (mask) {
+      const spans = Array.from(mask.querySelectorAll("span"));
+      if (spans.length >= 2) {
+        let cur = 0;
+        window.setInterval(() => {
+          spans.forEach((s) => {
+            s.removeAttribute("data-show");
+            s.removeAttribute("data-up");
+          });
+          const prev = cur;
+          cur = (cur + 1) % spans.length;
+          spans[prev].setAttribute("data-up", "");
+          spans[cur].setAttribute("data-show", "");
+        }, 2500);
+      }
+    }
+
+    // 2. Hello-about 鼠标跟随三色光斑
+    const helloCard = document.getElementById("hello-about-card");
+    if (helloCard) {
+      const cursor = helloCard.querySelector<HTMLElement>(".cursor");
+      const shapes = Array.from(helloCard.querySelectorAll<HTMLElement>(".shape"));
+      helloCard.addEventListener("mousemove", (e: MouseEvent) => {
+        const rect = helloCard.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (cursor) cursor.style.transform = `translate(${x}px, ${y}px)`;
+        shapes.forEach((s, idx) => {
+          s.style.transition = `transform ${(idx + 1) * 0.14}s ease-out`;
+          s.style.transform = `translate(${x}px, ${y}px)`;
+        });
+      });
+    }
   });
 </script>

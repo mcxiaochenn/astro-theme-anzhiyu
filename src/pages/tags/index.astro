@@ -6,18 +6,22 @@ const posts = await getAllPosts();
 const tags = aggregateTags(posts);
 ---
 
-<PageLayout title={`标签 (${tags.length})`}>
-  <div class="flex flex-wrap gap-2.5">
-    {
-      tags.map((tag) => (
-        <a
-          href={`/tags/${encodeURIComponent(tag.name)}/`}
-          class="px-3.5 py-2 rounded-xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] hover:border-[var(--anzhiyu-main)] hover:bg-[var(--anzhiyu-main)] hover:text-white transition-all font-medium flex items-center gap-1.5"
-        >
-          <span># {tag.name}</span>
-          <span class="text-xs opacity-70">{tag.count}</span>
-        </a>
-      ))
-    }
+<PageLayout title="标签" showAside={false} pageType="tags">
+  <div class="tag-cloud-list is-center">
+    <div id="tag">
+      <div id="tag-page-tags">
+        {
+          tags.map((tag) => (
+            <a href={`/tags/${encodeURIComponent(tag.name)}/`} id={`/tags/${tag.name}/`}>
+              <span class="tags-punctuation">
+                <i class="anzhiyufont anzhiyu-icon-hashtag" />
+              </span>
+              {tag.name}
+              <span class="tagsPageCount">{tag.count}</span>
+            </a>
+          ))
+        }
+      </div>
+    </div>
   </div>
 </PageLayout>

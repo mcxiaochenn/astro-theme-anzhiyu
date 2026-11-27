@@ -1,6 +1,4 @@
 ---
-import { Icon } from "astro-icon/components";
-import { themeConfig } from "@/config";
 import { formatDate, getPostUrl, normalizeCategoryList, type PostEntry } from "@/utils/posts";
 
 interface Props {
@@ -10,270 +8,82 @@ interface Props {
 
 const { post, index = 0 } = Astro.props;
 const url = getPostUrl(post);
+const hasExplicitNoCover = post.data.cover === false;
 const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
 const categories = normalizeCategoryList(post.data.categories);
+const tags = post.data.tags ?? [];
 const isPinned = Boolean(post.data.sticky || post.data.top);
-const isDoubleRow = themeConfig.home.doubleRow;
-const isNew = index < 2 && !isPinned;
+const isNewest = index === 0 && !isPinned;
+const coverSide = index % 2 === 0 ? "left_radius" : "right_radius right";
+const dateStr = post.data.date ? formatDate(post.data.date) : "";
+const dateIso = post.data.date ? post.data.date.toISOString() : "";
 ---
 
-<article
-  class:list={[
-    "recent-post-item anzhiyu-card anzhiyu-card-hover animate-slide-in",
-    isDoubleRow ? "is-double" : "is-single",
-    { "is-reverse": !isDoubleRow && index % 2 === 1 },
-  ]}
-  style={`animation-delay: ${Math.min(index * 50, 350)}ms`}
->
-  <a href={url} class="post_cover" aria-label={post.data.title}>
-    <img src={cover} alt={post.data.title} class="post_bg" loading={index < 4 ? "eager" : "lazy"} />
-    {
-      isPinned && (
-        <span class="recent-post-top-badge">
-          <Icon name="fa6-solid:thumbtack" class="w-3 h-3" />
-          <span>置顶</span>
-        </span>
-      )
-    }
-  </a>
+<div class="recent-post-item">
+  {
+    !hasExplicitNoCover && (
+      <div class={`post_cover ${coverSide}`}>
+        <a href={url} title={post.data.title}>
+          <img
+            class="post_bg"
+            src={cover}
+            alt={post.data.title}
+            loading={index < 4 ? "eager" : "lazy"}
+          />
+        </a>
+      </div>
+    )
+  }
 
-  <div class="recent-post-info">
+  <div class:list={["recent-post-info", { "no-cover": hasExplicitNoCover }]}>
     <div class="recent-post-info-top">
       <div class="recent-post-info-top-tips">
-        {isNew && <span class="newPost">最新</span>}
         {
-          categories.map((cat) => (
-            <a href={`/categories/${encodeURIComponent(cat)}/`} class="article-categories-original">
-              {cat}
-            </a>
-          ))
+          isPinned && (
+            <span class="article-meta sticky-warp">
+              <i class="anzhiyufont anzhiyu-icon-thumbtack sticky" />
+              <span class="sticky">置顶</span>
+            </span>
+          )
         }
+        {categories.map((cat) => <div class="article-categories-original">{cat}</div>)}
+        {isNewest && <span class="newPost">最新</span>}
+        <a class="unvisited-post" href={url} title={post.data.title}>未读</a>
       </div>
-      <a href={url} class="article-title">
+      <a class="article-title" href={url} title={post.data.title}>
         {post.data.title}
       </a>
     </div>
 
-    {
-      !isDoubleRow && post.data.description && (
-        <div class="content">{post.data.description}</div>
-      )
-    }
-
     <div class="article-meta-wrap">
-      <div class="article-meta-tags">
-        {
-          (post.data.tags ?? []).slice(0, 3).map((tag) => (
-            <a href={`/tags/${encodeURIComponent(tag)}/`} class="article-meta__tags">
-              <span class="tags-punctuation">#</span>
-              {tag}
-            </a>
-          ))
-        }
-      </div>
       {
-        post.data.date && (
-          <time class="post-meta-date" datetime={post.data.date.toISOString()}>
-            <Icon name="fa6-regular:calendar" class="w-3 h-3" />
-            <span>{formatDate(post.data.date)}</span>
-          </time>
+        dateStr && (
+          <span class="post-meta-date">
+            <i class="anzhiyufont anzhiyu-icon-calendar-alt" style="display:none" />
+            <span class="article-meta-label">发表于</span>
+            <time datetime={dateIso} title={`发表于 ${dateStr}`}>
+              {dateStr}
+            </time>
+          </span>
+        )
+      }
+
+      {
+        tags.length > 0 && (
+          <span class="article-meta tags">
+            {tags.map((tag) => (
+              <a class="article-meta__tags" href={`/tags/${encodeURIComponent(tag)}/`}>
+                <span>
+                  <i class="anzhiyufont anzhiyu-icon-hashtag" />
+                  {tag}
+                </span>
+              </a>
+            ))}
+          </span>
         )
       }
     </div>
+
+    {post.data.description && <div class="content">{post.data.description}</div>}
   </div>
-</article>
-
-<style>
-  .recent-post-item {
-    position: relative;
-    display: flex;
-    overflow: hidden;
-    border-radius: 12px;
-    background: var(--anzhiyu-card-bg);
-    transition: all 0.3s ease;
-  }
-
-  .recent-post-item.is-double {
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .recent-post-item.is-single {
-    flex-direction: row;
-    align-items: center;
-    height: 18em;
-  }
-
-  .recent-post-item.is-single.is-reverse {
-    flex-direction: row-reverse;
-  }
-
-  .post_cover {
-    position: relative;
-    display: block;
-    overflow: hidden;
-    background: var(--anzhiyu-secondbg);
-    flex-shrink: 0;
-  }
-
-  .is-double .post_cover {
-    width: 100%;
-    height: 215px;
-  }
-
-  .is-single .post_cover {
-    width: 44%;
-    height: 100%;
-  }
-
-  .post_bg {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.45s ease, filter 0.35s ease;
-  }
-
-  .recent-post-item:hover .post_bg {
-    filter: brightness(0.84);
-    transform: scale(1.04);
-  }
-
-  .recent-post-top-badge {
-    position: absolute;
-    top: 0.7rem;
-    left: 0.7rem;
-    z-index: 2;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 2px 9px;
-    border-radius: 8px;
-    background: var(--anzhiyu-main);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .recent-post-info {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    flex: 1;
-    min-width: 0;
-    padding: 18px 26px;
-    gap: 0.65rem;
-  }
-
-  .is-single .recent-post-info {
-    height: 100%;
-    padding: 24px 32px;
-  }
-
-  .recent-post-info-top-tips {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 6px;
-    font-size: 12px;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .newPost {
-    color: var(--anzhiyu-main);
-    font-weight: 700;
-  }
-
-  .article-categories-original {
-    color: var(--anzhiyu-secondtext);
-    transition: color 0.2s ease;
-  }
-
-  .article-categories-original:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  .article-title {
-    font-size: 20px;
-    line-height: 28px;
-    font-weight: 700;
-    color: var(--anzhiyu-fontcolor);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    transition: color 0.25s ease;
-  }
-
-  .recent-post-item:hover .article-title {
-    color: var(--anzhiyu-main);
-  }
-
-  .content {
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--anzhiyu-secondtext);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .article-meta-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-top: auto;
-    font-size: 13px;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .article-meta-tags {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow: hidden;
-  }
-
-  .article-meta__tags {
-    white-space: nowrap;
-    transition: color 0.2s ease;
-  }
-
-  .article-meta__tags:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  .tags-punctuation {
-    opacity: 0.65;
-    margin-right: 1px;
-  }
-
-  .post-meta-date {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-  }
-
-  @media (max-width: 768px) {
-    .recent-post-item.is-single {
-      flex-direction: column;
-      height: auto;
-    }
-
-    .recent-post-item.is-single.is-reverse {
-      flex-direction: column;
-    }
-
-    .is-single .post_cover {
-      width: 100%;
-      height: 200px;
-    }
-
-    .recent-post-info {
-      padding: 16px 20px;
-    }
-  }
-</style>
+</div>

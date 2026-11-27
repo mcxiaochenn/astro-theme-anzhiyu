@@ -1,6 +1,5 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
-import PageBanner from "@/components/page/PageBanner.astro";
+import PageLayout from "@/layouts/PageLayout.astro";
 import { getSiteData } from "@/data/site-data";
 
 interface GearItem {
@@ -25,118 +24,97 @@ interface EquipmentSection {
   good_things?: GearCategory[];
 }
 
-const section = (getSiteData<EquipmentSection[]>("equipment") ?? [])[0] ?? {};
-const cats = section.good_things ?? [];
+const data = getSiteData<EquipmentSection[]>("equipment") ?? [];
 ---
 
-<BaseLayout title="我的装备">
-  <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
-    <PageBanner
-      tips="EQUIPMENT"
-      title={section.class_name || "我的装备"}
-      subTitle={section.tip || section.description}
-      background={section.top_background}
-    />
-
-    <div class="flex flex-col gap-10">
-      {
-        cats.map((cat) => (
-          <section>
-            <div class="mb-4">
-              <h2 class="text-xl font-extrabold m-0">{cat.title}</h2>
-              {cat.description && (
-                <p class="text-sm text-[var(--anzhiyu-secondtext)] mt-1 mb-0">{cat.description}</p>
-              )}
+<PageLayout title="我的装备" showAside={false} showPageTitle={false} pageType="equipment">
+  <div id="equipment">
+    {
+      data.map((group) => (
+        <>
+          <div
+            class="author-content author-content-item fcirclePage single"
+            style={
+              group.top_background
+                ? `background: url(${group.top_background}) left 37% / cover no-repeat !important;`
+                : undefined
+            }
+          >
+            <div class="card-content">
+              <div class="author-content-item-tips">{group.class_name}</div>
+              <span class="author-content-item-title">{group.description}</span>
+              <div class="content-bottom">
+                <div class="tips">{group.tip}</div>
+              </div>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(cat.equipment_list ?? []).map((item) => (
-                <div class="equipment-item anzhiyu-card anzhiyu-card-hover">
-                  <div class="equipment-pic">
-                    <img src={item.image} alt={item.name} loading="lazy" />
-                  </div>
-                  <div class="equipment-content">
-                    <div class="equipment-name">{item.name}</div>
-                    {item.specification && <div class="equipment-spec">{item.specification}</div>}
-                    {item.description && <div class="equipment-desc">{item.description}</div>}
-                    {item.link && (
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" class="equipment-link">
-                        详情 →
-                      </a>
-                    )}
-                  </div>
+          </div>
+
+          {(group.good_things ?? []).map((thing) => (
+            <div class="goodthings-item">
+              <h2 class="goodthings-title">{thing.title}</h2>
+              {thing.description && <div class="goodthings-item-description">{thing.description}</div>}
+              <div class="equipment-item">
+                <div class="equipment-item-content">
+                  {(thing.equipment_list ?? []).map((item) => {
+                    const external = Boolean(item.link && item.link.startsWith("http"));
+                    return (
+                      <div class="equipment-item-content-item">
+                        <div class="equipment-item-content-item-cover">
+                          <img class="equipment-item-content-item-image" src={item.image} alt={item.name} loading="lazy" />
+                        </div>
+                        <div class="equipment-item-content-item-info">
+                          <div
+                            class="equipment-item-content-item-name"
+                            data-copy-name={item.name}
+                            title={`点击复制名称：${item.name}`}
+                          >
+                            {item.name}
+                          </div>
+                          {item.specification && (
+                            <div class="equipment-item-content-item-specification">{item.specification}</div>
+                          )}
+                          {item.description && (
+                            <div class="equipment-item-content-item-description">{item.description}</div>
+                          )}
+                          <div class="equipment-item-content-item-toolbar">
+                            {item.link && (
+                              <a
+                                class="equipment-item-content-item-link"
+                                href={item.link}
+                                target={external ? "_blank" : undefined}
+                                rel={external ? "noopener noreferrer" : undefined}
+                              >
+                                {external ? "详情" : "查看文章"}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
             </div>
-          </section>
-        ))
-      }
-    </div>
+          ))}
+        </>
+      ))
+    }
   </div>
-</BaseLayout>
+</PageLayout>
 
-<style>
-  .equipment-item {
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .equipment-pic {
-    width: 100%;
-    height: 190px;
-    background: var(--anzhiyu-secondbg);
-    overflow: hidden;
-  }
-
-  .equipment-pic img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.45s ease;
-  }
-
-  .equipment-item:hover .equipment-pic img {
-    transform: scale(1.06);
-  }
-
-  .equipment-content {
-    padding: 1rem 1.15rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    flex: 1;
-  }
-
-  .equipment-name {
-    font-size: 1.05rem;
-    font-weight: 800;
-  }
-
-  .equipment-spec {
-    font-size: 0.78rem;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .equipment-desc {
-    font-size: 0.86rem;
-    color: var(--anzhiyu-fontcolor);
-    opacity: 0.88;
-    margin: 0.25rem 0 0.5rem;
-  }
-
-  .equipment-link {
-    margin-top: auto;
-    align-self: flex-start;
-    padding: 0.28rem 0.85rem;
-    border-radius: 8px;
-    background: var(--anzhiyu-secondbg);
-    font-size: 0.8rem;
-    font-weight: 700;
-  }
-
-  .equipment-link:hover {
-    background: var(--anzhiyu-main);
-    color: #fff;
-  }
-</style>
+<script>
+  document.addEventListener("astro:page-load", () => {
+    document.querySelectorAll<HTMLElement>(".equipment-item-content-item-name").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const name = el.dataset.copyName || "";
+        if (!name) return;
+        try {
+          await navigator.clipboard.writeText(name);
+          window.dispatchEvent(new CustomEvent("anzhiyu:toast", { detail: { message: `已复制装备名称【${name}】` } }));
+        } catch {
+          /* ignore */
+        }
+      });
+    });
+  });
+</script>

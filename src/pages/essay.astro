@@ -1,12 +1,16 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
-import PageBanner from "@/components/page/PageBanner.astro";
+import PageLayout from "@/layouts/PageLayout.astro";
 import { getSiteData } from "@/data/site-data";
 
 interface EssayEntry {
   content: string;
   date?: string;
   image?: string[];
+  video?: string[];
+  link?: string;
+  from?: string;
+  address?: string;
+  aplayer?: { id: string | number; server: string };
 }
 
 interface EssaySection {
@@ -15,112 +19,183 @@ interface EssaySection {
   tips?: string;
   buttonText?: string;
   buttonLink?: string;
+  limit?: number;
   top_background?: string;
   essay_list?: EssayEntry[];
 }
 
-const section = (getSiteData<EssaySection[]>("essay") ?? [])[0] ?? {};
-const list = section.essay_list ?? [];
+const groups = getSiteData<EssaySection[]>("essay") ?? [];
 ---
 
-<BaseLayout title={section.title || "即刻短文"} description={section.subTitle}>
-  <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
-    <PageBanner
-      tips="ESSAY"
-      title={section.title || "即刻短文"}
-      subTitle={section.tips || section.subTitle}
-      background={section.top_background}
-      buttonText={section.buttonText}
-      buttonLink={section.buttonLink}
-    />
-
-    <div class="bber-list">
-      {
-        list.map((item) => (
-          <article class="bber-item anzhiyu-card anzhiyu-card-hover">
-            <div class="bber-content">{item.content}</div>
-            {item.image && item.image.length > 0 && (
-              <div class="bber-images">
-                {item.image.map((src) => (
-                  <img src={src} alt="说说配图" class="bber-img" loading="lazy" />
-                ))}
+<PageLayout title="即刻短文" showAside={false} showPageTitle={false} pageType="essay" hasComments={true}>
+  {
+    groups.map((group) => {
+      const limit = group.limit ?? 30;
+      const list = (group.essay_list ?? []).slice(0, limit);
+      return (
+        <div id="essay_page">
+          <div
+            class="author-content author-content-item essayPage single"
+            style={
+              group.top_background
+                ? `background: url(${group.top_background}) left 28% / cover no-repeat;`
+                : undefined
+            }
+          >
+            <div class="card-content">
+              <div class="author-content-item-tips">{group.title || "即刻短文"}</div>
+              <span class="author-content-item-title">{group.subTitle || "分享生活的小确幸"}</span>
+              <div class="content-bottom">
+                <div class="tips">{group.tips || ""}</div>
               </div>
-            )}
-            <hr class="bber-hr" />
-            <div class="bber-bottom">
-              <time class="bber-date">🕒 {item.date ?? ""}</time>
+              {group.buttonText && (
+                <div class="banner-button-group">
+                  <a class="banner-button" href={group.buttonLink || "/about/"}>
+                    <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />
+                    <span class="banner-button-text">{group.buttonText}</span>
+                  </a>
+                </div>
+              )}
             </div>
-          </article>
-        ))
+          </div>
+
+          <div id="bber">
+            <section class="timeline page-1">
+              <ul id="waterfall" class="list show">
+                {list.map((item) => (
+                  <li class="bber-item">
+                    <div class="bber-content">
+                      <p class="datacont">{item.content}</p>
+                      {item.image && item.image.length > 0 && (
+                        <div class="bber-container-img">
+                          {item.image.map((src) => (
+                            <div class="bber-content-img">
+                              <img src={src} alt={item.content} loading="lazy" />
+                            </div>
+                          ))}
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                          <div class="bber-content-noimg" />
+                        </div>
+                      )}
+                    </div>
+                    <hr />
+                    <div class="bber-bottom">
+                      <div class="bber-info">
+                        {item.date && (
+                          <div class="bber-info-time">
+                            <i class="anzhiyufont anzhiyu-icon-clock" />
+                            <time class="datatime" datetime={item.date}>
+                              {item.date}
+                            </time>
+                          </div>
+                        )}
+                        {item.link && (
+                          <a
+                            class="bber-content-link"
+                            title="跳转到短文指引的链接"
+                            href={item.link}
+                            target="_blank"
+                            rel="external nofollow noreferrer"
+                          >
+                            <i class="anzhiyufont anzhiyu-icon-link" />
+                            链接
+                          </a>
+                        )}
+                        {item.from && (
+                          <div class="bber-info-from">
+                            <i class="anzhiyufont anzhiyu-icon-fw-fire" />
+                            <span>{item.from}</span>
+                          </div>
+                        )}
+                        {item.address && (
+                          <div class="bber-info-from">
+                            <i class="anzhiyufont anzhiyu-icon-location-dot" />
+                            <span>{item.address}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div class="bber-reply" data-quote-text={item.content} title="引用该条短文">
+                        <i class="anzhiyufont anzhiyu-icon-message" />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+          <div id="bber-tips" style="color: var(--anzhiyu-secondtext);">
+            - 只展示最近 {limit} 条短文 -
+          </div>
+        </div>
+      );
+    })
+  }
+</PageLayout>
+
+<script>
+  function layoutWaterfall() {
+    const container = document.getElementById("waterfall");
+    if (!container) return;
+    const items = Array.from(container.querySelectorAll<HTMLElement>(".bber-item"));
+    if (!items.length) return;
+
+    const width = container.clientWidth;
+    const cols = width > 1024 ? 3 : width > 768 ? 2 : 1;
+    if (cols === 1) {
+      container.style.position = "static";
+      container.style.height = "auto";
+      items.forEach((el) => {
+        el.style.position = "static";
+        el.style.width = "100%";
+      });
+      return;
+    }
+
+    const gap = 16;
+    const colWidth = Math.floor((width - gap * (cols - 1)) / cols);
+    const colHeights = new Array<number>(cols).fill(0);
+    container.style.position = "relative";
+
+    items.forEach((el) => {
+      el.style.position = "absolute";
+      el.style.width = `${colWidth}px`;
+      let minCol = 0;
+      for (let i = 1; i < cols; i++) {
+        if (colHeights[i] < colHeights[minCol]) minCol = i;
       }
-    </div>
-  </div>
-</BaseLayout>
+      const left = minCol * (colWidth + gap);
+      const top = colHeights[minCol];
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+      colHeights[minCol] = top + el.offsetHeight + gap;
+    });
 
-<style>
-  .bber-list {
-    column-count: 3;
-    column-gap: 1rem;
+    container.style.height = `${Math.max(...colHeights)}px`;
   }
 
-  .bber-item {
-    break-inside: avoid;
-    margin-bottom: 1rem;
-    padding: 1.15rem 1.25rem;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+  document.addEventListener("astro:page-load", () => {
+    layoutWaterfall();
+    document.querySelectorAll<HTMLImageElement>("#waterfall img").forEach((img) => {
+      if (!img.complete) img.addEventListener("load", layoutWaterfall, { once: true });
+    });
+    window.addEventListener("resize", layoutWaterfall);
 
-  .bber-content {
-    font-size: 0.96rem;
-    line-height: 1.65;
-    color: var(--anzhiyu-fontcolor);
-  }
-
-  .bber-images {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
-  }
-
-  .bber-img {
-    width: 100%;
-    height: 140px;
-    object-fit: cover;
-    border-radius: 8px;
-  }
-
-  .bber-hr {
-    border: 0;
-    border-top: 1px dashed var(--anzhiyu-card-border);
-    margin: 0.2rem 0;
-  }
-
-  .bber-bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .bber-date {
-    font-size: 0.76rem;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--anzhiyu-secondbg);
-    color: var(--anzhiyu-secondtext);
-  }
-
-  @media (max-width: 1024px) {
-    .bber-list {
-      column-count: 2;
-    }
-  }
-
-  @media (max-width: 640px) {
-    .bber-list {
-      column-count: 1;
-    }
-  }
-</style>
+    document.querySelectorAll<HTMLElement>("#essay_page .bber-reply").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.dataset.quoteText || "";
+        const commentEl = document.getElementById("post-comment");
+        if (commentEl) {
+          commentEl.scrollIntoView({ behavior: "smooth" });
+        } else {
+          try {
+            await navigator.clipboard.writeText(`> ${text}\n`);
+            window.dispatchEvent(new CustomEvent("anzhiyu:toast", { detail: { message: "已复制短文引用内容" } }));
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+    });
+  });
+</script>

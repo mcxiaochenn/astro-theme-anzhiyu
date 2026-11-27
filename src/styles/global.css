@@ -1,6 +1,13 @@
 @import "./tailwind.css";
+@import "./iconfont.css";
+@import "./anzhiyu/base-global.css";
+@import "./anzhiyu/highlight.css";
+@import "./anzhiyu/pages.css";
+@import "./anzhiyu/layout.css";
+@import "./anzhiyu/tags.css";
+@import "./anzhiyu/modes.css";
+@import "./anzhiyu/extra.css";
+@import "./anzhiyu/search.css";
+@import "./anzhiyu/astro-bridge.css";
 @import "./tokens.css";
-@import "./base.css";
-@import "./typography.css";
-@import "./tags.css";
 @import "katex/dist/katex.min.css";

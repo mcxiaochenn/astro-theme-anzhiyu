@@ -1,8 +1,8 @@
 export { siteConfig } from "./site";
-export type { SiteConfig, FooterConfig, FooterBadge } from "./site";
+export type { SiteConfig, FooterConfig, FooterBadge, FooterLinkGroup } from "./site";
 
 export { profileConfig } from "./profile";
-export type { ProfileConfig, SocialLink } from "./profile";
+export type { ProfileConfig, SocialLink, GreetingRule } from "./profile";
 
 export { navConfig } from "./nav";
 export type { NavConfig, NavItem, NavSubItem, NavSiteGroup } from "./nav";

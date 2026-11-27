@@ -11,81 +11,31 @@ interface CreativityGroup {
   creativity_list?: CreativityItem[];
 }
 
-const data = getSiteData<CreativityGroup[]>("creativity");
-const items = data?.[0]?.creativity_list ?? [];
-
-// 将图标两两分组，形成上下双行成对滚动
-const pairs: [CreativityItem, CreativityItem | undefined][] = [];
-for (let i = 0; i < items.length; i += 2) {
-  pairs.push([items[i], items[i + 1]]);
+const data = getSiteData<CreativityGroup[]>("creativity") ?? [];
+const rawList = data[0]?.creativity_list ?? [];
+// 结对排布，原版双排斜向无限滚动（#skills-tags-group-all）
+const pairs: [CreativityItem, CreativityItem][] = [];
+for (let i = 0; i + 1 < rawList.length; i += 2) {
+  pairs.push([rawList[i], rawList[i + 1]]);
 }
-// 复制一份实现无缝无限滚动
-const loopPairs = [...pairs, ...pairs];
+const doubledPairs = [...pairs, ...pairs];
 ---
 
 {
-  pairs.length > 0 && (
-    <div id="skills-tags-group-all" aria-hidden="true">
+  doubledPairs.length > 0 && (
+    <div id="skills-tags-group-all">
       <div class="tags-group-wrapper">
-        {loopPairs.map(([topItem, bottomItem]) => (
+        {doubledPairs.map(([topItem, bottomItem]) => (
           <div class="tags-group-icon-pair">
-            <div class="tags-group-icon" style={`background: ${topItem.color};`}>
-              <img src={topItem.icon} alt={topItem.name} loading="lazy" />
+            <div class="tags-group-icon" style={`background: ${topItem.color}`}>
+              <img class="no-lightbox" title={topItem.name} src={topItem.icon} alt={topItem.name} loading="lazy" />
             </div>
-            {bottomItem && (
-              <div class="tags-group-icon" style={`background: ${bottomItem.color};`}>
-                <img src={bottomItem.icon} alt={bottomItem.name} loading="lazy" />
-              </div>
-            )}
+            <div class="tags-group-icon" style={`background: ${bottomItem.color}`}>
+              <img class="no-lightbox" title={bottomItem.name} src={bottomItem.icon} alt={bottomItem.name} loading="lazy" />
+            </div>
           </div>
         ))}
       </div>
     </div>
   )
 }
-
-<style>
-  #skills-tags-group-all {
-    position: absolute;
-    inset: 0;
-    transform: rotate(-30deg);
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .tags-group-wrapper {
-    margin-top: 4.5rem;
-    display: flex;
-    flex-wrap: nowrap;
-    width: max-content;
-    animation: rowup 90s linear infinite;
-  }
-
-  .tags-group-icon-pair {
-    margin-left: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .tags-group-icon-pair:nth-child(even) {
-    transform: translateY(-30px);
-  }
-
-  .tags-group-icon {
-    width: 110px;
-    height: 110px;
-    border-radius: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 16px -3px rgba(0, 0, 0, 0.15);
-    padding: 20px;
-  }
-
-  .tags-group-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-</style>

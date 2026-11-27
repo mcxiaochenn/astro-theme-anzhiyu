@@ -1,15 +1,138 @@
 ---
 import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface FriendItem {
+  name: string;
+  link: string;
+  avatar: string;
+  descr?: string;
+}
+
+interface LinkGroup {
+  link_list?: FriendItem[];
+}
+
+const groups = getSiteData<LinkGroup[]>("link") ?? [];
+const friends = groups.flatMap((g) => g.link_list ?? []);
+const initialFriend = friends[0];
 ---
 
-<PageLayout title="朋友圈" aside={false}>
-  <div class="p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col gap-3">
-    <div class="text-base font-bold">友链文章聚合</div>
-    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
-      此处用于展示友链站点的最新 RSS 更新动态，可接入你的 Friend-Circle-Lite / 朋友圈后端接口。
-    </p>
-    <a href="/link/" class="self-start px-4 py-2 rounded-full bg-[var(--anzhiyu-main)] text-white text-sm font-semibold">
-      前往友人帐 →
-    </a>
+<PageLayout title="友链朋友圈" showAside={false} showPageTitle={false} pageType="fcircle">
+  <div class="fcircle_page">
+    <div
+      class="author-content author-content-item fcirclePage single"
+      style="background: url('/img/demo/anime/banner.jpg') center / cover no-repeat !important;"
+    >
+      <div class="card-content">
+        <div class="author-content-item-tips">朋友圈</div>
+        <span class="author-content-item-title">最新文章订阅</span>
+        <div class="content-bottom">
+          <div class="tips">汇聚友链伙伴们的最新创作动态</div>
+        </div>
+        <div class="banner-button-group">
+          <a class="banner-button" href="/about/">
+            <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" style="font-size: 22px; margin-right: 0.25rem" />
+            <span class="banner-button-text">关于本人</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="title-h2-a">
+      <div class="title-h2-a-left">
+        <h2 style="padding-top:0;margin:.6rem 0 .6rem">🎣 钓鱼</h2>
+        <a
+          class="random-post-start"
+          id="fcircle-fishing-btn"
+          href="javascript:void(0);"
+          data-friends={JSON.stringify(friends)}
+          title="随机抽取一位友链伙伴"
+        >
+          <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+        </a>
+      </div>
+      <div class="title-h2-a-right">
+        <a class="random-post-all" href="/link/">全部友链</a>
+      </div>
+    </div>
+
+    <div id="random-post">
+      {
+        initialFriend ? (
+          <a
+            class="random-friends-card"
+            id="fcircle-fishing-card"
+            href={initialFriend.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style="display:flex;align-items:center;gap:14px;width:100%;text-decoration:none;color:inherit;"
+          >
+            <img
+              src={initialFriend.avatar}
+              alt={initialFriend.name}
+              style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+            />
+            <div>
+              <div style="font-weight:700;font-size:1rem;">{initialFriend.name}</div>
+              <div style="font-size:0.85rem;color:var(--anzhiyu-secondtext);">{initialFriend.descr || initialFriend.link}</div>
+            </div>
+          </a>
+        ) : (
+          <span>暂无友链数据</span>
+        )
+      }
+    </div>
+
+    <div class="title-h2-a">
+      <div class="title-h2-a-left">
+        <h2>🐟 鱼塘伙伴 ({friends.length})</h2>
+      </div>
+    </div>
+
+    <div id="hexo-circle-of-friends-root">
+      <div class="anzhiyu-flink-list">
+        {
+          friends.map((item) => (
+            <div class="flink-list-item">
+              <a class="cf-friends-link" href={item.link} target="_blank" rel="noopener noreferrer" title={item.name}>
+                <div class="flink-item-icon">
+                  <img class="no-lightbox" src={item.avatar} alt={item.name} loading="lazy" />
+                </div>
+                <div class="flink-item-info">
+                  <div class="flink-item-name cf-friends-name">{item.name}</div>
+                  <div class="flink-item-desc" title={item.descr}>{item.descr}</div>
+                </div>
+              </a>
+            </div>
+          ))
+        }
+      </div>
+    </div>
   </div>
 </PageLayout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const btn = document.getElementById("fcircle-fishing-btn");
+    const box = document.getElementById("random-post");
+    if (!btn || !box) return;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      try {
+        const list = JSON.parse(btn.dataset.friends || "[]");
+        if (!list.length) return;
+        const pick = list[Math.floor(Math.random() * list.length)];
+        box.innerHTML = `<a href="${pick.link}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:14px;width:100%;text-decoration:none;color:inherit;">
+          <img src="${pick.avatar}" alt="${pick.name}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;" />
+          <div>
+            <div style="font-weight:700;font-size:1rem;">${pick.name}</div>
+            <div style="font-size:0.85rem;color:var(--anzhiyu-secondtext);">${pick.descr || pick.link}</div>
+          </div>
+        </a>`;
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+</script>

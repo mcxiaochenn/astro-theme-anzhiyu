@@ -3,9 +3,11 @@ import { ClientRouter } from "astro:transitions";
 import SEOHead from "@/components/common/SEOHead.astro";
 import Header from "@/components/common/Header.astro";
 import Footer from "@/components/common/Footer.astro";
+import MobileSidebar from "@/components/common/MobileSidebar.astro";
 import Rightside from "@/components/common/Rightside.astro";
 import GlobalOverlays from "@/components/common/GlobalOverlays.astro";
-import { siteConfig } from "@/config";
+import Sidebar from "@/components/sidebar/Sidebar.astro";
+import { profileConfig, siteConfig, themeConfig } from "@/config";
 import "@/styles/global.css";
 
 interface Props {
@@ -15,8 +17,12 @@ interface Props {
   article?: boolean;
   publishedTime?: Date;
   updatedTime?: Date;
-  transparentHeader?: boolean;
+  isHome?: boolean;
   isPost?: boolean;
+  pageType?: string;
+  topImg?: string | false;
+  showAside?: boolean;
+  showToc?: boolean;
   hasComments?: boolean;
   mainColor?: string;
 }
@@ -28,15 +34,22 @@ const {
   article = false,
   publishedTime,
   updatedTime,
-  transparentHeader = false,
+  isHome = false,
   isPost = false,
+  pageType,
+  topImg,
+  showAside = true,
+  showToc = false,
   hasComments = false,
   mainColor,
 } = Astro.props;
+
+const resolvedPageType = pageType || (isPost ? "post" : isHome ? "anzhiyu" : "page");
+const asideVisible = showAside && themeConfig.sidebar.enable;
 ---
 
 <!doctype html>
-<html lang={siteConfig.language} style={mainColor ? `--anzhiyu-main: ${mainColor}; --anzhiyu-theme: ${mainColor};` : undefined}>
+<html lang={siteConfig.language} data-theme="light">
   <head>
     <SEOHead
       title={title}
@@ -45,18 +58,81 @@ const {
       article={article}
       publishedTime={publishedTime}
       updatedTime={updatedTime}
+      mainColor={mainColor}
     />
     <ClientRouter />
     <slot name="head" />
   </head>
-  <body class:list={[{ post: isPost }]}>
-    <Header pageTitle={title || siteConfig.title} transparent={transparentHeader} />
-    <main id="main-content" class="min-h-[calc(100vh-220px)]">
-      <slot />
-    </main>
-    <Footer />
-    <Rightside isPost={isPost} hasComments={hasComments} />
-    <GlobalOverlays />
+  <body
+    data-type={resolvedPageType}
+    data-double-row={themeConfig.home.doubleRow ? "true" : "false"}
+    data-aside-pos={themeConfig.sidebar.position}
+    data-custom-main-color={mainColor ? "true" : undefined}
+  >
+    <div id="web_bg" transition:persist="web-bg"></div>
+    <div id="an_music_bg"></div>
+
+    {
+      themeConfig.features.preloader && (
+        <div id="loading-box">
+          <div class="loading-left-bg" />
+          <div class="loading-right-bg" />
+          <div class="spinner-box">
+            <div class="configure-border-1">
+              <div class="configure-core" />
+            </div>
+            <div class="configure-border-2">
+              <div class="configure-core" />
+            </div>
+            <div class="loading-word">加载中...</div>
+          </div>
+        </div>
+      )
+    }
+
+    <div id="body-wrap" class={isPost ? "post" : "page"}>
+      <Header
+        pageTitle={title || siteConfig.title}
+        isHome={isHome}
+        isPost={isPost}
+        topImg={topImg}
+      >
+        <slot name="post-header" slot="post-header" />
+      </Header>
+
+      <main id="blog-container">
+        <slot name="top-area" />
+
+        <div id="content-inner" class:list={["layout", { "hide-aside": !asideVisible }]}>
+          <slot />
+          {
+            asideVisible && (
+              <Sidebar showAuthor={true} isPost={isPost}>
+                <slot name="aside-sticky" slot="sticky" />
+              </Sidebar>
+            )
+          }
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+
+    <MobileSidebar />
+    <Rightside
+      isPost={isPost}
+      hasComments={hasComments}
+      showAside={asideVisible}
+      showToc={showToc}
+    />
+
+    {
+      profileConfig.greetingBox.enable && (
+        <div id="greetingBox" data-greetings={JSON.stringify(profileConfig.greetingBox.list)} />
+      )
+    }
+
+    <GlobalOverlays isPost={isPost} />
     <slot name="overlays" />
   </body>
 </html>

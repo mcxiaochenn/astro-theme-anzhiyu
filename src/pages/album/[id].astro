@@ -1,0 +1,176 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import { getSiteData } from "@/data/site-data";
+
+interface PhotoEntry {
+  content?: string;
+  date?: string;
+  image?: string[];
+  address?: string;
+  from?: string;
+  link?: string;
+}
+
+interface AlbumGroup {
+  class_name: string;
+  description?: string;
+  cover?: string;
+  path_name?: string;
+  type?: number;
+  top_background?: string;
+  top_link?: string;
+  top_btn_text?: string;
+  rowHeight?: number;
+  album_list?: PhotoEntry[];
+}
+
+export function getStaticPaths() {
+  const albums = getSiteData<AlbumGroup[]>("album") ?? [];
+  return albums.map((album, idx) => {
+    const rawPath = (album.path_name || `/album/${idx + 1}/`).replace(/^\/album\//, "").replace(/\/$/, "");
+    const id = rawPath || String(idx + 1);
+    return {
+      params: { id },
+      props: { album },
+    };
+  });
+}
+
+const { album } = Astro.props as { album: AlbumGroup };
+const list = album.album_list ?? [];
+const isGalleryMode = album.type === 2;
+const galleryPhotos = list.flatMap((entry) =>
+  (entry.image ?? []).map((url) => ({
+    url,
+    caption: entry.content || album.class_name,
+    address: entry.address,
+  })),
+);
+---
+
+<PageLayout
+  title={album.class_name || "相册详情"}
+  description={album.description}
+  showAside={false}
+  showPageTitle={false}
+  pageType="album_detail"
+>
+  <div id="album_detail">
+    <div
+      class="author-content author-content-item album single"
+      style={
+        album.top_background
+          ? `background: url(${album.top_background}) top / cover no-repeat;`
+          : undefined
+      }
+    >
+      <div class="card-content">
+        <div class="author-content-item-tips">{album.class_name}</div>
+        <span class="author-content-item-title">{album.description || album.class_name}</span>
+        <div class="content-bottom">
+          <div class="tips">点击任意照片可全屏放大欣赏</div>
+        </div>
+        <div class="banner-button-group">
+          <a class="banner-button" href="/album/">
+            <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" style="font-size: 1.5rem" />
+            <span class="banner-button-text">返回相册集</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    {
+      isGalleryMode ? (
+        <div
+          class="type-gallery album-detail-gallery"
+          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:1.5rem;"
+        >
+          {galleryPhotos.map((p) => (
+            <div style="border-radius:12px;overflow:hidden;border:var(--style-border);background:var(--anzhiyu-card-bg);height:220px;">
+              <img
+                src={p.url}
+                alt={p.caption}
+                title={p.caption}
+                style="width:100%;height:100%;object-fit:cover;transition:transform .4s ease;"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <section class="timeline page-1 album-detail-gallery" style="margin-top: 1.5rem;">
+          <ul id="waterfall" class="list show">
+            {list.map((item) => (
+              <li class="album-item">
+                <div class="album-content">
+                  {item.content && <p class="datacont">{item.content}</p>}
+                  {item.image && item.image.length > 0 && (
+                    <div class="album-container-img">
+                      {item.image.map((src) => (
+                        <a class="album-content-img" href="javascript:void(0);">
+                          <img src={src} alt={item.content || album.class_name} loading="lazy" />
+                        </a>
+                      ))}
+                      <div class="album-content-noimg" />
+                      <div class="album-content-noimg" />
+                      <div class="album-content-noimg" />
+                    </div>
+                  )}
+                </div>
+                <hr />
+                <div class="album-bottom">
+                  <div class="album-info">
+                    {item.date && (
+                      <div class="album-info-time">
+                        <i class="anzhiyufont anzhiyu-icon-instagram" />
+                        <time class="datatime" datetime={item.date}>
+                          {String(item.date).slice(0, 10)}
+                        </time>
+                      </div>
+                    )}
+                    {item.link && (
+                      <a class="album-content-link" href={item.link}>
+                        <i class="anzhiyufont anzhiyu-icon-link" />
+                        链接
+                      </a>
+                    )}
+                    {item.address && (
+                      <div class="album-info-address">
+                        <i class="anzhiyufont anzhiyu-icon-location-dot" />
+                        <span>{item.address}</span>
+                      </div>
+                    )}
+                    {item.from && (
+                      <div class="album-info-from">
+                        <i class="anzhiyufont anzhiyu-icon-fw-fire" />
+                        <span>{item.from}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</PageLayout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const lightbox = document.getElementById("anzhiyu-lightbox");
+    const lightboxImg = lightbox?.querySelector("img");
+    document.querySelectorAll<HTMLImageElement>(".album-detail-gallery img").forEach((img) => {
+      img.style.cursor = "zoom-in";
+      img.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!lightbox || !lightboxImg) return;
+        lightboxImg.src = img.src;
+        lightboxImg.alt = img.alt || "";
+        lightbox.classList.add("open");
+      });
+    });
+  });
+</script>

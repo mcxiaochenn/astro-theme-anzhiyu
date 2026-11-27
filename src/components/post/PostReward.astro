@@ -1,0 +1,39 @@
+---
+import { themeConfig } from "@/config";
+
+const { enable, wechat, alipay } = themeConfig.post.reward;
+const qrItems = [
+  ...(wechat ? [{ img: wechat, text: "微信" }] : []),
+  ...(alipay ? [{ img: alipay, text: "支付宝" }] : []),
+];
+---
+
+{
+  enable && qrItems.length > 0 && (
+    <div class="post-reward">
+      <div class="reward-button button--animated" title="赞赏作者">
+        <i class="anzhiyufont anzhiyu-icon-hand-heart-fill" />
+        打赏作者
+      </div>
+      <div class="reward-main">
+        <div class="reward-all">
+          <span class="reward-title">感谢你赐予我前进的力量</span>
+          <ul class="reward-group">
+            {qrItems.map((item) => (
+              <li class="reward-item">
+                <a href={item.img} target="_blank" rel="noopener noreferrer">
+                  <img class="post-qr-code-img no-lightbox" src={item.img} alt={item.text} loading="lazy" />
+                </a>
+                <div class="post-qr-code-desc">{item.text}</div>
+              </li>
+            ))}
+          </ul>
+          <a class="reward-main-btn" href="/about/">
+            <div class="reward-text">赞赏者名单</div>
+            <div class="reward-dec">因为你们的支持让我意识到写文章的价值 🙏</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}

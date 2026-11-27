@@ -1,5 +1,5 @@
 ---
-import { Icon } from "astro-icon/components";
+import { themeConfig } from "@/config";
 import { formatDate, normalizeCategoryList, type PostEntry } from "@/utils/posts";
 
 interface Props {
@@ -12,253 +12,129 @@ const { post, words, minutes } = Astro.props;
 const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
 const categories = normalizeCategoryList(post.data.categories);
 const tags = post.data.tags ?? [];
+const createdStr = post.data.date ? formatDate(post.data.date) : "";
+const updatedStr = post.data.updated ? formatDate(post.data.updated) : createdStr;
+const formattedWords = words >= 1000 ? `${(words / 1000).toFixed(1)}k` : String(words);
 ---
 
-<div class="post-top-cover">
-  <div class="cover-bg" style={`background-image: url('${cover}')`}></div>
-  <div class="cover-mask"></div>
-  <div class="post-info">
-    <div id="post-firstinfo">
-      <div class="meta-firstline">
-        {
-          categories.map((cat) => (
-            <a href={`/categories/${encodeURIComponent(cat)}/`} class="post-meta-categories">
-              {cat}
-            </a>
-          ))
-        }
-        <div class="tag_share">
-          <div class="post-meta__tag-list">
-            {
-              tags.slice(0, 5).map((tag) => (
-                <a href={`/tags/${encodeURIComponent(tag)}/`} class="post-meta__tags">
-                  <span class="tags-punctuation">#</span>
+<div id="post-info">
+  <div id="post-firstinfo">
+    <div class="meta-firstline">
+      <a class="post-meta-original" title="该文章为原创文章，注意版权协议">
+        原创
+      </a>
+      {
+        categories.length > 0 && (
+          <span class="post-meta-categories">
+            {categories.map((cat) => (
+              <a class="post-meta-categories" href={`/categories/${encodeURIComponent(cat)}/`}>
+                {cat}
+              </a>
+            ))}
+          </span>
+        )
+      }
+      {
+        tags.length > 0 && (
+          <span class="article-meta tags">
+            {tags.map((tag) => (
+              <a class="article-meta__tags" href={`/tags/${encodeURIComponent(tag)}/`}>
+                <span>
+                  <i class="anzhiyufont anzhiyu-icon-hashtag" />
                   {tag}
-                </a>
-              ))
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <h1 class="post-title">{post.data.title}</h1>
-
-    <div id="post-meta">
-      <div class="meta-secondline">
-        {
-          post.data.date && (
-            <span class="post-meta-date">
-              <Icon name="fa6-regular:calendar" class="w-3.5 h-3.5" />
-              <span>发表于 {formatDate(post.data.date)}</span>
-            </span>
-          )
-        }
-        {
-          post.data.updated && (
-            <span class="post-meta-date">
-              <Icon name="fa6-solid:clock-rotate-left" class="w-3.5 h-3.5" />
-              <span>更新于 {formatDate(post.data.updated)}</span>
-            </span>
-          )
-        }
-        <span class="post-meta-wordcount">
-          <Icon name="fa6-regular:file-word" class="w-3.5 h-3.5" />
-          <span>总字数：{words}</span>
-        </span>
-        <span class="post-meta-time">
-          <Icon name="fa6-regular:clock" class="w-3.5 h-3.5" />
-          <span>阅读时长：{minutes} 分钟</span>
-        </span>
-      </div>
+                </span>
+              </a>
+            ))}
+          </span>
+        )
+      }
     </div>
   </div>
 
-  <!-- AnZhiYu 标志性底部双层动态波浪 -->
-  <section class="main-hero-waves-area waves-area" aria-hidden="true">
-    <svg class="waves-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
-      <defs>
-        <path id="gentle-wave" d="M -160 44 c 30 0 58 -18 88 -18 s 58 18 88 18 s 58 -18 88 -18 s 58 18 88 18 v 44 h -352 Z" />
-      </defs>
-      <g class="parallax">
-        <use href="#gentle-wave" x="48" y="0" />
-        <use href="#gentle-wave" x="48" y="3" />
-        <use href="#gentle-wave" x="48" y="5" />
-        <use href="#gentle-wave" x="48" y="7" />
-      </g>
-    </svg>
-  </section>
+  <h1 class="post-title">{post.data.title}</h1>
+
+  <div id="post-meta">
+    <div class="meta-firstline">
+      {
+        createdStr && (
+          <span class="post-meta-date">
+            <i class="anzhiyufont anzhiyu-icon-calendar-days post-meta-icon" />
+            <span class="post-meta-label">发表于</span>
+            <time
+              class="post-meta-date-created"
+              datetime={post.data.date?.toISOString()}
+              title={`发表于 ${createdStr}`}
+            >
+              {createdStr}
+            </time>
+            {updatedStr && (
+              <>
+                <span class="post-meta-separator" />
+                <i class="anzhiyufont anzhiyu-icon-history post-meta-icon" />
+                <span class="post-meta-label">更新于</span>
+                <time
+                  class="post-meta-date-updated"
+                  datetime={(post.data.updated ?? post.data.date)?.toISOString()}
+                  title={`更新于 ${updatedStr}`}
+                >
+                  {updatedStr}
+                </time>
+              </>
+            )}
+          </span>
+        )
+      }
+    </div>
+
+    <div class="meta-secondline">
+      <span class="post-meta-wordcount">
+        <i class="anzhiyufont anzhiyu-icon-file-word post-meta-icon" title="文章字数" />
+        <span class="post-meta-label" title="文章字数">字数总计:</span>
+        <span class="word-count" title="文章字数">{formattedWords}</span>
+        <span class="post-meta-separator" />
+        <i class="anzhiyufont anzhiyu-icon-clock post-meta-icon" title="阅读时长" />
+        <span class="post-meta-label" title="阅读时长">阅读时长:</span>
+        <span>{minutes}分钟</span>
+      </span>
+
+      {
+        themeConfig.post.copyright && themeConfig.post.copyrightLocation && (
+          <>
+            <span class="post-meta-separator" />
+            <span class="post-meta-position" title={`作者IP属地为${themeConfig.post.copyrightLocation}`}>
+              <i class="anzhiyufont anzhiyu-icon-location-dot" />
+              {themeConfig.post.copyrightLocation}
+            </span>
+          </>
+        )
+      }
+    </div>
+  </div>
 </div>
 
-<style>
-  .post-top-cover {
-    position: relative;
-    width: 100%;
-    height: 360px;
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    background: var(--anzhiyu-theme-deep);
-    color: var(--anzhiyu-white);
-  }
+<section class="main-hero-waves-area waves-area" aria-hidden="true">
+  <svg
+    class="waves-svg"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 24 150 28"
+    preserveAspectRatio="none"
+    shape-rendering="auto"
+  >
+    <defs>
+      <path
+        id="gentle-wave"
+        d="M -160 44 c 30 0 58 -18 88 -18 s 58 18 88 18 s 58 -18 88 -18 s 58 18 88 18 v 44 h -352 Z"
+      />
+    </defs>
+    <g class="parallax">
+      <use href="#gentle-wave" x="48" y="0" />
+      <use href="#gentle-wave" x="48" y="3" />
+      <use href="#gentle-wave" x="48" y="5" />
+      <use href="#gentle-wave" x="48" y="7" />
+    </g>
+  </svg>
+</section>
 
-  .cover-bg {
-    position: absolute;
-    inset: -24px;
-    background-size: cover;
-    background-position: center;
-    filter: blur(22px) brightness(0.68);
-    transform: scale(1.1);
-  }
-
-  .cover-mask {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.55) 100%);
-  }
-
-  .post-info {
-    position: relative;
-    z-index: 2;
-    max-width: 1400px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 3rem 2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .meta-firstline {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .post-meta-categories {
-    padding: 3px 12px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(6px);
-    font-size: 0.84rem;
-    font-weight: 700;
-    color: #fff;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .post-meta-categories:hover {
-    background: var(--anzhiyu-white);
-    color: var(--anzhiyu-main);
-  }
-
-  .post-meta__tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-  }
-
-  .post-meta__tags {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.88);
-    transition: color 0.2s ease;
-  }
-
-  .post-meta__tags:hover {
-    color: #fff;
-    text-decoration: underline;
-  }
-
-  .post-title {
-    margin: 0.25rem 0;
-    font-size: clamp(1.85rem, 3.6vw, 2.75rem);
-    font-weight: 800;
-    line-height: 1.25;
-    color: #fff;
-  }
-
-  .meta-secondline {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1.15rem;
-    font-size: 0.88rem;
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .meta-secondline > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  /* 波浪区域 */
-  .main-hero-waves-area {
-    width: 100%;
-    position: absolute;
-    left: 0;
-    bottom: -2px;
-    z-index: 4;
-    pointer-events: none;
-  }
-
-  .waves-svg {
-    width: 100%;
-    height: 60px;
-    display: block;
-  }
-
-  .parallax > use {
-    animation: move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
-  }
-
-  .parallax > use:nth-child(1) {
-    animation-delay: -2s;
-    animation-duration: 7s;
-    fill: var(--anzhiyu-background);
-    opacity: 0.45;
-  }
-
-  .parallax > use:nth-child(2) {
-    animation-delay: -3s;
-    animation-duration: 10s;
-    fill: var(--anzhiyu-background);
-    opacity: 0.65;
-  }
-
-  .parallax > use:nth-child(3) {
-    animation-delay: -4s;
-    animation-duration: 13s;
-    fill: var(--anzhiyu-background);
-    opacity: 0.85;
-  }
-
-  .parallax > use:nth-child(4) {
-    animation-delay: -5s;
-    animation-duration: 20s;
-    fill: var(--anzhiyu-background);
-  }
-
-  @keyframes move-forever {
-    0% {
-      transform: translate3d(-90px, 0, 0);
-    }
-    100% {
-      transform: translate3d(85px, 0, 0);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .post-top-cover {
-      height: 290px;
-    }
-
-    .post-info {
-      padding: 0 1.25rem 2.2rem;
-    }
-
-    .waves-svg {
-      height: 40px;
-    }
-  }
-</style>
+<div id="post-top-cover">
+  <img id="post-top-bg" class="nolazyload" src={cover} alt={post.data.title} />
+</div>

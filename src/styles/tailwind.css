@@ -1,3 +1,4 @@
-@import "tailwindcss";
-
-@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+/* Tailwind v4 — 仅加载 theme 与 utilities，不加载 Preflight reset，100% 保护原版 AnZhiYu 全局排版与层叠 */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);

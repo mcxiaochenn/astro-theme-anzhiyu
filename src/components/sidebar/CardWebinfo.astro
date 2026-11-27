@@ -1,63 +1,60 @@
 ---
-import { Icon } from "astro-icon/components";
 import { siteConfig } from "@/config";
 
 interface Props {
   postCount: number;
   totalWords: number;
+  bare?: boolean;
 }
 
-const { postCount, totalWords } = Astro.props;
-const startTime = new Date(siteConfig.footer.since).getTime();
-const runDays = Math.max(1, Math.floor((Date.now() - startTime) / 86_400_000));
-const wordsText = totalWords >= 1000 ? `${(totalWords / 1000).toFixed(1)}k` : String(totalWords);
+const { postCount, totalWords, bare = false } = Astro.props;
+const formattedWords =
+  totalWords >= 1000 ? `${(totalWords / 1000).toFixed(1)}k` : String(totalWords);
+const sinceMs = new Date(siteConfig.footer.since).getTime();
+const initialDays = Math.max(1, Math.floor((Date.now() - sinceMs) / 86400000));
 ---
 
-<div class="card-widget card-webinfo anzhiyu-card p-4">
-  <div class="flex items-center gap-2 font-bold text-sm mb-3">
-    <Icon name="fa6-solid:chart-line" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+<div class:list={[!bare && "card-widget", "card-webinfo"]}>
+  <div class="item-headline">
+    <i class="anzhiyufont anzhiyu-icon-chart-line" />
     <span>网站资讯</span>
   </div>
-  <div class="webinfo flex flex-col gap-2.5 text-sm">
+  <div class="webinfo">
     <div class="webinfo-item">
-      <div class="item-name">
-        <Icon name="fa6-regular:newspaper" class="w-3.5 h-3.5 text-[var(--anzhiyu-secondtext)]" />
-        <span>文章数目：</span>
+      <div class="webinfo-item-title">
+        <i class="anzhiyufont anzhiyu-icon-file-lines" />
+        <div class="item-name">文章数目 :</div>
       </div>
-      <div class="item-count">{postCount} 篇</div>
+      <div class="item-count">{postCount}</div>
     </div>
+
     <div class="webinfo-item">
-      <div class="item-name">
-        <Icon name="fa6-solid:clock-rotate-left" class="w-3.5 h-3.5 text-[var(--anzhiyu-secondtext)]" />
-        <span>已运行时间：</span>
+      <div class="webinfo-item-title">
+        <i class="anzhiyufont anzhiyu-icon-stopwatch" />
+        <div class="item-name">已运行时间 :</div>
       </div>
-      <div class="item-count">{runDays} 天</div>
+      <div class="item-count" id="runtimeshow" data-publishDate={siteConfig.footer.since}>
+        {initialDays} 天
+      </div>
     </div>
+
     <div class="webinfo-item">
-      <div class="item-name">
-        <Icon name="fa6-solid:font" class="w-3.5 h-3.5 text-[var(--anzhiyu-secondtext)]" />
-        <span>本站总字数：</span>
+      <div class="webinfo-item-title">
+        <i class="anzhiyufont anzhiyu-icon-font" />
+        <div class="item-name">本站总字数 :</div>
       </div>
-      <div class="item-count">{wordsText}</div>
+      <div class="item-count">{formattedWords}</div>
     </div>
   </div>
 </div>
 
-<style>
-  .webinfo-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .item-name {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .item-count {
-    font-weight: 700;
-  }
-</style>
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const el = document.getElementById("runtimeshow");
+    if (!el) return;
+    const pub = el.getAttribute("data-publishDate");
+    if (!pub) return;
+    const days = Math.max(1, Math.floor((Date.now() - new Date(pub).getTime()) / 86400000));
+    el.textContent = `${days} 天`;
+  });
+</script>

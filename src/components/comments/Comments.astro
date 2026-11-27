@@ -1,0 +1,39 @@
+---
+import { commentConfig } from "@/config";
+
+interface Props {
+  enable?: boolean;
+}
+
+const { enable = true } = Astro.props;
+const active = enable && commentConfig.provider !== "none";
+---
+
+{
+  active && (
+    <div id="post-comment">
+      <div class="comment-head">
+        <div class="comment-headline">
+          <i class="anzhiyufont anzhiyu-icon-comments" />
+          <span> 评论</span>
+        </div>
+      </div>
+      <div class="comment-wrap">
+        {commentConfig.provider === "twikoo" && <div id="twikoo-wrap" data-env-id={commentConfig.twikoo?.envId} />}
+        {commentConfig.provider === "waline" && <div id="waline-wrap" data-server-url={commentConfig.waline?.serverURL} />}
+        {commentConfig.provider === "artalk" && (
+          <div id="artalk-wrap" data-server={commentConfig.artalk?.server} data-site={commentConfig.artalk?.site} />
+        )}
+        {commentConfig.provider === "giscus" && (
+          <div
+            id="giscus-wrap"
+            data-repo={commentConfig.giscus?.repo}
+            data-repo-id={commentConfig.giscus?.repoId}
+            data-category={commentConfig.giscus?.category}
+            data-category-id={commentConfig.giscus?.categoryId}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

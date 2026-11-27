@@ -56,8 +56,8 @@ export default defineConfig({
   // 只有没显式给 E2E_BASE_URL 时才自己构建 + 起 preview
   webServer: process.env.E2E_BASE_URL
     ? undefined
-    : {
-        command: `pnpm build:baseline && pnpm exec astro preview --host ${HOST} --port ${PORT}`,
+      : {
+        command: `pnpm build && pnpm exec astro preview --host ${HOST} --port ${PORT}`,
         url: BASE_URL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,

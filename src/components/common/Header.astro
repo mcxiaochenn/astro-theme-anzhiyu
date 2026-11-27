@@ -1,48 +1,91 @@
 ---
-import { Icon } from "astro-icon/components";
-import { siteConfig, navConfig, themeConfig } from "@/config";
+import AnIcon from "./AnIcon.astro";
+import Console from "@/components/console/Console.svelte";
+import { navConfig, profileConfig, siteConfig, themeConfig } from "@/config";
+import { aggregateCategories, aggregateTags, getAllPosts } from "@/utils/posts";
 
 interface Props {
   pageTitle?: string;
-  transparent?: boolean;
+  isHome?: boolean;
+  isPost?: boolean;
+  topImg?: string | false;
 }
 
-const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
+const {
+  pageTitle = siteConfig.title,
+  isHome = false,
+  isPost = false,
+  topImg,
+} = Astro.props;
+
+const posts = await getAllPosts();
+const tags = aggregateTags(posts).map((t) => ({ name: t.name, count: t.count }));
+const categories = aggregateCategories(posts);
+
+// 构建按月归档供中控台使用
+const archiveMap = new Map<string, { label: string; year: number; month: number; count: number }>();
+for (const p of posts) {
+  const d = p.data.date ?? new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const key = `${y}-${String(m).padStart(2, "0")}`;
+  const item = archiveMap.get(key) ?? { label: `${y}年${String(m).padStart(2, "0")}月`, year: y, month: m, count: 0 };
+  item.count += 1;
+  archiveMap.set(key, item);
+}
+const archiveMonths = Array.from(archiveMap.values()).slice(0, 8);
+
+const homeImg = themeConfig.header.indexImg;
+const resolvedTopImg = isPost
+  ? topImg !== false
+    ? topImg || "/img/default_cover.jpg"
+    : false
+  : isHome
+    ? homeImg
+    : topImg !== undefined
+      ? topImg
+      : themeConfig.header.defaultTopImg;
+
+const pageHeaderClass =
+  resolvedTopImg === false
+    ? "not-top-img"
+    : isPost
+      ? "post-bg"
+      : isHome
+        ? "full_page"
+        : "not-home-page";
+
+const headerStyle =
+  !isPost && typeof resolvedTopImg === "string" && resolvedTopImg
+    ? resolvedTopImg.includes("gradient") || resolvedTopImg.includes("url(")
+      ? `background: ${resolvedTopImg};`
+      : `background-image: url('${resolvedTopImg}');`
+    : undefined;
 ---
 
-<header
-  id="page-header"
-  class:list={["anzhiyu-header", { "is-transparent": transparent }]}
-  data-transparent={transparent ? "true" : "false"}
->
-  <nav id="nav" class="anzhiyu-nav" aria-label="主导航">
-    <div class="nav-inner">
-      <!-- 左侧：站点九宫格菜单 + 站点标题 -->
-      <div class="nav-left">
+<header id="page-header" class={pageHeaderClass} style={headerStyle}>
+  <nav id="nav">
+    <div id="nav-group">
+      <span id="blog_name">
         {
           navConfig.siteMenu.enable && (
-            <div class="back-menu-list-groups">
-              <button
-                type="button"
-                class="back-home-button"
-                aria-label="站点快捷导航"
-              >
-                <Icon name="fa6-solid:grip" class="w-4 h-4" />
-              </button>
-              <div class="back-menu-list">
+            <div class="back-home-button" tabindex="-1">
+              <i class="anzhiyufont anzhiyu-icon-grip-vertical" />
+              <div class="back-menu-list-groups">
                 {navConfig.siteMenu.groups.map((group) => (
                   <div class="back-menu-list-group">
                     <div class="back-menu-list-title">{group.title}</div>
-                    <div class="back-menu-items">
+                    <div class="back-menu-list">
                       {group.items.map((item) => (
                         <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           class="back-menu-item"
+                          href={item.link}
+                          target={item.link.startsWith("http") ? "_blank" : undefined}
+                          rel={item.link.startsWith("http") ? "noopener noreferrer" : undefined}
+                          title={item.name}
                         >
-                          <img src={item.icon} alt={item.name} class="back-menu-item-icon" loading="lazy" />
-                          <span>{item.name}</span>
+                          <img class="back-menu-item-icon" src={item.icon} alt={item.name} loading="lazy" />
+                          <span class="back-menu-item-text">{item.name}</span>
                         </a>
                       ))}
                     </div>
@@ -52,672 +95,168 @@ const { pageTitle = siteConfig.title, transparent = false } = Astro.props;
             </div>
           )
         }
-        <a href="/" id="site-name" class="site-name">
-          <span class="title">{siteConfig.title}</span>
-          <Icon name="fa6-solid:house" class="home-icon w-4 h-4" />
+        <a id="site-name" href="/" accesskey="h" title="返回博客主页">
+          <div class="title">{siteConfig.title}</div>
+          <i class="anzhiyufont anzhiyu-icon-house-chimney" />
         </a>
+      </span>
+
+      <div class="mask-name-container">
+        <div id="name-container">
+          <a id="page-name" href="javascript:void(0);" title="回到顶部">{pageTitle}</a>
+        </div>
       </div>
 
-      <!-- 中间：主导航菜单 & 滚动后居中标题 -->
-      <div class="nav-center">
-        <div class="menus-items">
+      <div id="menus">
+        <div class="menus_items">
           {
-            navConfig.menu.map((item) => (
-              <div class="menus-item">
-                {item.link ? (
-                  <a href={item.link} class="site-page">
-                    {item.icon && <Icon name={item.icon} class="w-3.5 h-3.5" />}
-                    <span>{item.name}</span>
+            navConfig.menu.map((item) =>
+              item.children && item.children.length > 0 ? (
+                <div class="menus_item">
+                  <a class="site-page" href="javascript:void(0);">
+                    {item.icon && <AnIcon name={item.icon} class="faa-tada" />}
+                    <span>{" " + item.name}</span>
                   </a>
-                ) : (
-                  <button type="button" class="site-page">
-                    {item.icon && <Icon name={item.icon} class="w-3.5 h-3.5" />}
-                    <span>{item.name}</span>
-                    <Icon name="fa6-solid:chevron-down" class="w-2.5 h-2.5 ml-0.5 opacity-70" />
-                  </button>
-                )}
-                {item.children && item.children.length > 0 && (
-                  <ul class="menus-item-child">
+                  <ul class="menus_item_child">
                     {item.children.map((sub) => (
                       <li>
                         <a
-                          href={sub.link === "#random-post" ? "javascript:void(0)" : sub.link}
+                          class="site-page child faa-parent animated-hover"
+                          href={sub.link === "#random-post" ? "javascript:void(0);" : sub.link}
                           data-random-post={sub.link === "#random-post" ? "true" : undefined}
-                          class="site-page child"
                         >
-                          {sub.icon && <Icon name={sub.icon} class="w-3.5 h-3.5" />}
-                          <span>{sub.name}</span>
+                          {sub.icon && <AnIcon name={sub.icon} class="faa-tada" />}
+                          <span>{" " + sub.name}</span>
                         </a>
                       </li>
                     ))}
                   </ul>
-                )}
-              </div>
-            ))
+                </div>
+              ) : (
+                <div class="menus_item">
+                  <a
+                    class="site-page faa-parent animated-hover"
+                    href={item.link || "/"}
+                    data-random-post={item.link === "#random-post" ? "true" : undefined}
+                  >
+                    {item.icon && <AnIcon name={item.icon} class="faa-tada" />}
+                    <span>{" " + item.name}</span>
+                  </a>
+                </div>
+              ),
+            )
           }
         </div>
-        <button type="button" id="page-name" class="page-name" title="点击返回顶部">
-          {pageTitle}
-        </button>
       </div>
 
-      <!-- 右侧：功能按钮 -->
-      <div class="nav-right">
+      <div id="nav-right">
         {
           navConfig.travelling && (
-            <a
-              href="https://www.travellings.cn/go.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="nav-btn"
-              title="开往-友链接力"
-              aria-label="开往"
-            >
-              <Icon name="fa6-solid:train-subway" class="w-4 h-4" />
-            </a>
+            <div class="nav-button only-home" id="travellings_button" title="随机前往一个开往项目网站">
+              <a
+                class="site-page"
+                href="https://www.travellings.cn/go.html"
+                target="_blank"
+                rel="external nofollow noreferrer"
+                title="开往-友链接力"
+              >
+                <i class="anzhiyufont anzhiyu-icon-train" />
+              </a>
+            </div>
+          )
+        }
+        {
+          navConfig.randomPost && (
+            <div class="nav-button" id="randomPost_button" title="随机前往一篇文章">
+              <a class="site-page" href="javascript:void(0);" data-random-post="true" title="随机前往一篇文章">
+                <i class="anzhiyufont anzhiyu-icon-dice" />
+              </a>
+            </div>
           )
         }
         {
           themeConfig.features.search && (
-            <button
-              type="button"
-              id="nav-search-btn"
-              class="nav-btn"
-              title="搜索 (Ctrl+K)"
-              aria-label="搜索"
-            >
-              <Icon name="fa6-solid:magnifying-glass" class="w-4 h-4" />
-            </button>
+            <div class="nav-button" id="search-button" title="站内搜索 (Ctrl+K)">
+              <a class="site-page social-icon search" href="javascript:void(0);" accesskey="s" title="搜索">
+                <i class="anzhiyufont anzhiyu-icon-magnifying-glass" />
+                <span> 搜索</span>
+              </a>
+            </div>
           )
         }
         {
           themeConfig.features.console && (
-            <button
-              type="button"
-              id="nav-console-btn"
-              class="nav-btn console-btn"
-              title="中控台"
-              aria-label="打开中控台"
-            >
-              <span class="console-icon" aria-hidden="true">
-                <i class="left"></i>
-                <i class="center"></i>
-                <i class="right"></i>
-              </span>
-            </button>
+            <>
+              <input id="center-console" type="checkbox" aria-label="中控台开关" />
+              <label class="widget" for="center-console" title="中控台">
+                <i class="left" />
+                <i class="widget center" />
+                <i class="widget right" />
+              </label>
+            </>
           )
         }
-        <button
-          type="button"
-          id="nav-theme-btn"
-          class="nav-btn"
-          title="切换明暗主题"
-          aria-label="切换明暗主题"
-        >
-          <Icon name="fa6-solid:circle-half-stroke" class="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          id="mobile-menu-btn"
-          class="nav-btn mobile-only"
-          title="菜单"
-          aria-label="打开菜单"
-        >
-          <Icon name="fa6-solid:bars" class="w-4 h-4" />
-        </button>
+        <Console
+          client:load
+          tags={tags}
+          archives={archiveMonths}
+          postCount={posts.length}
+          categoryCount={categories.length}
+        />
+        <div class="nav-button" id="nav-totop" title="返回顶部">
+          <a class="totopbtn" href="javascript:void(0);">
+            <i class="anzhiyufont anzhiyu-icon-arrow-up" />
+            <span id="percent">0</span>
+          </a>
+        </div>
+        <div id="toggle-menu">
+          <a class="site-page" href="javascript:void(0);" title="展开菜单">
+            <i class="anzhiyufont anzhiyu-icon-bars" />
+          </a>
+        </div>
       </div>
     </div>
   </nav>
 
-  <!-- 移动端抽屉菜单 -->
-  <div id="mobile-drawer" class="mobile-drawer" aria-hidden="true">
-    <div class="mobile-drawer-backdrop"></div>
-    <div class="mobile-drawer-panel">
-      <div class="mobile-drawer-head">
-        <span class="font-bold text-base">{siteConfig.title}</span>
-        <button type="button" id="mobile-drawer-close" class="nav-btn" aria-label="关闭菜单">
-          <Icon name="fa6-solid:xmark" class="w-4 h-4" />
-        </button>
-      </div>
-      <div class="mobile-drawer-links">
-        {
-          navConfig.menu.map((item) => (
-            <div class="mobile-menu-group">
-              <div class="mobile-menu-title">{item.name}</div>
-              {item.children && (
-                <div class="mobile-menu-sub">
-                  {item.children.map((sub) => (
-                    <a
-                      href={sub.link === "#random-post" ? "javascript:void(0)" : sub.link}
-                      data-random-post={sub.link === "#random-post" ? "true" : undefined}
-                      class="mobile-menu-link"
-                    >
-                      {sub.icon && <Icon name={sub.icon} class="w-3.5 h-3.5" />}
-                      <span>{sub.name}</span>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))
-        }
-      </div>
-    </div>
-  </div>
+  {
+    resolvedTopImg !== false &&
+      (isPost ? (
+        <slot name="post-header" />
+      ) : isHome ? (
+        <>
+          <div id="site-info">
+            <h1 id="site-title">{siteConfig.title}</h1>
+            {themeConfig.header.subtitleTyping.length > 0 && (
+              <div id="site-subtitle">
+                <span id="subtitle" data-subtitles={JSON.stringify(themeConfig.header.subtitleTyping)}>
+                  {themeConfig.header.subtitleTyping[0]}
+                </span>
+              </div>
+            )}
+            {profileConfig.social.length > 0 && (
+              <div id="site_social_icons">
+                {profileConfig.social.map((entry) => (
+                  <a
+                    class="social-icon faa-parent animated-hover"
+                    href={entry.url}
+                    target={entry.url.startsWith("http") ? "_blank" : undefined}
+                    rel={entry.url.startsWith("http") ? "noopener noreferrer" : undefined}
+                    title={entry.name}
+                  >
+                    <AnIcon name={entry.icon} class={entry.animation || "faa-tada"} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+          <div id="scroll-down">
+            <i class="anzhiyufont anzhiyu-icon-angle-down scroll-down-effects" />
+          </div>
+        </>
+      ) : (
+        <div id="page-site-info">
+          <h1 id="site-title">{pageTitle}</h1>
+        </div>
+      ))
+  }
 </header>
-
-<style>
-  .anzhiyu-header {
-    position: sticky;
-    top: 0;
-    z-index: 90;
-    width: 100%;
-    height: 60px;
-  }
-
-  .anzhiyu-nav {
-    width: 100%;
-    height: 60px;
-    padding: 0 1.5rem;
-    background: var(--anzhiyu-background);
-    border-bottom: 1px solid transparent;
-    transition: background-color 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
-  }
-
-  .anzhiyu-header.is-transparent:not(.nav-fixed) .anzhiyu-nav {
-    background: transparent;
-    border-bottom-color: transparent;
-    box-shadow: none;
-    color: var(--anzhiyu-white);
-  }
-
-  .anzhiyu-header.nav-fixed .anzhiyu-nav {
-    background: color-mix(in srgb, var(--anzhiyu-card-bg) 82%, transparent);
-    border-bottom-color: var(--anzhiyu-card-border);
-    box-shadow: var(--anzhiyu-shadow-nav);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-  }
-
-  .nav-inner {
-    max-width: 1400px;
-    height: 100%;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .nav-left {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .back-menu-list-groups {
-    position: relative;
-  }
-
-  .back-home-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .back-home-button:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .back-menu-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 8px;
-    min-width: 260px;
-    padding: 0.75rem;
-    background: var(--anzhiyu-card-bg);
-    color: var(--anzhiyu-fontcolor);
-    border: var(--style-border);
-    border-radius: var(--anzhiyu-radius-lg);
-    box-shadow: var(--anzhiyu-shadow-blackdeep);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-6px);
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-    z-index: 100;
-  }
-
-  .back-menu-list-groups:hover .back-menu-list {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-  }
-
-  .back-menu-list-title {
-    font-size: 0.75rem;
-    color: var(--anzhiyu-secondtext);
-    margin-bottom: 0.4rem;
-  }
-
-  .back-menu-items {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem;
-  }
-
-  .back-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.5rem;
-    border-radius: var(--anzhiyu-radius);
-    font-size: 0.85rem;
-  }
-
-  .back-menu-item:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .back-menu-item-icon {
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    object-fit: cover;
-  }
-
-  .site-name {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 0.65rem;
-    height: 34px;
-    border-radius: var(--anzhiyu-radius-full);
-    font-weight: 700;
-    font-size: 1.05rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .site-name .home-icon {
-    position: absolute;
-    opacity: 0;
-    transform: scale(0.8);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-
-  .site-name:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .site-name:hover .title {
-    opacity: 0;
-  }
-
-  .site-name:hover .home-icon {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .nav-center {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-  }
-
-  .menus-items {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-
-  .anzhiyu-header.show-page-name .menus-items {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-10px);
-  }
-
-  .page-name {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(10px);
-    background: transparent;
-    border: none;
-    color: inherit;
-    font-weight: 700;
-    font-size: 0.98rem;
-    padding: 0.3rem 0.9rem;
-    border-radius: var(--anzhiyu-radius-full);
-    cursor: pointer;
-    max-width: 42vw;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: opacity 0.25s ease, transform 0.25s ease, background-color 0.2s ease;
-  }
-
-  .anzhiyu-header.show-page-name .page-name {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  .page-name:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .menus-item {
-    position: relative;
-  }
-
-  .site-page {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: var(--anzhiyu-radius-full);
-    border: none;
-    background: transparent;
-    color: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .menus-item:hover > .site-page {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .menus-item-child {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    margin: 6px 0 0;
-    padding: 0.45rem;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    white-space: nowrap;
-    background: var(--anzhiyu-card-bg);
-    color: var(--anzhiyu-fontcolor);
-    border: var(--style-border);
-    border-radius: var(--anzhiyu-radius-full);
-    box-shadow: var(--anzhiyu-shadow-blackdeep);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-  }
-
-  .menus-item:hover .menus-item-child {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .site-page.child {
-    padding: 0.35rem 0.85rem;
-    font-weight: 500;
-    font-size: 0.88rem;
-  }
-
-  .site-page.child:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .nav-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .nav-btn:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-
-  /* AnZhiYu 原版三矩形中控台图标 */
-  .console-btn:hover {
-    background: transparent;
-  }
-
-  .console-icon {
-    position: relative;
-    display: block;
-    width: 20px;
-    height: 20px;
-  }
-
-  .console-icon i {
-    position: absolute;
-    inset: 0;
-    margin: auto;
-    right: auto;
-    border-radius: 3px;
-    background: currentColor;
-    transition: 0.45s var(--animation-on);
-    width: 7px;
-    height: 7px;
-    transform: translateY(5px);
-  }
-
-  .console-icon i.left {
-    width: 100%;
-    transform: translateY(-5px);
-  }
-
-  .console-icon i.right {
-    left: auto;
-    right: 0;
-    width: 10px;
-  }
-
-  .console-btn:hover .console-icon i.left {
-    width: 8px;
-  }
-
-  .console-btn:hover .console-icon i.center {
-    opacity: 0.5;
-    width: 8px;
-  }
-
-  .console-btn:hover .console-icon i.right {
-    width: 8px;
-    height: 17px;
-    transform: none;
-  }
-
-  .mobile-only {
-    display: none;
-  }
-
-  /* 移动端抽屉 */
-  .mobile-drawer {
-    position: fixed;
-    inset: 0;
-    z-index: 200;
-    pointer-events: none;
-    visibility: hidden;
-  }
-
-  .mobile-drawer.open {
-    pointer-events: auto;
-    visibility: visible;
-  }
-
-  .mobile-drawer-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-
-  .mobile-drawer.open .mobile-drawer-backdrop {
-    opacity: 1;
-  }
-
-  .mobile-drawer-panel {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 280px;
-    max-width: 82vw;
-    height: 100%;
-    background: var(--anzhiyu-card-bg);
-    border-left: var(--style-border);
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    transform: translateX(100%);
-    transition: transform 0.25s var(--animation-in);
-    overflow-y: auto;
-  }
-
-  .mobile-drawer.open .mobile-drawer-panel {
-    transform: translateX(0);
-  }
-
-  .mobile-drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--anzhiyu-card-border);
-  }
-
-  .mobile-menu-group {
-    margin-bottom: 0.85rem;
-  }
-
-  .mobile-menu-title {
-    font-size: 0.78rem;
-    color: var(--anzhiyu-secondtext);
-    margin-bottom: 0.35rem;
-    padding-left: 0.4rem;
-  }
-
-  .mobile-menu-sub {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .mobile-menu-link {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--anzhiyu-radius);
-    font-size: 0.92rem;
-  }
-
-  .mobile-menu-link:hover {
-    background: var(--anzhiyu-secondbg);
-    color: var(--anzhiyu-main);
-  }
-
-  @media (max-width: 768px) {
-    .anzhiyu-nav {
-      padding: 0 1rem;
-    }
-
-    .nav-center {
-      display: none;
-    }
-
-    .mobile-only {
-      display: inline-flex;
-    }
-  }
-</style>
-
-<script>
-  function initHeader() {
-    const header = document.getElementById("page-header");
-    if (!header) return;
-
-    let lastScrollY = window.scrollY;
-    const onScroll = () => {
-      const y = window.scrollY;
-      header.classList.toggle("nav-fixed", y > 20);
-      if (y > 120 && y > lastScrollY) {
-        header.classList.add("show-page-name");
-      } else if (y <= 120 || y < lastScrollY) {
-        header.classList.remove("show-page-name");
-      }
-      lastScrollY = y;
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-
-    document.getElementById("page-name")?.addEventListener("click", () => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-
-    document.getElementById("nav-theme-btn")?.addEventListener("click", () => {
-      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-      const next = isDark ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", next);
-      document.documentElement.classList.toggle("dark", next === "dark");
-      localStorage.setItem("anzhiyu-theme", next);
-      window.dispatchEvent(new CustomEvent("anzhiyu:theme-change", { detail: { theme: next } }));
-    });
-
-    document.getElementById("nav-search-btn")?.addEventListener("click", () => {
-      window.dispatchEvent(new CustomEvent("anzhiyu:open-search"));
-    });
-
-    document.getElementById("nav-console-btn")?.addEventListener("click", () => {
-      window.dispatchEvent(new CustomEvent("anzhiyu:open-console"));
-    });
-
-    const drawer = document.getElementById("mobile-drawer");
-    const openDrawer = () => drawer?.classList.add("open");
-    const closeDrawer = () => drawer?.classList.remove("open");
-
-    document.getElementById("mobile-menu-btn")?.addEventListener("click", openDrawer);
-    document.getElementById("mobile-drawer-close")?.addEventListener("click", closeDrawer);
-    drawer?.querySelector(".mobile-drawer-backdrop")?.addEventListener("click", closeDrawer);
-    drawer?.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeDrawer));
-  }
-
-  document.addEventListener("astro:page-load", initHeader);
-</script>

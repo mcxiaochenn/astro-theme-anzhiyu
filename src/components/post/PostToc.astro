@@ -1,120 +1,78 @@
 ---
 import type { MarkdownHeading } from "astro";
-import { Icon } from "astro-icon/components";
 
 interface Props {
   headings: MarkdownHeading[];
 }
 
 const { headings } = Astro.props;
-const tocItems = headings.filter((h) => h.depth >= 2 && h.depth <= 4);
+const filtered = headings.filter((h) => h.depth >= 1 && h.depth <= 4);
 ---
 
 {
-  tocItems.length > 0 && (
-    <div id="card-toc" class="card-widget anzhiyu-card p-4">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2 font-bold text-sm">
-          <Icon name="fa6-solid:list-ul" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
-          <span>目录</span>
-        </div>
-        <span id="toc-progress" class="text-xs font-bold text-[var(--anzhiyu-main)]">0%</span>
+  filtered.length > 0 && (
+    <div id="card-toc" class="card-widget">
+      <div class="item-headline">
+        <i class="anzhiyufont anzhiyu-icon-bars" />
+        <span>目录</span>
+        <span class="toc-percentage" id="toc-percentage">0</span>
       </div>
-
-      <nav class="toc-content" aria-label="文章目录">
-        <ol class="toc-list">
-          {tocItems.map((h) => (
-            <li class={`toc-item toc-depth-${h.depth}`}>
-              <a href={`#${h.slug}`} class="toc-link" data-toc-slug={h.slug}>
-                {h.text}
+      <div class="toc-content is-expand">
+        <ol class="toc">
+          {filtered.map((h, idx) => (
+            <li class={`toc-item toc-level-${h.depth}`}>
+              <a class="toc-link" href={`#${h.slug}`} data-toc-slug={h.slug}>
+                <span class="toc-number">{idx + 1}.</span>{" "}
+                <span class="toc-text">{h.text}</span>
               </a>
             </li>
           ))}
         </ol>
-      </nav>
+      </div>
     </div>
   )
 }
 
-<style>
-  .toc-content {
-    max-height: 55vh;
-    overflow-y: auto;
-  }
-
-  .toc-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .toc-depth-3 {
-    padding-left: 0.9rem;
-  }
-
-  .toc-depth-4 {
-    padding-left: 1.8rem;
-  }
-
-  .toc-link {
-    display: block;
-    padding: 0.28rem 0.6rem;
-    border-radius: var(--anzhiyu-radius);
-    font-size: 0.85rem;
-    color: var(--toc-link-color);
-    line-height: 1.45;
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .toc-link:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  .toc-link.active {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-    font-weight: 600;
-  }
-</style>
-
 <script>
-  function initToc() {
-    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>(".toc-link"));
-    const progressEl = document.getElementById("toc-progress");
-    if (links.length === 0) return;
+  document.addEventListener("astro:page-load", () => {
+    const tocCard = document.getElementById("card-toc");
+    if (!tocCard) return;
+    const links = Array.from(tocCard.querySelectorAll<HTMLAnchorElement>(".toc-link"));
+    const pctEl = document.getElementById("toc-percentage");
+    const article = document.getElementById("article-container");
+    if (!links.length) return;
 
-    const headings = links
-      .map((link) => {
-        const slug = link.getAttribute("data-toc-slug");
+    const headingEls = links
+      .map((l) => {
+        const slug = l.dataset.tocSlug;
         return slug ? document.getElementById(slug) : null;
       })
-      .filter((el): el is HTMLElement => el !== null);
+      .filter((el): el is HTMLElement => Boolean(el));
 
-    const onScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (progressEl && docHeight > 0) {
-        progressEl.textContent = `${Math.min(100, Math.round((scrollTop / docHeight) * 100))}%`;
+    const updateToc = () => {
+      const y = window.scrollY;
+      if (article && pctEl) {
+        const rect = article.getBoundingClientRect();
+        const top = rect.top + y;
+        const total = Math.max(1, article.offsetHeight - window.innerHeight * 0.5);
+        const pct = Math.min(100, Math.max(0, Math.round(((y - top + 120) / total) * 100)));
+        pctEl.textContent = String(pct);
       }
 
-      let activeId = headings[0]?.id;
-      for (const h of headings) {
+      let activeSlug = headingEls[0]?.id;
+      for (const h of headingEls) {
         if (h.getBoundingClientRect().top <= 110) {
-          activeId = h.id;
+          activeSlug = h.id;
+        } else {
+          break;
         }
       }
-
-      links.forEach((link) => {
-        link.classList.toggle("active", link.getAttribute("data-toc-slug") === activeId);
+      links.forEach((l) => {
+        l.classList.toggle("active", l.dataset.tocSlug === activeSlug);
       });
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-  }
-
-  document.addEventListener("astro:page-load", initToc);
+    window.addEventListener("scroll", updateToc, { passive: true });
+    updateToc();
+  });
 </script>

@@ -34,10 +34,26 @@
     }
   }
 
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function highlightKeyword(text: string, kw: string): string {
+    const safe = escapeHtml(text);
+    const trimmed = kw.trim();
+    if (!trimmed) return safe;
+    const escapedKw = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return safe.replace(new RegExp(`(${escapedKw})`, "gi"), '<span class="search-keyword">$1</span>');
+  }
+
   async function runSearch(q: string) {
     const trimmed = q.trim();
     if (!trimmed) {
       results = [];
+      loading = false;
       return;
     }
     loading = true;
@@ -45,16 +61,16 @@
     if (pf) {
       try {
         const res = await pf.search(trimmed);
-        const top = await Promise.all(res.results.slice(0, 8).map((r) => r.data()));
+        const top = await Promise.all(res.results.slice(0, 10).map((r) => r.data()));
         results = top.map((d) => ({
-          title: d.meta?.title || d.url,
+          title: highlightKeyword(d.meta?.title || d.url, trimmed),
           url: d.url,
-          excerpt: d.excerpt,
+          excerpt: (d.excerpt || "").replace(/<mark>/g, '<span class="search-keyword">').replace(/<\/mark>/g, "</span>"),
         }));
         loading = false;
         return;
       } catch {
-        // fallback below
+        // fallback to in-memory index
       }
     }
 
@@ -66,11 +82,11 @@
           (p.description ?? "").toLowerCase().includes(lower) ||
           (p.tags ?? []).some((t) => t.toLowerCase().includes(lower)),
       )
-      .slice(0, 8)
+      .slice(0, 10)
       .map((p) => ({
-        title: p.title,
+        title: highlightKeyword(p.title, trimmed),
         url: p.url,
-        excerpt: p.description,
+        excerpt: p.description ? highlightKeyword(p.description, trimmed) : undefined,
       }));
     loading = false;
   }
@@ -79,17 +95,31 @@
     void runSearch(query);
   });
 
+  function openDialog(initialQuery?: string) {
+    if (typeof initialQuery === "string" && initialQuery) {
+      query = initialQuery;
+    }
+    open = true;
+    document.body.style.overflow = "hidden";
+    setTimeout(() => inputEl?.focus(), 40);
+  }
+
+  function closeDialog() {
+    open = false;
+    document.body.style.overflow = "";
+  }
+
   onMount(() => {
-    const onOpen = () => {
-      open = true;
-      setTimeout(() => inputEl?.focus(), 30);
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ query?: string }>).detail;
+      openDialog(detail?.query);
     };
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        onOpen();
+        open ? closeDialog() : openDialog();
       } else if (e.key === "Escape" && open) {
-        open = false;
+        closeDialog();
       }
     };
     window.addEventListener("anzhiyu:open-search", onOpen);
@@ -101,59 +131,64 @@
   });
 </script>
 
-{#if open}
-  <div
-    class="fixed inset-0 z-[240] flex items-start justify-center pt-20 p-4 bg-black/55 backdrop-blur-sm"
-    role="dialog"
-    aria-modal="true"
-    aria-label="站内搜索"
-    onclick={(e) => {
-      if (e.target === e.currentTarget) open = false;
-    }}
-  >
-    <div class="w-full max-w-xl rounded-2xl bg-[var(--anzhiyu-card-bg)] border border-[var(--anzhiyu-card-border)] shadow-2xl overflow-hidden text-[var(--anzhiyu-fontcolor)]">
-      <div class="flex items-center gap-3 px-4 py-3 border-b border-[var(--anzhiyu-card-border)]">
-        <span class="opacity-60">🔍</span>
-        <input
-          bind:this={inputEl}
-          bind:value={query}
-          type="search"
-          placeholder="搜索文章标题、内容或标签..."
-          class="flex-1 bg-transparent outline-none text-base"
-        />
-        <button
-          type="button"
-          class="text-xs px-2 py-1 rounded bg-[var(--anzhiyu-secondbg)] cursor-pointer"
-          onclick={() => (open = false)}
-        >
-          ESC
-        </button>
-      </div>
+<div id="local-search" style={open ? "display: block;" : "display: none;"}>
+  <div class="search-dialog" style={open ? "display: block;" : "display: none;"}>
+    <nav class="search-nav">
+      <span class="search-dialog-title">搜索</span>
+      <span id="loading-status">
+        {#if loading}
+          <i class="anzhiyufont anzhiyu-icon-spinner anzhiyu-pulse-icon"></i>
+        {/if}
+      </span>
+      <button class="search-close-button" type="button" title="关闭搜索" onclick={closeDialog}>
+        <i class="anzhiyufont anzhiyu-icon-xmark"></i>
+      </button>
+    </nav>
 
-      <div class="max-h-96 overflow-y-auto p-3">
-        {#if !query.trim()}
-          <div class="text-center py-8 text-sm text-[var(--anzhiyu-secondtext)]">输入关键词开始搜索</div>
-        {:else if loading}
-          <div class="text-center py-8 text-sm text-[var(--anzhiyu-secondtext)]">正在搜索...</div>
-        {:else if results.length === 0}
-          <div class="text-center py-8 text-sm text-[var(--anzhiyu-secondtext)]">未找到相关文章</div>
-        {:else}
-          <div class="flex flex-col gap-2">
-            {#each results as item}
-              <a
-                href={item.url}
-                class="block p-3 rounded-xl hover:bg-[var(--anzhiyu-secondbg)] transition-colors"
-                onclick={() => (open = false)}
-              >
-                <div class="font-bold text-sm text-[var(--anzhiyu-main)]">{item.title}</div>
-                {#if item.excerpt}
-                  <div class="text-xs text-[var(--anzhiyu-secondtext)] mt-1 line-clamp-2">{@html item.excerpt}</div>
-                {/if}
-              </a>
-            {/each}
-          </div>
+    <div class="search-wrap" style="display: block;">
+      <div id="local-search-input">
+        <div class="local-search-box">
+          <input
+            bind:this={inputEl}
+            bind:value={query}
+            class="local-search-box--input"
+            type="text"
+            placeholder="输入关键词快速查找文章..."
+          />
+        </div>
+      </div>
+      <hr />
+      <div id="local-search-results">
+        {#if query.trim()}
+          {#if results.length > 0}
+            <ul class="search-result-list">
+              {#each results as item}
+                <li class="local-search-hit-item">
+                  <a class="search-result-title" href={item.url} onclick={closeDialog}>
+                    {@html item.title}
+                  </a>
+                  {#if item.excerpt}
+                    <p class="search-result">{@html item.excerpt}</p>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+            <div class="local-search-stats-wrap">
+              <hr class="local-search-stats__hr" />
+              <div class="search-result-stats">共找到 <b>{results.length}</b> 篇相关文章</div>
+            </div>
+          {:else if !loading}
+            <div id="local-search__hits-empty">找不到您查询的内容：{query}</div>
+          {/if}
         {/if}
       </div>
     </div>
   </div>
-{/if}
+
+  <div
+    id="search-mask"
+    style={open ? "display: block;" : "display: none;"}
+    role="presentation"
+    onclick={closeDialog}
+  ></div>
+</div>

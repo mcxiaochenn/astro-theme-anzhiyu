@@ -1,21 +1,53 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { formatDate, getAllPosts, getPostUrl } from "@/utils/posts";
+
+const posts = (await getAllPosts()).slice(0, 6);
 ---
 
-<BaseLayout title="404 - 页面未找到">
-  <div class="max-w-xl mx-auto px-6 py-20 text-center">
-    <div class="anzhiyu-card p-8 flex flex-col items-center gap-4">
-      <div class="text-6xl font-black text-[var(--anzhiyu-main)]">404</div>
-      <h1 class="text-xl font-bold m-0">抱歉，页面未找到</h1>
-      <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
-        你访问的页面可能已被移动、删除或链接有误。
-      </p>
-      <a
-        href="/"
-        class="mt-2 px-6 py-2.5 rounded-full bg-[var(--anzhiyu-main)] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
-      >
-        返回首页
-      </a>
+<BaseLayout title="页面没有找到" showAside={false} pageType="404">
+  <div class="error-box" style="width: 100%; max-width: 1200px; margin: 0 auto;">
+    <div id="error-wrap">
+      <div class="error-content">
+        <div class="error-img" style="background-image: url('/img/404.jpg');"></div>
+        <div class="error-info">
+          <h1 class="error_title">404</h1>
+          <div class="error_subtitle">抱歉，你要找的页面走丢啦～</div>
+          <a class="button--animated" href="/">
+            <i class="anzhiyufont anzhiyu-icon-rocket" />
+            回到主页
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="aside-list">
+      <div class="aside-list-group">
+        {
+          posts.map((post) => {
+            const url = getPostUrl(post);
+            const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+            const dateStr = post.data.date ? formatDate(post.data.date) : "";
+            return (
+              <div class="aside-list-item">
+                <a class="thumbnail" href={url} title={post.data.title}>
+                  <img src={cover} alt={post.data.title} loading="lazy" />
+                </a>
+                <div class="content">
+                  <a class="title" href={url} title={post.data.title}>
+                    {post.data.title}
+                  </a>
+                  {dateStr && (
+                    <time datetime={post.data.date?.toISOString()} title={dateStr}>
+                      {dateStr}
+                    </time>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
     </div>
   </div>
 </BaseLayout>

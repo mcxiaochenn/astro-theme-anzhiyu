@@ -1,55 +1,51 @@
 ---
-import { Icon } from "astro-icon/components";
-import type { TaxonomyItem } from "@/utils/posts";
-
-interface Props {
-  tags: TaxonomyItem[];
+interface TagItem {
+  name: string;
+  count: number;
 }
 
-const { tags } = Astro.props;
+interface Props {
+  tags: TagItem[];
+  bare?: boolean;
+}
+
+const { tags, bare = false } = Astro.props;
 ---
 
 {
-  tags.length > 0 && (
-    <div class="card-widget anzhiyu-card p-4">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2 font-bold text-sm">
-          <Icon name="fa6-solid:tags" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
+  tags.length > 0 &&
+    (bare ? (
+      <div class="card-tags">
+        <div class="item-headline">
+          <i class="anzhiyufont anzhiyu-icon-tags" />
           <span>标签</span>
         </div>
-        <a href="/tags/" class="text-xs text-[var(--anzhiyu-secondtext)] hover:text-[var(--anzhiyu-main)]">
-          全部 →
-        </a>
+        <div class="card-tag-cloud">
+          {tags.slice(0, 40).map((t) => (
+            <a href={`/tags/${encodeURIComponent(t.name)}/`} style="font-size: 1em;">
+              {t.name}
+              <sup>{t.count}</sup>
+            </a>
+          ))}
+        </div>
+        {tags.length > 40 && (
+          <a class="tags-cloud-more" href="/tags/">查看全部</a>
+        )}
       </div>
-      <div class="flex flex-wrap gap-1.5">
-        {tags.slice(0, 24).map((tag) => (
-          <a
-            href={`/tags/${encodeURIComponent(tag.name)}/`}
-            class="tag-pill"
-          >
-            <span>{tag.name}</span>
-            <sup class="opacity-60 ml-0.5">{tag.count}</sup>
-          </a>
-        ))}
+    ) : (
+      <div class="card-widget card-tags">
+        <div class="item-headline">
+          <i class="anzhiyufont anzhiyu-icon-tags" />
+          <span>标签</span>
+        </div>
+        <div class="card-tag-cloud">
+          {tags.slice(0, 40).map((t) => (
+            <a href={`/tags/${encodeURIComponent(t.name)}/`} style="font-size: 1em;">
+              {t.name}
+              <sup>{t.count}</sup>
+            </a>
+          ))}
+        </div>
       </div>
-    </div>
-  )
+    ))
 }
-
-<style>
-  .tag-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.2rem 0.55rem;
-    border-radius: var(--anzhiyu-radius);
-    font-size: 0.82rem;
-    color: var(--anzhiyu-fontcolor);
-    background: var(--anzhiyu-secondbg);
-    transition: background-color 0.2s ease, color 0.2s ease;
-  }
-
-  .tag-pill:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-  }
-</style>

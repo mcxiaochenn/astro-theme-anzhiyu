@@ -1,6 +1,6 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
-import PageBanner from "@/components/page/PageBanner.astro";
+import { getCollection, render } from "astro:content";
+import PageLayout from "@/layouts/PageLayout.astro";
 import { getSiteData } from "@/data/site-data";
 
 interface FriendItem {
@@ -15,153 +15,198 @@ interface FriendItem {
 
 interface LinkGroup {
   class_name: string;
-  flink_style?: string;
+  flink_style?: "anzhiyu" | "telescopic" | "flexcard" | string;
   class_desc?: string;
+  lost_contact?: boolean;
   link_list: FriendItem[];
 }
 
 const groups = getSiteData<LinkGroup[]>("link") ?? [];
+const allFriends = groups.flatMap((g) => g.link_list ?? []);
+
+// 构造顶部双排斜向流动友链头像墙
+const paddedFriends =
+  allFriends.length >= 4
+    ? [...allFriends, ...allFriends, ...allFriends]
+    : [];
+const pairs: [FriendItem, FriendItem][] = [];
+for (let i = 0; i + 1 < paddedFriends.length; i += 2) {
+  pairs.push([paddedFriends[i], paddedFriends[i + 1]]);
+}
+
+const specEntries = await getCollection("spec");
+const specEntry = specEntries.find((e) => e.id === "page-link" || e.id === "link");
+const renderedSpec = specEntry ? await render(specEntry) : null;
+const SpecContent = renderedSpec?.Content;
 ---
 
-<BaseLayout title="友人帐">
-  <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
-    <PageBanner
-      tips="FRIENDS"
-      title="与数百名博主一起进步"
-      subTitle="有朋自远方来，不亦乐乎"
-      background="/img/demo/anime/anime-05-tall.jpg"
-      buttonText="关于我"
-      buttonLink="/about/"
-    />
+<PageLayout title="友情链接" showAside={false} showPageTitle={false} pageType="flink" hasComments={true}>
+  <div id="article-container" class="post-content">
+    <div id="flink-banners">
+      <div class="banner-top-box">
+        <div class="flink-banners-title">
+          <div class="banners-title-small">友情链接</div>
+          <div class="banners-title-big">与数百名博主一起进步</div>
+        </div>
+        <div class="banner-button-group">
+          <a
+            class="banner-button secondary no-text-decoration"
+            id="flink-random-visit-btn"
+            href="javascript:void(0);"
+            data-links={JSON.stringify(allFriends.map((f) => f.link))}
+          >
+            <i class="anzhiyufont anzhiyu-icon-paper-plane1" />
+            <span class="banner-button-text">随机访问</span>
+          </a>
+          <a class="banner-button no-text-decoration" href="#flink-apply-section">
+            <i class="anzhiyufont anzhiyu-icon-arrow-circle-right" />
+            <span class="banner-button-text">申请友链</span>
+          </a>
+        </div>
+      </div>
 
-    <div class="flex flex-col gap-10 mt-6">
       {
-        groups.map((group) => (
-          <section>
-            <div class="mb-4">
-              <h2 class="text-xl font-extrabold m-0">{group.class_name}</h2>
-              {group.class_desc && (
-                <p class="text-sm text-[var(--anzhiyu-secondtext)] mt-1 mb-0">{group.class_desc}</p>
-              )}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {group.link_list.map((item) => (
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flink-card anzhiyu-card anzhiyu-card-hover group"
-                >
-                  {item.tag && <span class="site-card-tag">{item.tag}</span>}
-                  {item.siteshot && (
-                    <div class="siteshot-wrap">
-                      <img src={item.siteshot} alt={item.name} class="siteshot-img" loading="lazy" />
-                    </div>
-                  )}
-                  <div class="flink-meta">
-                    <img src={item.avatar} alt={item.name} class="flink-avatar" loading="lazy" />
-                    <div class="min-w-0 flex-1">
-                      <div class="flink-name">{item.name}</div>
-                      {item.descr && <div class="flink-desc">{item.descr}</div>}
-                    </div>
-                  </div>
-                </a>
+        pairs.length > 0 && (
+          <div id="skills-tags-group-all">
+            <div class="tags-group-wrapper">
+              {pairs.map(([even, odd]) => (
+                <div class="tags-group-icon-pair">
+                  <a class="tags-group-icon no-text-decoration" href={even.link} target="_blank" rel="noopener noreferrer" title={even.name}>
+                    <img class="no-lightbox" src={even.avatar} alt={even.name} loading="lazy" />
+                  </a>
+                  <a class="tags-group-icon no-text-decoration" href={odd.link} target="_blank" rel="noopener noreferrer" title={odd.name}>
+                    <img class="no-lightbox" src={odd.avatar} alt={odd.name} loading="lazy" />
+                  </a>
+                </div>
               ))}
             </div>
-          </section>
-        ))
+          </div>
+        )
       }
     </div>
+
+    <div class="flink" id="banners">
+    {
+      groups.map((group) => {
+        const list = group.link_list ?? [];
+        const style = group.flink_style || "anzhiyu";
+        return (
+          <>
+            {group.class_name && <h2>{`${group.class_name} (${list.length})`}</h2>}
+            {group.class_desc && <div class="flink-desc" set:html={group.class_desc} />}
+
+            {style === "telescopic" ? (
+              <div class="telescopic-site-card-group">
+                {list.map((item) => {
+                  const shot = item.siteshot || "/img/default_cover.jpg";
+                  return (
+                    <div class="site-card">
+                      {item.tag && (
+                        <span
+                          class:list={["site-card-tag", { vip: item.color === "vip", speed: item.color === "speed" }]}
+                          style={
+                            item.color && item.color !== "vip" && item.color !== "speed"
+                              ? `background-color: ${item.color}`
+                              : undefined
+                          }
+                        >
+                          {item.tag}
+                          {item.color === "vip" && <i class="light" />}
+                        </span>
+                      )}
+                      <a class="img no-text-decoration" target="_blank" rel="external nofollow noreferrer" title={item.name} href={item.link}>
+                        <img class="flink-avatar no-lightbox" src={shot} alt={item.name} loading="lazy" />
+                      </a>
+                      <a class="info cf-friends-link no-text-decoration" target="_blank" rel="external nofollow noreferrer" title={item.name} href={item.link}>
+                        <div class="site-card-avatar">
+                          <img class="flink-avatar cf-friends-avatar no-lightbox" src={item.avatar} alt={item.name} loading="lazy" />
+                        </div>
+                        <div class="site-card-text">
+                          <span class="title cf-friends-name">{item.name}</span>
+                          <span class="desc" title={item.descr}>{item.descr}</span>
+                        </div>
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : style === "flexcard" ? (
+              <div class="flexcard-flink-list">
+                {list.map((item) => {
+                  const shot = item.siteshot || "/img/default_cover.jpg";
+                  return (
+                    <a class="flink-list-card cf-friends-link" href={item.link} target="_blank" rel="external nofollow noreferrer" data-title={item.descr}>
+                      <div class="wrapper cover">
+                        <img class="cover fadeIn no-lightbox" src={shot} alt={item.name} loading="lazy" />
+                      </div>
+                      <div class="info">
+                        <img class="flink-avatar cf-friends-avatar no-lightbox" src={item.avatar} alt={item.name} loading="lazy" />
+                        <span class="flink-sitename cf-friends-name">{item.name}</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div class:list={["anzhiyu-flink-list", { "cf-friends-lost-contact": group.lost_contact }]}>
+                {list.map((item) => (
+                  <div class="flink-list-item">
+                    {item.tag && (
+                      <span
+                        class:list={["site-card-tag", { vip: item.color === "vip", speed: item.color === "speed" }]}
+                        style={
+                          item.color && item.color !== "vip" && item.color !== "speed"
+                            ? `background-color: ${item.color}`
+                            : undefined
+                        }
+                      >
+                        {item.tag}
+                        {item.color === "vip" && <i class="light" />}
+                      </span>
+                    )}
+                    <a class="cf-friends-link" href={item.link} title={item.name} target="_blank" rel="external nofollow noreferrer">
+                      <div class="flink-item-icon">
+                        <img class="no-lightbox" src={item.avatar} alt={item.name} loading="lazy" />
+                      </div>
+                      <div class="flink-item-info">
+                        <div class="flink-item-name cf-friends-name">{item.name}</div>
+                        <div class="flink-item-desc" title={item.descr}>{item.descr}</div>
+                      </div>
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })
+    }
+
+    {
+      SpecContent && (
+        <div id="flink-apply-section" style="margin-top: 2rem;">
+          <SpecContent />
+        </div>
+      )
+    }
+    </div>
   </div>
-</BaseLayout>
+</PageLayout>
 
-<style>
-  .flink-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: 12px;
-    transition: transform 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
-  }
-
-  .flink-card:hover {
-    transform: translateY(-3px);
-  }
-
-  .site-card-tag {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 2;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: var(--anzhiyu-main);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-  }
-
-  .siteshot-wrap {
-    width: 100%;
-    height: 130px;
-    overflow: hidden;
-    background: var(--anzhiyu-secondbg);
-  }
-
-  .siteshot-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.45s ease;
-  }
-
-  .flink-card:hover .siteshot-img {
-    transform: scale(1.06);
-  }
-
-  .flink-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-  }
-
-  .flink-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    border: 2px solid var(--anzhiyu-card-border);
-    transition: transform 0.35s ease;
-  }
-
-  .flink-card:hover .flink-avatar {
-    transform: scale(0.92);
-  }
-
-  .flink-name {
-    font-weight: 700;
-    font-size: 0.96rem;
-    color: var(--anzhiyu-fontcolor);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .flink-card:hover .flink-name {
-    color: var(--anzhiyu-main);
-  }
-
-  .flink-desc {
-    font-size: 0.8rem;
-    color: var(--anzhiyu-secondtext);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-top: 2px;
-  }
-</style>
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const btn = document.getElementById("flink-random-visit-btn");
+    btn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      try {
+        const links = JSON.parse(btn.dataset.links || "[]") as string[];
+        if (links.length > 0) {
+          const pick = links[Math.floor(Math.random() * links.length)];
+          window.open(pick, "_blank", "noopener");
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+</script>

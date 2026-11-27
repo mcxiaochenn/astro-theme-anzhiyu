@@ -1,6 +1,5 @@
 ---
-import { Icon } from "astro-icon/components";
-import { getPostUrl, type PostEntry } from "@/utils/posts";
+import { formatDate, getPostUrl, type PostEntry } from "@/utils/posts";
 
 interface Props {
   prev?: PostEntry;
@@ -9,26 +8,34 @@ interface Props {
 }
 
 const { prev, next, related } = Astro.props;
+const coverOf = (p: PostEntry) =>
+  typeof p.data.cover === "string" ? p.data.cover : "/img/default_cover.jpg";
 ---
 
 {
   (prev || next) && (
-    <nav class="post-pagination" aria-label="上下篇导航">
-      {prev ? (
-        <a href={getPostUrl(prev)} class="pagination-card anzhiyu-card anzhiyu-card-hover">
-          <span class="label">上一篇</span>
-          <span class="title">{prev.data.title}</span>
-        </a>
-      ) : (
-        <div />
+    <nav class="pagination-post" id="pagination">
+      {prev && (
+        <div class:list={["prev-post", next ? "pull-left" : "pull-full"]}>
+          <a href={getPostUrl(prev)} title={prev.data.title}>
+            <img class="prev-cover no-lightbox" src={coverOf(prev)} alt={prev.data.title} loading="lazy" />
+            <div class="pagination-info">
+              <div class="label">上一篇</div>
+              <div class="prev_info">{prev.data.title}</div>
+            </div>
+          </a>
+        </div>
       )}
-      {next ? (
-        <a href={getPostUrl(next)} class="pagination-card next anzhiyu-card anzhiyu-card-hover">
-          <span class="label">下一篇</span>
-          <span class="title">{next.data.title}</span>
-        </a>
-      ) : (
-        <div />
+      {next && (
+        <div class:list={["next-post", prev ? "pull-right" : "pull-full"]}>
+          <a href={getPostUrl(next)} title={next.data.title}>
+            <img class="next-cover no-lightbox" src={coverOf(next)} alt={next.data.title} loading="lazy" />
+            <div class="pagination-info">
+              <div class="label">下一篇</div>
+              <div class="next_info">{next.data.title}</div>
+            </div>
+          </a>
+        </div>
       )}
     </nav>
   )
@@ -36,121 +43,32 @@ const { prev, next, related } = Astro.props;
 
 {
   related.length > 0 && (
-    <section class="related-posts">
-      <div class="related-headline">
-        <Icon name="fa6-solid:thumbs-up" class="w-4 h-4 text-[var(--anzhiyu-main)]" />
-        <span>相关推荐</span>
+    <div class="relatedPosts">
+      <div class="headline">
+        <i class="anzhiyufont anzhiyu-icon-thumbs-up fa-fw" style="font-size: 1.5rem; margin-right: 4px" />
+        <span>猜你喜欢</span>
       </div>
-      <div class="related-grid">
+      <div class="relatedPosts-list">
         {related.map((post) => {
-          const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+          const url = getPostUrl(post);
+          const dateStr = post.data.date ? formatDate(post.data.date) : "";
           return (
-            <a href={getPostUrl(post)} class="related-item anzhiyu-card anzhiyu-card-hover">
-              <img src={cover} alt={post.data.title} class="related-cover" loading="lazy" />
-              <div class="related-mask">
-                <span class="related-title">{post.data.title}</span>
-              </div>
-            </a>
+            <div>
+              <a href={url} title={post.data.title}>
+                <img class="cover no-lightbox" src={coverOf(post)} alt={post.data.title} loading="lazy" />
+                <div class="content is-center">
+                  {dateStr && (
+                    <div class="date">
+                      <i class="anzhiyufont anzhiyu-icon-calendar-days fa-fw" /> {dateStr}
+                    </div>
+                  )}
+                  <div class="title">{post.data.title}</div>
+                </div>
+              </a>
+            </div>
           );
         })}
       </div>
-    </section>
+    </div>
   )
 }
-
-<style>
-  .post-pagination {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.85rem;
-    margin-top: 1.5rem;
-  }
-
-  .pagination-card {
-    padding: 1rem 1.2rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .pagination-card.next {
-    text-align: right;
-  }
-
-  .pagination-card .label {
-    font-size: 0.78rem;
-    color: var(--anzhiyu-secondtext);
-  }
-
-  .pagination-card .title {
-    font-weight: 700;
-    font-size: 0.95rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .pagination-card:hover .title {
-    color: var(--anzhiyu-main);
-  }
-
-  .related-posts {
-    margin-top: 2rem;
-  }
-
-  .related-headline {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 1.08rem;
-    font-weight: 700;
-    margin-bottom: 0.85rem;
-  }
-
-  .related-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.85rem;
-  }
-
-  .related-item {
-    position: relative;
-    height: 150px;
-    overflow: hidden;
-    display: block;
-  }
-
-  .related-cover {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s var(--animation-in);
-  }
-
-  .related-item:hover .related-cover {
-    transform: scale(1.06);
-  }
-
-  .related-mask {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
-    display: flex;
-    align-items: flex-end;
-    padding: 0.85rem;
-  }
-
-  .related-title {
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.92rem;
-    line-height: 1.35;
-  }
-
-  @media (max-width: 640px) {
-    .post-pagination,
-    .related-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

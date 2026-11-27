@@ -1,59 +1,66 @@
 ---
-import { Icon } from "astro-icon/components";
+import AnIcon from "./AnIcon.astro";
 import { profileConfig, siteConfig } from "@/config";
+import { getSiteData } from "@/data/site-data";
 
 const startYear = new Date(siteConfig.footer.since).getFullYear();
 const currentYear = new Date().getFullYear();
-const yearText = startYear === currentYear ? `${currentYear}` : `${startYear} - ${currentYear}`;
-const socialHalf = Math.ceil(profileConfig.social.length / 2);
-const leftSocial = profileConfig.social.slice(0, socialHalf);
-const rightSocial = profileConfig.social.slice(socialHalf);
+const yearPrefix =
+  startYear && startYear !== currentYear
+    ? `©${startYear} - ${currentYear} By `
+    : `©${currentYear} By `;
+
+const half = Math.ceil(profileConfig.social.length / 2);
+const leftSocial = profileConfig.social.slice(0, half);
+const rightSocial = profileConfig.social.slice(half);
+
+interface FriendGroup {
+  link_list?: { name: string; link: string }[];
+}
+const linkGroups = getSiteData<FriendGroup[]>("link") ?? [];
+const allFriends = linkGroups.flatMap((g) => g.link_list ?? []);
+const initialFriends = allFriends.slice(0, 3);
 ---
 
-<footer id="footer" class="anzhiyu-footer">
+<footer id="footer">
   <div id="footer-wrap">
-    <div id="footer_deal">
-      {
-        leftSocial.map((s) => (
-          <a
-            href={s.url}
-            target={s.url.startsWith("http") ? "_blank" : undefined}
-            rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
-            class="deal_link"
-            title={s.name}
-            aria-label={s.name}
-          >
-            <Icon name={s.icon} class="w-4 h-4" />
-          </a>
-        ))
-      }
-      <button
-        type="button"
-        id="footer-top-btn"
-        class="footer_mini_logo"
-        title="返回顶部"
-        aria-label="返回顶部"
-      >
-        <img src={profileConfig.avatar} alt={profileConfig.name} loading="lazy" />
-        <span class="top-arrow">
-          <Icon name="fa6-solid:arrow-up" class="w-4 h-4" />
-        </span>
-      </button>
-      {
-        rightSocial.map((s) => (
-          <a
-            href={s.url}
-            target={s.url.startsWith("http") ? "_blank" : undefined}
-            rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
-            class="deal_link"
-            title={s.name}
-            aria-label={s.name}
-          >
-            <Icon name={s.icon} class="w-4 h-4" />
-          </a>
-        ))
-      }
-    </div>
+    {
+      profileConfig.social.length > 0 && (
+        <div id="footer_deal">
+          {leftSocial.map((s) => (
+            <a
+              class="deal_link"
+              href={s.url}
+              target={s.url.startsWith("http") ? "_blank" : undefined}
+              rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+              title={s.name}
+            >
+              <AnIcon name={s.icon} />
+            </a>
+          ))}
+          <img
+            class="footer_mini_logo entered loaded"
+            id="footer-mini-logo"
+            title="返回顶部"
+            src={profileConfig.avatar}
+            alt={siteConfig.author}
+            width="50"
+            height="50"
+          />
+          {rightSocial.map((s) => (
+            <a
+              class="deal_link"
+              href={s.url}
+              target={s.url.startsWith("http") ? "_blank" : undefined}
+              rel={s.url.startsWith("http") ? "noopener noreferrer" : undefined}
+              title={s.name}
+            >
+              <AnIcon name={s.icon} />
+            </a>
+          ))}
+        </div>
+      )
+    }
 
     {
       siteConfig.footer.links && siteConfig.footer.links.length > 0 && (
@@ -64,10 +71,11 @@ const rightSocial = profileConfig.social.slice(socialHalf);
               <div class="footer-links">
                 {group.items.map((item) => (
                   <a
-                    href={item.link}
-                    target={item.link.startsWith("http") ? "_blank" : undefined}
-                    rel={item.link.startsWith("http") ? "noopener noreferrer" : undefined}
                     class="footer-item"
+                    href={item.link}
+                    target={item.external || item.link.startsWith("http") ? "_blank" : undefined}
+                    rel={item.external || item.link.startsWith("http") ? "noopener noreferrer" : undefined}
+                    title={item.name}
                   >
                     {item.name}
                   </a>
@@ -75,7 +83,69 @@ const rightSocial = profileConfig.social.slice(socialHalf);
               </div>
             </div>
           ))}
+          {allFriends.length > 0 && (
+            <div class="footer-group">
+              <div class="footer-title-group">
+                <div class="footer-title">友链</div>
+                <a
+                  class="random-friends-btn"
+                  id="footer-random-friends-btn"
+                  href="javascript:void(0);"
+                  title="换一批友情链接"
+                  data-friends={JSON.stringify(allFriends)}
+                >
+                  <i class="anzhiyufont anzhiyu-icon-arrow-rotate-right" />
+                </a>
+              </div>
+              <div class="footer-links" id="friend-links-in-footer">
+                {initialFriends.map((f) => (
+                  <a class="footer-item" href={f.link} target="_blank" rel="noopener noreferrer" title={f.name}>
+                    {f.name}
+                  </a>
+                ))}
+                <a class="footer-item" href="/link/" title="更多友链">更多</a>
+              </div>
+            </div>
+          )}
         </div>
+      )
+    }
+
+    {
+      siteConfig.footer.runtimeEnable && (
+        <div id="workboard">
+          {siteConfig.footer.workBadge?.enable && (
+            <img
+              class="workSituationImg boardsign"
+              src={siteConfig.footer.workBadge.img}
+              alt={siteConfig.footer.workBadge.description}
+              title={siteConfig.footer.workBadge.description}
+            />
+          )}
+          <div id="runtimeTextTip" data-since={siteConfig.footer.since}>
+            本站已稳定运行 <span id="footer-runtime-days">0</span> 天
+          </div>
+        </div>
+      )
+    }
+
+    {
+      siteConfig.footer.badges && siteConfig.footer.badges.length > 0 && (
+        <p id="ghbdages">
+          {siteConfig.footer.badges.map((b) => (
+            <a
+              class="github-badge"
+              target="_blank"
+              rel="noopener noreferrer"
+              href={b.link}
+              style="margin-inline:5px"
+              data-title={b.title}
+              title={b.title}
+            >
+              <img src={b.img} alt={b.alt || b.title} loading="lazy" />
+            </a>
+          ))}
+        </p>
       )
     }
   </div>
@@ -84,215 +154,55 @@ const rightSocial = profileConfig.social.slice(socialHalf);
     <div class="footer-bar-links">
       <div class="footer-bar-left">
         <div id="footer-bar-tips">
-          <span class="copyright">© {yearText} By <a href="/about/">{siteConfig.author}</a></span>
+          <div class="copyright">
+            {yearPrefix}
+            <a class="footer-bar-link" href="/about/" title={siteConfig.author}>
+              {siteConfig.author}
+            </a>
+          </div>
+          {siteConfig.footer.icp && (
+            <a
+              class="footer-bar-link"
+              href={siteConfig.footer.icp.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {siteConfig.footer.icp.text}
+            </a>
+          )}
         </div>
       </div>
       <div class="footer-bar-right">
-        <a href="/rss.xml" class="footer-bar-link">订阅</a>
-        <a href="/link/" class="footer-bar-link">友链</a>
-        <a href="/about/" class="footer-bar-link">关于</a>
-        <a
-          href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="footer-bar-link cc"
-          title="CC BY-NC-SA 4.0"
-          aria-label="CC 协议"
-        >
-          <Icon name="fa6-brands:creative-commons" class="w-4 h-4" />
-        </a>
+        {
+          (siteConfig.footer.barLinks ?? []).map((item) => (
+            <a
+              class="footer-bar-link"
+              href={item.link}
+              target={item.external || item.link.startsWith("http") ? "_blank" : undefined}
+              rel={item.external || item.link.startsWith("http") ? "noopener noreferrer" : undefined}
+              title={item.text}
+            >
+              {item.text}
+            </a>
+          ))
+        }
+        {
+          siteConfig.footer.ccLink && (
+            <a
+              class="footer-bar-link cc"
+              href={siteConfig.footer.ccLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="CC BY-NC-SA 4.0 许可协议"
+            >
+              <i class="anzhiyufont anzhiyu-icon-copyright-line" />
+              <i class="anzhiyufont anzhiyu-icon-creative-commons-by-line" />
+              <i class="anzhiyufont anzhiyu-icon-creative-commons-nc-line" />
+              <i class="anzhiyufont anzhiyu-icon-creative-commons-nd-line" />
+            </a>
+          )
+        }
       </div>
     </div>
   </div>
 </footer>
-
-<style>
-  .anzhiyu-footer {
-    position: relative;
-    margin-top: 2rem;
-    background: linear-gradient(180deg, var(--anzhiyu-card-bg-none) 0%, var(--anzhiyu-card-bg) 25%);
-  }
-
-  #footer-wrap {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 20px 16px;
-  }
-
-  #footer_deal {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1rem;
-  }
-
-  .deal_link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 1rem 27px;
-    width: 32px;
-    height: 32px;
-    border-radius: 3rem;
-    background: var(--anzhiyu-fontcolor);
-    color: var(--anzhiyu-card-bg);
-    transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease;
-  }
-
-  .deal_link:hover {
-    background: var(--anzhiyu-main);
-    color: var(--anzhiyu-white);
-    transform: scale(1.15);
-  }
-
-  .footer_mini_logo {
-    position: relative;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    padding: 0;
-    border: none;
-    margin: 0 1rem;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: var(--anzhiyu-shadow-border);
-    transition: transform 0.4s cubic-bezier(0, 0, 0, 1.29);
-    flex-shrink: 0;
-  }
-
-  .footer_mini_logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .footer_mini_logo .top-arrow {
-    position: absolute;
-    inset: 0;
-    background: var(--anzhiyu-main);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
-
-  .footer_mini_logo:hover .top-arrow {
-    opacity: 1;
-  }
-
-  #anzhiyu-footer {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    max-width: 1200px;
-    margin: 1rem auto;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    padding: 0 2rem;
-    gap: 1.5rem;
-  }
-
-  .footer-group {
-    min-width: 120px;
-  }
-
-  .footer-title {
-    color: var(--anzhiyu-secondtext);
-    font-size: 1rem;
-    text-align: left;
-    font-weight: 600;
-    margin: 0.75rem 0;
-  }
-
-  .footer-links {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .footer-item {
-    font-size: 0.95rem;
-    line-height: 1.25rem;
-    margin: 6px 0;
-    color: var(--anzhiyu-fontcolor);
-    margin-right: auto;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    max-width: 140px;
-    padding: 2px 0;
-    transition: color 0.2s ease;
-  }
-
-  .footer-item:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  #footer-bar {
-    padding: 1rem 1.5rem;
-    background: var(--anzhiyu-secondbg);
-    color: var(--anzhiyu-fontcolor);
-    border-top: 1px solid var(--anzhiyu-card-border);
-  }
-
-  .footer-bar-links {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .footer-bar-left {
-    font-size: 0.9rem;
-    font-weight: 700;
-  }
-
-  .footer-bar-left a:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  .footer-bar-right {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .footer-bar-link {
-    font-size: 0.9rem;
-    font-weight: 700;
-  }
-
-  .footer-bar-link:hover {
-    color: var(--anzhiyu-main);
-  }
-
-  @media (max-width: 768px) {
-    #footer_deal {
-      flex-wrap: wrap;
-    }
-
-    .deal_link {
-      margin: 0.5rem 12px;
-    }
-
-    .footer_mini_logo {
-      display: none;
-    }
-
-    #anzhiyu-footer {
-      padding: 0 0.5rem;
-    }
-  }
-</style>
-
-<script>
-  document.addEventListener("astro:page-load", () => {
-    document.getElementById("footer-top-btn")?.addEventListener("click", () => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-  });
-</script>

@@ -1,0 +1,122 @@
+---
+import AnIcon from "./AnIcon.astro";
+import { navConfig, profileConfig, siteConfig } from "@/config";
+import { aggregateCategories, aggregateTags, getAllPosts } from "@/utils/posts";
+
+const posts = await getAllPosts();
+const tags = aggregateTags(posts);
+const categories = aggregateCategories(posts);
+---
+
+<div id="sidebar">
+  <div id="menu-mask"></div>
+  <div id="sidebar-menus">
+    <div class="avatar-img is-center">
+      <img src={profileConfig.avatar} alt={siteConfig.author} loading="lazy" />
+    </div>
+
+    <div class="sidebar-site-data site-data is-center">
+      <a href="/archives/" title="文章">
+        <div class="headline">文章</div>
+        <div class="length-num">{posts.length}</div>
+      </a>
+      <a href="/tags/" title="标签">
+        <div class="headline">标签</div>
+        <div class="length-num">{tags.length}</div>
+      </a>
+      <a href="/categories/" title="分类">
+        <div class="headline">分类</div>
+        <div class="length-num">{categories.length}</div>
+      </a>
+    </div>
+
+    <span class="sidebar-menu-item-title">功能</span>
+    <div class="sidebar-menu-item">
+      <a class="darkmode_switchbutton menu-child" href="javascript:void(0);" title="显示模式切换">
+        <i class="anzhiyufont anzhiyu-icon-circle-half-stroke" />
+        <span>显示模式</span>
+      </a>
+    </div>
+
+    {
+      navConfig.siteMenu.enable && (
+        <div class="back-menu-list-groups">
+          {navConfig.siteMenu.groups.map((group) => (
+            <div class="back-menu-list-group">
+              <div class="back-menu-list-title">{group.title}</div>
+              <div class="back-menu-list">
+                {group.items.map((item) => (
+                  <a
+                    class="back-menu-item"
+                    href={item.link}
+                    target={item.link.startsWith("http") ? "_blank" : undefined}
+                    rel={item.link.startsWith("http") ? "noopener noreferrer" : undefined}
+                    title={item.name}
+                  >
+                    <img class="back-menu-item-icon" src={item.icon} alt={item.name} loading="lazy" />
+                    <span class="back-menu-item-text">{item.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    <span class="sidebar-menu-item-title">导航</span>
+    <div class="menus_items">
+      {
+        navConfig.menu.map((item) =>
+          item.children && item.children.length > 0 ? (
+            <div class="menus_item">
+              <a class="site-page" href="javascript:void(0);">
+                {item.icon && <AnIcon name={item.icon} />}
+                <span>{" " + item.name}</span>
+              </a>
+              <ul class="menus_item_child">
+                {item.children.map((sub) => (
+                  <li>
+                    <a
+                      class="site-page child"
+                      href={sub.link === "#random-post" ? "javascript:void(0);" : sub.link}
+                      data-random-post={sub.link === "#random-post" ? "true" : undefined}
+                    >
+                      {sub.icon && <AnIcon name={sub.icon} />}
+                      <span>{" " + sub.name}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div class="menus_item">
+              <a class="site-page" href={item.link || "/"}>
+                {item.icon && <AnIcon name={item.icon} />}
+                <span>{" " + item.name}</span>
+              </a>
+            </div>
+          ),
+        )
+      }
+    </div>
+
+    {
+      tags.length > 0 && (
+        <>
+          <span class="sidebar-menu-item-title">标签</span>
+          <div class="card-tags">
+            <div class="card-tag-cloud">
+              {tags.slice(0, 30).map((t) => (
+                <a href={`/tags/${encodeURIComponent(t.name)}/`}>
+                  {t.name}
+                  <sup>{t.count}</sup>
+                </a>
+              ))}
+            </div>
+          </div>
+        </>
+      )
+    }
+  </div>
+</div>

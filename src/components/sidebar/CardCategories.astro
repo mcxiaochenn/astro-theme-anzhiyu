@@ -1,0 +1,38 @@
+---
+interface CategoryItem {
+  name: string;
+  count: number;
+}
+
+interface Props {
+  categories: CategoryItem[];
+}
+
+const { categories } = Astro.props;
+---
+
+{
+  categories.length > 0 && (
+    <div class="card-widget card-categories">
+      <div class="item-headline">
+        <i class="anzhiyufont anzhiyu-icon-folder-open" />
+        <span>分类</span>
+        {categories.length > 8 && (
+          <a class="card-more-btn" href="/categories/" title="查看更多">
+            <i class="anzhiyufont anzhiyu-icon-angle-right" />
+          </a>
+        )}
+      </div>
+      <ul class="card-category-list" id="aside-cat-list">
+        {categories.slice(0, 8).map((cat) => (
+          <li class="card-category-list-item">
+            <a class="card-category-list-link" href={`/categories/${encodeURIComponent(cat.name)}/`}>
+              <span class="card-category-list-name">{cat.name}</span>
+              <span class="card-category-list-count">{cat.count}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}

@@ -1,0 +1,99 @@
+---
+import { formatDate, getPostUrl, type PostEntry } from "@/utils/posts";
+
+interface Props {
+  swiperPosts: PostEntry[];
+  topPosts: PostEntry[];
+}
+
+const { swiperPosts, topPosts } = Astro.props;
+---
+
+<div id="swiper_container_blog">
+  <div id="swiper_container" class="blog-slider swiper-container-fade swiper-container-horizontal">
+    <div class="blog-slider__wrp swiper-wrapper">
+      {
+        swiperPosts.map((post, i) => {
+          const url = getPostUrl(post);
+          const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+          return (
+            <div class:list={["blog-slider__item swiper-slide", { "swiper-slide-active": i === 0 }]} data-slide-index={i}>
+              <a class="blog-slider__img" href={url} title={post.data.title}>
+                <img src={cover} alt={post.data.title} />
+              </a>
+              <div class="blog-slider__content">
+                {post.data.date && <span class="blog-slider__code">{formatDate(post.data.date)}</span>}
+                <a class="blog-slider__title" href={url} title={post.data.title}>
+                  {post.data.title}
+                </a>
+                <div class="blog-slider__text">{post.data.description || post.data.title}</div>
+                <a class="blog-slider__button" href={url}>详情</a>
+              </div>
+            </div>
+          );
+        })
+      }
+    </div>
+    <div class="blog-slider__pagination swiper-pagination-clickable swiper-pagination-bullets">
+      {
+        swiperPosts.map((_, i) => (
+          <span
+            class:list={["swiper-pagination-bullet", { "swiper-pagination-bullet-active": i === 0 }]}
+            data-bullet-index={i}
+          />
+        ))
+      }
+    </div>
+  </div>
+
+  <div id="topPostGroup">
+    {
+      topPosts.slice(0, 6).map((post) => {
+        const url = getPostUrl(post);
+        const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+        return (
+          <div class="top-group-list-item">
+            <div class="post_cover left_radius">
+              <a href={url} title={post.data.title}>
+                <span class="recent-post-top-text">荐</span>
+                <img class="post_bg" src={cover} alt={post.data.title} loading="lazy" />
+              </a>
+            </div>
+            <div class="recent-post-info">
+              <a class="article-title" href={url} title={post.data.title}>
+                {post.data.title}
+              </a>
+            </div>
+          </div>
+        );
+      })
+    }
+  </div>
+</div>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const container = document.getElementById("swiper_container");
+    if (!container) return;
+    const slides = Array.from(container.querySelectorAll<HTMLElement>(".blog-slider__item"));
+    const bullets = Array.from(container.querySelectorAll<HTMLElement>(".swiper-pagination-bullet"));
+    if (slides.length <= 1) return;
+    let active = 0;
+    const activate = (idx: number) => {
+      active = idx;
+      slides.forEach((s, i) => {
+        s.classList.toggle("swiper-slide-active", i === idx);
+        s.style.opacity = i === idx ? "1" : "0";
+        s.style.pointerEvents = i === idx ? "auto" : "none";
+      });
+      bullets.forEach((b, i) => b.classList.toggle("swiper-pagination-bullet-active", i === idx));
+    };
+    activate(0);
+    bullets.forEach((b, i) => b.addEventListener("click", () => activate(i)));
+    let timer = window.setInterval(() => activate((active + 1) % slides.length), 4500);
+    container.addEventListener("mouseenter", () => window.clearInterval(timer));
+    container.addEventListener("mouseleave", () => {
+      timer = window.setInterval(() => activate((active + 1) % slides.length), 4500);
+    });
+  });
+</script>

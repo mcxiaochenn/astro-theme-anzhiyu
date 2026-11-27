@@ -1,0 +1,55 @@
+---
+import PostReward from "./PostReward.astro";
+import { siteConfig, themeConfig } from "@/config";
+
+interface Props {
+  title: string;
+  url: string;
+  cover?: string;
+}
+
+const { title, url, cover = "/img/default_cover.jpg" } = Astro.props;
+const fullUrl = new URL(url, siteConfig.url).toString();
+const fullCover = cover.startsWith("http") ? cover : new URL(cover, siteConfig.url).toString();
+---
+
+{
+  themeConfig.post.ptool && (
+    <div id="post-tools" class="post-tools">
+      <div class="post-tools-left">
+        <PostReward />
+        <div class="share-link weibo">
+          <a
+            class="share-button"
+            target="_blank"
+            rel="external nofollow noreferrer noopener"
+            href={`https://service.weibo.com/share/share.php?title=${encodeURIComponent(title)}&url=${encodeURIComponent(fullUrl)}&pic=${encodeURIComponent(fullCover)}`}
+            title="分享到微博"
+          >
+            <i class="anzhiyufont anzhiyu-icon-weibo" />
+          </a>
+        </div>
+        <div class="share-link copyurl">
+          <div class="share-button" id="post-share-url" title="复制本文链接" data-copy-url={fullUrl}>
+            <i class="anzhiyufont anzhiyu-icon-link" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    const btn = document.getElementById("post-share-url");
+    btn?.addEventListener("click", async () => {
+      const url = btn.getAttribute("data-copy-url") || window.location.href;
+      try {
+        await navigator.clipboard.writeText(url);
+        window.dispatchEvent(new CustomEvent("anzhiyu:toast", { detail: { message: "本文链接已复制" } }));
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+</script>

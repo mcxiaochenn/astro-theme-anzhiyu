@@ -1,22 +1,28 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
-import PostCard from "@/components/home/PostCard.astro";
-import { aggregateCategories, getAllPosts } from "@/utils/posts";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import CategoryBar from "@/components/home/CategoryBar.astro";
+import ArticleSort from "@/components/archive/ArticleSort.astro";
+import { aggregateCategories, getAllPosts, normalizeCategoryList } from "@/utils/posts";
 
 export async function getStaticPaths() {
   const posts = await getAllPosts();
   const categories = aggregateCategories(posts);
   return categories.map((cat) => ({
     params: { category: cat.name },
-    props: { categoryName: cat.name, posts: cat.posts },
+    props: {
+      categoryName: cat.name,
+      categories,
+      posts: posts.filter((p) => normalizeCategoryList(p.data.categories).includes(cat.name)),
+    },
   }));
 }
 
-const { categoryName, posts } = Astro.props;
+const { categoryName, categories, posts } = Astro.props;
 ---
 
-<PageLayout title={`分类：${categoryName}`}>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    {posts.map((post, i) => <PostCard post={post} index={i} />)}
+<BaseLayout title={`分类: ${categoryName}`} pageType="categories">
+  <div id="category">
+    <CategoryBar categories={categories} activeCategory={categoryName} />
+    <ArticleSort title={`分类 - ${categoryName}`} posts={posts} />
   </div>
-</PageLayout>
+</BaseLayout>

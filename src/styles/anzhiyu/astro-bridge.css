@@ -1,0 +1,287 @@
+/*
+ * Astro Native Bridge CSS
+ * 承载原版 Stylus 编译期互斥分支的运行时动态切换（双栏/单栏、Swiper 模式、侧栏左右、Shiki 双色映射、原生灯箱）
+ */
+
+/* 1. 首页双栏文章卡模式（原版 homepage.styl:254 article_double_row == true 分支） */
+body[data-double-row="true"] #content-inner #recent-posts > .recent-post-item > .recent-post-info > .content {
+  opacity: 0;
+  height: 0;
+}
+
+@media screen and (max-width: 1200px) {
+  body[data-double-row="true"] #recent-posts > .recent-post-item > .recent-post-info > .article-title {
+    line-height: 30px;
+    font-weight: bold;
+    color: var(--anzhiyu-fontcolor);
+    width: 100%;
+    transition: 0.3s;
+    font-size: 1.2rem;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+  }
+}
+
+@media screen and (min-width: 1201px) {
+  body[data-double-row="true"] #recent-posts {
+    align-content: flex-start;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item {
+    margin-top: 1rem;
+    display: flex;
+    width: 49%;
+    flex-direction: column;
+    height: auto !important;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item:nth-child(1),
+  body[data-double-row="true"] #recent-posts > .recent-post-item:nth-child(2) {
+    margin-top: 0;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item .recent-post-info .content {
+    display: none;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item .post_cover {
+    width: 100%;
+    height: 225px;
+    transition: 1s !important;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item .post_cover.right {
+    order: 0;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item .post_cover img.post_bg {
+    width: 100%;
+    height: 100%;
+  }
+
+  body[data-double-row="true"] #recent-posts > .recent-post-item .left_radius,
+  body[data-double-row="true"] #recent-posts > .recent-post-item .right_radius {
+    border-radius: 8px 8px 0 0;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  body[data-double-row="true"] #recent-posts > .recent-post-item {
+    width: 100%;
+  }
+  body[data-double-row="true"] #recent-posts > .recent-post-item > .recent-post-info > .article-meta-wrap > .tags > .article-meta__separator {
+    display: none;
+  }
+}
+
+/* 单栏模式下恢复摘要显示 */
+body[data-double-row="false"] #content-inner #recent-posts > .recent-post-item > .recent-post-info > .content {
+  opacity: 1;
+  height: auto;
+  padding: 0 32px;
+}
+
+/* 2. HomeTop 左轮播（swiper.enable == true 分支） */
+#home_top.has-swiper div#bannerGroup {
+  margin-right: 10px;
+  width: calc(51% - 10px) !important;
+}
+
+@media screen and (max-width: 1200px) {
+  #home_top.has-swiper div#bannerGroup {
+    display: none !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  #home_top.has-swiper {
+    padding: 0 15px;
+  }
+  #home_top.has-swiper #topPostGroup {
+    height: 280px;
+  }
+  #home_top.has-swiper #swiper_container_blog {
+    padding: 0 10px;
+  }
+}
+
+/* 3. 侧边栏左置支持 */
+@media screen and (min-width: 901px) {
+  body[data-aside-pos="left"] #content-inner.layout > #aside-content {
+    order: -1;
+    padding-left: 0;
+    padding-right: 15px;
+  }
+}
+
+/* 4. Astro Shiki 双色 Token 驱动（嵌入原版 figure.highlight 容器内） */
+#article-container figure.highlight .code pre span[style*="--shiki-light"] {
+  color: var(--shiki-light);
+}
+
+[data-theme="dark"] #article-container figure.highlight .code pre span[style*="--shiki-dark"] {
+  color: var(--shiki-dark) !important;
+}
+
+/* Mac 三色圆点顶栏（对齐原版 highlight_theme: mac / mac light） */
+#article-container figure.highlight[data-mac="true"] .highlight-tools::after {
+  position: absolute;
+  left: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fc625d;
+  box-shadow: 20px 0 #fdbc40, 40px 0 #35cd4b;
+  content: "";
+}
+
+#article-container figure.highlight[data-mac="true"] .highlight-tools .expand {
+  right: 40px;
+  left: auto;
+}
+
+#article-container figure.highlight[data-mac="true"] .highlight-tools .expand.closed {
+  transform: rotate(-90deg) !important;
+}
+
+#article-container figure.highlight[data-mac="true"] .highlight-tools .code-lang {
+  left: 75px !important;
+}
+
+/* 深色 Mac 代码框模式可选覆盖 */
+#article-container figure.highlight[data-code-theme="mac"] {
+  --hl-color: #eeffff;
+  --hl-bg: #212121;
+  --hltools-bg: #1c1c1c;
+  --hltools-color: rgba(238, 255, 255, 0.8);
+  --hlnumber-bg: #212121;
+  --hlnumber-color: rgba(238, 255, 255, 0.5);
+  background: #212121;
+  color: #eeffff;
+}
+
+/* 5. 全局轻量 Snackbar Toast 与原生图片灯箱遮罩 */
+#anzhiyu-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translate(-50%, -24px);
+  z-index: 99999;
+  padding: 10px 22px;
+  border-radius: 50px;
+  background: var(--anzhiyu-main);
+  color: var(--anzhiyu-white);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: var(--anzhiyu-shadow-main);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.6, 0.1, 0, 1);
+}
+
+#anzhiyu-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#anzhiyu-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.84);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  cursor: zoom-out;
+}
+
+#anzhiyu-lightbox.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#anzhiyu-lightbox img {
+  max-width: 92vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  transform: scale(0.94);
+  transition: transform 0.28s cubic-bezier(0.6, 0.1, 0, 1);
+}
+
+/* 6. Astro Island 包装兼容与离线音乐胶囊兜底样式 */
+#nav-right astro-island {
+  display: contents;
+}
+
+#nav-music .aplayer.aplayer-narrow {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--anzhiyu-card-bg);
+  border: var(--style-border);
+  box-shadow: var(--anzhiyu-shadow-border);
+  cursor: pointer;
+}
+
+#nav-music:not(.playing) .aplayer.aplayer-narrow .aplayer-info {
+  display: none;
+}
+
+#nav-music .aplayer-pic {
+  width: 40px;
+  height: 40px;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#anzhiyu-lightbox.open img {
+  transform: scale(1);
+}
+
+/* 7. 友链横幅非正方形头像严格正圆裁切与中控台少月份归档自适应对齐 */
+#flink-banners #skills-tags-group-all .tags-group-icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+#flink-banners #skills-tags-group-all .tags-group-icon img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+#console .console-card-group {
+  align-items: stretch;
+}
+
+#console .console-card-group-right {
+  height: auto;
+}
+
+#console .console-card.tags {
+  flex: 1;
+  height: auto;
+}

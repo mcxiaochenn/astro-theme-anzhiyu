@@ -1,0 +1,824 @@
+/**
+ * src/scripts/anzhiyu-client.ts
+ *
+ * 原生 TypeScript 客户端交互控制器（替代旧版 120KB main.js / utils.js 全局面条脚本）。
+ * 配合 Astro ClientRouter 的 `astro:page-load` 生命周期工作，无全局污染与事件泄漏，
+ * 同时产出的类名状态（nav-fixed / nav-visible / rightside-show / hide-aside / read-mode 等）
+ * 100% 精准驱动原版 AnZhiYu CSS 动画。
+ */
+import { profileConfig, themeConfig } from "@/config";
+
+let toastTimer: number | undefined;
+let runtimeInterval: number | undefined;
+
+export function showToast(message: string) {
+  let el = document.getElementById("anzhiyu-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "anzhiyu-toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add("show");
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    el?.classList.remove("show");
+  }, 2200);
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const isDark = root.getAttribute("data-theme") === "dark";
+  const next = isDark ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  localStorage.setItem("anzhiyu-theme", next);
+
+  const color = next === "dark" ? themeConfig.themeColor.dark : themeConfig.themeColor.light;
+  if (!document.body.dataset.customMainColor) {
+    root.style.setProperty("--anzhiyu-theme", color);
+    root.style.setProperty("--anzhiyu-main", color);
+  }
+  const meta = document.getElementById("meta-theme-color");
+  if (meta) meta.setAttribute("content", next === "dark" ? "#18171d" : "#f7f9fe");
+
+  window.dispatchEvent(new CustomEvent("anzhiyu:theme-change", { detail: { theme: next } }));
+  showToast(next === "dark" ? "已切换为深色模式" : "已切换为浅色模式");
+}
+
+function toggleAside() {
+  const inner = document.getElementById("content-inner");
+  if (!inner) return;
+  const hidden = inner.classList.toggle("hide-aside");
+  document.documentElement.classList.toggle("hide-aside", hidden);
+  localStorage.setItem("anzhiyu-hide-aside", String(hidden));
+  window.dispatchEvent(new CustomEvent("anzhiyu:aside-change", { detail: { hidden } }));
+  showToast(hidden ? "已隐藏侧边栏" : "已显示侧边栏");
+}
+
+// 轻量简繁常用字映射（支持即时切换页面可见文本）
+const S2T_MAP: Record<string, string> = {
+  专: "專", 业: "業", 东: "東", 丝: "絲", 两: "兩", 严: "嚴", 个: "個", 丰: "豐", 临: "臨", 为: "為",
+  举: "舉", 义: "義", 乐: "樂", 习: "習", 乡: "鄉", 书: "書", 买: "買", 乱: "亂", 争: "爭", 于: "於",
+  云: "雲", 亚: "亞", 产: "產", 亲: "親", 亿: "億", 仅: "僅", 从: "從", 仑: "侖", 仓: "倉", 们: "們",
+  价: "價", 众: "眾", 优: "優", 伙: "夥", 会: "會", 伟: "偉", 传: "傳", 伤: "傷", 伦: "倫", 体: "體",
+  余: "餘", 佣: "傭", 侠: "俠", 侣: "侶", 侦: "偵", 侧: "側", 侨: "僑", 侪: "儕", 侬: "儂", 俣: "俁",
+  俩: "倆", 俭: "儉", 关: "關", 兴: "興", 养: "養", 兽: "獸", 内: "內", 冈: "岡", 册: "冊", 写: "寫",
+  军: "軍", 农: "農", 冲: "衝", 决: "決", 况: "況", 冻: "凍", 净: "淨", 凄: "淒", 准: "準", 凉: "涼",
+  减: "減", 凑: "湊", 凛: "凜", 几: "幾", 凤: "鳳", 凭: "憑", 凯: "凱", 击: "擊", 凿: "鑿", 划: "劃",
+  刘: "劉", 则: "則", 刚: "剛", 创: "創", 删: "刪", 别: "別", 制: "製", 刹: "剎", 刽: "劊", 剂: "劑",
+  剑: "劍", 剧: "劇", 劝: "勸", 办: "辦", 务: "務", 动: "動", 励: "勵", 劲: "勁", 劳: "勞", 势: "勢",
+  勋: "勳", 匮: "匱", 区: "區", 医: "醫", 华: "華", 协: "協", 单: "單", 卖: "賣", 占: "佔", 卢: "盧",
+  卫: "衛", 却: "卻", 厂: "廠", 厅: "廳", 历: "歷", 厉: "厲", 压: "壓", 厌: "厭", 厕: "廁", 厘: "釐",
+  厢: "廂", 厦: "廈", 厨: "廚", 厩: "廄", 厮: "廝", 县: "縣", 参: "參", 双: "雙", 发: "發", 变: "變",
+  叙: "敘", 叠: "疊", 只: "隻", 台: "臺", 叶: "葉", 号: "號", 叹: "嘆", 吁: "籲", 后: "後", 吓: "嚇",
+  吕: "呂", 吗: "嗎", 吨: "噸", 听: "聽", 启: "啟", 吴: "吳", 呐: "吶", 员: "員", 呛: "嗆", 呜: "嗚",
+  咏: "詠", 咙: "嚨", 咛: "嚀", 咝: "噝", 响: "響", 哑: "啞", 哒: "噠", 哓: "嘵", 哔: "嗶", 哕: "噦",
+  哗: "嘩", 哙: "噲", 哝: "噥", 哟: "喲", 哳: "唲", 唛: "嘜", 唠: "嘮", 唢: "嗩", 唣: "唕", 唤: "喚",
+  啧: "嘖", 啬: "嗇", 啭: "囀", 啮: "嚙", 啸: "嘯", 喷: "噴", 喽: "嘍", 喾: "嚳", 嗫: "囁", 嗳: "噯",
+  嘘: "噓", 嘤: "嚶", 嘱: "囑", 噜: "嚕", 尝: "嘗", 图: "圖", 团: "團", 园: "園", 囱: "囪", 围: "圍",
+  囵: "圇", 国: "國", 圆: "圓", 圣: "聖", 场: "場", 坏: "壞", 块: "塊", 坚: "堅", 坛: "壇", 坜: "壢",
+  坝: "壩", 坞: "塢", 坟: "墳", 坠: "墜", 垄: "壟", 垆: "壚", 垒: "壘", 垦: "墾", 垫: "墊", 垭: "埡",
+  垲: "塏", 垴: "堖", 埘: "塒", 埙: "塤", 埚: "堝", 垩: "堊", 堑: "塹", 堕: "墮", 报: "報", 涂: "塗",
+  冢: "塚", 墙: "牆", 圹: "壙", 壮: "壯", 声: "聲", 壳: "殼", 壶: "壺", 处: "處", 备: "備", 复: "復",
+  够: "夠", 头: "頭", 夸: "誇", 夹: "夾", 夺: "奪", 奁: "奩", 奂: "奐", 奋: "奮", 奖: "獎", 奥: "奧",
+  妆: "妝", 妇: "婦", 妈: "媽", 妩: "嫵", 妪: "嫗", 妫: "媯", 姗: "姍", 娄: "婁", 娅: "婭", 娆: "嬈",
+  娇: "嬌", 娈: "孌", 娱: "娛", 娲: "媧", 娴: "嫻", 婳: "嫿", 婴: "嬰", 婵: "嬋", 婶: "嬸", 媪: "媼",
+  嫒: "嬡", 嫔: "嬪", 嫱: "嬙", 嬷: "嬤", 孙: "孫", 学: "學", 孪: "孿", 宁: "寧", 宝: "寶", 实: "實",
+  宠: "寵", 审: "審", 宪: "憲", 宫: "宮", 宽: "寬", 宾: "賓", 寝: "寢", 对: "對", 寻: "尋", 导: "導",
+  寿: "壽", 将: "將", 尔: "爾", 尘: "塵", 尧: "堯", 尸: "屍", 尽: "盡", 层: "層", 屉: "屜", 届: "屆",
+  属: "屬", 屡: "屢", 屿: "嶼", 岁: "歲", 岂: "豈", 岖: "嶇", 岗: "崗", 岘: "峴", 岚: "嵐", 岛: "島",
+  岭: "嶺", 岿: "巋", 峦: "巒", 峡: "峽", 峣: "嶢", 峤: "嶠", 峥: "崢", 崂: "嶗", 崃: "崍", 崭: "嶄",
+  嵘: "嶸", 嵚: "嶔", 巅: "巔", 巩: "鞏", 币: "幣", 帅: "帥", 师: "師", 帐: "帳", 帘: "簾", 帜: "幟",
+  带: "帶", 帧: "幀", 帮: "幫", 帱: "幬", 帻: "幘", 帼: "幗", 幂: "冪", 干: "幹", 并: "並", 幺: "么",
+  广: "廣", 庄: "莊", 庆: "慶", 庐: "廬", 库: "庫", 应: "應", 庙: "廟", 庞: "龐", 废: "廢", 廪: "廩",
+  开: "開", 异: "異", 弃: "棄", 弑: "弒", 张: "張", 弥: "彌", 弯: "彎", 弹: "彈", 强: "強", 归: "歸",
+  当: "當", 录: "錄", 彦: "彥", 彻: "徹", 径: "徑", 徕: "徠", 忆: "憶", 忧: "憂", 怀: "懷", 态: "態",
+  怂: "慫", 怆: "愴", 恺: "愷", 怜: "憐", 总: "總", 怼: "懟", 恋: "戀", 恳: "懇", 恶: "惡", 恸: "慟",
+  恹: "懨", 恻: "惻", 恼: "惱", 恽: "惲", 悦: "悅", 悫: "慤", 悬: "懸", 悭: "慳", 悯: "憫", 惊: "驚",
+  惧: "懼", 惨: "慘", 惩: "懲", 惫: "憊", 惬: "愜", 惭: "慚", 惮: "憚", 惯: "慣", 愠: "慍", 愤: "憤",
+  愦: "憒", 愿: "願", 慑: "懾", 虑: "慮", 慱: "摶", 懑: "懣", 懒: "懶", 懔: "懍", 戆: "戇", 戏: "戲",
+  战: "戰", 戤: "戧", 戬: "戩", 户: "戶", 执: "執", 扩: "擴", 扪: "捫", 扫: "掃", 扬: "揚", 扰: "擾",
+  抚: "撫", 抛: "拋", 抟: "摶", 抠: "摳", 抡: "掄", 抢: "搶", 护: "護", 担: "擔", 拟: "擬", 拢: "攏",
+  拣: "揀", 拥: "擁", 拦: "攔", 拧: "擰", 拨: "撥", 择: "擇", 挂: "掛", 挚: "摯", 挛: "攣", 挜: "掗",
+  挝: "撾", 挞: "撻", 挟: "挾", 挠: "撓", 挡: "擋", 挢: "撟", 挣: "掙", 挤: "擠", 挥: "揮", 挦: "撏",
+  捞: "撈", 损: "損", 捡: "撿", 换: "換", 捣: "搗", 据: "據", 掳: "擄", 掴: "摑", 掷: "擲", 掸: "撣",
+  掺: "摻", 掼: "摜", 揽: "攬", 揿: "撳", 搀: "攙", 搁: "擱", 搂: "摟", 搅: "攪", 携: "攜", 摄: "攝",
+  摅: "攄", 摆: "擺", 摇: "搖", 摈: "擯", 摊: "攤", 撄: "攖", 撑: "撐", 撵: "攆", 撷: "擷", 撸: "擼",
+  撺: "攛", 擞: "擻", 攒: "攢", 敌: "敵", 敛: "斂", 数: "數", 斋: "齋", 斓: "斕", 斩: "斬", 断: "斷",
+  无: "無", 旧: "舊", 时: "時", 旷: "曠", 旸: "暘", 昙: "曇", 昼: "晝", 昽: "曨", 显: "顯", 晋: "晉",
+  晒: "曬", 晓: "曉", 晔: "曄", 晕: "暈", 晖: "暉", 暂: "暫", 暧: "曖", 术: "術", 机: "機", 杀: "殺",
+  杂: "雜", 权: "權", 条: "條", 来: "來", 杨: "楊", 杩: "榪", 杰: "傑", 极: "極", 构: "構", 枞: "樅",
+  枢: "樞", 枣: "棗", 枥: "櫪", 枧: "梘", 枨: "棖", 枪: "槍", 枫: "楓", 枭: "梟", 柜: "櫃", 柠: "檸",
+  柽: "檉", 栀: "梔", 栅: "柵", 标: "標", 栈: "棧", 栉: "櫛", 栊: "櫳", 栋: "棟", 栌: "櫨", 栎: "櫟",
+  栏: "欄", 树: "樹", 栖: "棲", 样: "樣", 栾: "欒", 栳: "栲", 桢: "楨", 档: "檔", 桥: "橋", 桦: "樺",
+  桧: "檜", 桨: "槳", 桩: "樁", 梦: "夢", 梼: "檮", 梾: "棶", 检: "檢", 棂: "欞", 椁: "槨", 椟: "櫝",
+  椠: "槧", 椤: "欏", 椭: "橢", 楼: "樓", 榄: "欖", 榇: "櫬", 榈: "櫚", 榉: "櫸", 槠: "櫧", 槛: "檻",
+  槟: "檳", 横: "橫", 樯: "檣", 樱: "櫻", 橥: "櫫", 橱: "櫥", 橹: "櫓", 橼: "櫞", 檐: "簷", 檩: "檁",
+  欢: "歡", 欧: "歐", 欲: "慾", 歼: "殲", 殇: "殤", 残: "殘", 殒: "殞", 殓: "殮", 殚: "殫", 殡: "殯",
+  殴: "毆", 毁: "毀", 毂: "轂", 毕: "畢", 毙: "斃", 毡: "氈", 毵: "毿", 氇: "氌", 气: "氣", 氢: "氫",
+  氩: "氬", 汇: "匯", 汉: "漢", 污: "汙", 汤: "湯", 汹: "洶", 沈: "瀋", 沟: "溝", 没: "沒", 沣: "灃",
+  沤: "漚", 沥: "瀝", 沦: "淪", 沧: "滄", 沨: "渢", 沩: "溈", 沪: "滬", 泄: "洩", 泞: "濘", 泪: "淚",
+  泶: "澩", 泷: "瀧", 泸: "瀘", 泺: "濼", 泻: "瀉", 泼: "潑", 泽: "澤", 泾: "涇", 洁: "潔", 浈: "湞",
+  洒: "灑", 洼: "窪", 浃: "浹", 浅: "淺", 浆: "漿", 浇: "澆", 浉: "溮", 浊: "濁", 测: "測", 浍: "澮",
+  济: "濟", 浏: "瀏", 浐: "滻", 浑: "渾", 浒: "滸", 浓: "濃", 浔: "潯", 浕: "濜", 涌: "湧", 涛: "濤",
+  涝: "澇", 涞: "淶", 涟: "漣", 涠: "潿", 涡: "渦", 涣: "渙", 涤: "滌", 润: "潤", 涧: "澗", 涨: "漲",
+  涩: "澀", 渊: "淵", 渌: "淥", 渍: "漬", 渎: "瀆", 渐: "漸", 渑: "澠", 渔: "漁", 渖: "瀋", 渗: "滲",
+  温: "溫", 游: "遊", 湾: "灣", 湿: "濕", 溃: "潰", 溅: "濺", 溆: "漵", 溇: "漊", 滗: "潷", 滚: "滾",
+  滞: "滯", 滟: "灩", 滠: "灄", 满: "滿", 滢: "瀅", 滤: "濾", 滥: "濫", 滦: "灤", 滨: "濱", 滩: "灘",
+  滪: "澦", 颍: "潁", 潜: "潛", 潴: "瀦", 澜: "瀾", 濙: "濚", 濑: "瀨", 濒: "瀕", 浚: "濬", 潍: "濰",
+  濶: "闊", 潇: "瀟", 潆: "瀠", 潋: "瀲", 灏: "灝", 灯: "燈", 灵: "靈", 灾: "災", 灿: "燦", 炀: "煬",
+  炉: "爐", 炖: "燉", 炝: "熗", 点: "點", 炼: "煉", 炽: "熾", 烁: "爍", 烂: "爛", 烃: "烴", 烛: "燭",
+  烟: "煙", 烦: "煩", 烧: "燒", 烨: "燁", 烩: "燴", 烫: "燙", 烬: "燼", 热: "熱", 焕: "煥", 焖: "燜",
+  焘: "燾", 煅: "煆", 煳: "糊", 熏: "薰", 爱: "愛", 爷: "爺", 牍: "牘", 牵: "牽", 牺: "犧", 犊: "犢",
+  状: "狀", 犷: "獷", 犸: "獁", 犹: "猶", 狈: "狽", 狞: "獰", 独: "獨", 狭: "狹", 狮: "獅", 狯: "獪",
+  狰: "猙", 狱: "獄", 狲: "猻", 猎: "獵", 猕: "獼", 猪: "豬", 猫: "貓", 猬: "蝟", 献: "獻", 猡: "玀",
+  獭: "獺", 环: "環", 现: "現", 玺: "璽", 珐: "琺", 珑: "瓏", 珰: "璫", 珲: "琿", 琏: "璉", 琐: "瑣",
+  琼: "瓊", 瑶: "瑤", 瑷: "璦", 璎: "瓔", 瓒: "瓚", 瓮: "甕", 瓯: "甌", 电: "電", 画: "畫", 畅: "暢",
+  畲: "畬", 畴: "疇", 疖: "癤", 疗: "療", 疟: "瘧", 疠: "癘", 疡: "瘍", 疬: "癧", 疮: "瘡", 疯: "瘋",
+  疱: "皰", 疴: "痾", 痈: "癰", 痉: "痙", 痒: "癢", 痨: "癆", 痪: "瘓", 痫: "癇", 痴: "癡", 痹: "痺",
+  瘅: "癉", 瘆: "瘮", 瘗: "瘞", 瘘: "瘻", 瘪: "癟", 瘫: "癱", 瘾: "癮", 瘿: "癭", 癞: "癩", 癣: "癬",
+  癫: "癲", 皑: "皚", 皱: "皺", 皲: "皸", 盏: "盞", 盐: "鹽", 监: "監", 盖: "蓋", 盗: "盜", 盘: "盤",
+  眍: "瞘", 眦: "眥", 睁: "睜", 睐: "睞", 睑: "瞼", 瞒: "瞞", 瞩: "矚", 矫: "矯", 矶: "磯", 矾: "礬",
+  矿: "礦", 砀: "碭", 码: "碼", 砖: "磚", 砗: "硨", 砚: "硯", 砜: "碸", 砺: "礪", 砻: "礱", 砾: "礫",
+  础: "礎", 硁: "硜", 硅: "矽", 硕: "碩", 硖: "硤", 硗: "磽", 硙: "磑", 硚: "礄", 确: "確", 硷: "鹼",
+  碍: "礙", 碛: "磧", 碜: "磣", 碱: "鹼", 礼: "禮", 祎: "禕", 祢: "禰", 祯: "禎", 祷: "禱", 祸: "禍",
+  禀: "稟", 禄: "祿", 禅: "禪", 离: "離", 秃: "禿", 秆: "稈", 种: "種", 积: "積", 称: "稱", 秽: "穢",
+  秾: "穠", 税: "稅", 稣: "穌", 稳: "穩", 穑: "穡", 穷: "窮", 窃: "竊", 窍: "竅", 窭: "窶", 窑: "窯",
+  窜: "竄", 窝: "窩", 窥: "窺", 窦: "竇", 竖: "豎", 竞: "競", 笃: "篤", 笋: "筍", 笔: "筆", 笕: "筧",
+  笾: "籩", 笺: "箋", 笼: "籠", 筚: "篳", 筛: "篩", 筝: "箏", 筹: "籌", 签: "簽", 简: "簡", 箓: "籙",
+  箦: "簀", 箧: "篋", 箨: "籜", 箩: "籮", 箪: "簞", 箫: "簫", 篑: "簣", 篓: "簍", 篮: "籃", 篱: "籬",
+  簖: "籪", 籁: "籟", 类: "類", 籼: "秈", 粜: "糶", 粝: "糲", 粤: "粵", 粪: "糞", 粮: "糧", 糁: "糝",
+  糇: "餱", 紧: "緊", 絷: "縶", 纠: "糾", 纡: "紆", 红: "紅", 纣: "紂", 纤: "纖", 纥: "紇", 约: "約",
+  级: "級", 纨: "紈", 纩: "纊", 纪: "紀", 纫: "紉", 纬: "緯", 纭: "紜", 纮: "紘", 纯: "純", 纰: "紕",
+  纱: "紗", 纲: "綱", 纳: "納", 纴: "紝", 纵: "縱", 纶: "綸", 纷: "紛", 纸: "紙", 纹: "紋", 纺: "紡",
+  纻: "紵", 纼: "紖", 纽: "紐", 纾: "紓", 线: "線", 绀: "紺", 绁: "紲", 绂: "紱", 练: "練", 组: "組",
+  绅: "紳", 细: "細", 织: "織", 终: "終", 绉: "縐", 绊: "絆", 绋: "紼", 绌: "絀", 绍: "紹", 绎: "繹",
+  经: "經", 绐: "紿", 绑: "綁", 绒: "絨", 结: "結", 绔: "絝", 绕: "繞", 绖: "絰", 绗: "絎", 绘: "繪",
+  给: "給", 绚: "絢", 绛: "絳", 络: "絡", 绝: "絕", 绞: "絞", 统: "統", 绠: "綆", 绡: "綃", 绢: "絹",
+  绣: "繡", 绤: "綌", 绥: "綏", 绦: "絛", 继: "繼", 绨: "綈", 绩: "績", 绪: "緒", 绫: "綾", 续: "續",
+  绮: "綺", 绯: "緋", 绰: "綽", 绱: "緔", 绲: "緄", 绳: "繩", 维: "維", 绵: "綿", 绶: "綬", 绷: "繃",
+  绸: "綢", 绹: "綯", 绺: "綹", 绻: "綣", 综: "綜", 绽: "綻", 绾: "綰", 绿: "綠", 缀: "綴", 缁: "緇",
+  缂: "緙", 缃: "緗", 缄: "緘", 缅: "緬", 缆: "纜", 缇: "緹", 缈: "緲", 缉: "緝", 缊: "縕", 缋: "繢",
+  缌: "緦", 缍: "綞", 缎: "緞", 缏: "緶", 缐: "線", 缑: "緱", 缒: "縋", 缓: "緩", 缔: "締", 缕: "縷",
+  编: "編", 缗: "緡", 缘: "緣", 缙: "縉", 缚: "縛", 缛: "縟", 缜: "縝", 缝: "縫", 缞: "縗", 缟: "縞",
+  缠: "纏", 缡: "縭", 缢: "縊", 缣: "縑", 缤: "繽", 缥: "縹", 缦: "縵", 缧: "縲", 缨: "纓", 缩: "縮",
+  缪: "繆", 缫: "繅", 缬: "纈", 缭: "繚", 缮: "繕", 缯: "繒", 缰: "韁", 缱: "繾", 缲: "繰", 缳: "繯",
+  缴: "繳", 缵: "纘", 网: "網", 罚: "罰", 罢: "罷", 罴: "羆", 羁: "羈", 羟: "羥", 羡: "羨", 翘: "翹",
+  联: "聯", 聪: "聰", 耸: "聳", 聩: "聵", 聂: "聶", 职: "職", 聍: "聹", 聋: "聾", 肃: "肅", 肠: "腸",
+  肤: "膚", 肮: "骯", 肾: "腎", 肿: "腫", 胀: "脹", 胁: "脅", 胆: "膽", 胜: "勝", 胧: "朧", 胨: "腖",
+  胪: "臚", 胫: "脛", 胶: "膠", 脉: "脈", 脍: "膾", 脏: "臟", 脐: "臍", 脑: "腦", 脓: "膿", 脔: "臠",
+  脚: "腳", 脱: "脫", 脶: "腡", 脸: "臉", 腊: "臘", 腻: "膩", 腼: "靦", 腽: "膃", 腾: "騰", 膑: "臏",
+  舆: "輿", 舍: "捨", 舰: "艦", 舱: "艙", 舻: "艫", 艰: "艱", 艳: "艷", 艺: "藝", 节: "節", 芗: "薌",
+  芜: "蕪", 芦: "蘆", 苁: "蓯", 苇: "葦", 苈: "藶", 苋: "莧", 苌: "萇", 苍: "蒼", 苎: "苧", 苏: "蘇",
+  苹: "蘋", 范: "範", 茎: "莖", 茏: "蘢", 茑: "蔦", 茔: "塋", 茕: "煢", 茧: "繭", 荆: "荊", 荐: "薦",
+  荚: "莢", 荛: "蕘", 荜: "蓽", 荞: "蕎", 荟: "薈", 荠: "薺", 荡: "蕩", 荣: "榮", 荤: "葷", 荥: "滎",
+  荦: "犖", 荧: "熒", 荨: "蕁", 荩: "藎", 荪: "蓀", 荫: "蔭", 荬: "蕒", 荭: "葒", 药: "藥", 莅: "蒞",
+  莱: "萊", 莲: "蓮", 莳: "蒔", 莴: "萵", 莶: "薟", 获: "獲", 莸: "蕕", 莹: "瑩", 莺: "鶯", 莼: "蓴",
+  萝: "蘿", 萤: "螢", 营: "營", 萦: "縈", 萧: "蕭", 萨: "薩", 葱: "蔥", 蒇: "蕆", 蒉: "蕢", 蒋: "蔣",
+  蒌: "蔞", 蓝: "藍", 蓟: "薊", 蓠: "蘺", 蓣: "蕷", 蓥: "鎣", 蓦: "驀", 蔷: "薔", 蔹: "蘞", 蔺: "藺",
+  蔼: "藹", 蕲: "蘄", 蕴: "蘊", 薮: "藪", 藓: "蘚", 虏: "虜", 虚: "虛", 虫: "蟲", 虬: "虯", 虮: "蟣",
+  虽: "雖", 虾: "蝦", 虿: "蠆", 蚀: "蝕", 蚁: "蟻", 蚂: "螞", 蚕: "蠶", 蚝: "蠔", 蛏: "蟶", 蛊: "蠱",
+  蛎: "蠣", 蛮: "蠻", 蛰: "蟄", 蛱: "蛺", 蛲: "蟯", 蛳: "螄", 蛴: "蠐", 蜕: "蛻", 蜗: "蝸", 蜡: "蠟",
+  蝇: "蠅", 蝈: "蟈", 蝉: "蟬", 蝎: "蠍", 蝼: "螻", 蝾: "蠑", 螀: "螿", 螨: "蟎", 蟏: "蟭", 衅: "釁",
+  衔: "銜", 补: "補", 衬: "襯", 衮: "袞", 袄: "襖", 袅: "嫋", 袜: "襪", 袭: "襲", 装: "裝", 裆: "襠",
+  裢: "褳", 裤: "褲", 裥: "襇", 褛: "褸", 褴: "襤", 见: "見", 观: "觀", 规: "規", 觅: "覓", 视: "視",
+  觇: "覘", 览: "覽", 觉: "覺", 觊: "覬", 觋: "覡", 觌: "覿", 觎: "覦", 觏: "覯", 觐: "覲", 觑: "覷",
+  觞: "觴", 触: "觸", 觯: "觶", 誉: "譽", 誊: "謄", 计: "計", 订: "訂", 讣: "訃", 认: "認", 讥: "譏",
+  讦: "訐", 讧: "訌", 讨: "討", 让: "讓", 讪: "訕", 讫: "訖", 训: "訓", 议: "議", 讯: "訊", 记: "記",
+  讲: "講", 讳: "諱", 讴: "謳", 讵: "詎", 讶: "訝", 讷: "訥", 许: "許", 讹: "訛", 论: "論", 讼: "訟",
+  讽: "諷", 设: "設", 访: "訪", 诀: "訣", 证: "證", 诂: "詁", 诃: "訶", 评: "評", 诅: "詛", 识: "識",
+  诈: "詐", 诉: "訴", 诊: "診", 诋: "詆", 诌: "謅", 词: "詞", 诎: "詘", 诏: "詔", 译: "譯", 诒: "詒",
+  诓: "誆", 诔: "誄", 试: "試", 诖: "詿", 诗: "詩", 诘: "詰", 诙: "詼", 诚: "誠", 诛: "誅", 诜: "詵",
+  话: "話", 诞: "誕", 诟: "詬", 诠: "詮", 诡: "詭", 询: "詢", 诣: "詣", 诤: "諍", 该: "該", 详: "詳",
+  诧: "詫", 诨: "諢", 诩: "詡", 诫: "誡", 诬: "誣", 语: "語", 诮: "誚", 误: "誤", 诰: "誥", 诱: "誘",
+  诲: "誨", 诳: "誑", 说: "說", 诵: "誦", 诶: "誒", 请: "請", 诸: "諸", 诹: "諏", 诺: "諾", 读: "讀",
+  诼: "諑", 诽: "誹", 课: "課", 诿: "諉", 谀: "諛", 谁: "誰", 谂: "諗", 调: "調", 谄: "諂", 谅: "諒",
+  谆: "諄", 谇: "誶", 谈: "談", 谊: "誼", 谋: "謀", 谌: "諶", 谍: "諜", 谎: "謊", 谏: "諫", 谐: "諧",
+  谑: "謔", 谒: "謁", 谓: "謂", 谔: "諤", 谕: "諭", 谖: "諼", 谗: "讒", 谘: "諮", 谙: "諳", 谚: "諺",
+  谛: "諦", 谜: "謎", 谝: "諞", 谟: "謨", 谠: "讜", 谡: "謖", 谢: "謝", 谣: "謠", 谤: "謗", 谥: "諡",
+  谦: "謙", 谧: "謐", 谨: "謹", 谩: "謾", 谪: "謫", 谫: "譾", 谬: "謬", 谭: "譚", 谮: "譖", 谯: "譙",
+  谰: "讕", 谱: "譜", 谲: "譎", 谳: "讞", 谴: "譴", 谵: "譫", 谶: "讖", 贝: "貝", 贞: "貞", 负: "負",
+  贡: "貢", 财: "財", 责: "責", 贤: "賢", 败: "敗", 账: "賬", 货: "貨", 质: "質", 贩: "販", 贪: "貪",
+  贫: "貧", 贬: "貶", 购: "購", 贮: "貯", 贯: "貫", 贰: "貳", 贱: "賤", 贲: "賁", 贳: "貰", 贴: "貼",
+  贵: "貴", 贶: "貺", 贷: "貸", 贸: "貿", 费: "費", 贺: "賀", 贻: "貽", 贼: "賊", 贽: "贄", 贾: "賈",
+  贿: "賄", 赀: "貲", 赁: "賃", 赂: "賂", 赃: "贓", 资: "資", 赅: "賅", 赆: "贐", 赇: "賕", 赈: "賑",
+  赉: "賚", 赊: "賒", 赋: "賦", 赌: "賭", 赍: "齎", 赎: "贖", 赏: "賞", 赐: "賜", 赓: "賡", 赔: "賠",
+  赕: "賧", 赖: "賴", 赘: "贅", 赙: "賻", 赚: "賺", 赛: "賽", 赜: "賾", 赝: "贗", 赞: "贊", 赠: "贈",
+  赡: "贍", 赢: "贏", 赣: "贛", 赵: "趙", 赶: "趕", 趋: "趨", 趱: "趲", 趸: "躉", 跃: "躍", 跄: "蹌",
+  跞: "躒", 践: "踐", 跷: "蹺", 跸: "蹕", 跹: "躚", 跻: "躋", 踊: "踴", 踌: "躊", 踪: "蹤", 踬: "躓",
+  踯: "躑", 蹑: "躡", 蹒: "蹣", 蹰: "躕", 蹿: "躥", 躏: "躪", 躯: "軀", 车: "車", 轧: "軋", 轨: "軌",
+  轩: "軒", 轫: "軔", 转: "轉", 轭: "軛", 轮: "輪", 软: "軟", 轰: "轟", 轱: "軲", 轲: "軻", 轳: "轤",
+  轴: "軸", 轵: "軹", 轶: "軼", 轷: "軤", 轸: "軫", 轹: "轢", 轺: "軺", 轻: "輕", 轼: "軾", 载: "載",
+  轾: "輊", 轿: "轎", 辀: "輈", 辁: "輇", 辂: "輅", 较: "較", 辄: "輒", 辅: "輔", 辆: "輛", 辇: "輦",
+  辈: "輩", 辉: "輝", 辊: "輥", 辋: "輞", 辍: "輟", 辎: "輜", 辏: "輳", 辐: "輻", 辑: "輯", 输: "輸",
+  辔: "轡", 辕: "轅", 辖: "轄", 辗: "輾", 辘: "轆", 辙: "轍", 辚: "轔", 辞: "辭", 辟: "闢", 辩: "辯",
+  辫: "辮", 边: "邊", 辽: "遼", 达: "達", 迁: "遷", 过: "過", 迈: "邁", 运: "運", 还: "還", 这: "這",
+  进: "進", 远: "遠", 违: "違", 连: "連", 迟: "遲", 迩: "邇", 迹: "跡", 适: "適", 选: "選", 逊: "遜",
+  递: "遞", 逦: "邐", 逻: "邏", 遗: "遺", 遥: "遙", 邓: "鄧", 邝: "鄺", 邬: "鄔", 邮: "郵", 邹: "鄒",
+  邺: "鄴", 邻: "鄰", 郁: "鬱", 郏: "郟", 郐: "鄶", 郑: "鄭", 郓: "鄆", 郦: "酈", 郧: "鄖", 郸: "鄲",
+  酝: "醞", 酱: "醬", 酽: "釅", 酿: "釀", 释: "釋", 里: "裡", 鉴: "鑑", 銮: "鑾", 錾: "鏨", 钆: "釓",
+  钇: "釔", 针: "針", 钉: "釘", 钊: "釗", 钋: "釙", 钌: "釕", 钍: "釷", 钎: "釺", 钏: "釧", 钐: "釤",
+  钒: "釩", 钓: "釣", 钔: "鍆", 钕: "釹", 钗: "釵", 钙: "鈣", 钚: "鈈", 钛: "鈦", 钜: "鉅", 钝: "鈍",
+  钞: "鈔", 钟: "鐘", 钠: "鈉", 钡: "鋇", 钢: "鋼", 钣: "鈑", 钤: "鈐", 钥: "鑰", 钦: "欽", 钧: "鈞",
+  钨: "鎢", 钩: "鉤", 钪: "鈧", 钫: "鈁", 钬: "鈥", 钮: "鈕", 钯: "鈀", 钰: "鈺", 钱: "錢", 钲: "鉦",
+  钳: "鉗", 钴: "鈷", 钵: "缽", 钶: "鈳", 钷: "鉕", 钹: "鈸", 钺: "鉞", 钻: "鑽", 钼: "鉬", 钽: "鉭",
+  钾: "鉀", 钿: "鈿", 铀: "鈾", 铁: "鐵", 铂: "鉑", 铃: "鈴", 铄: "鑠", 铅: "鉛", 铆: "鉚", 铈: "鈰",
+  铉: "鉉", 铊: "鉈", 铋: "鉍", 铌: "鈮", 铍: "鈹", 铎: "鐸", 铏: "鉶", 铐: "銬", 铑: "銠", 铒: "鉺",
+  铕: "銪", 铖: "鋮", 铗: "鋏", 铘: "鋣", 铙: "鐃", 铛: "鐺", 铜: "銅", 铝: "鋁", 铞: "銱", 铟: "銦",
+  铠: "鎧", 铡: "鍘", 铢: "銖", 铣: "銑", 铤: "鋌", 铥: "銩", 铧: "鏵", 铨: "銓", 铪: "鉿", 铩: "鎩",
+  铭: "銘", 铮: "錚", 铯: "銫", 铰: "鉸", 铱: "銥", 铲: "鏟", 铳: "銃", 铴: "鐋", 铵: "銨", 银: "銀",
+  铷: "銣", 铸: "鑄", 铹: "鐒", 铺: "鋪", 铼: "錸", 铽: "鋱", 链: "鏈", 铿: "鏗", 销: "銷", 锁: "鎖",
+  锂: "鋰", 锃: "鋥", 锄: "鋤", 锅: "鍋", 锆: "鋯", 锇: "鋨", 锈: "鏽", 锉: "銼", 锊: "鋝", 锋: "鋒",
+  锌: "鋅", 锍: "鋶", 锎: "鐦", 锏: "鐧", 锐: "銳", 锑: "銻", 锒: "鋃", 锓: "鋟", 锔: "鋦", 锕: "錒",
+  锖: "錆", 锗: "鍺", 错: "錯", 锚: "錨", 锛: "錛", 锝: "鍀", 锞: "錁", 锟: "錕", 锡: "錫", 锢: "錮",
+  锣: "鑼", 锤: "錘", 锥: "錐", 锦: "錦", 锨: "鍁", 锩: "錈", 锪: "鍃", 锫: "錇", 锬: "錟", 锭: "錠",
+  键: "鍵", 锯: "鋸", 锰: "錳", 锱: "錙", 锲: "鍥", 锴: "鍇", 锵: "鏘", 锶: "鍶", 锷: "鍔", 锸: "鍤",
+  锹: "鍬", 锺: "鍾", 锻: "鍛", 锼: "鎪", 锾: "鍰", 镀: "鍍", 镁: "鎂", 镂: "鏤", 镃: "鎡", 镄: "鐨",
+  镅: "鋂", 镇: "鎮", 镉: "鎘", 镊: "鑷", 镌: "鐫", 镍: "鎳", 镏: "鎦", 镐: "鎬", 镑: "鎊", 镒: "鎰",
+  镓: "鎵", 镔: "鑌", 镖: "鏢", 镗: "鏜", 镘: "鏝", 镙: "鏍", 镛: "鏞", 镜: "鏡", 镝: "鏑", 镞: "鏃",
+  镟: "鏇", 镡: "鐔", 镣: "鐐", 镤: "鏷", 镥: "鑥", 镦: "鐓", 镧: "鑭", 镨: "鐠", 镩: "鑹", 镪: "鏹",
+  镫: "鐙", 镬: "鑊", 镭: "鐳", 镮: "鐶", 镯: "鐲", 镰: "鐮", 镱: "鐿", 镲: "鑔", 镳: "鑣", 镶: "鑲",
+  长: "長", 门: "門", 闩: "閂", 闪: "閃", 闫: "閆", 闭: "閉", 问: "問", 闯: "闖", 闰: "閏", 闱: "闈",
+  闲: "閒", 闳: "閎", 间: "間", 闵: "閔", 闶: "閌", 闷: "悶", 闸: "閘", 闹: "鬧", 闺: "閨", 闻: "聞",
+  闼: "闥", 闽: "閩", 闾: "閭", 闿: "闓", 阀: "閥", 阁: "閣", 阂: "閡", 阃: "閫", 阄: "鬮", 阅: "閱",
+  阆: "閬", 阇: "闍", 阈: "閾", 阉: "閹", 阊: "閶", 阋: "鬩", 阌: "閿", 阍: "閽", 阎: "閻", 阏: "閼",
+  阐: "闡", 阑: "闌", 阒: "闃", 阔: "闊", 阕: "闋", 阖: "闔", 阗: "闐", 阘: "闒", 阙: "闕", 阚: "闞",
+  队: "隊", 阳: "陽", 阴: "陰", 阵: "陣", 阶: "階", 际: "際", 陆: "陸", 陇: "隴", 陈: "陳", 陉: "陘",
+  陕: "陝", 陨: "隕", 险: "險", 随: "隨", 隐: "隱", 隶: "隸", 隽: "雋", 难: "難", 雏: "雛", 雠: "讎",
+  雳: "靂", 雾: "霧", 霁: "霽", 霉: "黴", 霭: "靄", 靓: "靚", 静: "靜", 靥: "靨", 鞑: "韃", 鞒: "鞽",
+  鞯: "韉", 韦: "韋", 韧: "韌", 韨: "韍", 韩: "韓", 韪: "韙", 韫: "韞", 韬: "韜", 韵: "韻", 页: "頁",
+  顶: "頂", 顷: "頃", 顸: "頇", 项: "項", 顺: "順", 须: "須", 顼: "頊", 顽: "頑", 顾: "顧", 顿: "頓",
+  颀: "頎", 颁: "頒", 颂: "頌", 颃: "頏", 预: "預", 颅: "顱", 领: "領", 颇: "頗", 颈: "頸", 颉: "頡",
+  颊: "頰", 颋: "頲", 颌: "頷", 颏: "頦", 颐: "頤", 频: "頻", 颓: "頹", 颔: "頷", 颖: "穎", 颗: "顆",
+  题: "題", 颙: "顒", 颚: "顎", 颛: "顓", 颜: "顏", 额: "額", 颞: "顳", 颟: "顢", 颠: "顛", 颡: "顙",
+  颢: "顥", 颤: "顫", 颦: "顰", 颧: "顴", 风: "風", 飏: "颺", 飐: "颭", 飑: "颮", 飒: "颯", 飓: "颶",
+  飔: "颸", 飕: "颼", 飗: "飀", 飘: "飄", 飙: "飆", 飞: "飛", 飨: "饗", 餍: "饜", 饥: "飢", 饧: "餳",
+  饨: "飩", 饩: "餼", 饪: "飪", 饫: "飫", 饬: "飭", 饭: "飯", 饮: "飲", 饯: "餞", 饰: "飾", 饱: "飽",
+  饲: "飼", 饴: "飴", 饵: "餌", 饶: "饒", 饷: "餉", 饺: "餃", 饸: "餄", 饼: "餅", 饽: "餑", 饿: "餓",
+  馁: "餒", 馆: "館", 馈: "饋", 馋: "饞", 馐: "饈", 馍: "饃", 馏: "餾", 馑: "饉", 馒: "饅", 馓: "饊",
+  馔: "饌", 马: "馬", 驭: "馭", 驮: "馱", 驯: "馴", 驰: "馳", 驱: "驅", 驳: "駁", 驴: "驢", 驵: "駔",
+  驶: "駛", 驷: "駟", 驸: "駙", 驹: "駒", 驺: "騶", 驻: "駐", 驼: "駝", 驽: "駑", 驾: "駕", 驿: "驛",
+  骀: "駘", 骁: "驍", 骂: "罵", 骄: "驕", 骅: "驊", 骆: "駱", 骇: "駭", 骈: "駢", 骊: "驪", 骋: "騁",
+  验: "驗", 骏: "駿", 骐: "騏", 骑: "騎", 骒: "騍", 骓: "騅", 骖: "驂", 骗: "騙", 骘: "騭", 骚: "騷",
+  骛: "騖", 骜: "驁", 骝: "騮", 骞: "騫", 骟: "騸", 骠: "驃", 骡: "騾", 骢: "驄", 骣: "驏", 骤: "驟",
+  骥: "驥", 骧: "驤", 髅: "髏", 髋: "髖", 髌: "髕", 鬓: "鬢", 魇: "魘", 魉: "魎", 鱼: "魚", 鲁: "魯",
+  鲂: "魴", 鲅: "鮁", 鲈: "鱸", 鲋: "鮒", 鲍: "鮑", 鲎: "鱟", 鲑: "鮭", 鲒: "鮚", 鲔: "鮪", 鲕: "鯝",
+  鲚: "鱭", 鲛: "鮫", 鲜: "鮮", 鲟: "鱘", 鲠: "鯁", 鲡: "鱺", 鲢: "鰱", 鲣: "鰹", 鲤: "鯉", 鲥: "鰣",
+  鲦: "鰷", 鲧: "鯀", 鲨: "鯊", 鲩: "鯇", 鲫: "鯽", 鲭: "鯖", 鲮: "鯪", 鲰: "鯫", 鲱: "鯡", 鲲: "鯤",
+  鲳: "鯧", 鲴: "鯝", 鲵: "鯢", 鲶: "鯰", 鲷: "鯛", 鲸: "鯨", 鲺: "虱", 鲻: "鯔", 鲼: "鱝", 鲽: "鰈",
+  鳃: "鰓", 鳄: "鱷", 鳅: "鰍", 鳆: "鰒", 鳇: "鰉", 鳊: "鯿", 鳌: "鰲", 鳍: "鰭", 鳎: "鰨", 鳏: "鰥",
+  鳐: "鰩", 鳓: "鰳", 鳔: "鰾", 鳕: "鱈", 鳖: "鱉", 鳗: "鰻", 鳜: "鱖", 鳝: "鱔", 鳞: "鱗", 鳟: "鱒",
+  鳢: "鱧", 鸟: "鳥", 鸠: "鳩", 鸡: "雞", 鸢: "鳶", 鸣: "鳴", 鸥: "鷗", 鸦: "鴉", 鸨: "鴇", 鸩: "鴆",
+  鸪: "鴣", 鸫: "鶇", 鸬: "鸕", 鸭: "鴨", 鸯: "鴦", 鸱: "鴟", 鸲: "鴝", 鸳: "鴛", 鸵: "鴕", 鸶: "鷥",
+  鸷: "鷙", 鸸: "鴯", 鸹: "鴰", 鸺: "鵂", 鸽: "鴿", 鸾: "鸞", 鸿: "鴻", 鹁: "鵓", 鹂: "鸝", 鹃: "鵑",
+  鹄: "鵠", 鹅: "鵝", 鹆: "鵒", 鹇: "鷳", 鹈: "鵜", 鹉: "鵡", 鹊: "鵲", 鹋: "鶓", 鹌: "鵪", 鹎: "鵯",
+  鹏: "鵬", 鹑: "鶉", 鹕: "鶘", 鹗: "鶚", 鹘: "鶻", 鹚: "鶿", 鹛: "鶥", 鹜: "鶩", 鹞: "鷂", 鹣: "鶼",
+  鹦: "鸚", 鹧: "鷓", 鹨: "鷚", 鹩: "鷯", 鹪: "鷦", 鹫: "鷲", 鹬: "鷸", 鹭: "鷺", 鹰: "鷹", 鹳: "鸛",
+  卤: "鹵", 咸: "鹹", 鹾: "鹺", 丽: "麗", 麦: "麥", 麸: "麩", 麹: "麴", 么: "麼", 黄: "黃", 黉: "黌",
+  黪: "黲", 鼹: "鼴", 齐: "齊", 齑: "齏", 齿: "齒", 龀: "齔", 龃: "齟", 龄: "齡", 龅: "齙", 龆: "齠",
+  龇: "齜", 龈: "齦", 龉: "齬", 龊: "齪", 龋: "齲", 龙: "龍", 龚: "龔", 龛: "龕", 龟: "龜",
+};
+const T2S_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(S2T_MAP).filter(([, v]) => v.length === 1).map(([k, v]) => [v, k]),
+);
+
+function transformTextNodes(toTraditional: boolean) {
+  const dict = toTraditional ? S2T_MAP : T2S_MAP;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+      const tag = parent.tagName;
+      if (tag === "SCRIPT" || tag === "STYLE" || tag === "CODE" || tag === "PRE" || tag === "TEXTAREA") {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  let current: Node | null;
+  while ((current = walker.nextNode())) {
+    const val = current.nodeValue;
+    if (!val) continue;
+    let out = "";
+    let changed = false;
+    for (const ch of val) {
+      const mapped = dict[ch];
+      if (mapped) {
+        out += mapped;
+        changed = true;
+      } else {
+        out += ch;
+      }
+    }
+    if (changed) current.nodeValue = out;
+  }
+  const btn = document.getElementById("translateLink");
+  if (btn) btn.textContent = toTraditional ? "简" : "繁";
+}
+
+function toggleTranslate() {
+  const isTw = localStorage.getItem("anzhiyu-translate") === "tw";
+  const nextTw = !isTw;
+  localStorage.setItem("anzhiyu-translate", nextTw ? "tw" : "cn");
+  transformTextNodes(nextTw);
+  showToast(nextTw ? "已切換為繁體中文" : "已切换为简体中文");
+}
+
+function initScrollAndNav() {
+  let lastScrollY = window.scrollY;
+  const header = document.getElementById("page-header");
+  const rightside = document.getElementById("rightside");
+  const percentEl = document.getElementById("percent");
+  const pageNameEl = document.getElementById("page-name");
+  const defaultTitle = pageNameEl?.textContent || "";
+
+  const onScroll = () => {
+    const y = window.scrollY;
+    const docH = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const pct = Math.min(100, Math.max(0, Math.round((y / docH) * 100)));
+
+    if (header) {
+      if (y > 56) {
+        header.classList.add("nav-fixed");
+        if (y < lastScrollY) {
+          header.classList.add("nav-visible");
+        } else {
+          header.classList.remove("nav-visible");
+        }
+      } else {
+        header.classList.remove("nav-fixed", "nav-visible");
+      }
+    }
+
+    if (percentEl) {
+      const toTopWrap = document.getElementById("nav-totop");
+      if (pct >= 95) {
+        toTopWrap?.classList.add("long");
+        percentEl.textContent = "返回顶部";
+      } else {
+        toTopWrap?.classList.remove("long");
+        percentEl.textContent = String(pct);
+      }
+      toTopWrap?.classList.toggle("is-visible", y > 80);
+    }
+
+    if (rightside) {
+      if (y > 100) {
+        rightside.style.opacity = "1";
+        rightside.style.transform = "translateX(-58px)";
+      } else {
+        rightside.style.opacity = "";
+        rightside.style.transform = "";
+      }
+    }
+
+    if (pageNameEl && defaultTitle) {
+      pageNameEl.dataset.title = defaultTitle;
+    }
+
+    lastScrollY = y;
+  };
+
+  window.onscroll = onScroll;
+  onScroll();
+}
+
+function initHeaderAndSidebarActions() {
+  // 居中标题与返回顶部圆球
+  document.getElementById("page-name")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  document.getElementById("nav-totop")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  document.getElementById("scroll-down")?.addEventListener("click", () => {
+    const target = document.getElementById("content-inner") || document.getElementById("home_top");
+    target?.scrollIntoView({ behavior: "smooth" });
+  });
+
+  // 顶栏搜索按钮
+  document.querySelector("#search-button a")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("anzhiyu:open-search"));
+  });
+
+  // 移动端菜单抽屉
+  const sidebar = document.getElementById("sidebar");
+  const sidebarMenus = document.getElementById("sidebar-menus");
+  const menuMask = document.getElementById("menu-mask");
+  const openMobile = () => {
+    sidebar?.classList.add("open");
+    sidebarMenus?.classList.add("open");
+    if (menuMask) menuMask.style.display = "block";
+    document.body.style.overflow = "hidden";
+  };
+  const closeMobile = () => {
+    sidebar?.classList.remove("open");
+    sidebarMenus?.classList.remove("open");
+    if (menuMask) menuMask.style.display = "none";
+    document.body.style.overflow = "";
+  };
+  document.getElementById("toggle-menu")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openMobile();
+  });
+  menuMask?.addEventListener("click", closeMobile);
+  sidebarMenus?.querySelectorAll("a[href]:not([href^='javascript'])").forEach((a) => {
+    a.addEventListener("click", closeMobile);
+  });
+
+  // 移动端抽屉内深浅色按钮（排除由 Console.svelte 自身接管的中控台开关，避免双重触发抵消）
+  document.querySelectorAll("#sidebar-menus .darkmode_switchbutton").forEach((btn) => {
+    if ((btn as HTMLElement).dataset.boundDark === "1") return;
+    (btn as HTMLElement).dataset.boundDark = "1";
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleTheme();
+    });
+  });
+
+  // Rightside 工具按钮
+  document.getElementById("rightside-config")?.addEventListener("click", () => {
+    document.getElementById("rightside-config-hide")?.classList.toggle("show");
+  });
+  document.getElementById("darkmode")?.addEventListener("click", toggleTheme);
+  document.getElementById("hide-aside-btn")?.addEventListener("click", toggleAside);
+  document.getElementById("translateLink")?.addEventListener("click", toggleTranslate);
+  document.getElementById("go-up")?.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  document.getElementById("switch-commentBarrage")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const cur = localStorage.getItem("anzhiyu-barrage") !== "false";
+    const next = !cur;
+    localStorage.setItem("anzhiyu-barrage", String(next));
+    window.dispatchEvent(new CustomEvent("anzhiyu:barrage-change", { detail: { enable: next } }));
+    showToast(next ? "已开启热评弹幕" : "已关闭热评弹幕");
+  });
+  document.getElementById("mobile-toc-button")?.addEventListener("click", () => {
+    document.getElementById("card-toc")?.classList.toggle("open");
+  });
+
+  // 阅读模式
+  document.getElementById("readmode")?.addEventListener("click", () => {
+    const active = document.body.classList.toggle("read-mode");
+    showToast(active ? "已进入沉浸阅读模式（按 Esc 退出）" : "已退出阅读模式");
+  });
+
+  // 页脚交互
+  document.getElementById("footer-mini-logo")?.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  const randFriendsBtn = document.getElementById("footer-random-friends-btn");
+  randFriendsBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const raw = randFriendsBtn.getAttribute("data-friends");
+    const container = document.getElementById("friend-links-in-footer");
+    if (!raw || !container) return;
+    try {
+      const list = JSON.parse(raw) as { name: string; link: string }[];
+      const shuffled = [...list].sort(() => Math.random() - 0.5).slice(0, 3);
+      container.innerHTML =
+        shuffled
+          .map(
+            (f) =>
+              `<a class="footer-item" href="${f.link}" target="_blank" rel="noopener noreferrer" title="${f.name}">${f.name}</a>`,
+          )
+          .join("") + `<a class="footer-item" href="/link/" title="更多友链">更多</a>`;
+    } catch {
+      /* ignore */
+    }
+  });
+
+  // 页脚运行时间计数
+  const runtimeEl = document.getElementById("runtimeTextTip");
+  window.clearInterval(runtimeInterval);
+  if (runtimeEl) {
+    const sinceStr = runtimeEl.getAttribute("data-since") || "2024-01-01";
+    const startMs = new Date(sinceStr).getTime();
+    const tick = () => {
+      const diff = Math.max(0, Date.now() - startMs);
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      runtimeEl.textContent = `本站居然运行了 ${d} 天 ${String(h).padStart(2, "0")} 小时 ${String(m).padStart(2, "0")} 分 ${String(s).padStart(2, "0")} 秒 ♛`;
+    };
+    tick();
+    runtimeInterval = window.setInterval(tick, 1000);
+  }
+}
+
+function initHomeAndAuthorInteractions() {
+  // 1. 首页 #todayCard 悬停/点击“更多推荐”展开底下 6 张推荐小卡（原版核心交互）
+  const todayCard = document.getElementById("todayCard");
+  const topGroup = document.querySelector(".topGroup");
+  const moreBtn = document.querySelector(".todayCard-info, #todayCard .banner-button-group");
+  if (todayCard && topGroup) {
+    document.getElementById("todayCard-more-btn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      todayCard.classList.add("hide");
+    });
+    topGroup.addEventListener("mouseleave", () => {
+      todayCard.classList.remove("hide");
+    });
+    void moreBtn;
+  }
+
+  // 2. 分类条横向滚轮与翻页按钮
+  const catItems = document.getElementById("category-bar-items");
+  const catNext = document.getElementById("category-bar-next");
+  if (catItems) {
+    catItems.addEventListener(
+      "wheel",
+      (e) => {
+        if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          catItems.scrollLeft += e.deltaY;
+        }
+      },
+      { passive: false },
+    );
+    catNext?.addEventListener("click", () => {
+      const atEnd = catItems.scrollLeft + catItems.clientWidth >= catItems.scrollWidth - 8;
+      catItems.scrollTo({ left: atEnd ? 0 : catItems.scrollLeft + 220, behavior: "smooth" });
+    });
+  }
+
+  // 3. 侧栏作者卡点击切换问候语
+  const sayHiEl = document.getElementById("author-info__sayhi");
+  sayHiEl?.addEventListener("click", () => {
+    const pool = profileConfig.sayHelloPool;
+    if (!pool.length) return;
+    const current = sayHiEl.textContent || "";
+    const candidates = pool.filter((item) => item !== current);
+    sayHiEl.textContent = candidates[Math.floor(Math.random() * candidates.length)] || pool[0];
+  });
+
+  // 4. 首次进站顶部时段问候胶囊 #greetingBox
+  const greetBox = document.getElementById("greetingBox");
+  if (greetBox && !sessionStorage.getItem("anzhiyu-greeted")) {
+    sessionStorage.setItem("anzhiyu-greeted", "1");
+    try {
+      const list = JSON.parse(greetBox.dataset.greetings || "[]") as {
+        greeting: string;
+        startTime: number;
+        endTime: number;
+      }[];
+      const hr = new Date().getHours();
+      const hit = list.find((g) => hr >= g.startTime && hr <= g.endTime) || list[0];
+      if (hit) {
+        greetBox.innerHTML = `<div class="greeting-content">${hit.greeting}</div>`;
+        greetBox.classList.add("show");
+        setTimeout(() => greetBox.classList.remove("show"), 3600);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function initMainToneExtraction() {
+  if (!themeConfig.mainTone) return;
+  const topBg = document.getElementById("post-top-bg") as HTMLImageElement | null;
+  if (!topBg || document.body.dataset.customMainColor === "true") return;
+
+  const sampleColor = (img: HTMLImageElement) => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 16;
+      canvas.height = 16;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, 16, 16);
+      const { data } = ctx.getImageData(0, 0, 16, 16);
+      let r = 0,
+        g = 0,
+        b = 0,
+        count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        if (alpha < 128) continue;
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        count++;
+      }
+      if (!count) return;
+      // 适当压暗避免浅色封面导致顶图白字不可读
+      const dr = Math.min(185, Math.round((r / count) * 0.82));
+      const dg = Math.min(185, Math.round((g / count) * 0.82));
+      const db = Math.min(205, Math.round((b / count) * 0.85));
+      const hex = `#${[dr, dg, db].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+      const root = document.documentElement;
+      root.style.setProperty("--anzhiyu-main", hex);
+      root.style.setProperty("--anzhiyu-theme", hex);
+      root.style.setProperty("--anzhiyu-theme-op", `${hex}23`);
+      root.style.setProperty("--anzhiyu-theme-op-deep", `${hex}dd`);
+      root.style.setProperty("--anzhiyu-main-op", `${hex}23`);
+    } catch {
+      // 跨域无 CORS 头时保留默认主题色
+    }
+  };
+
+  if (topBg.complete && topBg.naturalWidth > 0) {
+    sampleColor(topBg);
+  } else {
+    topBg.addEventListener("load", () => sampleColor(topBg), { once: true });
+  }
+}
+
+function initCodeBlocksAndTags() {
+  const heightLimit = themeConfig.post.codeBlock.heightLimit || 360;
+
+  // 1. 原版 figure.highlight 代码块：复制、折叠、超长展开遮罩
+  document.querySelectorAll<HTMLElement>("#article-container figure.highlight").forEach((fig) => {
+    if (fig.dataset.codeBound === "1") return;
+    fig.dataset.codeBound = "1";
+
+    const tools = fig.querySelector<HTMLElement>(".highlight-tools");
+    const expandBtn = fig.querySelector<HTMLElement>(".highlight-tools .expand");
+    const copyBtn = fig.querySelector<HTMLElement>(".highlight-tools .copy-button");
+    const copyNotice = fig.querySelector<HTMLElement>(".highlight-tools .copy-notice");
+    const tableEl = fig.querySelector<HTMLElement>("table");
+
+    expandBtn?.addEventListener("click", () => {
+      tools?.classList.toggle("closed");
+      expandBtn.classList.toggle("closed");
+    });
+
+    copyBtn?.addEventListener("click", async () => {
+      const codeLines = Array.from(fig.querySelectorAll<HTMLElement>("td.code pre .line")).map(
+        (l) => l.textContent ?? "",
+      );
+      const raw = codeLines.length
+        ? codeLines.join("\n")
+        : fig.querySelector("td.code pre")?.textContent ?? "";
+      try {
+        await navigator.clipboard.writeText(raw);
+        if (copyNotice) {
+          copyNotice.textContent = "复制成功";
+          copyNotice.style.opacity = "1";
+          setTimeout(() => {
+            copyNotice.style.opacity = "0";
+          }, 1500);
+        }
+        showToast("代码已复制到剪贴板");
+      } catch {
+        showToast("复制失败");
+      }
+    });
+
+    if (tableEl && tableEl.scrollHeight > heightLimit + 40) {
+      tableEl.style.height = `${heightLimit}px`;
+      tableEl.style.overflow = "hidden";
+      const expandBar = document.createElement("div");
+      expandBar.className = "code-expand-btn";
+      expandBar.innerHTML = '<i class="anzhiyufont anzhiyu-icon-angle-double-down"></i>';
+      expandBar.addEventListener("click", () => {
+        const isDone = expandBar.classList.toggle("expand-done");
+        tableEl.style.height = isDone ? "auto" : `${heightLimit}px`;
+      });
+      fig.appendChild(expandBar);
+    }
+  });
+
+  // 2. Tabs 标签卡切换
+  document.querySelectorAll<HTMLElement>("#article-container .tabs").forEach((tabsRoot) => {
+    if (tabsRoot.dataset.tabsBound === "1") return;
+    tabsRoot.dataset.tabsBound = "1";
+    const buttons = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>(".nav-tabs button.tab"));
+    const panels = Array.from(tabsRoot.querySelectorAll<HTMLElement>(".tab-contents .tab-item-content"));
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.getAttribute("data-href");
+        buttons.forEach((b) => b.parentElement?.classList.remove("active"));
+        buttons.forEach((b) => b.classList.remove("active"));
+        panels.forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        btn.parentElement?.classList.add("active");
+        if (targetId) {
+          tabsRoot.querySelector(`#${CSS.escape(targetId)}`)?.classList.add("active");
+        }
+      });
+    });
+  });
+
+  // 3. Hide 隐藏块展开
+  document.querySelectorAll<HTMLElement>("#article-container .hide-button").forEach((btn) => {
+    if (btn.dataset.hideBound === "1") return;
+    btn.dataset.hideBound = "1";
+    btn.addEventListener("click", () => {
+      btn.classList.add("open");
+      const content = btn.nextElementSibling as HTMLElement | null;
+      if (content) content.style.display = btn.parentElement?.classList.contains("hide-inline") ? "inline" : "block";
+    });
+  });
+
+  // 4. 正文、说说与相册图片点击灯箱放大
+  const lightbox = document.getElementById("anzhiyu-lightbox");
+  const lightboxImg = lightbox?.querySelector("img");
+  document
+    .querySelectorAll<HTMLImageElement>(
+      "#article-container img:not(.no-lightbox), #essay_page .bber-content-img img, .album-detail-gallery img",
+    )
+    .forEach((img) => {
+      if (img.dataset.lbBound === "1" || img.closest("a")) return;
+      img.dataset.lbBound = "1";
+      img.style.cursor = "zoom-in";
+      img.addEventListener("click", () => {
+        if (!lightbox || !lightboxImg) return;
+        lightboxImg.src = img.src;
+        lightboxImg.alt = img.alt || "";
+        lightbox.classList.add("open");
+      });
+    });
+}
+
+function markNavReadyWhenIslandsHydrated() {
+  const mark = () => document.getElementById("nav")?.classList.add("show");
+  const allReady = () => {
+    const pendingIslands = document.querySelectorAll('astro-island[client="load"][ssr]').length > 0;
+    if (pendingIslands) return false;
+    const rm = document.getElementById("rightMenu");
+    if (rm && rm.getAttribute("data-rm-ready") !== "1") {
+      return false;
+    }
+    return true;
+  };
+
+  if (allReady()) {
+    mark();
+    return;
+  }
+
+  let done = false;
+  const finish = () => {
+    if (done || !allReady()) return;
+    done = true;
+    document.removeEventListener("astro:hydrate", finish);
+    window.clearInterval(poll);
+    mark();
+  };
+
+  document.addEventListener("astro:hydrate", finish);
+  const poll = window.setInterval(finish, 20);
+  window.setTimeout(() => {
+    if (!done) {
+      done = true;
+      document.removeEventListener("astro:hydrate", finish);
+      window.clearInterval(poll);
+      mark();
+    }
+  }, 4000);
+}
+
+function onPageLoad() {
+  // 恢复侧边栏显隐记忆与简繁偏好
+  if (localStorage.getItem("anzhiyu-hide-aside") === "true") {
+    document.getElementById("content-inner")?.classList.add("hide-aside");
+    document.documentElement.classList.add("hide-aside");
+  }
+  if (localStorage.getItem("anzhiyu-translate") === "tw") {
+    transformTextNodes(true);
+  }
+
+  initScrollAndNav();
+  initHeaderAndSidebarActions();
+  initHomeAndAuthorInteractions();
+  initMainToneExtraction();
+  initCodeBlocksAndTags();
+
+  // 等待首屏 client:load 交互岛水合挂载完毕后再挂上 #nav.show 信号
+  markNavReadyWhenIslandsHydrated();
+}
+
+if (typeof window !== "undefined" && !(window as any).__anzhiyuClientInitialized) {
+  (window as any).__anzhiyuClientInitialized = true;
+
+  window.addEventListener("anzhiyu:toast", (e: Event) => {
+    const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+    if (msg) showToast(msg);
+  });
+  window.addEventListener("anzhiyu:toggle-theme", toggleTheme);
+  window.addEventListener("anzhiyu:toggle-aside", toggleAside);
+  window.addEventListener("anzhiyu:toggle-translate", toggleTranslate);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.body.classList.contains("read-mode")) {
+      document.body.classList.remove("read-mode");
+    }
+    if (e.key === "Escape") {
+      document.getElementById("anzhiyu-lightbox")?.classList.remove("open");
+    }
+  });
+
+  document.addEventListener("astro:page-load", () => {
+    document.getElementById("anzhiyu-lightbox")?.addEventListener("click", (ev) => {
+      (ev.currentTarget as HTMLElement)?.classList.remove("open");
+    });
+    onPageLoad();
+  });
+}

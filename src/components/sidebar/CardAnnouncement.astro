@@ -1,18 +1,15 @@
 ---
-import { Icon } from "astro-icon/components";
 import { themeConfig } from "@/config";
-
-const text = themeConfig.sidebar.announcement;
 ---
 
 {
-  text && (
-    <div class="card-widget anzhiyu-card p-4">
-      <div class="flex items-center gap-2 font-bold text-sm mb-2">
-        <Icon name="fa6-solid:bullhorn" class="w-4 h-4 text-[var(--anzhiyu-red)] animate-pulse" />
+  themeConfig.sidebar.announcement && (
+    <div class="card-widget card-announcement">
+      <div class="item-headline">
+        <i class="anzhiyufont anzhiyu-icon-bullhorn anzhiyu-shake" />
         <span>公告</span>
       </div>
-      <p class="text-sm leading-relaxed text-[var(--anzhiyu-secondtext)] m-0">{text}</p>
+      <div class="announcement_content" set:html={themeConfig.sidebar.announcement} />
     </div>
   )
 }

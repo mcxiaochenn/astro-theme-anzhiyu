@@ -7,45 +7,56 @@ import {
   getPostStats,
 } from "@/utils/posts";
 import CardAuthor from "./CardAuthor.astro";
+import CardWeixin from "./CardWeixin.astro";
 import CardAnnouncement from "./CardAnnouncement.astro";
 import CardRecentPost from "./CardRecentPost.astro";
+import CardCategories from "./CardCategories.astro";
 import CardTags from "./CardTags.astro";
+import CardArchives from "./CardArchives.astro";
 import CardWebinfo from "./CardWebinfo.astro";
 
 interface Props {
   showAuthor?: boolean;
+  isPost?: boolean;
 }
 
-const { showAuthor = true } = Astro.props;
+const { showAuthor = true, isPost = false } = Astro.props;
 const posts = await getAllPosts();
 const categories = aggregateCategories(posts);
 const tags = aggregateTags(posts);
 const totalWords = posts.reduce((acc, p) => acc + getPostStats(p).words, 0);
+
+const archiveMap = new Map<string, { label: string; count: number }>();
+for (const p of posts) {
+  const d = p.data.date ?? new Date();
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const label = `${d.getFullYear()} ${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const item = archiveMap.get(key) ?? { label, count: 0 };
+  item.count += 1;
+  archiveMap.set(key, item);
+}
+const archives = Array.from(archiveMap.values());
 ---
 
-<aside id="aside-content" class="layout-aside">
-  {
-    showAuthor && (
-      <CardAuthor
-        postCount={posts.length}
-        tagCount={tags.length}
-        categoryCount={categories.length}
-      />
-    )
-  }
-  <slot name="top" />
+<div id="aside-content" class="aside-content">
+  {showAuthor && <CardAuthor postCount={posts.length} tagCount={tags.length} categoryCount={categories.length} />}
   <CardAnnouncement />
-  <div class="sticky-layout flex flex-col gap-4 w-full">
+  <CardWeixin />
+  {!isPost && themeConfig.sidebar.showCategories && <CardCategories categories={categories} />}
+
+  <div class="sticky_layout">
     <slot name="sticky" />
     <CardRecentPost posts={posts.slice(0, themeConfig.sidebar.recentPostsCount)} />
-    <CardTags tags={tags} />
-    <CardWebinfo postCount={posts.length} totalWords={totalWords} />
+    {
+      !isPost && (
+        <div class="card-widget">
+          {themeConfig.sidebar.showTags && <CardTags tags={tags} bare={true} />}
+          {themeConfig.sidebar.showArchives && <CardArchives archives={archives} bare={true} />}
+          {themeConfig.sidebar.showWebinfo && (
+            <CardWebinfo postCount={posts.length} totalWords={totalWords} bare={true} />
+          )}
+        </div>
+      )
+    }
   </div>
-</aside>
-
-<style>
-  .sticky-layout {
-    position: sticky;
-    top: 76px;
-  }
-</style>
+</div>

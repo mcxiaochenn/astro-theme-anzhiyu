@@ -2,7 +2,7 @@
   "name": "astro-theme-anzhiyu",
   "version": "1.0.0",
   "private": true,
-  "description": "Anzhiyu（Hexo hexo-theme-anzhiyu）博客主题的 Astro 移植版 · 模板仓：Use this template / clone 后改 theme.config.yml、替换 src/content/ 即可运行",
+  "description": "AnZhiYu（Hexo hexo-theme-anzhiyu）1:1 满血视觉还原的 Astro 7 现代原生博客主题 · 模块化 src/config/*.ts 配置与 Content Collections",
   "type": "module",
   "license": "GPL-3.0",
   "repository": {
@@ -26,12 +26,13 @@
   "engines": {
     "node": ">=22.23.4"
   },
-  "scripts": {
+    "scripts": {
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist --force-language zh-cn",
     "preview": "astro preview",
     "check": "astro check",
     "astro": "astro",
+    "extract:css": "node scripts/extract-upstream-css.mjs",
     "test:e2e": "playwright test",
     "test:remark": "node tests/remark-hexo-tag/run.mjs"
   },
@@ -41,18 +42,14 @@
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.6",
     "@astrojs/svelte": "^9.1.6",
-    "@expressive-code/plugin-collapsible-sections": "^0.44.4",
-    "@expressive-code/plugin-line-numbers": "^0.44.4",
     "@iconify-json/fa6-brands": "^1.2.6",
     "@iconify-json/fa6-regular": "^1.2.4",
     "@iconify-json/fa6-solid": "^1.2.4",
     "@tailwindcss/vite": "^4.3.5",
     "@vite-pwa/astro": "^2.0.4",
     "astro": "^7.4.13",
-    "astro-expressive-code": "^0.44.4",
     "astro-icon": "^1.2.0",
     "hastscript": "^9.0.3",
-    "highlight.js": "^11.12.0",
     "katex": "^0.19.1",
     "pagefind": "^1.6.0",
     "reading-time": "^1.5.0",
@@ -61,7 +58,7 @@
     "rehype-katex": "^7.0.1",
     "rehype-slug": "^6.0.0",
     "remark-math": "^6.0.0",
-    "stylus": "^0.64.0",
+    "shiki": "^3.0.0",
     "svelte": "^5.59.2",
     "tailwindcss": "^4.3.5",
     "unist-util-visit": "^5.2.0",
@@ -70,8 +67,11 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@emnapi/core": "1.11.3",
+    "@emnapi/runtime": "1.11.3",
     "@playwright/test": "1.65.1",
     "playwright": "1.65.1",
+    "stylus": "^0.64.0",
     "typescript": "^6.0.3"
   }
 }

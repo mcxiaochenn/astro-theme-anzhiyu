@@ -1,0 +1,90 @@
+---
+import { formatDate, getPostUrl, type PostEntry } from "@/utils/posts";
+
+interface Props {
+  title: string;
+  posts: PostEntry[];
+}
+
+const { title, posts } = Astro.props;
+
+let previousYear: number | undefined;
+const rows = posts.map((post, index) => {
+  const year = post.data.date ? post.data.date.getFullYear() : new Date().getFullYear();
+  const showYear = year !== previousYear;
+  previousYear = year;
+  const noCover = post.data.cover === false;
+  const cover = typeof post.data.cover === "string" ? post.data.cover : "/img/default_cover.jpg";
+  const dateStr = post.data.date ? formatDate(post.data.date) : "";
+  return {
+    post,
+    index,
+    year,
+    showYear,
+    noCover,
+    cover,
+    dateStr,
+    url: getPostUrl(post),
+  };
+});
+---
+
+<div id="archive">
+  <div class="article-sort-title">
+    {title}
+    <sup>{posts.length}</sup>
+  </div>
+
+  <div class="article-sort">
+    {
+      rows.map(({ post, index, year, showYear, noCover, cover, dateStr, url }) => (
+        <>
+          {showYear && (
+            <div class="article-sort-item year">
+              <span>{year}</span>
+            </div>
+          )}
+          <div class:list={["article-sort-item", { "no-article-cover": noCover }]}>
+            {!noCover && (
+              <a class="article-sort-item-img" href={url} title={post.data.title}>
+                <img src={cover} alt={post.data.title} loading="lazy" />
+              </a>
+            )}
+            <div class="article-sort-item-info">
+              <a class="article-sort-item-title" href={url} title={post.data.title}>
+                {post.data.title}
+              </a>
+              <span class="article-sort-item-index">{index + 1}</span>
+              <div class="article-meta-wrap">
+                {(post.data.tags ?? []).length > 0 && (
+                  <span class="article-sort-item-tags">
+                    {(post.data.tags ?? []).map((tag) => (
+                      <a class="article-meta__tags" href={`/tags/${encodeURIComponent(tag)}/`} tabindex="-1">
+                        <span>
+                          <i class="anzhiyu-icon-hashtag anzhiyufont" />
+                          {tag}
+                        </span>
+                      </a>
+                    ))}
+                  </span>
+                )}
+                {dateStr && (
+                  <div class="article-sort-item-time">
+                    <i class="anzhiyu-icon-calendar-alt anzhiyufont" />
+                    <time
+                      class="post-meta-date-created"
+                      datetime={post.data.date?.toISOString()}
+                      title={`发表于 ${dateStr}`}
+                    >
+                      {dateStr}
+                    </time>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      ))
+    }
+  </div>
+</div>

@@ -1,17 +1,53 @@
 ---
-import PageLayout from "@/layouts/PageLayout.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 import { musicConfig } from "@/config";
 ---
 
-<PageLayout title="音乐馆" aside={false}>
-  <div class="p-6 rounded-2xl bg-[var(--anzhiyu-secondbg)] border border-[var(--anzhiyu-card-border)] flex flex-col gap-3">
-    <div class="text-base font-bold">当前歌单配置</div>
-    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
-      音源平台：<code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">{musicConfig.meting.server}</code>
-      · 歌单 ID：<code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">{musicConfig.meting.id}</code>
-    </p>
-    <p class="text-sm text-[var(--anzhiyu-secondtext)] m-0">
-      你可以在 <code class="px-1.5 py-0.5 rounded bg-[var(--anzhiyu-card-bg)]">src/config/music.ts</code> 中自定义歌单或接入 APlayer / MetingJS 播放器。
-    </p>
+<BaseLayout title="音乐馆" showAside={false} pageType="music">
+  <div id="anMusic-page" data-playlist-id={musicConfig.meting.id} data-server={musicConfig.meting.server}>
+    <div id="anMusicBtnGetSong" title="随机播放单曲">
+      <i class="anzhiyufont anzhiyu-icon-shuffle" />
+    </div>
+    <div id="anMusicRefreshBtn" title="刷新歌单">
+      <i class="anzhiyufont anzhiyu-icon-arrows-rotate" />
+    </div>
+    <div id="anMusicSwitching" title="切换播放模式">
+      <i class="anzhiyufont anzhiyu-icon-repeat" />
+    </div>
+    <div id="anMusic-page-meting">
+      <meting-js
+        id={musicConfig.meting.id}
+        server={musicConfig.meting.server}
+        type={musicConfig.meting.type}
+        mutex="true"
+        preload="auto"
+        theme="var(--anzhiyu-main)"
+        order="list"
+      ></meting-js>
+    </div>
   </div>
-</PageLayout>
+</BaseLayout>
+
+<script>
+  document.addEventListener("astro:page-load", () => {
+    if (!document.getElementById("anMusic-page")) return;
+    if (!document.querySelector('link[href*="APlayer.min.css"]')) {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = "https://unpkg.com/anzhiyu-theme-static@1.0.0/aplayer/APlayer.min.css";
+      document.head.appendChild(l);
+    }
+    const load = (src: string) =>
+      new Promise<void>((res, rej) => {
+        if (document.querySelector(`script[src="${src}"]`)) return res();
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => res();
+        s.onerror = () => rej();
+        document.head.appendChild(s);
+      });
+    load("https://unpkg.com/aplayer@1.10.1/dist/APlayer.min.js")
+      .then(() => load("https://unpkg.com/meting@2.0.1/dist/Meting.min.js"))
+      .catch(() => {});
+  });
+</script>

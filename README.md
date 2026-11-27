@@ -12,12 +12,9 @@
 
 预览: 👍 [AnZhiYu Astro Demo](https://anzhiyu.example.mcxiaochen.top/) || 原版预览: 🤞 [Hexo AnZhiYu](https://hexo.anheyu.com/)
 
-文档: 📖 [重构计划 (PLAN)](docs/plan/PLAN.md) || 📖 [AnZhiYu 原版配置文档](https://docs.anheyu.com/) || 🚀 [Hexo 迁移指南](docs/guides/MIGRATION.md)
+文档: 📖 [架构与计划 (PLAN)](docs/plan/PLAN.md) || 🚀 [Hexo 迁移指南](docs/guides/MIGRATION.md)
 
-**Anzhiyu 的外貌，Astro 的心** —— 一款基于 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 打造的 **Astro** 个人博客主题，完整保留 AnZhiYu 的视觉设计与交互体验，同时拥抱现代 Astro 工程架构与极速静态构建。
-
-> [!NOTE]
-> **v2 架构重构进行中**：本项目已完成第一版 Hexo 兼容迁移，目前正按 [docs/plan/PLAN.md](docs/plan/PLAN.md) 推进彻底的原生 Astro 化重构（拆离 Hexo DOM/Stylus/全局脚本兼容层，重构为 Astro + Svelte 5 + TypeScript 配置 + Tailwind CSS v4 + Expressive Code + Pagefind 架构），确保外貌原汁原味、内核彻底 Astro 化。
+**Anzhiyu 的外貌，Astro 的心** —— 一款基于 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 打造的 **Astro** 个人博客主题。**100% 像素级复原原版 AnZhiYu 的视觉设计与微交互细节**，同时彻底剥离 Stylus 运行时与旧版全局脚本，拥抱 **Astro 7 + Svelte 5 + TypeScript 配置 + Shiki 双色高亮 + Pagefind** 现代架构。
 
 # astro-theme-anzhiyu
 
@@ -40,145 +37,77 @@ cd astro-theme-anzhiyu
 pnpm install
 ```
 
-2. 启动本地预览：
+2. 启动本地开发预览：
 
 ```bash
 pnpm dev
 ```
 
-打开终端输出的地址即可实时预览示例站点。
-
-3. 构建静态产物：
+3. 构建静态产物（自动生成 Pagefind 全文搜索索引）：
 
 ```bash
 pnpm build
 ```
 
-构建后的纯静态文件会输出到 `dist/`，可直接部署到 GitHub Pages、Cloudflare Pages、Vercel、Netlify 或任意静态托管服务。
+构建后的纯静态文件会输出到 `dist/`，可直接部署到 GitHub Pages、Cloudflare Pages、Vercel、Netlify 或任意静态托管平台。
 
 ### 方式二：从已有 Hexo AnZhiYu 站点一键迁移
 
-如果你已经有一个使用 `hexo-theme-anzhiyu` 的旧博客，无需手动搬运文章和配置，仓库内置了自动化迁移工具：
-
 ```bash
-# 1. 先做只读预演，检查源站内容与配置兼容性
+# 1. 只读预演，检查待迁移内容规模
 node scripts/migrate-hexo.mjs --site <你的Hexo站点目录> --dry-run
 
 # 2. 执行迁移并生成独立的 Astro 博客目录
 node scripts/migrate-hexo.mjs --site <你的Hexo站点目录> --out <输出目录>
 ```
 
-迁移工具会自动转换文章、独立页面、YAML 数据文件（友链 / 说说 / 相册 / 装备 / 关于）、永久链接格式与主题配置。详细步骤与注意事项请阅读 [Hexo 迁移指南](docs/guides/MIGRATION.md)。
+---
 
-> 完整配置示例（含 Markdown `remark-hexo-tag` 与 Vite Stylus 插件接线）可参考 [astro.config.mjs](astro.config.mjs)。
+## ⚙ 模块化配置与内容管理
 
-## ⚙ 配置与内容管理
+本主题采用**类型安全的模块化 TypeScript 配置**（位于 `src/config/`），自带完整 IDE 类型推导与注释：
 
-### 主题配置
+| 配置文件 | 职责说明 |
+| --- | --- |
+| `src/config/site.ts` | 站点标题、副标题、URL、分页大小、页脚分组导航、徽标、运行时间与备案信息 |
+| `src/config/profile.ts` | 作者头像、在线状态贴纸、点击轮换问候语池、首访时段问候胶囊、社交链接与微信翻转卡 |
+| `src/config/nav.ts` | 左上角九宫格站点矩阵、顶部主导航菜单（原生内建 `anzhiyufont` 图标）、开往与随机文章按钮 |
+| `src/config/theme.ts` | 明暗主题色、首屏顶图/卡片模式切换、`HomeTop`（创意流/Swiper 轮播/今日推荐/分类磁贴）、双栏/单栏切换、侧栏卡片、Mac 代码框及全局交互开关 |
+| `src/config/comment.ts` | 评论系统（Twikoo / Waline / Artalk / Giscus）与热评弹幕浮窗配置 |
+| `src/config/music.ts` | 左下角跨页持久化音乐胶囊（`#nav-music`）与独立音乐馆歌单配置 |
 
-本主题**沿用与原版 `hexo-theme-anzhiyu` 一致的 YAML 配置结构与键名**。你可以直接参考 [AnZhiYu 官方配置文档](https://docs.anheyu.com/) 进行个性化配置，或将原 Hexo 站点的 `_config.anzhiyu.yml` 内容直接迁移过来：
-
-- 示例站点配置文件：[theme.config.yml](theme.config.yml)
-- 功能全开参考配置：[theme.config.demo-delta.yml](theme.config.demo-delta.yml)
-
-主题内置了基于 Zod 的配置校验，修改配置后在开发或构建时会自动合并默认值并校验结构。
-
-### 博客内容与数据文件
-
-在 `src/` 目录下，你可以按如下位置管理站点内容：
+### 博客内容与数据目录
 
 | 目录 / 文件 | 用途 |
 | --- | --- |
-| `src/content/` | 博客文章（Markdown，兼容 Hexo Frontmatter 与 `{% tag %}`） |
+| `src/content/posts/` | 博客文章（Markdown / MDX，完整兼容 42 个 Hexo `{% tag %}` 标签语法） |
+| `src/content/spec/` | 独立说明页面正文（友链申请规范、关于页心路历程等） |
+| `src/data/link.yml` | 友情链接分组数据（支持 `anzhiyu` / `telescopic` / `flexcard` 多样式） |
+| `src/data/essay.yml` | 即刻短文瀑布流与首页顶部滚动条数据 |
+| `src/data/album.yml` | 两级相册集与详情画廊数据（支持瀑布流与等高光影画廊双模式） |
+| `src/data/equipment.yml` | 我的装备 / 好物清单数据 |
+| `src/data/about.yml` | 关于页 14 张动态 Bento 卡片个人信息、MBTI、生涯、追番与赞赏数据 |
+| `src/data/creativity.yml` | 首页与关于页双排斜向流动技能图标数据 |
+| `public/` | 静态资源与内建本地化的 `anzhiyufont` 定制图标字体 |
 
-| `src/data/link.yml` | 友情链接数据 |
-| `src/data/essay.yml` | 即刻说说 / 短动态数据 |
-| `src/data/album.yml` | 相册集与照片数据 |
-| `src/data/equipment.yml` | 好物 / 装备清单数据 |
-| `src/data/about.yml` | 关于页面个人信息、技能与生涯数据 |
-| `public/` | 站点自定义静态资源（头像、图标、背景图等） |
+---
 
-### 可选：开启 PWA 离线缓存
+## ✨ 核心特性
 
-构建时传入环境变量 `ANZHIYU_PWA=1` 即可自动生成 `manifest.webmanifest` 与 Service Worker（`sw.js`）：
-
-```bash
-ANZHIYU_PWA=1 pnpm build
-```
-
-## ✨ 功能特性
-
-- ✅ 沿用原版配置体系，详实的[官方配置文档](https://docs.anheyu.com/)直接适用
-- ✅ 无刷新站内导航体验（Astro `ClientRouter` + PJAX 兼容层）
-- ✅ 图片懒加载与大图灯箱查看（Fancybox / Medium Zoom）
-- ✅ 完整适配明暗双色主题（暗色模式自动跟随系统 / 手动切换持久化）
-- ✅ 丰富多样的 Hexo 标签语法（完整支持 42 个 `{% tag %}`，含按钮、提示框、折叠面板、相册、B 站卡片、Mermaid 等）
-- ✅ 定制化右键菜单（支持复制、繁简切换、夜间模式、热评开关等）
-- ✅ 主色调随文章封面图片颜色动态变化（ColorThief）
-- ✅ 沉浸式状态栏与阅读模式
-- ✅ 全局中控台与快捷键面板（`Shift` 快捷键提示）
-- ✅ 悬浮音乐球与独立音乐页（APlayer + MetingJS，跨页面导航不断连）
-- ✅ 瀑布流即刻说说、瀑布流相册集、我的装备、友链与朋友圈页面
-- ✅ 多评论后端支持（Twikoo / Waline / Artalk / Valine / Giscus 等）与评论弹幕
-- ✅ 本地搜索（`/search.xml`）与 Algolia / DocSearch 搜索
-- ✅ LaTeX 数学公式（KaTeX / MathJax）与 Mermaid 流程图
-- ✅ 文章字数统计、阅读时长与文章 AI 摘要
-- ✅ 多语言支持（简体中文 / 繁體中文 / English）
-- ✅ 阿里图标（Iconfont）与 Font Awesome 图标支持
-- ✅ PWA 离线缓存与外部 CDN 容灾回退
-- ✅ 内置多种网页统计、在线聊天、广告位与隐私协议支持
-- ✅ 附带 Hexo → Astro 一键迁移工具
-
-## 📸 部分功能展示
-
-**沉浸式状态栏**  
-沉浸阅读。  
-![沉浸式状态栏](https://upload-bbs.miyoushe.com/upload/2023/09/04/125766904/3bc088e73d07b4dc25fc62fa4cf63261_4205905123525229755.png?x-oss-process=image///quality,q_100/auto-orient,0/interlace,1/format,avif)
-
-**高度自定义的右键菜单**  
-高度定制。  
-![高度自定义的右键菜单](https://upload-bbs.miyoushe.com/upload/2023/09/04/125766904/3f66e33b24a758d53717f6c2c44e50af_1884994888952376370.png?x-oss-process=image///quality,q_100/auto-orient,0/interlace,1/format,avif)
-
-**AI 摘要**  
-迅速读取文章内容。  
-![AI摘要](https://upload-bbs.miyoushe.com/upload/2023/09/04/125766904/184e089d64660f5f72390f547c864633_3266246986824356702.png)
-
-**让人眼前一亮的清爽界面**  
-
-![让人眼前一亮的清爽界面](https://upload-bbs.miyoushe.com/upload/2023/09/04/125766904/8a16284fd36a9e986d5dbda772f697d0_1356079755877317976.png?x-oss-process=image///quality,q_100/auto-orient,0/interlace,1/format,avif)
-
-**评论弹幕**  
-
-![评论弹幕](https://upload-bbs.miyoushe.com/upload/2023/09/04/125766904/628aef1dbf52b61c0333682e8ee9954e_6905019516821534667.png)
-
-## 🗂 相关文档
-
-- [Hexo → Astro 迁移指南](docs/guides/MIGRATION.md)
-- [原版主题仓库（anzhiyu-c/hexo-theme-anzhiyu）](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
-- [原版主题文档（docs.anheyu.com）](https://docs.anheyu.com/)
-
-<details>
-<summary>开发者自检与工程文档（点击展开）</summary>
-
-- 架构与设计文档：[技术映射](docs/analysis/02-astro-mapping.md) · [上游差异记录](docs/reference/upstream-delta.md) · [执行计划](docs/plan/PLAN.md)
-- 本地测试与基线校验：
-
-```bash
-node tests/remark-hexo-tag/run.mjs
-pnpm verify && pnpm compare-vars && pnpm check:upstream-delta
-```
-
-</details>
+- ✅ **100% 原版 AnZhiYu 视觉与微动效**：离线提取上游 480KB 原厂编译态模块化原生 CSS + 本地内建 `anzhiyufont` 图标字体，零 Stylus 运行时依赖
+- ✅ **纯正 Astro 7 + Svelte 5 现代内核**：`ClientRouter` 零刷新站内路由过渡 + 按需水合交互岛，彻底告别旧版 120KB 全局脚本
+- ✅ **沉浸式文章阅读体验**：顶图主色调动态提取与四周渐变晕染遮罩、四层视差动态波浪、AI 摘要打字机、TOC 目录百分比跟随、沉底大水印版权框与赞赏弹层
+- ✅ **Shiki 双主题 + 原版 Mac 代码框**：构建期 Shiki 精准语法着色，100% 还原原版 `figure.highlight` Mac 圆点顶栏、一键折叠、超长渐变展开遮罩与复制轻提示
+- ✅ **42 个 Hexo 标签完整支持**：内置 `remark-hexo-tag`（76/76 测试全绿），存量 Hexo 文章一字不改直接渲染
+- ✅ **全套标志性全局交互**：全屏毛玻璃中控台（`#console`）、智能上下文感知右键菜单（`#rightMenu`）、Pagefind 原版搜索弹窗（`#local-search`）、`Shift` 快捷键面板（`#keyboard-tips`）、跨页不断连悬浮音乐胶囊（`#nav-music`）、简繁实时转换与沉浸阅读模式
+- ✅ **12 类特色页面全量复原**：关于本人（14 张 Bento 卡片）、友人帐、友链朋友圈、即刻短文瀑布流、两级相册集、我的装备、音乐馆、文章隧道、分类/标签云与 404 推荐页
 
 ## 📄 许可证
 
-本项目遵循 [GPL-3.0](LICENSE) 开源协议。
-
-上游主题 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 以 GPL-3.0 发布，本移植版沿用同一协议。
+本项目遵循 [GPL-3.0](LICENSE) 开源协议，与上游 [hexo-theme-anzhiyu](https://github.com/anzhiyu-c/hexo-theme-anzhiyu) 保持一致。
 
 ## 🙏 致谢
 
 - 主题设计：[张洪 Heo](https://github.com/zhheo)
 - 原版开发与维护：[anzhiyu-c](https://github.com/anzhiyu-c/hexo-theme-anzhiyu)
-- 原版文档编写：[xiaoran](https://github.com/xiaoran)
 - 更早的源头：[hexo-theme-butterfly](https://github.com/jerryc127/hexo-theme-butterfly)

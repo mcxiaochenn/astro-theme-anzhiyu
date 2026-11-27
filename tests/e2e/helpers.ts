@@ -248,37 +248,18 @@ export async function openContextMenu(page: Page, target: Locator) {
   await expect(page.locator('#rightMenu')).toBeVisible()
 }
 
-/**
- * demo 站是否加载了自定义右键菜单运行时。
- *
- * 依据：`theme.config.yml` 的 `rightClickMenu.enable: false`（与上游主题
- * 默认一致）→ AdditionalJs 不输出 right_click_menu.js → `window.rm` 不存在。
- * 用例据此 skip，而不是伪造成「右键没反应」的产品 bug；一旦 fixture 打开该开关，
- * 这些用例会自动开始执行。
- */
+/** 站点是否已挂载自定义右键菜单。 */
 export async function hasRightMenuRuntime(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
-    const rm = (window as unknown as { rm?: { showRightMenu?: unknown } }).rm
-    return Boolean(rm && typeof rm.showRightMenu === 'function')
-  })
+  return page.evaluate(() => Boolean(document.getElementById('rightMenu')))
 }
 
-/** `rightClickMenu.enable=false` 时行为类用例的统一 skip 依据。 */
-export const RIGHT_MENU_DISABLED_REASON =
-  'demo 站 theme.config.yml 的 rightClickMenu.enable=false（与上游主题默认一致），' +
-  'right_click_menu.js 未加载、window.rm 不存在；右键菜单行为验收需要启用该开关的站点/' +
-  'fixture（配置属并行任务范围，见 P4-10 报告 §5）'
+export const RIGHT_MENU_DISABLED_REASON = '当前配置未启用右键菜单（features.rightMenu=false）'
 
-/** 读取 `saveToLocal('theme')` 的值；没写过时返回 undefined。 */
+/** 读取持久化的主题模式；未手动切换过时返回 undefined。 */
 export async function readStoredTheme(page: Page): Promise<string | undefined> {
   return page.evaluate(() => {
-    const raw = localStorage.getItem('theme')
-    if (!raw) return undefined
-    try {
-      return JSON.parse(raw).value as string
-    } catch {
-      return undefined
-    }
+    const raw = localStorage.getItem('anzhiyu-theme')
+    return raw ?? undefined
   })
 }
 

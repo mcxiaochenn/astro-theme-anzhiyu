@@ -1,6 +1,7 @@
 export interface NavSubItem {
   name: string;
   link: string;
+  /** 支持原版 anzhiyu-icon-*（推荐）或 fa6-* */
   icon?: string;
 }
 
@@ -21,7 +22,7 @@ export interface NavSiteGroup {
 }
 
 export interface NavConfig {
-  /** 顶部左侧站点快捷下拉菜单 */
+  /** 顶部左侧九宫格站点矩阵菜单 */
   siteMenu: {
     enable: boolean;
     groups: NavSiteGroup[];
@@ -30,6 +31,8 @@ export interface NavConfig {
   menu: NavItem[];
   /** 是否显示开往（Travelling）图标 */
   travelling: boolean;
+  /** 是否在顶栏右侧显示随机文章按钮 */
+  randomPost: boolean;
 }
 
 export const navConfig: NavConfig = {
@@ -37,15 +40,15 @@ export const navConfig: NavConfig = {
     enable: true,
     groups: [
       {
-        title: "项目",
+        title: "博客与开源",
         items: [
           {
-            name: "Astro 主题仓库",
+            name: "Astro 主题仓",
             link: "https://github.com/mcxiaochenn/astro-theme-anzhiyu",
             icon: "/favicon.ico",
           },
           {
-            name: "原版 Hexo AnZhiYu",
+            name: "原版 AnZhiYu",
             link: "https://github.com/anzhiyu-c/hexo-theme-anzhiyu",
             icon: "/favicon.ico",
           },
@@ -54,36 +57,37 @@ export const navConfig: NavConfig = {
     ],
   },
   travelling: true,
+  randomPost: true,
   menu: [
     {
       name: "文章",
       children: [
-        { name: "隧道", link: "/archives/", icon: "fa6-solid:box-archive" },
-        { name: "分类", link: "/categories/", icon: "fa6-solid:shapes" },
-        { name: "标签", link: "/tags/", icon: "fa6-solid:tags" },
+        { name: "隧道", link: "/archives/", icon: "anzhiyu-icon-box-archive" },
+        { name: "分类", link: "/categories/", icon: "anzhiyu-icon-shapes" },
+        { name: "标签", link: "/tags/", icon: "anzhiyu-icon-tags" },
       ],
     },
     {
       name: "友链",
       children: [
-        { name: "友人帐", link: "/link/", icon: "fa6-solid:link" },
-        { name: "朋友圈", link: "/fcircle/", icon: "fa6-solid:circle-nodes" },
+        { name: "友人帐", link: "/link/", icon: "anzhiyu-icon-link" },
+        { name: "朋友圈", link: "/fcircle/", icon: "anzhiyu-icon-artstation" },
       ],
     },
     {
       name: "我的",
       children: [
-        { name: "音乐馆", link: "/music/", icon: "fa6-solid:music" },
-        { name: "相册集", link: "/album/", icon: "fa6-solid:images" },
-        { name: "我的装备", link: "/equipment/", icon: "fa6-solid:laptop" },
+        { name: "即刻短文", link: "/essay/", icon: "anzhiyu-icon-lightbulb" },
+        { name: "相册画廊", link: "/album/", icon: "anzhiyu-icon-images" },
+        { name: "音乐馆", link: "/music/", icon: "anzhiyu-icon-music" },
+        { name: "我的装备", link: "/equipment/", icon: "anzhiyu-icon-dice-d20" },
       ],
     },
     {
       name: "关于",
       children: [
-        { name: "关于本人", link: "/about/", icon: "fa6-solid:paper-plane" },
-        { name: "闲言碎语", link: "/essay/", icon: "fa6-solid:lightbulb" },
-        { name: "随便逛逛", link: "#random-post", icon: "fa6-solid:shoe-prints" },
+        { name: "关于本人", link: "/about/", icon: "anzhiyu-icon-paper-plane" },
+        { name: "随便逛逛", link: "#random-post", icon: "anzhiyu-icon-shoe-prints" },
       ],
     },
   ],

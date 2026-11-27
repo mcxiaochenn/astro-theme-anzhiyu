@@ -1,0 +1,58 @@
+---
+interface ArchiveMonth {
+  label: string;
+  count: number;
+}
+
+interface Props {
+  archives: ArchiveMonth[];
+  bare?: boolean;
+}
+
+const { archives, bare = false } = Astro.props;
+---
+
+{
+  archives.length > 0 &&
+    (bare ? (
+      <div class="card-archives">
+        <div class="item-headline">
+          <i class="anzhiyufont anzhiyu-icon-archive" />
+          <span>归档</span>
+        </div>
+        <ul class="card-archive-list">
+          {archives.slice(0, 8).map((item) => (
+            <li class="card-archive-list-item">
+              <a class="card-archive-list-link" href="/archives/">
+                <span class="card-archive-list-date">{item.label}</span>
+                <div class="card-archive-list-count-group">
+                  <span class="card-archive-list-count">{item.count}</span>
+                  <span class="card-archive-list-count-unit">篇</span>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : (
+      <div class="card-widget card-archives">
+        <div class="item-headline">
+          <i class="anzhiyufont anzhiyu-icon-archive" />
+          <span>归档</span>
+        </div>
+        <ul class="card-archive-list">
+          {archives.slice(0, 8).map((item) => (
+            <li class="card-archive-list-item">
+              <a class="card-archive-list-link" href="/archives/">
+                <span class="card-archive-list-date">{item.label}</span>
+                <div class="card-archive-list-count-group">
+                  <span class="card-archive-list-count">{item.count}</span>
+                  <span class="card-archive-list-count-unit">篇</span>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))
+}
