@@ -7,7 +7,7 @@ interface Props {
   url: string;
 }
 
-const { title, url } = Astro.props;
+const { url } = Astro.props;
 const fullUrl = new URL(url, siteConfig.url).toString();
 ---
 

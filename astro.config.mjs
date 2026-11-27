@@ -37,7 +37,10 @@ export default defineConfig({
     svelte(),
     icons(),
     sitemap(),
-    unified({
+  ],
+
+  markdown: {
+    processor: unified({
       remarkPlugins: [remarkHexoTag, remarkMath],
       rehypePlugins: [
         rehypeHexoInlineP,
@@ -59,7 +62,7 @@ export default defineConfig({
         ],
       ],
     }),
-  ],
+  },
 
   vite: {
     plugins: [tailwindcss()],
