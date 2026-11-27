@@ -18,6 +18,15 @@
 
 # astro-theme-anzhiyu
 
+> [!NOTE]
+> **📌 项目状态：维持现状（停止主动迭代）**
+>
+> 连续折腾了 3 天代码、烧掉 200 多块之后，看着这个终于被 1:1 复刻出来的界面，我忽然悟了——**我好像其实并不喜欢 AnZhiYu 主题，甚至有点审美疲劳了。**
+>
+> 既然已经把 Astro 7 原生架构与原版视觉彻底跑通上线，这段执念也算圆满收官。接下来**本项目将维持现状不再主动更新**，我还是决定回去继续打磨自己的 **[Dusklight](https://github.com/mcxiaochenn/Dusklight)**（基于 Astro 与 Svelte 的玻璃质感个人博客主题，支持响应式布局、全文搜索、评论、统计与丰富 Markdown）。
+>
+> 代码按 GPL-3.0 协议完整留存，如果你喜欢这套视觉，欢迎直接 Fork 自用或二开 ✨
+
 ![](https://upload-bbs.miyoushe.com/upload/2025/07/04/125766904/658277d773c29a145adf0d05055ce477_909497354353121629.webp?x-oss-process=image///quality,q_100/auto-orient,0/interlace,1/format,avif)
 
 ## 💻 快速开始
